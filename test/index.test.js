@@ -1,26 +1,29 @@
 'use strict';
 
-var expect = require('chai').expect;
-var fs = require('fs');
-var path = require('path');
+const expect = require('chai').expect;
+const { JSDOM } = require('jsdom');
+const fs = require('fs');
+const path = require('path');
+const testdir = path.join(__dirname, './fixtures');
 
+global.document = new JSDOM('<div id="app"></div>').window.document;
+global.testapp = document.getElementById('app');
 const radi = require('../src');
-
-var autoTestDir = path.join(__dirname, './fixtures');
 
 describe('radi.js', function () {
 
-  fs.readdirSync(autoTestDir)
+  fs.readdirSync(testdir)
     .forEach(function(name) {
       if (/^(\.|\~)/.test(name)) {
         return;
       }
 
       it(name, () => {
+        testapp.innerHTML = '';
         expect(
-          require(autoTestDir + '/' + name)(radi).trim()
+          (require(testdir + '/' + name)(radi)).trim()
         ).to.equal(
-          fs.readFileSync(autoTestDir + '/' + name + '/expected.html', 'utf8').trim()
+          fs.readFileSync(testdir + '/' + name + '/expected.html', 'utf8').trim()
         );
       });
 
