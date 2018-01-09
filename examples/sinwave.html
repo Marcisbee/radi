@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Radi.js - SinWave</title>
+  <style>
+    .animated-sin-wave {
+      position: relative;
+      height: 150px;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .animated-sin-wave > .bar {
+      position: absolute;
+      height: 100%;
+      border-radius: 50%;
+      max-width: 10px;
+      transform: scale(0.8,.5) translateY(0%) rotate(0deg)
+    }
+
+    .animated-sin-wave-description {
+      width: 100%;
+      text-align: center;
+      font-size: 0.8em;
+      color: #747678;
+      padding: 2em;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script src="../src/index.js"></script>
+  <script>
+    const { r, component, list, link, mount } = radi;
+
+    const sinWave = component({
+      view: (state, actions) => {
+        return r('div.animated-sin-wave',
+          state.bars.loop((bar, i) => {
+            return r('div.bar',
+              {
+                style: {
+                  width: state.barWidth.get() + '%',
+                  left: ( state.barWidth.get() * i ) + '%',
+                  transform: link(function (state) { return 'scale(0.8,.5) translateY(' + bar.translateY.get() + '%) rotate(' + state.rotation + 'deg)'; }, state),
+                  backgroundColor: bar.color
+                }
+              }
+            );
+          })
+        );
+      },
+      state: {
+        barWidth: 1,
+        barCount: 100,
+        active: false,
+        count: 0,
+        step: 0.5,
+        translateY: 0,
+        rotation: 0,
+        bars: []
+      },
+      actions: {
+        onMount(state) {
+          console.log('Mounted');
+
+          state.active = true;
+          state.bars = this.getColors(state);
+
+          this.nextFrame(state);
+        },
+        onDestroy(state) {
+          console.log('Destroyed');
+
+          state.active = false;
+          state.bars.splice(0, state.bars.length);
+        },
+        getColors(state) {
+          var arr = [];
+          for (var i = 0; i < state.barCount; i++) {
+            var hue = (360 / state.barCount * i - state.count) % 360;
+            arr.push({
+              id: i,
+              color: 'hsl(' + hue + ',95%,55%)',
+              translateY: Math.sin(state.count/10 + i/5) * 100 * .5
+            });
+          }
+          return arr;
+        },
+        nextFrame(state) {
+          if (state.active) {
+            state.count += state.step;
+            state.rotation = (state.count+1)%360;
+
+            state.bars = this.getColors(state);
+
+            window.requestAnimationFrame(() => {
+              this.nextFrame(state);
+            });
+          }
+        }
+      }
+    });
+
+    mount(sinWave, 'app');
+  </script>
+</body>
+</html>

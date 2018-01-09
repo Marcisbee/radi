@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Radi.js - Large Data</title>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    const rand = Math.random
+
+    function buildData(count, start) {
+      start = (start) ? start : 0;
+      const adjectives = [
+        "pretty",
+        "large",
+        "big",
+        "small",
+        "tall",
+        "short",
+        "long",
+        "handsome",
+        "plain",
+        "quaint",
+        "clean",
+        "elegant",
+        "easy",
+        "angry",
+        "crazy",
+        "helpful",
+        "mushy",
+        "odd",
+        "unsightly",
+        "adorable",
+        "important",
+        "inexpensive",
+        "cheap",
+        "expensive",
+        "fancy",
+      ]
+
+      const colours = [
+        "red",
+        "yellow",
+        "blue",
+        "green",
+        "pink",
+        "brown",
+        "purple",
+        "brown",
+        "white",
+        "black",
+        "orange",
+      ]
+
+      const nouns = [
+        "table",
+        "chair",
+        "house",
+        "bbq",
+        "desk",
+        "car",
+        "pony",
+        "cookie",
+        "sandwich",
+        "burger",
+        "pizza",
+        "mouse",
+        "keyboard",
+      ]
+
+      var i = start + 1;
+      return new Array(count).fill(0).map(_ => ({ id: i++, value: `${adjectives[
+        rand() * 1000 % adjectives.length >> 0]} ${colours[
+        rand() * 1000 % colours.length >> 0]} ${nouns[
+        rand() * 1000 % nouns.length >> 0]}`
+      }))
+    }
+
+    var observee;
+    var observer;
+    var bnc = {};
+    var av = (k = 'null', i) => {
+      if (typeof bnc[k] === 'undefined') bnc[k] = [];
+      var p = bnc[k];
+      p.push(i);
+      return p.reduce((a, b) => (a + b)) / p.length;
+    }
+    var bench = (k, c, s) => {
+      let t;
+      observer = new MutationObserver(() => {
+        let e = performance.now();
+        console.log(k, (e - t).toFixed(2), ', AVG =', av(k, e - t).toFixed(2) + 'ms');
+        s.bench = (e - t).toFixed(2);
+        observer.disconnect();
+      });
+      observer.observe(observee, { attributes: true, childList: true, subtree: true, characterData: true });
+      t = performance.now();
+      c();
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          observer.disconnect();
+        });
+      });
+      // let e = performance.now();
+      // console.log(k, (e - t).toFixed(2), ', AVG =', av(k, e - t));
+    };
+
+    function random_rgba() {
+      var o = Math.round, r = Math.random, s = 175, i = 50;
+      return 'rgb(' + o(r()*s+i) + ',' + o(r()*s+i) + ',' + o(r()*s+i) + ')';
+    }
+  </script>
+  <script src="../src/index.js"></script>
+  <script>
+    var perf0 = performance.now();
+    const { r, component, list, link, mount, condition } = radi;
+
+    const state = {
+      name: 'Marcis',
+      num: 0,
+      time: 0,
+      count: 0,
+      color: 'red',
+      show: false,
+      list: [],
+      bench: '-'
+    }
+
+    const actions = {
+      onMount(state) {
+        console.log('Mounted in', performance.now() - perf0, 'ms');
+
+        setInterval(() => {
+          state.num = ('0' + Math.round(Math.random() * 100)).substr(-2);
+        }, 0);
+
+        setInterval(() => {
+          state.time = ('0' + Math.round(Math.random() * 100)).substr(-2);
+        }, 1000);
+
+        setInterval(() => {
+          state.color = random_rgba();
+        }, 100);
+      },
+      toggle(state, events) {
+        bench('Toggle element', () => {
+          state.show = !state.show;
+        }, state);
+      },
+      reverse(state) {
+        bench('Reverse list', () => {
+          state.list.reverse();
+        }, state);
+      },
+      create1000(state) {
+        bench('Create 1,000 rows', () => {
+          state.list = buildData(1000, 0);
+          state.count = 1000;
+        }, state);
+      },
+      add1000(state) {
+        bench('Add 1,000 rows', () => {
+          state.list = state.list.concat(buildData(1000, state.count));
+          state.count += 1000;
+        }, state);
+      },
+      add10000(state) {
+        bench('Add 10,000 rows', () => {
+          state.list = state.list.concat(buildData(10000, state.count));
+          state.count += 10000;
+        }, state);
+      },
+      pop(state) {
+        bench('Remove 1 row', () => {
+          state.list.pop();
+          state.count -= 1;
+        }, state);
+      },
+      update(state, events) {
+        bench('Update every 10th row', () => {
+          for (var i = 0; i < state.list.length; i++) {
+            if (!((i + 1) % 10)) state.list[i] = { value: state.list[i].value + ' !!!' };
+          }
+        }, state);
+      },
+      remove(state, events) {
+        bench('Remove all rows', () => {
+          state.list.splice(0, state.list.length);
+          state.count = 0;
+        }, state);
+      },
+      swap(state, events) {
+        bench('Swap 5th and 10th rows', () => {
+          var x = 4, y = 9;
+          state.list[x] = state.list.splice(y, 1, state.list[x])[0];
+        }, state);
+      }
+    }
+
+    const view = (state, actions) => {
+      return r('div',
+        {
+          style: {
+            'white-space': 'pre'
+          }
+        },
+        '\n\n\n',
+        r('h4',
+          'My name is ',
+          state.name
+        ),
+        r('input', { type: 'email', autofocus: true, model: state.name }),
+        r('hr'),
+        condition(
+          state.show,
+          r('div',
+            {
+              style: {
+                'color': state.color
+              }
+            },
+            '\nThis refreshes 60fps:\n',
+            state.num,
+            '\n\n',
+            'This refreshes every second:\n',
+            state.time
+          )
+        ),
+        r('button',
+          { onclick: actions.toggle },
+          'Toggle Color Test'
+        ),
+        r('hr'),
+        r('div',
+          r('h3',
+            link((state) => ('Item count: ' + state.count), state)
+          ),
+          'Benchmark: ',
+          state.bench,
+          ' ms',
+          r('div',
+            r('button',
+              { onclick: actions.create1000 },
+              'Create 1,000 rows'
+            ),
+            r('button',
+              { onclick: actions.add1000 },
+              'Add 1,000 rows'
+            ),
+            r('button',
+              { onclick: actions.add10000 },
+              'Add 10,000 rows'
+            ),
+            '\n',
+            r('button',
+              { onclick: actions.pop },
+              'Remove 1 row'
+            ),
+            r('button',
+              { onclick: actions.reverse },
+              'Reverse Test'
+            ),
+            r('button',
+              { onclick: actions.swap },
+              'Swap Test'
+            ),
+            r('button',
+              { onclick: actions.remove },
+              'Remove all'
+            )
+          ),
+          observee = r('ul',
+            'Child node on top\n\n',
+            state.list.loop(item => r('li',
+              item.id,
+              ' - ',
+              item.value
+            )),
+            '\nChild node at bottom'
+          )
+        )
+      );
+    };
+
+    const main = component({
+      view: view,
+      state: state,
+      actions: actions
+    });
+
+    mount(main, 'app');
+  </script>
+</body>
+</html>
