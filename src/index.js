@@ -4,35 +4,108 @@
 	(factory((global.radi = {})));
 }(this, (function (exports) { 'use strict';
 
-  var deepReplace = function (obj1, obj2) {
-    for (var key in obj2) {
-      if (!obj2.hasOwnProperty(key)) continue;
-      if (obj1[key] && typeof obj1[key] === 'object' && !obj1[key].__radi) {
-        deepReplace(obj1[key], obj2[key]);
-      } else {
-        obj1[key] = obj2[key];
-      }
-    }
-    return true;
-  }
 
-  var deepCreate = function (obj) {
-    var newobj = {};
-    if (typeof Object.assign != 'function') {
-      Object.assign(newobj, obj);
-    } else {
-      for (var key in obj) {
-        if (!obj.hasOwnProperty(key)) continue;
-        if (obj[key] && typeof obj[key] === 'object' && !obj[key].__radi) {
-          newobj[key] = deepCreate(obj[key]);
-        } else {
-          newobj[key] = obj[key];
+  var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
+  var FIND_L = /\bl\(/g;
+
+  var RL = '('.charCodeAt(0);
+  var RR = ')'.charCodeAt(0);
+  var HASH = '#'.charCodeAt(0);
+  var DOT = '.'.charCodeAt(0);
+
+  var TAGNAME = 0;
+  var ID = 1;
+  var CLASSNAME = 2;
+
+  function deepClone2(obj) {
+    var i, ret, ret2;
+    if (typeof obj === "object") {
+      if (obj === null) return obj;
+      if (Object.prototype.toString.call(obj) === "[object Array]") {
+        ret = [];
+        for (i = 0; i < obj.length; i++) {
+          if (typeof obj[i] === "object") {
+            ret2 = deepClone2(obj[i]);
+          } else {
+            ret2 = obj[i];
+          }
+          ret.push(ret2);
+        }
+      } else {
+        ret = {};
+        for (i in obj) {
+          if (obj.hasOwnProperty(i)) {
+            if (typeof(obj[i] === "object")) {
+              ret2 = deepClone2(obj[i]);
+            } else {
+              ret2 = obj[i];
+            }
+            ret[i] = ret2;
+          }
         }
       }
+    } else {
+      ret = obj;
     }
-    return newobj;
+
+    return ret;
   }
 
+  Object.defineProperties(Object, {
+    // extend: {
+    //   configurable: true,
+    //   enumerable: false,
+    //   value: function extend(what, wit) {
+    //     if (!wit) return what;
+    //     const extObj = (Array.isArray(wit)) ? [] : {}, witKeys = Object.keys(wit);
+    //
+    //     for (var i = 0; i < witKeys.length; i++) {
+    //       const key = witKeys[i];
+    //       const end = wit[key];
+    //       extObj[key] = (end && (end.constructor === Object || end.constructor === Array)) ? Object.clone(end) : end;
+    //     }
+    //
+    //     return extObj;
+    //   },
+    //   writable: true
+    // },
+    // clone: {
+    //   configurable: true,
+    //   enumerable: false,
+    //   value: function clone(obj) {
+    // 		return Object.extend((Array.isArray(obj)) ? [] : {}, obj);
+    //   },
+    //   writable: true
+    // },
+    relocate: {
+      configurable: true,
+      enumerable: false,
+      value: function relocate(what, wit) {
+        const witKeys = Object.keys(wit);
+
+        for (var key in wit) {
+          const end = wit[key];
+          if (end && typeof end === 'object' && what.__radi !== true) {
+            Object.relocate(what[key], end);
+          } else {
+            what[key] = end;
+          }
+        }
+        // for (var i = 0; i < witKeys.length; i++) {
+        //   const key = witKeys[i];
+        //   const end = wit[key];
+        //   if (end && typeof end === 'object' && what.__radi !== true) {
+        //     Object.relocate(what[key], end);
+        //   } else {
+        //     what[key] = end;
+        //   }
+        // }
+
+        return true;
+      },
+      writable: true
+    }
+  });
 
   var dsc = Object.getOwnPropertyDescriptor;
 
@@ -41,9 +114,9 @@
       prev = (typeof dsc(targ, prop) !== 'undefined') ? dsc(targ, prop).set : null,
       setter = function (newval) {
         if (oldval !== newval) {
+          oldval = newval;
           if (typeof prev === 'function') prev(newval);
           handler.call(targ, prop, oldval, newval);
-          oldval = newval;
         }
         else { return false }
       };
@@ -60,7 +133,6 @@
     }
   }
 
-
   var detector = function (f, tr) {
     return function () {
       var o = this.length;
@@ -68,7 +140,8 @@
       if (f === 'reverse' || f === 'splice') {
         var temp = [];
         for (var i = 0; i < this.length; i++) {
-          temp.push(deepCreate(this[i]));
+          temp.push(deepClone2(this[i]));
+          // temp.push(Object.clone(this[i]));
         }
         var out = Array.prototype[f].apply(temp, arguments);
 
@@ -101,11 +174,16 @@
       set: function (newVal) {
         var o = oldVal.length;
 
-        deepReplace(oldVal, newVal);
+        Object.relocate(oldVal, newVal);
 
         dt[key].trigger(newVal.length-o, oldVal);
       },
       enumerable: true,
+      configurable: true
+    });
+
+    Object.defineProperty(obj, key + '__ob__', {
+      value: dt[key],
       configurable: true
     });
 
@@ -116,7 +194,7 @@
       pop: { value: detector('pop', dt[key].trigger) },
       reverse: { value: detector('reverse', dt[key].trigger) },
       shift: { value: detector('shift', dt[key].trigger) },
-      unshift: { value: detector('unshift', dt[key].trigger) },
+      unshift: { value: detector('unshift', dt[key].trigger) }
     });
   }
 
@@ -126,24 +204,16 @@
     Object.defineProperty(obj, key, {
       get: function () { return oldVal; },
       set: function (newVal) {
-        deepReplace(oldVal, newVal);
+        Object.relocate(oldVal, newVal);
       },
       enumerable: true,
       configurable: true
     });
 
-    Object.defineProperty(obj[key], '__radi', {
-      value: true,
+    Object.defineProperties(obj[key], {
+      __radi: { value: true },
     });
   }
-
-
-  var HASH = '#'.charCodeAt(0);
-  var DOT = '.'.charCodeAt(0);
-
-  var TAGNAME = 0;
-  var ID = 1;
-  var CLASSNAME = 2;
 
   var parseQuery = function (query) {
     var tag = null;
@@ -236,6 +306,11 @@
             value: function(c) {
               handler = c;
             }
+          },
+          data: {
+            value: function() {
+              return state[i];
+            }
           }
         });
       })(i)
@@ -248,6 +323,9 @@
       if (!state[i].__radi)
         watchObject(state, i);
       populate(dt[i], state[i]);
+    } else
+    if (isWatchable(state[i])) {
+      dt[i] = state[i];
     } else {
       dt[i] = watchable(state, i);
     }
@@ -255,7 +333,11 @@
 
   function populate(dt, state) {
     for (var i in state) {
-      popu(dt, state, i);
+      if (!isWatchable(state[i])) {
+        popu(dt, state, i);
+      } else {
+        dt[i] = state[i];
+      }
     }
   }
 
@@ -265,6 +347,11 @@
 
   var Watchable = function Watchable (data, prop) {
     var temp = data;
+
+    Object.defineProperty(data, prop + '__ob__', {
+      value: this,
+      configurable: true
+    });
 
     this.watch = function watch (c) {
       watcher(temp, prop, (p, prev, next) => {
@@ -285,15 +372,10 @@
       applied.watch = function watch (c) {
         watcher(temp, prop, (p, prev, next) => {
           c((next)[fn](args));
-          // c(([fn]).apply(next, args));
-          // c(next);
           return next;
         });
       };
       return applied;
-      // var args = [], len = arguments.length - 1;
-      // while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
-      // console.log('apply', args);
     };
 
     this.get = function get () {
@@ -302,44 +384,104 @@
   };
 
 
+  var ids = 0;
 
   class Radi {
-    constructor(state, actions, view) {
-      for (var a in actions) {
-        (function (a) {
-          Object.defineProperty(actions[a], '__radistate', {
-            get: function() {
-              return state;
-            }
-          });
-          Object.defineProperty(actions[a], '__radiactions', {
-            get: function() {
-              return actions;
-            }
-          });
-        })(a)
+    constructor(o) {
+      var state = o.state || {},
+        props = o.props || {},
+        actions = o.actions || {},
+        view = o.view;
+
+      this.$id = ids++;
+
+      this.$this = {};
+      var SELF = this.$this;
+
+      for (var k in state) {
+        if (typeof SELF[k] === 'undefined') {
+          SELF[k] = state[k];
+        } else {
+          throw new Error('[Radi.js] Err: Trying to write state for reserved variable `' + k + '`');
+        }
       }
 
-      this.data = {};
+      for (var k in props) {
+        if (typeof SELF[k] === 'undefined') {
+          if (isWatchable(props[k])) {
+            SELF[k] = props[k].get();
+            props[k].watch(function (a) {
+              SELF[k] = a;
+            });
+          } else {
+            SELF[k] = props[k];
+          }
+        } else {
+          throw new Error('[Radi.js] Err: Trying to write prop for reserved variable `' + k + '`');
+        }
+      }
 
-      populate(this.data, state);
+      var data = {};
+      populate(data, SELF);
 
-      this.html = document.createDocumentFragment();
+      for (var k in actions) {
+        if (typeof SELF[k] === 'undefined') {
+          const act = actions[k];
+          SELF[k] = function () { return act.apply(SELF, arguments) };
 
-      this.link = view(this.data, actions);
-      this.html.appendChild(this.link);
+          (function(SELF, k) {
+            Object.defineProperty(SELF[k], 'props', {
+              value() {
+                var args = arguments;
+                return function () { return SELF[k].apply(SELF, args, arguments) }
+              }
+            });
+          })(SELF, k)
+        } else {
+          throw new Error('[Radi.js] Error: Trying to write action for reserved variable `' + k + '`');
+        }
+      }
+
+      SELF.$id = this.$id;
+      SELF.$state = state;
+      SELF.$props = props;
+      SELF.$actions = actions;
+      SELF.$data = data;
+
+      this.$html = document.createDocumentFragment();
+
+      this.$view = new Function(
+        'r',
+        'list',
+        'l',
+        // 'return ' + output
+        'return ' + o.$view
+      )(
+        r.bind(SELF),
+        list.bind(SELF),
+        l.bind(SELF),
+      );
+
+      // console.log(this.$view);
+
+      this.$link = this.$view.apply(SELF);
+
+      if (this.$link instanceof Component || Array.isArray(this.$link)) {
+        this.$link = r.call(SELF, null, this.$link);
+      }
+      this.$html.appendChild(this.$link);
 
       this.mount = function () {
         if (typeof actions.onMount === 'function') {
-          actions.onMount.call(actions, state)
+          actions.onMount.call(SELF)
         }
       };
 
       this.unmount = function () {
         if (typeof actions.onDestroy === 'function') {
-          actions.onDestroy.call(actions, state)
+          actions.onDestroy.call(SELF)
         }
-        return this.link;
+        return this.$link;
       };
     }
 
@@ -350,7 +492,7 @@
 
     get out() {
       this.mount();
-      return this.html;
+      return this.$html;
     }
   }
 
@@ -365,7 +507,7 @@
   var setStyle = function (view, arg1, arg2) {
     var el = getEl(view);
 
-    if (arg2 !== undefined && arg2 instanceof Watchable) {
+    if (isWatchable(arg2)) {
       el.style[arg1] = arg2.get();
       // Update bind
       arg2.watch((a) => {
@@ -385,12 +527,13 @@
   };
 
   var setAttr = function (view, arg1, arg2) {
+    var self = this;
     var el = getEl(view);
 
     if (arg2 !== undefined) {
       if (arg1 === 'style') {
         setStyle(el, arg2);
-      } else if (arg1 === 'model' && arg2 instanceof Watchable) {
+      } else if (arg1 === 'model' && isWatchable(arg2)) {
         el.value = arg2.get();
         el['oninput'] = function () { arg2.data()[arg2.prop] = el.value };
         arg2.watch(function (a) {
@@ -399,8 +542,8 @@
           });
         });
       } else if (isFunction(arg2)) {
-        el[arg1] = function (e) { arg2.call(arg2.__radiactions, arg2.__radistate, e); };
-      } else if (arg2 instanceof Watchable) {
+        el[arg1] = function (e) { arg2.call(self, e); };
+      } else if (isWatchable(arg2)) {
         el.setAttribute(arg1, arg2.get());
         // Update bind
         arg2.watch(function (a) {
@@ -413,7 +556,7 @@
       }
     } else {
       for (var key in arg1) {
-        setAttr(el, key, arg1[key]);
+        setAttr.call(this, el, key, arg1[key]);
       }
     }
   };
@@ -426,7 +569,8 @@
   var isFunction = function (a) { return typeof a === 'function'; };
 
   var isNode = function (a) { return a && a.nodeType; };
-  var isComponent = function (a) { return a && a instanceof Radi; };
+  var isWatchable = function (a) { return a && a instanceof Watchable; };
+  var isComponent = function (a) { return a && a.__radi; };
 
   var text = function (str) { return document.createTextNode(str); };
 
@@ -439,28 +583,28 @@
       }
 
       // support middleware
+      if (isComponent(arg)) {
+        element.appendChild(arg.__radi().out);
+      } else
       if (typeof arg === 'function') {
-        arg(element);
+        arg.call(this, element);
       } else if (isString(arg) || isNumber(arg)) {
         element.appendChild(text(arg));
       } else if (isNode(getEl(arg))) {
         element.appendChild(arg);
-      } else if (isComponent(arg)) {
-        element.appendChild(arg.out);
       } else if (Array.isArray(arg)) {
-        radiArgs(element, arg);
-      } else if (arg instanceof Watchable) {
+        radiArgs.call(this, element, arg);
+      } else if (isWatchable(arg)) {
         let z = text(arg.get());
         element.appendChild(z);
         // Update bind
         arg.watch(function (a) {
           radiMutate(() => {
-            // z.nodeValue = a;
             z.textContent = a;
           });
         });
       } else if (typeof arg === 'object') {
-        setAttr(element, arg);
+        setAttr.call(this, element, arg);
       }
 
     }
@@ -478,14 +622,13 @@
 
     if (isString(query)) {
       element = memoizeHTML(query).cloneNode(false);
-      // element = document.createElement(query).cloneNode(false);
     } else if (isNode(query)) {
       element = query.cloneNode(false);
     } else {
-      throw new Error('At least one argument required');
+      element = document.createDocumentFragment();
     }
 
-    radiArgs(element, args);
+    radiArgs.call(this, element, args);
 
     return element;
   };
@@ -500,30 +643,93 @@
   };
 
   var component = function (o) {
-    return new Radi(o.state, o.actions, o.view);
-  }
+    var fn = o.view.toString().replace(STRIP_COMMENTS, '')
+    var match = FIND_L.exec(fn);
+    var output = [];
+    var cursor = 0;
 
+    while (match !== null) {
+      var n = match.index;
+      var all = match.input;
+
+      const len = all.length;
+      var _l = 1, _r = 0;
+      for (var i = n + 2; i < len; i++) {
+        var char = all.charCodeAt(i);
+        if (char === RL) {
+          _l += 1;
+        } else
+        if (char === RR) {
+          _r += 1;
+        }
+        if (_l === _r) break;
+      }
+
+      var found = all.substr(n, i + 1 - n);
+
+      var m = found.match(/[a-zA-Z_$]+(?:\.\w+(?:\[.*\])?)+/g) || [];
+      var obs = (m.length > 0) ? m.join('__ob__,') + '__ob__' : '';
+      var newString = 'l(function(){ return ' + found.substr(1) + '; },[' + obs + '], "' + m.join(',') + '")';
+
+      output.push(fn.substr(cursor, n - cursor));
+      output.push(newString);
+      cursor = n + found.length;
+
+      match = FIND_L.exec(fn);
+    }
+    output.push(fn.substr(cursor, fn.length - cursor));
+    o.$view = output.join('');
+
+    return Component.bind(this, o);
+  };
+  var Component = function Component (o) {
+    this.o = {
+      state: deepClone2(o.state),
+      // state: Object.clone(o.state),
+      props: deepClone2(o.props),
+      // props: Object.clone(o.props),
+      actions: o.actions,
+      view: o.view,
+      $view: o.$view,
+    };
+
+    this.__radi = function() { return new Radi(this.o); };
+  };
+  Component.prototype.props = function props (p) {
+    for (var k in p) {
+      if (typeof this.o.props[k] === 'undefined') {
+        console.warn('[Radi.js] Warn: Creating a prop `', k, '` that is not defined in component');
+      }
+      this.o.props[k] = p[k];
+    }
+    return this;
+  };
 
   var mount = function (comp, id) {
-    document.getElementById(id).appendChild( comp.out );
+    if (comp instanceof Component) {
+      document.getElementById(id).appendChild( comp.__radi().out );
+    } else {
+      document.getElementById(id).appendChild( comp );
+    }
   }
 
-  var list = function (data, act) {
-    // if (typeof data === 'object' && data.watch) data = data.e;
+  var emptyNode = text('');
 
-    var link, fragment = document.createDocumentFragment(), toplink = text('');
+  var list = function (data, act) {
+    if (!data) return '';
+    var SELF = this;
+
+    var link, fragment = document.createDocumentFragment(), toplink = emptyNode.cloneNode();
 
     fragment.appendChild(toplink);
 
     var ret = [];
     for (var i = 0; i < data.length; i++) {
       fragment.appendChild(
-        act(data[i], i)
+        act.call(SELF, data.data()[i], i)
       );
     }
     link = fragment.lastChild;
-
-
 
     data.watch(function(a, b) {
       if (a > 0) {
@@ -531,7 +737,7 @@
         for (var i = start; i < b.length; i++) {
           popu(this, b, i);
           fragment.appendChild(
-            act(this[i], i)
+            act.call(SELF, data.data()[i], i)
           );
         }
         var temp = fragment.lastChild;
@@ -550,95 +756,36 @@
     return fragment;
   }
 
+  var link = function (fn, watch, txt) {
+    var args = { s: null }, SELF = this, n, f = fn.bind(this);
 
-
-
-  /**
-  * Get the keys of the paramaters of a function.
-  *
-  * @param {function} method  Function to get parameter keys for
-  * @return {array}
-  */
-  var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
-  var ARGUMENT_NAMES = /(?:^|,)\s*([^\s,=]+)/g;
-  function getFunctionParameters ( func ) {
-    var fnStr = func.replace(STRIP_COMMENTS, '');
-    var argsList = fnStr.slice(fnStr.indexOf('(')+1, fnStr.indexOf(')'));
-    var result = argsList.match( ARGUMENT_NAMES );
-
-    if(result === null) {
-      return null;
-    } else {
-      return result[0].replace(/[\s,]/g, '');
+    if (txt.length === 1 && fn.toString()
+          .replace(/(function \(\)\{ return |\(|\)|\; \})/g, '')
+          .trim() === txt[0]) {
+      return watch[0];
     }
-  }
 
-  function onlyUnique(value, index, self) {
-    return self.indexOf(value) === index;
-  }
+    for (var i = 0; i < watch.length; i++) {
+      if (isWatchable(watch[i])) {
+        n = true;
+        watch[i].watch(function () {
+          args.s = f(SELF);
+        });
+      }
+    }
 
-  function inject(fn) {
-    var fs = fn.toString();
-    var arg = getFunctionParameters(fs);
-    return fs.replace(STRIP_COMMENTS, '').match(new RegExp('(?:'+arg+'+[\\w$]*)(?:\\.[a-zA-Z_$]+[\\w$]*)+', 'g')).filter(onlyUnique);
-    // return fs.replace(STRIP_COMMENTS, '').match(new RegExp('\\b(?:'+arg+'+?\\.)+\\S+\\b', 'g')).filter(onlyUnique);
-  }
+    args.s = f(SELF);
 
-
-  var link = function (fn, state) {
-    var args = { w: false, a: [], s: '' };
-  	var watch = inject(fn);
-  	var deState;
-
-  	for (var i = 0; i < watch.length; i++) {
-  		var a1 = state[watch[i].replace('state.', '')];
-  		if (a1 instanceof Watchable) {
-        (function (args, i) {
-          this.watch(function (v) {
-  					// console.log(deState);
-            // args.a[i] = v;
-            window.requestAnimationFrame(() => {
-  	          args.s = fn(deState.data());
-  					});
-          });
-        }).call(a1, args, i);
-  			deState = a1;
-  		}
-  	}
-
-  	if (deState && deState.data) {
-  		args.s = fn(deState.data());
-  	}
+    if (!n) return args.s;
   	return watchable(args, 's');
-
-  	// console.log(fn.prototype, fn);
-  	// console.log(this, fn, watch);
-
-    // for (var i = 0; i < arguments.length; i++) {
-    //   var a1 = arguments[i];
-    //   if (a1 instanceof Watchable) {
-    //     args.w = true;
-    //     (function (args, i) {
-    //       this.watch(function (v) {
-    //         args.a[i] = v;
-    //         args.s = args.a.join('');
-    //       });
-    //     }).call(a1, args, i);
-    //     args.a[i] = a1.get();
-    //   } else {
-    //     args.a[i] = a1;
-    //   }
-    // }
-    // args.s = args.a.join('');
-    // return (args.w) ? watchable(args, 's') : args.s;
   }
 
   var condition = function (a, e) {
-    var repl = text('');
+    var repl = emptyNode.cloneNode();
     var temp = e;
     var element;
 
-    if (a instanceof Watchable) {
+    if (isWatchable(a)) {
       element = (a.get()) ? temp : repl;
       a.watch((a) => {
         // radiMutate(() => {
@@ -663,15 +810,22 @@
     return element;
   }
 
+  var l = function (f, w, c) {
+    if (!w) {
+      return f;
+    } else {
+      return link.call(this, f, w, c.split(','));
+    }
+  }
 
   exports.r = r;
+  exports.l = l;
   exports.list = list;
   exports.link = link;
+  exports.text = text;
   exports.mount = mount;
   exports.condition = condition;
   exports.component = component;
-  exports.text = text;
 
   Object.defineProperty(exports, '__esModule', { value: true });
-
 })));
