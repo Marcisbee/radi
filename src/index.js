@@ -137,7 +137,7 @@
     return function () {
       var o = this.length;
 
-      if (f === 'reverse' || f === 'splice') {
+      if (f === 'reverse' || f === 'splice' || f === 'unshift') {
         var temp = [];
         for (var i = 0; i < this.length; i++) {
           temp.push(deepClone2(this[i]));
@@ -300,7 +300,7 @@
             }
           },
           trigger: {
-            value: function () { handler.apply(this, arguments); }
+            value: function () { handler.apply(dt[i], arguments); }
           },
           watch: {
             value: function(c) {
