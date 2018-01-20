@@ -42,16 +42,16 @@
     const { r, component, list, link, mount } = radi;
 
     const sinWave = component({
-      view: (state, actions) => {
+      view: function () {
         return r('div.animated-sin-wave',
-          state.bars.loop((bar, i) => {
+          list(l(this.bars), function (bar, i) {
             return r('div.bar',
               {
                 style: {
-                  width: state.barWidth.get() + '%',
-                  left: ( state.barWidth.get() * i ) + '%',
-                  transform: link(function (state) { return 'scale(0.8,.5) translateY(' + bar.translateY.get() + '%) rotate(' + state.rotation + 'deg)'; }, state),
-                  backgroundColor: bar.color
+                  width: this.barWidth + '%',
+                  left: ( this.barWidth * i ) + '%',
+                  transform: l('scale(0.8,.5) translateY(' + bar.translateY + '%) rotate(' + this.rotation + 'deg)'),
+                  backgroundColor: l(bar.color)
                 }
               }
             );
@@ -66,51 +66,57 @@
         step: 0.5,
         translateY: 0,
         rotation: 0,
-        bars: []
+        bars: [],
+        transform: 'scale(0.8,.5) translateY(0%) rotate(0deg)'
       },
       actions: {
-        onMount(state) {
+        onMount() {
           console.log('Mounted');
 
-          state.active = true;
-          state.bars = this.getColors(state);
+          this.active = true;
+          this.bars = this.getColors();
 
-          this.nextFrame(state);
+          this.nextFrame();
         },
-        onDestroy(state) {
+        onDestroy() {
           console.log('Destroyed');
 
-          state.active = false;
-          state.bars.splice(0, state.bars.length);
+          this.active = false;
+          this.bars.splice(0, this.bars.length);
         },
-        getColors(state) {
+        getColors() {
           var arr = [];
-          for (var i = 0; i < state.barCount; i++) {
-            var hue = (360 / state.barCount * i - state.count) % 360;
+          for (var i = 0; i < this.barCount; i++) {
+            var hue = (360 / this.barCount * i - this.count) % 360;
             arr.push({
               id: i,
               color: 'hsl(' + hue + ',95%,55%)',
-              translateY: Math.sin(state.count/10 + i/5) * 100 * .5
+              translateY: Math.sin(this.count/10 + i/5) * 100 * .5,
             });
           }
           return arr;
         },
-        nextFrame(state) {
-          if (state.active) {
-            state.count += state.step;
-            state.rotation = (state.count+1)%360;
+        nextFrame() {
+          // return false;
+          if (this.active) {
+            this.count += this.step;
+            this.rotation = (this.count+1)%360;
 
-            state.bars = this.getColors(state);
+            this.bars = this.getColors();
 
             window.requestAnimationFrame(() => {
-              this.nextFrame(state);
+              this.nextFrame(this);
             });
           }
         }
       }
     });
 
-    mount(sinWave, 'app');
+    mount(r('div',
+      new sinWave(),
+      new sinWave(),
+      // new sinWave(),
+    ), 'app');
   </script>
 </body>
 </html>

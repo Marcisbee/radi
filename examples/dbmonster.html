@@ -321,16 +321,20 @@
   <script src="http://mathieuancelin.github.io/js-repaint-perfs/lib/monitor.js"></script>
   <script src="../src/index.js"></script>
   <script>
-    const { r, component, list, link, mount } = radi;
+    const { r, l, component, mount } = radi;
+
+    var raf = requestAnimationFrame
+      || msRequestAnimationFrame
+      || mozRequestAnimationFrame
+      || webkitRequestAnimationFrame
+      || oRequestAnimationFrame
+      || setTimeout;
 
     const main = component({
-      view: (state, actions) => {
+      view: function () {
         return r('table.table.table-striped.latest-data',
-          {
-            onclick: actions.toggle
-          },
           r('tbody',
-            state.dbs.loop((db, i) => {
+            l(this.dbs).loop((db, i) => {
               return r('tr',
                 r('td.dbname',
                   db.dbname
@@ -338,20 +342,20 @@
                 r('td.query-count',
                   r('span',
                     {
-                      class: db.lastSample.countClassName
+                      class: l(db.lastSample.countClassName)
                     },
-                    db.nbQueries
+                    l(db.nbQueries)
                   )
                 ),
-                db.lastSample.topFiveQueries.loop((q, i) => {
+                l(db.lastSample.topFiveQueries).loop((q, i) => {
                   return r('td',
                     {
-                      class: link((q) => ('Query ' + q.elapsedClassName), q)
+                      class: l('Query ' + q.elapsedClassName)
                     },
-                    q.formatElapsed,
+                    l(q.formatElapsed),
                     r('div.popover.left',
                       r('div.popover-content',
-                        q.query
+                        l(q.query)
                       ),
                       r('div.arrow')
                     )
@@ -363,40 +367,22 @@
         );
       },
       state: {
-        barWidth: 1,
-        barCount: 100,
-        active: false,
-        count: 0,
-        step: 0.5,
-        translateY: 0,
-        rotation: 0,
         dbs: []
       },
       actions: {
-        onMount(state) {
-          console.log('Mounted');
+        onMount() {
+          var self = this;
 
-          this.start(state);
-        },
-        onDestroy(state) {
-          state.active = false;
-        },
-        start(state) {
-          state.active = true;
-          setInterval(this.nextFrame, ENV.timeout, state);
-        },
-        toggle(state) {
-          state.active = !state.active;
-        },
-        nextFrame(state) {
-          if (state.active) {
-            state.dbs = ENV.generateData(true).toArray(Monitoring.renderRate.ping());
-          }
+          raf(function frame() {
+            self.dbs = ENV.generateData().toArray();
+            Monitoring.renderRate.ping();
+            raf(frame);
+          })
         }
       }
     });
 
-    mount(main, 'app');
+    mount(new main(), 'app');
   </script>
 </body>
 </html>
