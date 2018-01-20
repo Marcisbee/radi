@@ -1,17 +1,22 @@
-module.exports = function ({ r, mount, component }) {
+module.exports = function ({ r, l, mount, component }) {
   const app = component({
-    view: (state, actions) => {
-      return r('div', state.hello);
+    view: function () {
+      return r('div',
+        'Hello',
+        l(' ' + this.hello)
+      );
     },
     state: {
-      hello: 'Hello World'
+      hello: 'orld'
     },
     actions: {
-      //
+      onMount() {
+        this.hello = 'W' + this.hello;
+      }
     }
   });
 
-  mount(app, 'app');
+  mount(new app(), 'app');
 
   return testapp.innerHTML;
 };
