@@ -44,6 +44,7 @@
   <div id="app"></div>
 
   <script src="../src/index.js"></script>
+  <script src="../src/devtools.js"></script>
   <script>
     const { r, component, list, link, mount, l } = radi;
 
@@ -85,6 +86,7 @@
     var targetSize = 31;
 
     const triangle = component({
+      name: 'triangle',
       view: function() {
         var s = this.s;
 
@@ -137,6 +139,7 @@
     });
 
     const main = component({
+      name: 'main',
       state: {
         elapsed: 0,
         scale: 1,

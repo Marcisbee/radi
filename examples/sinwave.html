@@ -38,10 +38,12 @@
 <body>
   <div id="app"></div>
   <script src="../src/index.js"></script>
+  <script src="../src/devtools.js"></script>
   <script>
     const { r, component, list, link, mount } = radi;
 
     const sinWave = component({
+      name: 'sin-wave',
       view: function () {
         return r('div.animated-sin-wave',
           list(l(this.bars), function (bar, i) {

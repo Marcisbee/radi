@@ -4,6 +4,7 @@
 	(factory((global.radi = {})));
 }(this, (function (exports) { 'use strict';
 
+	exports.version = '0.0.1';
 
   var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
   var FIND_L = /\bl\(/g;
@@ -385,6 +386,7 @@
 
 
   var ids = 0;
+	var activeComponents = [];
 
   class Radi {
     constructor(o) {
@@ -443,6 +445,7 @@
       }
 
       SELF.$id = this.$id;
+      SELF.$name = o.name;
       SELF.$state = state;
       SELF.$props = props;
       SELF.$actions = actions;
@@ -477,12 +480,19 @@
         if (typeof actions.onMount === 'function') {
           actions.onMount.call(SELF)
         }
+				activeComponents.push(this.$this);
       };
 
       this.unmount = function () {
         if (typeof actions.onDestroy === 'function') {
           actions.onDestroy.call(SELF)
         }
+				for (var i = 0; i < activeComponents.length; i++) {
+					if (activeComponents[i].$id === this.$id) {
+						activeComponents.splice(i, 1);
+						break;
+					}
+				}
         return this.$link;
       };
     }
@@ -686,6 +696,7 @@
   };
   var Component = function Component (o) {
     this.o = {
+      name: o.name,
       state: deepClone2(o.state),
       // state: Object.clone(o.state),
       props: deepClone2(o.props),
@@ -708,10 +719,11 @@
   };
 
   var mount = function (comp, id) {
+		const where = (id.constructor === String) ? document.getElementById(id) : id;
     if (comp instanceof Component) {
-      document.getElementById(id).appendChild( comp.__radi().out );
+      where.appendChild( comp.__radi().out );
     } else {
-      document.getElementById(id).appendChild( comp );
+      where.appendChild( comp );
     }
   }
 
@@ -828,6 +840,7 @@
   exports.mount = mount;
   exports.condition = condition;
   exports.component = component;
+  exports.activeComponents = activeComponents;
 
   Object.defineProperty(exports, '__esModule', { value: true });
 })));
