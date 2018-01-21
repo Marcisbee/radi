@@ -43,13 +43,14 @@
 
   <div id="app"></div>
 
-  <script src="https://rawgit.com/radi-js/radi/gh-pages/test.js"></script>
+  <script src="https://rawgit.com/radi-js/radi/master/src/index.js"></script>
+  <script src="https://rawgit.com/radi-js/radi/master/src/devtools.js"></script>
   <script>
-    const { r, component, list, link, mount } = radi;
+    const { r, component, list, link, mount, l } = radi;
 
     const dot = component({
-      view(state, actions, r, link) {
-        var size = link((state) => (state.size + 'px'));
+      view: function () {
+        var size = l(this.size + 'px');
         return r('div.dot',
           {
             style: {
@@ -59,17 +60,16 @@
               cursor: 'pointer',
               width: size,
               height: size,
-              left: link((state) => ((state.x) + 'px')),
-              top: link((state) => ((state.y) + 'px')),
-              borderRadius: link((state) => ((state.size / 2) + 'px')),
+              left: l(this.x + 'px'),
+              top: l(this.y + 'px'),
+              borderRadius: l((this.size / 2) + 'px'),
               lineHeight: size,
-              background: link((state) => (state.hover ? '#ff0' : '#61dafb'))
+              background: l(this.hover ? '#ff0' : '#61dafb')
             },
-            onmouseenter: (state) => { state.hover = true; },
-            onmouseleave: (state) => { state.hover = false; },
+            onmouseenter: () => { this.hover = true; },
+            onmouseleave: () => { this.hover = false; },
           },
-          state.text
-          // link((state) => (!state.hover ? '*' + state.text + '*' : state.text))
+          l(this.hover ? '*' + this.text + '*' : this.text)
         );
       },
       props: {
@@ -86,38 +86,47 @@
     var targetSize = 31;
 
     const triangle = component({
-      view: (state, actions, r) => {
-        var s = state.s.get();
+      name: 'triangle',
+      view: function() {
+        var s = this.s;
 
         if (s <= targetSize) {
           return r('div',new dot().props({
-            x: state.x.get() - (targetSize / 2),
-            y: state.y.get() - (targetSize / 2),
+            x: this.x - (targetSize / 2),
+            y: this.y - (targetSize / 2),
             size: targetSize,
-            text: state.seconds,
+            text: l(this.seconds),
           }));
         }
 
         s = s / 2;
 
+        var slowDown = true;
+        if (slowDown) {
+          var e = performance.now() + 0.8;
+          while (performance.now() < e) {
+            // Artificially long execution time.
+          }
+        }
+
         return r('div',
           new triangle().props({
-            x: state.x.get(),
-            y: state.y.get() - (s / 2),
+            x: this.x,
+            y: this.y - (s / 2),
             s: s,
-            seconds: state.seconds
+            seconds: l(this.seconds)
           }),
           new triangle().props({
-            x: state.x.get() - s,
-            y: state.y.get() + (s / 2),
+            x: this.x - s,
+            y: this.y + (s / 2),
             s: s,
-            seconds: state.seconds
+            seconds: l(this.seconds)
           }),
           new triangle().props({
-            x: state.x.get() + s,
-            y: state.y.get() + (s / 2),
+            x: this.x + s,
+            y: this.y + (s / 2),
             s: s,
-            seconds: state.seconds
+            seconds: l(this.seconds)
           })
         );
       },
@@ -130,12 +139,14 @@
     });
 
     const main = component({
+      name: 'main',
       state: {
         elapsed: 0,
         scale: 1,
-        seconds: 0
+        seconds: 0,
+        start: null
       },
-      view: (state, actions, r, link) => {
+      view: function () {
         return r('div',
           {
             style: {
@@ -146,35 +157,39 @@
               width: '10px',
               height: '10px',
               background: '#eee',
-              transform: link(((state) => ('scaleX(' + (state.scale / 2.1) + ') scaleY(0.7) translateZ(0.1px)')))
+              transform: l('scaleX(' + (this.scale / 2.1) + ') scaleY(0.7) translateZ(0.1px)')
             }
           },
           new triangle().props({
             x: 0,
             y: 0,
             s: 1000,
-            seconds: state.seconds
+            seconds: l(this.seconds)
           })
         );
       },
       actions: {
-        onMount(state) {
+        onMount() {
           console.log('mounted');
-          this.nextFrame(state);
-          this.nextSecond(state);
+
+          this.start = Date.now();
+
+          this.nextFrame();
+          this.nextSecond();
         },
-        nextFrame(state) {
-          state.elapsed += 18;
-          const t = (state.elapsed / 1000) % 10;
-          state.scale = 1 + (t > 5 ? 10 - t : t) / 10;
+        nextFrame() {
+          this.elapsed = Date.now() - this.start;
+          const t = (this.elapsed / 1000) % 10;
+          this.scale = 1 + (t > 5 ? 10 - t : t) / 10;
+
           window.requestAnimationFrame(() => {
-            this.nextFrame(state);
+            this.nextFrame();
           });
         },
-        nextSecond(state) {
-          state.seconds = (state.seconds > 9) ? 0 : state.seconds + 1;
+        nextSecond() {
+          this.seconds = (this.seconds > 9) ? 0 : this.seconds + 1;
           setTimeout(() => {
-            this.nextSecond(state);
+            this.nextSecond();
           }, 1000);
         }
       }
@@ -182,6 +197,7 @@
 
     mount(new main(), 'app');
   </script>
+
 </body>
 
 </html>
