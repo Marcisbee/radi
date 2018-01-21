@@ -454,12 +454,14 @@
         'r',
         'list',
         'l',
+        'condition',
         // 'return ' + output
         'return ' + o.$view
       )(
         r.bind(SELF),
         list.bind(SELF),
         l.bind(SELF),
+        condition.bind(SELF),
       );
 
       // console.log(this.$view);
