@@ -43,9 +43,9 @@
       .raddebug-component > strong {
         display: block;
         cursor: pointer;
-        padding: 10px 14px;
+        padding: 5px 10px;
         border-radius: inherit;
-        font-size: 15px;
+        font-size: 14px;
         font-weight: normal;
       }
       .raddebug-component > strong > i {
@@ -57,7 +57,7 @@
       .raddebug-component > ul {
         display: block;
         margin: 0;
-        padding: 0 14px 10px 14px;
+        padding: 0 10px 10px 10px;
         font-size: 14px;
         list-style: none;
       }

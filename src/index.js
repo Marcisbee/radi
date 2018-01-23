@@ -23,25 +23,24 @@
     if (typeof obj === "object") {
       if (obj === null) return obj;
       if (Object.prototype.toString.call(obj) === "[object Array]") {
-        ret = [];
-        for (i = 0; i < obj.length; i++) {
+				var len = obj.length;
+        ret = new Array(len);
+        for (i = 0; i < len; i++) {
           if (typeof obj[i] === "object") {
-            ret2 = deepClone2(obj[i]);
+            ret[i] = deepClone2(obj[i]);
           } else {
-            ret2 = obj[i];
+            ret[i] = obj[i];
           }
-          ret.push(ret2);
         }
       } else {
         ret = {};
         for (i in obj) {
           if (obj.hasOwnProperty(i)) {
             if (typeof(obj[i] === "object")) {
-              ret2 = deepClone2(obj[i]);
+              ret[i] = deepClone2(obj[i]);
             } else {
-              ret2 = obj[i];
+              ret[i] = obj[i];
             }
-            ret[i] = ret2;
           }
         }
       }
@@ -82,7 +81,7 @@
       configurable: true,
       enumerable: false,
       value: function relocate(what, wit) {
-        const witKeys = Object.keys(wit);
+        const witKeys = (wit) ? Object.keys(wit) : [];
 
         for (var key in wit) {
           const end = wit[key];
@@ -139,17 +138,20 @@
       var o = this.length;
 
       if (f === 'reverse' || f === 'splice' || f === 'unshift') {
-        var temp = [];
-        for (var i = 0; i < this.length; i++) {
-          temp.push(deepClone2(this[i]));
+				var len = Math.max(0, this.length);
+				var temp = new Array(len);
+        for (var i = 0; i < len; i++) {
+          temp[i] = deepClone2(this[i]);
+          // temp.push(deepClone2(this[i]));
           // temp.push(Object.clone(this[i]));
         }
         var out = Array.prototype[f].apply(temp, arguments);
+				var len2 = Math.max(0, out.length);
 
-        for (var i = 0; i < temp.length; i++) {
+        for (var i = 0; i < len; i++) {
           this[i] = temp[i];
         }
-        this.length = temp.length;
+        this.length = len;
 
         if (f === 'splice') {
           var al = arguments.length - 2;
@@ -168,6 +170,16 @@
   };
 
   var watchArray = function (dt, obj, key) {
+		// watcher(obj, key, (p, prev, next) => {
+		// 	var o = prev.length;
+		//
+		// 	console.log('aaaaaa');
+		//
+		// 	Object.relocate(prev, next);
+		//
+		// 	dt[key].trigger(next.length-o, prev);
+		// });
+
     var oldVal = obj[key];
 
     Object.defineProperty(obj, key, {
@@ -476,6 +488,14 @@
       }
       this.$html.appendChild(this.$link);
 
+			this.$html.destroy = (function () {
+		    const oldRootElem = this.$link.parentElement;
+		    const newRootElem = oldRootElem.cloneNode(false);
+		    oldRootElem.parentNode.insertBefore(newRootElem, oldRootElem);
+				this.unmount();
+		    oldRootElem.parentNode.removeChild(oldRootElem);
+			}).bind(this);
+
       this.mount = function () {
         if (typeof actions.onMount === 'function') {
           actions.onMount.call(SELF)
@@ -720,11 +740,9 @@
 
   var mount = function (comp, id) {
 		const where = (id.constructor === String) ? document.getElementById(id) : id;
-    if (comp instanceof Component) {
-      where.appendChild( comp.__radi().out );
-    } else {
-      where.appendChild( comp );
-    }
+		var out = (comp instanceof Component) ? comp.__radi().out : comp;
+		where.appendChild(out);
+		return out;
   }
 
   var emptyNode = text('');
@@ -824,6 +842,8 @@
     return element;
   }
 
+  r.prototype.if = condition;
+
   var l = function (f, w, c) {
     if (!w) {
       return f;
@@ -841,6 +861,18 @@
   exports.condition = condition;
   exports.component = component;
   exports.activeComponents = activeComponents;
+
+	// For devtools
+	window.radi = {
+		r: exports.r,
+		l: exports.l,
+		list: exports.list,
+		version: exports.version,
+		condition: exports.condition,
+		component: exports.component,
+		mount: exports.mount,
+		activeComponents: exports.activeComponents
+	};
 
   Object.defineProperty(exports, '__esModule', { value: true });
 })));

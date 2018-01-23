@@ -13,6 +13,8 @@
   - [ ] Export `state.json`
   - [ ] Import `state.json`
   - [ ] State timeline
-- [ ] Create `radi-hot-reloader`
+- [x] Create `radi-hot-loader`
+  - [ ] Save current state
+  - [ ] Set warnings and errors
 - [x] Eliminate need for `.get()`
 - [ ] Write tests for everything
