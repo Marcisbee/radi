@@ -246,6 +246,8 @@
             'This refreshes every second:\n',
             l(this.time)
           )
+        ).else(
+          r('div', '[ There is something hidden here ]')
         ),
         r('button',
           { onclick: this.toggle.props('asd') },
@@ -257,9 +259,11 @@
             'Item count: ',
             l(this.count),
           ),
-          r('h3',
-            'More than 1000: ',
-            l((this.count > 1000)),
+          condition(
+            l(this.count < 1000),
+            r('h3', '< 1000')
+          ).else(
+            r('h3', '>= 1000')
           ),
           'Benchmark: ',
           l(this.bench),
@@ -297,8 +301,8 @@
           ),
           r('ul',
             'Child node on top\n\n',
-            l(this.list).loop(item => r('li',
-            // list(l(this.list), item => r('li',
+            // this.list.loop(item => r('li',
+            list(l(this.list), item => r('li',
               l(item.id),
               ' - ',
               l(item.value)
