@@ -1,866 +1,785 @@
 (function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
-	typeof define === 'function' && define.amd ? define(['exports'], factory) :
-	(factory((global.radi = {})));
+typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
+typeof define === 'function' && define.amd ? define(['exports'], factory) :
+(factory((global.radi = {})));
 }(this, (function (exports) { 'use strict';
 
 	exports.version = '0.0.1';
 
-  var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
-  var FIND_L = /\bl\(/g;
+	var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
+	var FIND_L = /\bl\(/g;
 
-  var RL = '('.charCodeAt(0);
-  var RR = ')'.charCodeAt(0);
-  var HASH = '#'.charCodeAt(0);
-  var DOT = '.'.charCodeAt(0);
+	var RL = '('.charCodeAt(0);
+	var RR = ')'.charCodeAt(0);
+	var HASH = '#'.charCodeAt(0);
+	var DOT = '.'.charCodeAt(0);
 
-  var TAGNAME = 0;
-  var ID = 1;
-  var CLASSNAME = 2;
+	var TAGNAME = 0;
+	var ID = 1;
+	var CLASSNAME = 2;
 
-  function deepClone2(obj) {
-    var i, ret, ret2;
-    if (typeof obj === "object") {
-      if (obj === null) return obj;
-      if (Object.prototype.toString.call(obj) === "[object Array]") {
+	var _op = Object.prototype,
+	isObject = function (o) { return o && o.__proto__ === _op },
+	isArray = function (o) { return Array.isArray(o) === true }
+
+	function deepClone2(obj) {
+		var i, ret, ret2;
+		if (typeof obj === "object") {
+			if (obj === null) return obj;
+			if (Object.prototype.toString.call(obj) === "[object Array]") {
 				var len = obj.length;
-        ret = new Array(len);
-        for (i = 0; i < len; i++) {
-          if (typeof obj[i] === "object") {
-            ret[i] = deepClone2(obj[i]);
-          } else {
-            ret[i] = obj[i];
-          }
-        }
-      } else {
-        ret = {};
-        for (i in obj) {
-          if (obj.hasOwnProperty(i)) {
-            if (typeof(obj[i] === "object")) {
-              ret[i] = deepClone2(obj[i]);
-            } else {
-              ret[i] = obj[i];
-            }
-          }
-        }
-      }
-    } else {
-      ret = obj;
-    }
+				ret = new Array(len);
+				for (i = 0; i < len; i++) {
+					if (typeof obj[i] === "object") {
+						ret[i] = deepClone2(obj[i]);
+					} else {
+						ret[i] = obj[i];
+					}
+				}
+			} else {
+				ret = {};
+				for (i in obj) {
+					if (obj.hasOwnProperty(i)) {
+						if (typeof(obj[i] === "object")) {
+							ret[i] = deepClone2(obj[i]);
+						} else {
+							ret[i] = obj[i];
+						}
+					}
+				}
+			}
+		} else {
+			ret = obj;
+		}
 
-    return ret;
-  }
+		return ret;
+	}
 
-  Object.defineProperties(Object, {
-    // extend: {
-    //   configurable: true,
-    //   enumerable: false,
-    //   value: function extend(what, wit) {
-    //     if (!wit) return what;
-    //     const extObj = (Array.isArray(wit)) ? [] : {}, witKeys = Object.keys(wit);
-    //
-    //     for (var i = 0; i < witKeys.length; i++) {
-    //       const key = witKeys[i];
-    //       const end = wit[key];
-    //       extObj[key] = (end && (end.constructor === Object || end.constructor === Array)) ? Object.clone(end) : end;
-    //     }
-    //
-    //     return extObj;
-    //   },
-    //   writable: true
-    // },
-    // clone: {
-    //   configurable: true,
-    //   enumerable: false,
-    //   value: function clone(obj) {
-    // 		return Object.extend((Array.isArray(obj)) ? [] : {}, obj);
-    //   },
-    //   writable: true
-    // },
-    relocate: {
-      configurable: true,
-      enumerable: false,
-      value: function relocate(what, wit) {
-        const witKeys = (wit) ? Object.keys(wit) : [];
+	Object.defineProperties(Object, {
+		relocate: {
+			configurable: true,
+			enumerable: false,
+			value: function relocate(what, wit) {
+				for (var key in wit) {
+					const end = wit[key]
+					var change = false
+					if (end && typeof end === 'object') {
+						if (typeof what[key] === 'undefined') what[key] = end.constructor()
+						Object.relocate(what[key], end)
+						change = true
+					} else {
+						if (what[key] !== end) {
+							change = true
+							what[key] = end
+						}
+					}
+					if (change) populateOne(what, key)
+				}
+			},
+			writable: true
+		}
+	});
 
-        for (var key in wit) {
-          const end = wit[key];
-          if (end && typeof end === 'object' && what.__radi !== true) {
-            Object.relocate(what[key], end);
-          } else {
-            what[key] = end;
-          }
-        }
-        // for (var i = 0; i < witKeys.length; i++) {
-        //   const key = witKeys[i];
-        //   const end = wit[key];
-        //   if (end && typeof end === 'object' && what.__radi !== true) {
-        //     Object.relocate(what[key], end);
-        //   } else {
-        //     what[key] = end;
-        //   }
-        // }
+	var arrayProxy = function arrayProxy() {
+		var l1 = this[0].length,
+				arr = deepClone2(this[0]),
+				// arr = this[0],
+				ret = Array.prototype[this[1]].apply(arr, arguments),
+				l2 = arr.length,
+				diff = l2 - l1
 
-        return true;
-      },
-      writable: true
-    }
-  });
+		this[0].length = l2
 
-  var dsc = Object.getOwnPropertyDescriptor;
+		if (diff < 0) {
+			for (var i = l1; i > l1 + diff; i--) {
+				delete this[0][(i-1)+'__ob__']
+				delete this[0][(i-1)]
+			}
+		}
 
-  var watcher = function watcher(targ, prop, handler) {
-    var oldval = targ[prop],
-      prev = (typeof dsc(targ, prop) !== 'undefined') ? dsc(targ, prop).set : null,
-      setter = function (newval) {
-        if (oldval !== newval) {
-          oldval = newval;
-          if (typeof prev === 'function') prev(newval);
-          handler.call(targ, prop, oldval, newval);
-        }
-        else { return false }
-      };
+		Object.relocate(this[0], arr)
 
-    if (delete targ[prop]) {
-      Object.defineProperty(targ, prop, {
-        get: function () {
-          return oldval;
-        },
-        set: setter,
-        enumerable: true,
-        configurable: true
-      });
-    }
-  }
+		if (diff !== 0) {
+			this[0]._r_set(diff, this[0])
+		}
 
-  var detector = function (f, tr) {
-    return function () {
-      var o = this.length;
+		return ret
+	}
 
-      if (f === 'reverse' || f === 'splice' || f === 'unshift') {
-				var len = Math.max(0, this.length);
-				var temp = new Array(len);
-        for (var i = 0; i < len; i++) {
-          temp[i] = deepClone2(this[i]);
-          // temp.push(deepClone2(this[i]));
-          // temp.push(Object.clone(this[i]));
-        }
-        var out = Array.prototype[f].apply(temp, arguments);
-				var len2 = Math.max(0, out.length);
+	var arrayRules = function arrayRules(item, def) {
+		// TODO: Creaete _r_set loop with array of bucket
+		// var bucket = []
+		var bucket = () => {}
+		def._r_set = { value: function (v) { bucket(v, item) } }
+		def._r_get = { value: function (cb) { bucket = cb } }
+		def.push = { value: function () { return arrayProxy.apply([this, 'push'], arguments) } }
+		def.pop = { value: function () { return arrayProxy.apply([this, 'pop'], arguments) } }
+		def.splice = { value: function () { return arrayProxy.apply([this, 'splice'], arguments) } }
+		def.shift = { value: function () { return arrayProxy.apply([this, 'shift'], arguments) } }
+		def.unshift = { value: function () { return arrayProxy.apply([this, 'unshift'], arguments) } }
+		def.reverse = { value: function () { return arrayProxy.apply([this, 'reverse'], arguments) } }
+	}
 
-        for (var i = 0; i < len; i++) {
-          this[i] = temp[i];
-        }
-        this.length = len;
+	var populateOne = function populateOne(item, ii) {
+		if (typeof item[ii + '__ob__'] !== 'undefined') return false
 
-        if (f === 'splice') {
-          var al = arguments.length - 2;
-          var rl = out.length;
-          tr(-(rl - al), this);
-        } else {
-          tr(this.length-o, this);
-        }
-      } else {
-        var out = Array.prototype[f].apply(this, arguments);
-        tr(this.length-o, this);
-      }
+		var def = { __r: { value: true } }
 
-      return out;
-    }
-  };
+		// If input is an Array
+		if (isArray(item) && typeof item.__r === 'undefined' && !item.__r) {
+			arrayRules(item, def)
+		}
 
-  var watchArray = function (dt, obj, key) {
-		// watcher(obj, key, (p, prev, next) => {
-		// 	var o = prev.length;
-		//
-		// 	console.log('aaaaaa');
-		//
-		// 	Object.relocate(prev, next);
-		//
-		// 	dt[key].trigger(next.length-o, prev);
-		// });
+		def[ii + '__ob__'] = { value: watchable(item, ii), configurable: true }
 
-    var oldVal = obj[key];
+		if (typeof item[ii] === 'object') populate(item[ii])
 
-    Object.defineProperty(obj, key, {
-      get: function () { return oldVal; },
-      set: function (newVal) {
-        var o = oldVal.length;
+		return Object.defineProperties(item, def)
+	}
 
-        Object.relocate(oldVal, newVal);
+	// Add watchers to every object and array
+	var populate = function populate(item) {
+		if (item && typeof item === 'object') {
+			var def = { __r: { value: true } }
 
-        dt[key].trigger(newVal.length-o, oldVal);
-      },
-      enumerable: true,
-      configurable: true
-    });
+			// If input is an Array
+			if (isArray(item)) {
+				if (typeof item.__r === 'undefined' && !item.__r) {
+					arrayRules(item, def)
+				}
 
-    Object.defineProperty(obj, key + '__ob__', {
-      value: dt[key],
-      configurable: true
-    });
+				for (var ii in item) {
+					// Add watchable
+					// Should not be able to reconfigure this
+					if (typeof item[ii + '__ob__'] === 'undefined') {
+						def[ii + '__ob__'] = { value: watchable(item, ii), configurable: true }
+						populate(item[ii])
+					}
+				}
 
-    Object.defineProperties(obj[key], {
-      __radi: { value: true },
-      push: { value: detector('push', dt[key].trigger) },
-      splice: { value: detector('splice', dt[key].trigger) },
-      pop: { value: detector('pop', dt[key].trigger) },
-      reverse: { value: detector('reverse', dt[key].trigger) },
-      shift: { value: detector('shift', dt[key].trigger) },
-      unshift: { value: detector('unshift', dt[key].trigger) }
-    });
-  }
+			} else
+			// If input is an Object
+			if (isObject(item)) {
 
-  var watchObject = function (obj, key) {
-    var oldVal = obj[key];
+				for (var ii in item) {
+					// Add watchable
+					// Should not be able to reconfigure this
+					if (typeof item[ii + '__ob__'] === 'undefined') {
+						def[ii + '__ob__'] = { value: watchable(item, ii), configurable: true }
+						populate(item[ii])
+					}
+				}
 
-    Object.defineProperty(obj, key, {
-      get: function () { return oldVal; },
-      set: function (newVal) {
-        Object.relocate(oldVal, newVal);
-      },
-      enumerable: true,
-      configurable: true
-    });
+			}
 
-    Object.defineProperties(obj[key], {
-      __radi: { value: true },
-    });
-  }
+			return Object.defineProperties(item, def)
+		} else { return false }
+	}
 
-  var parseQuery = function (query) {
-    var tag = null;
-    var id = null;
-    var className = null;
-    var mode = TAGNAME;
-    var buffer = '';
+	var watchable = function (data, prop) { return new Watchable(data, prop) }
 
-    for (var i = 0; i <= query.length; i++) {
-      var char = query.charCodeAt(i);
-      var isHash = char === HASH;
-      var isDot = char === DOT;
-      var isEnd = !char;
+	var Watchable = function Watchable (data, prop) {
+		var temp = data;
 
-      if (isHash || isDot || isEnd) {
-        if (mode === TAGNAME) {
-          if (i === 0) {
-            tag = 'div';
-          } else {
-            tag = buffer;
-          }
-        } else if (mode === ID) {
-          id = buffer;
-        } else {
-          if (className) {
-            className += ' ' + buffer;
-          } else {
-            className = buffer;
-          }
-        }
+		this.watch = function watch (c) {
+			watcher(temp, prop, (p, prev, next) => {
+				c(next, prev)
+				return next
+			})
+		}
 
-        if (isHash) {
-          mode = ID;
-        } else if (isDot) {
-          mode = CLASSNAME;
-        }
+		this.prop = prop
+		this.data = function data () {
+			return temp
+		}
 
-        buffer = '';
-      } else {
-        buffer += query[i];
-      }
-    }
+		this.get = function get () {
+			return temp[prop]
+		}
+	}
 
-    return { tag: tag, id: id, className: className };
-  };
+	var dsc = Object.getOwnPropertyDescriptor
+	var watcher = function watcher(targ, prop, handler) {
+		var oldval = targ[prop],
+			prev = (typeof dsc(targ, prop) !== 'undefined') ? dsc(targ, prop).set : null,
+			setter = function (newval) {
+				if (oldval !== newval) {
+					if (isObject(newval)) {
+						
+						Object.relocate(oldval, newval)
+					} else
+					if (isArray(newval)) {
+						var diff = newval.length - oldval.length
+						oldval.length = newval.length
 
-  var createElement = function (query, ns) {
-    var ref = parseQuery(query);
-    var tag = ref.tag;
-    var id = ref.id;
-    var className = ref.className;
-    var element = ns ? document.createElementNS(ns, tag) : document.createElement(tag);
+						Object.relocate(oldval, newval)
+						newval = diff
+					} else {
+						oldval = newval
+					}
+					if (typeof prev === 'function') prev(newval)
+					handler.call(targ, prop, oldval, newval)
+				} else {
+					return false
+				}
+			}
 
-    if (id) {
-      element.id = id;
-    }
-
-    if (className) {
-      if (ns) {
-        element.setAttribute('class', className);
-      } else {
-        element.className = className;
-      }
-    }
-
-    return element;
-  };
-
-  if (!Array.isArray) {
-    Array.isArray = function(arg) {
-      return Object.prototype.toString.call(arg) === '[object Array]';
-    };
-  }
-
-  function popu(dt, state, i) {
-    if (state[i] && Array.isArray(state[i])) {
-      dt[i] = [];
-      (function (i) {
-        var handler = function () {};
-        Object.defineProperties(dt[i], {
-          loop: {
-            value: function(c) {
-              return list(dt[i], c, state[i]);
-            }
-          },
-          trigger: {
-            value: function () { handler.apply(dt[i], arguments); }
-          },
-          watch: {
-            value: function(c) {
-              handler = c;
-            }
-          },
-          data: {
-            value: function() {
-              return state[i];
-            }
-          }
-        });
-      })(i)
-      if (!state[i].__radi)
-        watchArray(dt, state, i);
-      populate(dt[i], state[i]);
-    } else
-    if (state[i] && typeof state[i] === 'object') {
-      dt[i] = {};
-      if (!state[i].__radi)
-        watchObject(state, i);
-      populate(dt[i], state[i]);
-    } else
-    if (isWatchable(state[i])) {
-      dt[i] = state[i];
-    } else {
-      dt[i] = watchable(state, i);
-    }
-  }
-
-  function populate(dt, state) {
-    for (var i in state) {
-      if (!isWatchable(state[i])) {
-        popu(dt, state, i);
-      } else {
-        dt[i] = state[i];
-      }
-    }
-  }
-
-  var watchable = function (data, prop) {
-    return new Watchable(data, prop);
-  };
-
-  var Watchable = function Watchable (data, prop) {
-    var temp = data;
-
-    Object.defineProperty(data, prop + '__ob__', {
-      value: this,
-      configurable: true
-    });
-
-    this.watch = function watch (c) {
-      watcher(temp, prop, (p, prev, next) => {
-        c(next);
-        return next;
-      });
-    };
-
-    this.prop = prop;
-    this.data = function data () {
-      return temp;
-    };
-
-    this.apply = function data (fn) {
-      var args = [], len = arguments.length - 1;
-      while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
-      var applied = this;
-      applied.watch = function watch (c) {
-        watcher(temp, prop, (p, prev, next) => {
-          c((next)[fn](args));
-          return next;
-        });
-      };
-      return applied;
-    };
-
-    this.get = function get () {
-      return temp[prop];
-    };
-  };
+		if (delete targ[prop]) {
+			Object.defineProperty(targ, prop, {
+				get: function () {
+					return oldval;
+				},
+				set: setter,
+				enumerable: true,
+				configurable: true
+			})
+		}
+	}
 
 
-  var ids = 0;
+	var parseQuery = function (query) {
+		var tag = null;
+		var id = null;
+		var className = null;
+		var mode = TAGNAME;
+		var buffer = '';
+
+		for (var i = 0; i <= query.length; i++) {
+			var char = query.charCodeAt(i);
+			var isHash = char === HASH;
+			var isDot = char === DOT;
+			var isEnd = !char;
+
+			if (isHash || isDot || isEnd) {
+				if (mode === TAGNAME) {
+					if (i === 0) {
+						tag = 'div';
+					} else {
+						tag = buffer;
+					}
+				} else if (mode === ID) {
+					id = buffer;
+				} else {
+					if (className) {
+						className += ' ' + buffer;
+					} else {
+						className = buffer;
+					}
+				}
+
+				if (isHash) {
+					mode = ID;
+				} else if (isDot) {
+					mode = CLASSNAME;
+				}
+
+				buffer = '';
+			} else {
+				buffer += query[i];
+			}
+		}
+
+		return { tag: tag, id: id, className: className };
+	};
+
+	var createElement = function (query, ns) {
+		var ref = parseQuery(query);
+		var tag = ref.tag;
+		var id = ref.id;
+		var className = ref.className;
+		var element = ns ? document.createElementNS(ns, tag) : document.createElement(tag);
+
+		if (id) {
+			element.id = id;
+		}
+
+		if (className) {
+			if (ns) {
+				element.setAttribute('class', className);
+			} else {
+				element.className = className;
+			}
+		}
+
+		return element;
+	};
+
+	if (!Array.isArray) {
+		Array.isArray = function(arg) {
+			return Object.prototype.toString.call(arg) === '[object Array]';
+		};
+	}
+
+
+	var ids = 0;
 	var activeComponents = [];
 
-  class Radi {
-    constructor(o) {
-      var state = o.state || {},
-        props = o.props || {},
-        actions = o.actions || {},
-        view = o.view;
+	class Radi {
+		constructor(o) {
+			var state = o.state || {},
+				props = o.props || {},
+				actions = o.actions || {},
+				view = o.view;
 
-      this.$id = ids++;
+			this.$id = ids++;
 
-      this.$this = {};
-      var SELF = this.$this;
+			this.$this = {};
+			var SELF = this.$this;
 
-      for (var k in state) {
-        if (typeof SELF[k] === 'undefined') {
-          SELF[k] = state[k];
-        } else {
-          throw new Error('[Radi.js] Err: Trying to write state for reserved variable `' + k + '`');
-        }
-      }
+			for (var k in state) {
+				if (typeof SELF[k] === 'undefined') {
+					SELF[k] = state[k];
+				} else {
+					throw new Error('[Radi.js] Err: Trying to write state for reserved variable `' + k + '`');
+				}
+			}
 
-      for (var k in props) {
-        if (typeof SELF[k] === 'undefined') {
-          if (isWatchable(props[k])) {
-            SELF[k] = props[k].get();
-            props[k].watch(function (a) {
-              SELF[k] = a;
-            });
-          } else {
-            SELF[k] = props[k];
-          }
-        } else {
-          throw new Error('[Radi.js] Err: Trying to write prop for reserved variable `' + k + '`');
-        }
-      }
+			for (var k in props) {
+				if (typeof SELF[k] === 'undefined') {
+					if (isWatchable(props[k])) {
+						SELF[k] = props[k].get();
+						props[k].watch(function (a) {
+							SELF[k] = a;
+						});
+					} else {
+						SELF[k] = props[k];
+					}
+				} else {
+					throw new Error('[Radi.js] Err: Trying to write prop for reserved variable `' + k + '`');
+				}
+			}
 
-      var data = {};
-      populate(data, SELF);
+			populate(SELF);
+			var data = SELF;
 
-      for (var k in actions) {
-        if (typeof SELF[k] === 'undefined') {
-          const act = actions[k];
-          SELF[k] = function () { return act.apply(SELF, arguments) };
+			for (var k in actions) {
+				if (typeof SELF[k] === 'undefined') {
+					const act = actions[k];
+					SELF[k] = function () { return act.apply(SELF, arguments) };
 
-          (function(SELF, k) {
-            Object.defineProperty(SELF[k], 'props', {
-              value() {
-                var args = arguments;
-                return function () { return SELF[k].apply(SELF, args, arguments) }
-              }
-            });
-          })(SELF, k)
-        } else {
-          throw new Error('[Radi.js] Error: Trying to write action for reserved variable `' + k + '`');
-        }
-      }
+					(function(SELF, k) {
+						Object.defineProperty(SELF[k], 'props', {
+							value() {
+								var args = arguments;
+								return function () { return SELF[k].apply(SELF, args, arguments) }
+							}
+						});
+					})(SELF, k)
+				} else {
+					throw new Error('[Radi.js] Error: Trying to write action for reserved variable `' + k + '`');
+				}
+			}
 
-      SELF.$id = this.$id;
-      SELF.$name = o.name;
-      SELF.$state = state;
-      SELF.$props = props;
-      SELF.$actions = actions;
-      SELF.$data = data;
+			SELF.$id = this.$id;
+			SELF.$name = o.name;
+			SELF.$state = state;
+			SELF.$props = props;
+			SELF.$actions = actions;
+			// SELF.$data = data;
 
-      this.$html = document.createDocumentFragment();
+			this.$html = document.createDocumentFragment();
 
-      this.$view = new Function(
-        'r',
-        'list',
-        'l',
-        'condition',
-        // 'return ' + output
-        'return ' + o.$view
-      )(
-        r.bind(SELF),
-        list.bind(SELF),
-        l.bind(SELF),
-        condition.bind(SELF),
-      );
+			this.$view = new Function(
+				'r',
+				'list',
+				'l',
+				'condition',
+				// 'return ' + output
+				'return ' + o.$view
+			)(
+				r.bind(SELF),
+				list.bind(SELF),
+				l.bind(SELF),
+				condition.bind(SELF)
+			);
 
-      // console.log(this.$view);
+			// console.log(this.$view);
 
-      this.$link = this.$view.apply(SELF);
+			this.$link = this.$view.apply(SELF);
 
-      if (this.$link instanceof Component || Array.isArray(this.$link)) {
-        this.$link = r.call(SELF, null, this.$link);
-      }
-      this.$html.appendChild(this.$link);
+			if (this.$link instanceof Component || Array.isArray(this.$link)) {
+				this.$link = r.call(SELF, null, this.$link);
+			}
+			this.$html.appendChild(this.$link);
 
 			this.$html.destroy = (function () {
-		    const oldRootElem = this.$link.parentElement;
-		    const newRootElem = oldRootElem.cloneNode(false);
-		    oldRootElem.parentNode.insertBefore(newRootElem, oldRootElem);
+				const oldRootElem = this.$link.parentElement;
+				const newRootElem = oldRootElem.cloneNode(false);
+				oldRootElem.parentNode.insertBefore(newRootElem, oldRootElem);
 				this.unmount();
-		    oldRootElem.parentNode.removeChild(oldRootElem);
+				oldRootElem.parentNode.removeChild(oldRootElem);
 			}).bind(this);
 
-      this.mount = function () {
-        if (typeof actions.onMount === 'function') {
-          actions.onMount.call(SELF)
-        }
+			this.mount = function () {
+				if (typeof actions.onMount === 'function') {
+					actions.onMount.call(SELF)
+				}
 				activeComponents.push(this.$this);
-      };
+			};
 
-      this.unmount = function () {
-        if (typeof actions.onDestroy === 'function') {
-          actions.onDestroy.call(SELF)
-        }
+			this.unmount = function () {
+				if (typeof actions.onDestroy === 'function') {
+					actions.onDestroy.call(SELF)
+				}
 				for (var i = 0; i < activeComponents.length; i++) {
 					if (activeComponents[i].$id === this.$id) {
 						activeComponents.splice(i, 1);
 						break;
 					}
 				}
-        return this.$link;
-      };
-    }
+				return this.$link;
+			};
+		}
 
-    get remount() {
-      this.mount();
-      return this.link;
-    }
+		get remount() {
+			this.mount();
+			return this.link;
+		}
 
-    get out() {
-      this.mount();
-      return this.$html;
-    }
-  }
+		get out() {
+			this.mount();
+			return this.$html;
+		}
+	}
 
-  var radiMutate = function (c) {
-    // window.requestAnimationFrame(() => {
-      // window.requestAnimationFrame(() => {
-        c();
-      // });
-    // });
-  }
+	var radiMutate = function (c) {
+		// window.requestAnimationFrame(() => {
+			// window.requestAnimationFrame(() => {
+				c();
+			// });
+		// });
+	}
 
-  var setStyle = function (view, arg1, arg2) {
-    var el = getEl(view);
+	var setStyle = function (view, arg1, arg2) {
+		var el = getEl(view);
 
-    if (isWatchable(arg2)) {
-      el.style[arg1] = arg2.get();
-      // Update bind
-      arg2.watch((a) => {
-        radiMutate(() => {
-          el.style[arg1] = a;
-        });
-      });
-    } else if (arg2 !== undefined) {
-      el.style[arg1] = arg2;
-    } else if (isString(arg1)) {
-      el.setAttribute('style', arg1);
-    } else {
-      for (var key in arg1) {
-        setStyle(el, key, arg1[key]);
-      }
-    }
-  };
+		if (isWatchable(arg2)) {
+			el.style[arg1] = arg2.get();
+			// Update bind
+			arg2.watch((a) => {
+				radiMutate(() => {
+					el.style[arg1] = a;
+				});
+			});
+		} else if (arg2 !== undefined) {
+			el.style[arg1] = arg2;
+		} else if (isString(arg1)) {
+			el.setAttribute('style', arg1);
+		} else {
+			for (var key in arg1) {
+				setStyle(el, key, arg1[key]);
+			}
+		}
+	};
 
-  var setAttr = function (view, arg1, arg2) {
-    var self = this;
-    var el = getEl(view);
+	var setAttr = function (view, arg1, arg2) {
+		var self = this;
+		var el = getEl(view);
 
-    if (arg2 !== undefined) {
-      if (arg1 === 'style') {
-        setStyle(el, arg2);
-      } else if (arg1 === 'model' && isWatchable(arg2)) {
-        el.value = arg2.get();
-        el['oninput'] = function () { arg2.data()[arg2.prop] = el.value };
-        arg2.watch(function (a) {
-          radiMutate(() => {
-            el.value = a;
-          });
-        });
-      } else if (isFunction(arg2)) {
-        el[arg1] = function (e) { arg2.call(self, e); };
-      } else if (isWatchable(arg2)) {
-        el.setAttribute(arg1, arg2.get());
-        // Update bind
-        arg2.watch(function (a) {
-          radiMutate(() => {
-            el.setAttribute(arg1, a);
-          });
-        });
-      } else {
-        el.setAttribute(arg1, arg2);
-      }
-    } else {
-      for (var key in arg1) {
-        setAttr.call(this, el, key, arg1[key]);
-      }
-    }
-  };
+		if (arg2 !== undefined) {
+			if (arg1 === 'style') {
+				setStyle(el, arg2);
+			} else if (arg1 === 'model' && isWatchable(arg2)) {
+				el.value = arg2.get();
+				el['oninput'] = function () { arg2.data()[arg2.prop] = el.value };
+				arg2.watch(function (a) {
+					radiMutate(() => {
+						el.value = a;
+					});
+				});
+			} else if (isFunction(arg2)) {
+				el[arg1] = function (e) { arg2.call(self, e); };
+			} else if (isWatchable(arg2)) {
+				el.setAttribute(arg1, arg2.get());
+				// Update bind
+				arg2.watch(function (a) {
+					radiMutate(() => {
+						el.setAttribute(arg1, a);
+					});
+				});
+			} else {
+				el.setAttribute(arg1, arg2);
+			}
+		} else {
+			for (var key in arg1) {
+				setAttr.call(this, el, key, arg1[key]);
+			}
+		}
+	};
 
-  var ensureEl = function (parent) { return isString(parent) ? html(parent) : getEl(parent); };
-  var getEl = function (parent) { return (parent.nodeType && parent) || (!parent.el && parent) || getEl(parent.el); };
+	var ensureEl = function (parent) { return isString(parent) ? html(parent) : getEl(parent); };
+	var getEl = function (parent) { return (parent.nodeType && parent) || (!parent.el && parent) || getEl(parent.el); };
 
-  var isString = function (a) { return typeof a === 'string'; };
-  var isNumber = function (a) { return typeof a === 'number'; };
-  var isFunction = function (a) { return typeof a === 'function'; };
+	var isString = function (a) { return typeof a === 'string'; };
+	var isNumber = function (a) { return typeof a === 'number'; };
+	var isFunction = function (a) { return typeof a === 'function'; };
 
-  var isNode = function (a) { return a && a.nodeType; };
-  var isWatchable = function (a) { return a && a instanceof Watchable; };
-  var isComponent = function (a) { return a && a.__radi; };
+	var isNode = function (a) { return a && a.nodeType; };
+	var isWatchable = function (a) { return a && a instanceof Watchable; };
+	var isComponent = function (a) { return a && a.__radi; };
 
-  var text = function (str) { return document.createTextNode(str); };
+	var text = function (str) { return document.createTextNode(str); };
 
-  var radiArgs = function (element, args) {
-    for (var i = 0; i < args.length; i++) {
-      var arg = args[i];
+	var radiArgs = function (element, args) {
+		for (var i = 0; i < args.length; i++) {
+			var arg = args[i];
 
-      if (arg !== 0 && !arg) {
-        continue;
-      }
+			if (arg !== 0 && !arg) {
+				continue;
+			}
 
-      // support middleware
-      if (isComponent(arg)) {
-        element.appendChild(arg.__radi().out);
-      } else
-      if (typeof arg === 'function') {
-        arg.call(this, element);
-      } else if (isString(arg) || isNumber(arg)) {
-        element.appendChild(text(arg));
-      } else if (isNode(getEl(arg))) {
-        element.appendChild(arg);
-      } else if (Array.isArray(arg)) {
-        radiArgs.call(this, element, arg);
-      } else if (isWatchable(arg)) {
-        let z = text(arg.get());
-        element.appendChild(z);
-        // Update bind
-        arg.watch(function (a) {
-          radiMutate(() => {
-            z.textContent = a;
-          });
-        });
-      } else if (typeof arg === 'object') {
-        setAttr.call(this, element, arg);
-      }
+			// support middleware
+			if (isComponent(arg)) {
+				element.appendChild(arg.__radi().out);
+			} else
+			if (typeof arg === 'function') {
+				arg.call(this, element);
+			} else if (isString(arg) || isNumber(arg)) {
+				element.appendChild(text(arg));
+			} else if (isNode(getEl(arg))) {
+				element.appendChild(arg);
+			} else if (Array.isArray(arg)) {
+				radiArgs.call(this, element, arg);
+			} else if (isWatchable(arg)) {
+				let z = text(arg.get());
+				element.appendChild(z);
+				// Update bind
+				arg.watch(function (a) {
+					radiMutate(() => {
+						z.textContent = a;
+					});
+				});
+			} else if (typeof arg === 'object') {
+				setAttr.call(this, element, arg);
+			}
 
-    }
-  }
+		}
+	}
 
-  var htmlCache = {};
+	var htmlCache = {};
 
-  var memoizeHTML = function (query) { return htmlCache[query] || (htmlCache[query] = createElement(query)); };
+	var memoizeHTML = function (query) { return htmlCache[query] || (htmlCache[query] = createElement(query)); };
 
-  var r = function (query) {
-    var args = [], len = arguments.length - 1;
-    while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+	var r = function (query) {
+		var args = [], len = arguments.length - 1;
+		while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
 
-    var element;
+		var element;
 
-    if (isString(query)) {
-      element = memoizeHTML(query).cloneNode(false);
-    } else if (isNode(query)) {
-      element = query.cloneNode(false);
-    } else {
-      element = document.createDocumentFragment();
-    }
+		if (isString(query)) {
+			element = memoizeHTML(query).cloneNode(false);
+		} else if (isNode(query)) {
+			element = query.cloneNode(false);
+		} else {
+			element = document.createDocumentFragment();
+		}
 
-    radiArgs.call(this, element, args);
+		radiArgs.call(this, element, args);
 
-    return element;
-  };
+		return element;
+	};
 
-  r.extend = function (query) {
-    var args = [], len = arguments.length - 1;
-    while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+	r.extend = function (query) {
+		var args = [], len = arguments.length - 1;
+		while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
 
-    var clone = memoizeHTML(query);
+		var clone = memoizeHTML(query);
 
-    return r.bind.apply(r, [ this, clone ].concat( args ));
-  };
+		return r.bind.apply(r, [ this, clone ].concat( args ));
+	};
 
-  var component = function (o) {
-    var fn = o.view.toString().replace(STRIP_COMMENTS, '')
-    var match = FIND_L.exec(fn);
-    var output = [];
-    var cursor = 0;
+	var component = function (o) {
+		var fn = o.view.toString().replace(STRIP_COMMENTS, '')
+		var match = FIND_L.exec(fn);
+		var output = [];
+		var cursor = 0;
 
-    while (match !== null) {
-      var n = match.index;
-      var all = match.input;
+		while (match !== null) {
+			var n = match.index;
+			var all = match.input;
 
-      const len = all.length;
-      var _l = 1, _r = 0;
-      for (var i = n + 2; i < len; i++) {
-        var char = all.charCodeAt(i);
-        if (char === RL) {
-          _l += 1;
-        } else
-        if (char === RR) {
-          _r += 1;
-        }
-        if (_l === _r) break;
-      }
+			const len = all.length;
+			var _l = 1, _r = 0;
+			for (var i = n + 2; i < len; i++) {
+				var char = all.charCodeAt(i);
+				if (char === RL) {
+					_l += 1;
+				} else
+				if (char === RR) {
+					_r += 1;
+				}
+				if (_l === _r) break;
+			}
 
-      var found = all.substr(n, i + 1 - n);
+			var found = all.substr(n, i + 1 - n);
 
-      var m = found.match(/[a-zA-Z_$]+(?:\.\w+(?:\[.*\])?)+/g) || [];
-      var obs = (m.length > 0) ? m.join('__ob__,') + '__ob__' : '';
-      var newString = 'l(function(){ return ' + found.substr(1) + '; },[' + obs + '], "' + m.join(',') + '")';
+			var m = found.match(/[a-zA-Z_$]+(?:\.\w+(?:\[.*\])?)+/g) || [];
+			var obs = (m.length > 0) ? m.join('__ob__,') + '__ob__' : '';
+			var newString = 'l(function(){ return ' + found.substr(1) + '; },[' + obs + '], "' + m.join(',') + '")';
 
-      output.push(fn.substr(cursor, n - cursor));
-      output.push(newString);
-      cursor = n + found.length;
+			output.push(fn.substr(cursor, n - cursor));
+			output.push(newString);
+			cursor = n + found.length;
 
-      match = FIND_L.exec(fn);
-    }
-    output.push(fn.substr(cursor, fn.length - cursor));
-    o.$view = output.join('');
+			match = FIND_L.exec(fn);
+		}
+		output.push(fn.substr(cursor, fn.length - cursor));
+		o.$view = output.join('');
 
-    return Component.bind(this, o);
-  };
-  var Component = function Component (o) {
-    this.o = {
-      name: o.name,
-      state: deepClone2(o.state),
-      // state: Object.clone(o.state),
-      props: deepClone2(o.props),
-      // props: Object.clone(o.props),
-      actions: o.actions,
-      view: o.view,
-      $view: o.$view,
-    };
+		return Component.bind(this, o);
+	};
+	var Component = function Component (o) {
+		this.o = {
+			name: o.name,
+			state: deepClone2(o.state),
+			// state: Object.clone(o.state),
+			props: deepClone2(o.props),
+			// props: Object.clone(o.props),
+			actions: o.actions,
+			view: o.view,
+			$view: o.$view,
+		};
 
-    this.__radi = function() { return new Radi(this.o); };
-  };
-  Component.prototype.props = function props (p) {
-    for (var k in p) {
-      if (typeof this.o.props[k] === 'undefined') {
-        console.warn('[Radi.js] Warn: Creating a prop `', k, '` that is not defined in component');
-      }
-      this.o.props[k] = p[k];
-    }
-    return this;
-  };
+		this.__radi = function() { return new Radi(this.o); };
+	};
+	Component.prototype.props = function props (p) {
+		for (var k in p) {
+			if (typeof this.o.props[k] === 'undefined') {
+				console.warn('[Radi.js] Warn: Creating a prop `', k, '` that is not defined in component');
+			}
+			this.o.props[k] = p[k];
+		}
+		return this;
+	};
 
-  var mount = function (comp, id) {
+	var mount = function (comp, id) {
 		const where = (id.constructor === String) ? document.getElementById(id) : id;
 		var out = (comp instanceof Component) ? comp.__radi().out : comp;
 		where.appendChild(out);
 		return out;
-  }
+	}
 
-  var emptyNode = text('');
+	var emptyNode = text('');
 
-  var list = function (data, act) {
-    if (!data) return '';
-    var SELF = this;
+	var list = function (data, act) {
+		if (!data) return '';
+		var SELF = this;
 
-    var link, fragment = document.createDocumentFragment(), toplink = emptyNode.cloneNode();
+		var link, fragment = document.createDocumentFragment(), toplink = emptyNode.cloneNode();
 
-    fragment.appendChild(toplink);
+		fragment.appendChild(toplink);
 
-    var ret = [];
-    for (var i = 0; i < data.length; i++) {
-      fragment.appendChild(
-        act.call(SELF, data.data()[i], i)
-      );
-    }
-    link = fragment.lastChild;
+		var ret = [];
+		for (var i = 0; i < data.get().length; i++) {
+			data.get()[i+'__ob__'].watch((v) => {});
+			fragment.appendChild(
+				act.call(SELF, data.get()[i], i)
+			);
+		}
+		link = fragment.lastChild;
 
-    data.watch(function(a, b) {
-      if (a > 0) {
-        var start = b.length - a;
-        for (var i = start; i < b.length; i++) {
-          popu(this, b, i);
-          fragment.appendChild(
-            act.call(SELF, data.data()[i], i)
-          );
-        }
-        var temp = fragment.lastChild;
-        link.parentElement.insertBefore(fragment, link.nextSibling);
-        link = temp;
-      } else
-      if (a < 0) {
-        for (var i = 0; i < Math.abs(a); i++) {
-          var templink = link.previousSibling;
-          link.parentElement.removeChild(link);
-          link = templink;
-        }
-      }
-    });
+		var w = function(a, b) {
+			if (a > 0) {
+				var start = b.length - a
+				for (var i = start; i < b.length; i++) {
+					b[i+'__ob__'].watch((v) => {})
+					fragment.appendChild(
+						act.call(SELF, b[i], i)
+					)
+				}
+				var temp = fragment.lastChild
+				link.parentElement.insertBefore(fragment, link.nextSibling)
+				link = temp
+			} else
+			if (a < 0) {
+				for (var i = 0; i < Math.abs(a); i++) {
+					var templink = link.previousSibling
+					link.parentElement.removeChild(link)
+					link = templink
+				}
+			}
+		}
 
-    return fragment;
-  }
+		data.watch(w)
+		data.get()._r_get(w)
 
-  var link = function (fn, watch, txt) {
-    var args = { s: null }, SELF = this, n, f = fn.bind(this);
+		return fragment;
+	}
 
-    if (txt.length === 1 && fn.toString()
-          .replace(/(function \(\)\{ return |\(|\)|\; \})/g, '')
-          .trim() === txt[0]) {
-      return watch[0];
-    }
+	var link = function (fn, watch, txt) {
+		var args = { s: null }, SELF = this, n, f = fn.bind(this);
 
-    for (var i = 0; i < watch.length; i++) {
-      if (isWatchable(watch[i])) {
-        n = true;
-        watch[i].watch(function () {
-          args.s = f(SELF);
-        });
-      }
-    }
+		if (txt.length === 1 && fn.toString()
+					.replace(/(function \(\)\{ return |\(|\)|\; \})/g, '')
+					.trim() === txt[0]) {
+			return watch[0];
+		}
 
-    args.s = f(SELF);
+		for (var i = 0; i < watch.length; i++) {
+			if (isWatchable(watch[i])) {
+				n = true;
+				watch[i].watch(function () {
+					args.s = f(SELF);
+				});
+			}
+		}
 
-    if (!n) return args.s;
-  	return watchable(args, 's');
-  }
+		args.s = f(SELF);
 
-  var condition = function (a, e) {
-    var repl = emptyNode.cloneNode();
-    var temp = e;
-    var element;
+		if (!n) return args.s;
+		return watchable(args, 's');
+	}
 
-    if (isWatchable(a)) {
-      element = (a.get()) ? temp : repl;
-      a.watch((a) => {
-        // radiMutate(() => {
-          if (a) {
-            if (isComponent(temp))
-              repl.parentElement.replaceChild(temp.remount, repl);
-            else
-              repl.parentElement.replaceChild(temp, repl);
-          } else {
-            if (isComponent(temp))
-              temp.link.parentElement.replaceChild(repl, temp.unmount());
-            else {
-              temp.parentElement.replaceChild(repl, temp);
-            }
-          }
-        // });
-      });
-    } else {
-      element = a && temp;
-    }
+	var condition = function (a, e) {
+		var repl = emptyNode.cloneNode()
+		var element
+		var temp = e
 
-    return element;
-  }
+		if (isWatchable(a)) {
+			element = (a.get()) ? temp : repl
+			a.watch((a) => {
+				// radiMutate(() => {
+					if (a) {
+						if (isComponent(temp))
+							repl.parentElement.replaceChild(temp.remount, repl)
+						else
+							repl.parentElement.replaceChild(temp, repl)
+					} else {
+						if (isComponent(temp))
+							temp.link.parentElement.replaceChild(repl, temp.unmount())
+						else {
+							temp.parentElement.replaceChild(repl, temp)
+						}
+					}
+				// });
+			})
+		} else {
+			element = a && temp
+		}
 
-  r.prototype.if = condition;
+		temp.else = function (e) { repl = e; return temp }
+		repl.else = function (e) { repl = e; return repl }
 
-  var l = function (f, w, c) {
-    if (!w) {
-      return f;
-    } else {
-      return link.call(this, f, w, c.split(','));
-    }
-  }
+		return element
+	}
 
-  exports.r = r;
-  exports.l = l;
-  exports.list = list;
-  exports.link = link;
-  exports.text = text;
-  exports.mount = mount;
-  exports.condition = condition;
-  exports.component = component;
-  exports.activeComponents = activeComponents;
+	var l = function (f, w, c) {
+		if (!w) {
+			return f
+		} else {
+			return link.call(this, f, w, c.split(','))
+		}
+	}
+
+	exports.r = r;
+	exports.l = l;
+	exports.list = list;
+	exports.link = link;
+	exports.text = text;
+	exports.mount = mount;
+	exports.condition = condition;
+	exports.component = component;
+	exports.activeComponents = activeComponents;
 
 	// For devtools
 	window.radi = {
@@ -874,5 +793,5 @@
 		activeComponents: exports.activeComponents
 	};
 
-  Object.defineProperty(exports, '__esModule', { value: true });
+	Object.defineProperty(exports, '__esModule', { value: true });
 })));
