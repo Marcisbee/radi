@@ -1,15 +1,19 @@
 ### TODO list
 
 - [x] Pass props to actions
-- [ ] Watcher on Arrays
-- [ ] Watcher on Objects
+- [x] Watcher on Arrays
+- [x] Watcher on Objects
 - [ ] Objects for looping
 - [ ] Better 'condition' function
+- [x] Add 'else' function
+- [ ] Add 'elseif' function
 - [ ] Create `radi-router`
 - [x] Pass state to actions (by default)
 - [x] Pass props to components
 - [ ] Create state manager with timeline
-- [ ] Create `dev-tools`
+- [x] Create `dev-tools`
+  - [ ] Actions can be triggered
+  - [ ] State can be modified
   - [ ] Export `state.json`
   - [ ] Import `state.json`
   - [ ] State timeline
