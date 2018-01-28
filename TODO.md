@@ -4,9 +4,10 @@
 - [x] Watcher on Arrays
 - [x] Watcher on Objects
 - [x] Objects for looping
-- [ ] Better 'condition' function
+- [x] Better 'condition' function
 - [x] Add 'else' function
-- [ ] Add 'elseif' function
+- [x] Add 'elseif' function
+- [ ] Remove old condition function
 - [ ] Create `radi-router`
 - [x] Pass state to actions (by default)
 - [x] Pass props to components
