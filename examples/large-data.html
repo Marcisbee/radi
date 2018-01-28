@@ -106,7 +106,7 @@
   <script src="../src/devtools.js"></script>
   <script>
     var perf0 = performance.now();
-    const { r, l, component, mount, condition } = radi;
+    const { r, l, component, mount, cond } = radi;
 
     const state = {
       name: 'Marcis',
@@ -232,7 +232,7 @@
         ),
         r('input', { type: 'email', autofocus: true, model: l(this.name) }),
         r('hr'),
-        condition(
+        cond(
           l(this.show),
           r('div',
             {
@@ -259,11 +259,22 @@
             'Item count: ',
             l(this.count),
           ),
-          condition(
-            l(this.count < 1000),
-            r('h3', '< 1000')
-          ).else(
-            r('h3', '>= 1000')
+          r('h3',
+            cond(
+              l(this.count < 1000),
+              '< 1000'
+            ).cond(
+              l(this.count < 2000),
+              '< 2000'
+            ).cond(
+              l(this.count < 3000),
+              '< 3000'
+            ).cond(
+              l(this.count < 4000),
+              '< 4000'
+            ).else(
+              '>= 4000'
+            )
           ),
           'Benchmark: ',
           l(this.bench),
