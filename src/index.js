@@ -387,13 +387,15 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 				'list',
 				'l',
 				'condition',
+				'cond',
 				// 'return ' + output
 				'return ' + o.$view
 			)(
 				r.bind(SELF),
 				list.bind(SELF),
 				l.bind(SELF),
-				condition.bind(SELF)
+				condition.bind(SELF),
+				cond.bind(SELF)
 			);
 
 			// console.log(this.$view);
@@ -519,6 +521,7 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 
 	var isNode = function (a) { return a && a.nodeType; };
 	var isWatchable = function (a) { return a && a instanceof Watchable; };
+	var isCondition = function (a) { return a && a instanceof Condition; };
 	var isComponent = function (a) { return a && a.__radi; };
 
 	var text = function (str) { return document.createTextNode(str); };
@@ -534,8 +537,25 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 			// support middleware
 			if (isComponent(arg)) {
 				element.appendChild(arg.__radi().out);
-			} else
-			if (typeof arg === 'function') {
+			} else if (isCondition(arg)) {
+				var arg2 = arg.__do(), a
+				if (isString(arg2) || isNumber(arg2)) {
+					a = text(arg2);
+				} else {
+					a = arg2;
+				}
+				element.appendChild(a);
+				(function(arg){arg.__watch(function(v) {
+					var arg2 = arg.__do(), b
+					if (isString(arg2) || isNumber(arg2)) {
+						b = text(arg2);
+					} else {
+						b = arg2;
+					}
+					a.parentNode.replaceChild(b, a)
+					a = b
+				})})(arg)
+			} else if (typeof arg === 'function') {
 				arg.call(this, element);
 			} else if (isString(arg) || isNumber(arg)) {
 				element.appendChild(text(arg));
@@ -747,8 +767,8 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 		return watchable(args, 's');
 	}
 
-	var condition = function (a, e) {
-		var repl = emptyNode.cloneNode()
+	var condition = function (a, e, els) {
+		var repl = (els) ? els : emptyNode.cloneNode()
 		var element
 		var temp = e
 
@@ -774,11 +794,65 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 			element = a && temp
 		}
 
-		temp.else = function (e) { repl = e; return temp }
-		repl.else = function (e) { repl = e; return repl }
+		element.else = function (e) {
+			repl = e
+			return element
+		}
+		element.condition = condition
+		// temp.else = function (e) { repl = e; return temp }
+		// repl.else = function (e) { repl = e; return repl }
+
+		// temp.elseif = function (a, e) { repl = e; return temp }
+		// repl.elseif = function (a, e) { repl = e; return repl }
 
 		return element
 	}
+
+
+
+	var cond = function (a, e) {
+		return new Condition(a, e)
+	}
+	var Condition = function Condition (a, e) {
+		this.cases = [{a:a,e:e}]
+		this.w = []
+		this.els = emptyNode.cloneNode()
+
+		if (isWatchable(a)) { this.w.push(a) }
+
+		this.__watch = function(cb) {
+			for (var w in this.w) {
+				this.w[w].watch(cb)
+			}
+		}
+
+		this.__do = function() {
+			var ret
+			for (var c in this.cases) {
+				var a = isWatchable(this.cases[c].a) ? this.cases[c].a.get() : this.cases[c].a
+				if (a) {
+					ret = this.cases[c].e
+					break
+				}
+			}
+			if (typeof ret === 'undefined') ret = this.els
+			return ret
+		}
+	}
+	Condition.prototype.elseif = function (a, e) {
+		this.cases.push({a:a,e:e})
+		if (isWatchable(a)) { this.w.push(a) }
+		return this
+	}
+	Condition.prototype.cond = Condition.prototype.elseif
+	Condition.prototype.else = function (e) {
+		this.els = e
+		return this
+	}
+
+	// console.warn(
+	// 	cond(false, '1').elseif(false, '2').else('3'),
+	// )
 
 	var l = function (f, w, c) {
 		if (!w) {
@@ -793,6 +867,7 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 	exports.list = list;
 	exports.link = link;
 	exports.text = text;
+	exports.cond = cond;
 	exports.mount = mount;
 	exports.condition = condition;
 	exports.component = component;

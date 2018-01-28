@@ -91,7 +91,7 @@
     view: function() {
       return r('div.raddebug-state-actor',
         'State Actor: ',
-        condition(
+        cond(
           l(!this.paused),
           r('button', { onclick: function () { this.paused = true; radi.freeze() } }, '■ Pause state')
         ).else(
@@ -126,14 +126,14 @@
               { onclick: this.toggle.props(component.id) },
               l((component.name) ? component.name : 'unnamed-' + component.id)
             ),
-            condition(l(this.show === component.id),
+            cond(l(this.show === component.id),
               r('ul',
-                condition(l((component.vars.state).length), r('strong', 'State')),
+                cond(l((component.vars.state).length), r('strong', 'State')),
                 list(l(component.vars.state), (item) => {
                   return r('li',
                     l(item.key),
                     ': ',
-                    condition(
+                    cond(
                       l(Array.isArray(item.value)),
                       r('strong', 'Array of ', l((item.value).length), ' items')
                     ).else(
@@ -141,12 +141,12 @@
                     )
                   );
                 }),
-                condition(l((component.vars.props).length), r('strong', 'Props')),
+                cond(l((component.vars.props).length), r('strong', 'Props')),
                 list(l(component.vars.props), (item) => {
                   return r('li',
                     l(item.key),
                     ': ',
-                    condition(
+                    cond(
                       l(Array.isArray(item.value)),
                       r('strong', 'Array of ', l((item.value).length), ' items')
                     ).else(
@@ -154,7 +154,7 @@
                     )
                   );
                 }),
-                condition(l((component.vars.actions).length), r('strong', 'Actions')),
+                cond(l((component.vars.actions).length), r('strong', 'Actions')),
                 list(l(component.vars.actions), (item) => {
                   return r('li',
                     l(item.key),
