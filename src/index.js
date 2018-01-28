@@ -18,6 +18,8 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 	var ID = 1;
 	var CLASSNAME = 2;
 
+	var frozenState = false;
+
 	var _op = Object.prototype,
 	isObject = function (o) { return o && o.__proto__ === _op },
 	isArray = function (o) { return Array.isArray(o) === true }
@@ -63,7 +65,7 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 				for (var key in wit) {
 					const end = wit[key]
 					var change = false
-					if (end && typeof end === 'object') {
+					if (end && typeof end === 'object' && !(end instanceof Radi)) {
 						if (typeof what[key] === 'undefined') what[key] = end.constructor()
 						Object.relocate(what[key], end)
 						change = true
@@ -110,7 +112,7 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 		// TODO: Creaete _r_set loop with array of bucket
 		// var bucket = []
 		var bucket = () => {}
-		def._r_set = { value: function (v) { bucket(v, item) } }
+		def._r_set = { value: function (v) { if (frozenState) return false; bucket(v, item) } }
 		def._r_get = { value: function (cb) { bucket = cb } }
 		def.push = { value: function () { return arrayProxy.apply([this, 'push'], arguments) } }
 		def.pop = { value: function () { return arrayProxy.apply([this, 'pop'], arguments) } }
@@ -203,6 +205,7 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 		var oldval = targ[prop],
 			prev = (typeof dsc(targ, prop) !== 'undefined') ? dsc(targ, prop).set : null,
 			setter = function (newval) {
+				if (frozenState) return false
 				if (oldval !== newval) {
 					if (isObject(newval)) {
 						
@@ -355,13 +358,13 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 			for (var k in actions) {
 				if (typeof SELF[k] === 'undefined') {
 					const act = actions[k];
-					SELF[k] = function () { return act.apply(SELF, arguments) };
+					SELF[k] = function () { return (frozenState) ? function () {} : act.apply(SELF, arguments) };
 
 					(function(SELF, k) {
 						Object.defineProperty(SELF[k], 'props', {
 							value() {
 								var args = arguments;
-								return function () { return SELF[k].apply(SELF, args, arguments) }
+								return function () { return (frozenState) ? function () {} : SELF[k].apply(SELF, args, arguments) }
 							}
 						});
 					})(SELF, k)
@@ -414,7 +417,7 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 				if (typeof actions.onMount === 'function') {
 					actions.onMount.call(SELF)
 				}
-				activeComponents.push(this.$this);
+				activeComponents.push(this);
 			};
 
 			this.unmount = function () {
@@ -670,12 +673,26 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 		fragment.appendChild(toplink);
 
 		var ret = [];
-		for (var i = 0; i < data.get().length; i++) {
-			data.get()[i+'__ob__'].watch((v) => {});
-			fragment.appendChild(
-				act.call(SELF, data.get()[i], i)
-			);
+		var inst = data.get()
+
+		if (isArray(inst)) {
+			for (var i = 0; i < inst.length; i++) {
+				inst[i+'__ob__'].watch((v) => {})
+				fragment.appendChild(
+					act.call(SELF, inst[i], i)
+				)
+			}
+		} else {
+			var i = 0
+			for (var key in inst) {
+				inst[i+'__ob__'].watch((v) => {})
+				fragment.appendChild(
+					act.call(SELF, inst[key], key, i)
+				)
+				i++
+			}
 		}
+
 		link = fragment.lastChild;
 
 		var w = function(a, b) {
@@ -700,8 +717,8 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 			}
 		}
 
-		data.watch(w)
-		data.get()._r_get(w)
+		if (data.watch) data.watch(w)
+		if (data.get && data.get()._r_get) data.get()._r_get(w)
 
 		return fragment;
 	}
@@ -783,6 +800,16 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 
 	// For devtools
 	window.radi = {
+		freeze: () => { frozenState = true },
+		unfreeze: () => {
+			frozenState = false
+
+			for (var ii = 0; ii < activeComponents.length; ii++) {
+				if (typeof activeComponents[ii].$this.onMount === 'function') {
+					activeComponents[ii].$this.onMount.call(activeComponents[ii].$this)
+				}
+			}
+		},
 		r: exports.r,
 		l: exports.l,
 		list: exports.list,

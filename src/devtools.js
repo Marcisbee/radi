@@ -72,10 +72,48 @@
         padding-left: 6px;
         color: #e2d7ff;
         font-weight: normal;
+      }
+      .raddebug-state-actor {
+        display: block;
+        margin-bottom: 10px;
+      }
+      .raddebug-state-actor button {
+        display: block;
+        width: 100%;
+        margin-top: 10px;
+        cursor: pointer;
       }`
     ),
     document.head
   );
+
+  var stateActor = component({
+    view: function() {
+      return r('div.raddebug-state-actor',
+        'State Actor: ',
+        condition(
+          l(!this.paused),
+          r('button', { onclick: function () { this.paused = true; radi.freeze() } }, '■ Pause state')
+        ).else(
+          r('button', { onclick: function () { radi.unfreeze(); this.paused = false } }, '► Resume state')
+        )
+      )
+    },
+    state: {
+      _radi_dvtls: true,
+      paused: false
+    },
+    actions: {
+      pause() {
+        this.paused = true
+        radi.freeze()
+      },
+      resume() {
+        radi.unfreeze()
+        this.paused = false
+      }
+    }
+  });
 
   var data = component({
     view: function() {
@@ -85,7 +123,7 @@
         // l(this.list).loop((component) => {
           return r('div.raddebug-component',
             r('strong',
-              { onclick: () => { this.show = (this.show === component.id) ? null : component.id } },
+              { onclick: this.toggle.props(component.id) },
               l((component.name) ? component.name : 'unnamed-' + component.id)
             ),
             condition(l(this.show === component.id),
@@ -148,33 +186,35 @@
         var comp = []
         for (var ii = 0; ii < cp.length; ii++) {
           // Do not debug the debugger
-          if (!cp[ii]._radi_dvtls) {
+          if (!cp[ii].$this._radi_dvtls) {
             var arr = {
-              id: cp[ii].$id,
-              name: cp[ii].$name,
+              id: cp[ii].$this.$id,
+              name: cp[ii].$this.$name,
               vars: {
                 state: [],
                 props: [],
                 actions: []
               }
             }
-            for (var nn in cp[ii].$state) {
-              arr.vars.state.push({key: nn, value: cp[ii][nn]})
+            for (var nn in cp[ii].$this.$state) {
+              arr.vars.state.push({key: nn, value: cp[ii].$this[nn]})
             }
-            for (var nn in cp[ii].$props) {
-              arr.vars.props.push({key: nn, value: cp[ii][nn]})
+            for (var nn in cp[ii].$this.$props) {
+              arr.vars.props.push({key: nn, value: cp[ii].$this[nn]})
             }
-            for (var nn in cp[ii].$actions) {
-              arr.vars.actions.push({key: nn, value: cp[ii][nn]})
+            for (var nn in cp[ii].$this.$actions) {
+              arr.vars.actions.push({key: nn, value: cp[ii].$this[nn]})
             }
             comp.push(arr)
           }
         }
-        // console.log(comp)
         this.list = comp
         setTimeout(() => {
           this.loadList(radi.activeComponents)
         }, 10)
+      },
+      toggle(id) {
+        this.show = (this.show === id) ? null : id
       }
     }
   });
@@ -188,6 +228,7 @@
           width: 107
         }),
       ),
+      r('div', new stateActor()),
       r('div', new data())
     ),
     ),
