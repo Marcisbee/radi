@@ -9,7 +9,7 @@ const testdir = path.join(__dirname, './fixtures');
 global.window = {};
 global.document = new JSDOM('<div id="app"></div>').window.document;
 global.testapp = document.getElementById('app');
-const radi = require('../src');
+const radi = require('../dist/radi.js');
 
 describe('radi.js', function () {
 
