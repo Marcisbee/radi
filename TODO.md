@@ -7,7 +7,7 @@
 - [x] Better 'condition' function
 - [x] Add 'else' function
 - [x] Add 'elseif' function
-- [ ] Remove old condition function
+- [x] Remove old condition function
 - [ ] Create `radi-router`
 - [x] Pass state to actions (by default)
 - [x] Pass props to components

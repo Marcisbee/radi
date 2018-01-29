@@ -386,7 +386,6 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 				'r',
 				'list',
 				'l',
-				'condition',
 				'cond',
 				// 'return ' + output
 				'return ' + o.$view
@@ -394,7 +393,6 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 				r.bind(SELF),
 				list.bind(SELF),
 				l.bind(SELF),
-				condition.bind(SELF),
 				cond.bind(SELF)
 			);
 
@@ -538,22 +536,24 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 			if (isComponent(arg)) {
 				element.appendChild(arg.__radi().out);
 			} else if (isCondition(arg)) {
-				var arg2 = arg.__do(), a
-				if (isString(arg2) || isNumber(arg2)) {
-					a = text(arg2);
+				var arg2 = arg.__do(), a, id = arg2.id
+				if (isString(arg2.r) || isNumber(arg2.r)) {
+					a = text(arg2.r);
 				} else {
-					a = arg2;
+					a = arg2.r;
 				}
 				element.appendChild(a);
-				(function(arg){arg.__watch(function(v) {
+				(function(arg){arg.watch(function(v) {
 					var arg2 = arg.__do(), b
-					if (isString(arg2) || isNumber(arg2)) {
-						b = text(arg2);
+					if (id === arg2.id) return false
+					if (isString(arg2.r) || isNumber(arg2.r)) {
+						b = text(arg2.r);
 					} else {
-						b = arg2;
+						b = arg2.r;
 					}
 					a.parentNode.replaceChild(b, a)
 					a = b
+					id = arg2.id
 				})})(arg)
 			} else if (typeof arg === 'function') {
 				arg.call(this, element);
@@ -767,49 +767,6 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 		return watchable(args, 's');
 	}
 
-	var condition = function (a, e, els) {
-		var repl = (els) ? els : emptyNode.cloneNode()
-		var element
-		var temp = e
-
-		if (isWatchable(a)) {
-			element = (a.get()) ? temp : repl
-			a.watch((a) => {
-				// radiMutate(() => {
-					if (a) {
-						if (isComponent(temp))
-							repl.parentElement.replaceChild(temp.remount, repl)
-						else
-							repl.parentElement.replaceChild(temp, repl)
-					} else {
-						if (isComponent(temp))
-							temp.link.parentElement.replaceChild(repl, temp.unmount())
-						else {
-							temp.parentElement.replaceChild(repl, temp)
-						}
-					}
-				// });
-			})
-		} else {
-			element = a && temp
-		}
-
-		element.else = function (e) {
-			repl = e
-			return element
-		}
-		element.condition = condition
-		// temp.else = function (e) { repl = e; return temp }
-		// repl.else = function (e) { repl = e; return repl }
-
-		// temp.elseif = function (a, e) { repl = e; return temp }
-		// repl.elseif = function (a, e) { repl = e; return repl }
-
-		return element
-	}
-
-
-
 	var cond = function (a, e) {
 		return new Condition(a, e)
 	}
@@ -820,22 +777,23 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 
 		if (isWatchable(a)) { this.w.push(a) }
 
-		this.__watch = function(cb) {
+		this.watch = function(cb) {
 			for (var w in this.w) {
 				this.w[w].watch(cb)
 			}
 		}
 
 		this.__do = function() {
-			var ret
+			var ret = {id: null}
 			for (var c in this.cases) {
 				var a = isWatchable(this.cases[c].a) ? this.cases[c].a.get() : this.cases[c].a
 				if (a) {
-					ret = this.cases[c].e
+					ret.id = c
+					ret.r = this.cases[c].e
 					break
 				}
 			}
-			if (typeof ret === 'undefined') ret = this.els
+			if (typeof ret.r === 'undefined') ret.r = this.els
 			return ret
 		}
 	}
@@ -849,10 +807,6 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 		this.els = e
 		return this
 	}
-
-	// console.warn(
-	// 	cond(false, '1').elseif(false, '2').else('3'),
-	// )
 
 	var l = function (f, w, c) {
 		if (!w) {
@@ -869,7 +823,6 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 	exports.text = text;
 	exports.cond = cond;
 	exports.mount = mount;
-	exports.condition = condition;
 	exports.component = component;
 	exports.activeComponents = activeComponents;
 
@@ -889,7 +842,6 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 		l: exports.l,
 		list: exports.list,
 		version: exports.version,
-		condition: exports.condition,
 		component: exports.component,
 		mount: exports.mount,
 		activeComponents: exports.activeComponents
