@@ -1,20 +1,23 @@
 {
   "name": "radi",
-  "version": "0.0.1",
+  "version": "0.0.2",
+  "main": "dist/radi.js",
+  "module": "src/index.js",
+  "license": "MIT",
+  "repository": "radi-js/radi",
+  "author": "Marcis Bergmanis <marcisbergmanis@gmail.com>",
   "keywords": [
     "radi",
     "radijs",
-    "radi.js"
+    "radi.js",
+    "vdom"
   ],
   "scripts": {
+    "build": "npm run bundle && npm run minify",
+    "bundle": "rollup -i src/index.js -o dist/radi.js -m -f umd -n radi",
+    "minify": "uglifyjs dist/radi.js -o dist/radi.min.js -mc pure_funcs=Object.defineProperty --source-map includeSources,url=radi.js.map",
     "test": "nyc mocha",
     "report": "nyc report"
-  },
-  "author": "Marcis Bergmanis",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/radi-js/radi.git"
   },
   "devDependencies": {
     "chai": "^4.1.2",

@@ -1,4 +1,10 @@
-export const version = '0.0.2';
+(function (global, factory) {
+	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
+	typeof define === 'function' && define.amd ? define(['exports'], factory) :
+	(factory((global.radi = {})));
+}(this, (function (exports) { 'use strict';
+
+const version = '0.0.2';
 
 var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
 var FIND_L = /\bl\(/g;
@@ -14,12 +20,12 @@ var CLASSNAME = 2;
 
 var frozenState = false;
 
-var _op = Object.prototype,
-isObject = function (o) { return o && o.__proto__ === _op },
-isArray = function (o) { return Array.isArray(o) === true }
+var _op = Object.prototype;
+var isObject = function (o) { return o && o.__proto__ === _op };
+var isArray = function (o) { return Array.isArray(o) === true };
 
 function deepClone2(obj) {
-	var i, ret, ret2;
+	var i, ret;
 	if (typeof obj === "object") {
 		if (obj === null) return obj;
 		if (Object.prototype.toString.call(obj) === "[object Array]") {
@@ -57,19 +63,19 @@ Object.defineProperties(Object, {
 		enumerable: false,
 		value: function relocate(what, wit) {
 			for (var key in wit) {
-				const end = wit[key]
-				var change = false
+				const end = wit[key];
+				var change = false;
 				if (end && typeof end === 'object' && !(end instanceof Radi)) {
-					if (typeof what[key] === 'undefined') what[key] = end.constructor()
-					Object.relocate(what[key], end)
-					change = true
+					if (typeof what[key] === 'undefined') what[key] = end.constructor();
+					Object.relocate(what[key], end);
+					change = true;
 				} else {
 					if (what[key] !== end) {
-						change = true
-						what[key] = end
+						change = true;
+						what[key] = end;
 					}
 				}
-				if (change) populateOne(what, key)
+				if (change) populateOne(what, key);
 			}
 		},
 		writable: true
@@ -82,74 +88,74 @@ var arrayProxy = function arrayProxy() {
 			// arr = this[0],
 			ret = Array.prototype[this[1]].apply(arr, arguments),
 			l2 = arr.length,
-			diff = l2 - l1
+			diff = l2 - l1;
 
-	this[0].length = l2
+	this[0].length = l2;
 
 	if (diff < 0) {
 		for (var i = l1; i > l1 + diff; i--) {
-			delete this[0][(i-1)+'__ob__']
-			delete this[0][(i-1)]
+			delete this[0][(i-1)+'__ob__'];
+			delete this[0][(i-1)];
 		}
 	}
 
-	Object.relocate(this[0], arr)
+	Object.relocate(this[0], arr);
 
 	if (diff !== 0) {
-		this[0]._r_set(diff, this[0])
+		this[0]._r_set(diff, this[0]);
 	}
 
 	return ret
-}
+};
 
 var arrayRules = function arrayRules(item, def) {
 	// TODO: Creaete _r_set loop with array of bucket
 	// var bucket = []
-	var bucket = () => {}
-	def._r_set = { value: function (v) { if (frozenState) return false; bucket(v, item) } }
-	def._r_get = { value: function (cb) { bucket = cb } }
-	def.push = { value: function () { return arrayProxy.apply([this, 'push'], arguments) } }
-	def.pop = { value: function () { return arrayProxy.apply([this, 'pop'], arguments) } }
-	def.splice = { value: function () { return arrayProxy.apply([this, 'splice'], arguments) } }
-	def.shift = { value: function () { return arrayProxy.apply([this, 'shift'], arguments) } }
-	def.unshift = { value: function () { return arrayProxy.apply([this, 'unshift'], arguments) } }
-	def.reverse = { value: function () { return arrayProxy.apply([this, 'reverse'], arguments) } }
-}
+	var bucket = () => {};
+	def._r_set = { value: function (v) { if (frozenState) return false; bucket(v, item); } };
+	def._r_get = { value: function (cb) { bucket = cb; } };
+	def.push = { value: function () { return arrayProxy.apply([this, 'push'], arguments) } };
+	def.pop = { value: function () { return arrayProxy.apply([this, 'pop'], arguments) } };
+	def.splice = { value: function () { return arrayProxy.apply([this, 'splice'], arguments) } };
+	def.shift = { value: function () { return arrayProxy.apply([this, 'shift'], arguments) } };
+	def.unshift = { value: function () { return arrayProxy.apply([this, 'unshift'], arguments) } };
+	def.reverse = { value: function () { return arrayProxy.apply([this, 'reverse'], arguments) } };
+};
 
 var populateOne = function populateOne(item, ii) {
 	if (typeof item[ii + '__ob__'] !== 'undefined') return false
 
-	var def = { __r: { value: true } }
+	var def = { __r: { value: true } };
 
 	// If input is an Array
 	if (isArray(item) && typeof item.__r === 'undefined' && !item.__r) {
-		arrayRules(item, def)
+		arrayRules(item, def);
 	}
 
-	def[ii + '__ob__'] = { value: watchable(item, ii), configurable: true }
+	def[ii + '__ob__'] = { value: watchable(item, ii), configurable: true };
 
-	if (typeof item[ii] === 'object') populate(item[ii])
+	if (typeof item[ii] === 'object') populate(item[ii]);
 
 	return Object.defineProperties(item, def)
-}
+};
 
 // Add watchers to every object and array
 var populate = function populate(item) {
 	if (item && typeof item === 'object') {
-		var def = { __r: { value: true } }
+		var def = { __r: { value: true } };
 
 		// If input is an Array
 		if (isArray(item)) {
 			if (typeof item.__r === 'undefined' && !item.__r) {
-				arrayRules(item, def)
+				arrayRules(item, def);
 			}
 
 			for (var ii in item) {
 				// Add watchable
 				// Should not be able to reconfigure this
 				if (typeof item[ii + '__ob__'] === 'undefined') {
-					def[ii + '__ob__'] = { value: watchable(item, ii), configurable: true }
-					populate(item[ii])
+					def[ii + '__ob__'] = { value: watchable(item, ii), configurable: true };
+					populate(item[ii]);
 				}
 			}
 
@@ -161,8 +167,8 @@ var populate = function populate(item) {
 				// Add watchable
 				// Should not be able to reconfigure this
 				if (typeof item[ii + '__ob__'] === 'undefined') {
-					def[ii + '__ob__'] = { value: watchable(item, ii), configurable: true }
-					populate(item[ii])
+					def[ii + '__ob__'] = { value: watchable(item, ii), configurable: true };
+					populate(item[ii]);
 				}
 			}
 
@@ -170,31 +176,31 @@ var populate = function populate(item) {
 
 		return Object.defineProperties(item, def)
 	} else { return false }
-}
+};
 
-var watchable = function (data, prop) { return new Watchable(data, prop) }
+var watchable = function (data, prop) { return new Watchable(data, prop) };
 
 var Watchable = function Watchable (data, prop) {
 	var temp = data;
 
 	this.watch = function watch (c) {
 		watcher(temp, prop, (p, prev, next) => {
-			c(next, prev)
+			c(next, prev);
 			return next
-		})
-	}
+		});
+	};
 
-	this.prop = prop
+	this.prop = prop;
 	this.data = function data () {
 		return temp
-	}
+	};
 
 	this.get = function get () {
 		return temp[prop]
-	}
-}
+	};
+};
 
-var dsc = Object.getOwnPropertyDescriptor
+var dsc = Object.getOwnPropertyDescriptor;
 var watcher = function watcher(targ, prop, handler) {
 	var oldval = targ[prop],
 		prev = (typeof dsc(targ, prop) !== 'undefined') ? dsc(targ, prop).set : null,
@@ -203,23 +209,23 @@ var watcher = function watcher(targ, prop, handler) {
 			if (oldval !== newval) {
 				if (isObject(newval)) {
 
-					Object.relocate(oldval, newval)
+					Object.relocate(oldval, newval);
 				} else
 				if (isArray(newval)) {
-					var diff = newval.length - oldval.length
-					oldval.length = newval.length
+					var diff = newval.length - oldval.length;
+					oldval.length = newval.length;
 
-					Object.relocate(oldval, newval)
-					newval = diff
+					Object.relocate(oldval, newval);
+					newval = diff;
 				} else {
-					oldval = newval
+					oldval = newval;
 				}
-				if (typeof prev === 'function') prev(newval)
-				handler.call(targ, prop, oldval, newval)
+				if (typeof prev === 'function') prev(newval);
+				handler.call(targ, prop, oldval, newval);
 			} else {
 				return false
 			}
-		}
+		};
 
 	if (delete targ[prop]) {
 		Object.defineProperty(targ, prop, {
@@ -229,9 +235,9 @@ var watcher = function watcher(targ, prop, handler) {
 			set: setter,
 			enumerable: true,
 			configurable: true
-		})
+		});
 	}
-}
+};
 
 
 var parseQuery = function (query) {
@@ -309,7 +315,7 @@ if (!Array.isArray) {
 
 
 var ids = 0;
-export const activeComponents = [];
+const activeComponents = [];
 
 class Radi {
 	constructor(o) {
@@ -347,8 +353,6 @@ class Radi {
 		}
 
 		populate(SELF);
-		var data = SELF;
-
 		for (var k in actions) {
 			if (typeof SELF[k] === 'undefined') {
 				const act = actions[k];
@@ -361,7 +365,7 @@ class Radi {
 							return function () { return (frozenState) ? function () {} : SELF[k].apply(SELF, args, arguments) }
 						}
 					});
-				})(SELF, k)
+				})(SELF, k);
 			} else {
 				throw new Error('[Radi.js] Error: Trying to write action for reserved variable `' + k + '`');
 			}
@@ -409,14 +413,14 @@ class Radi {
 
 		this.mount = function () {
 			if (typeof actions.onMount === 'function') {
-				actions.onMount.call(SELF)
+				actions.onMount.call(SELF);
 			}
 			activeComponents.push(this);
 		};
 
 		this.unmount = function () {
 			if (typeof actions.onDestroy === 'function') {
-				actions.onDestroy.call(SELF)
+				actions.onDestroy.call(SELF);
 			}
 			for (var i = 0; i < activeComponents.length; i++) {
 				if (activeComponents[i].$id === this.$id) {
@@ -445,7 +449,7 @@ var radiMutate = function (c) {
 			c();
 		// });
 	// });
-}
+};
 
 var setStyle = function (view, arg1, arg2) {
 	var el = getEl(view);
@@ -478,7 +482,7 @@ var setAttr = function (view, arg1, arg2) {
 			setStyle(el, arg2);
 		} else if (arg1 === 'model' && isWatchable(arg2)) {
 			el.value = arg2.get();
-			el['oninput'] = function () { arg2.data()[arg2.prop] = el.value };
+			el['oninput'] = function () { arg2.data()[arg2.prop] = el.value; };
 			arg2.watch(function (a) {
 				radiMutate(() => {
 					el.value = a;
@@ -504,7 +508,6 @@ var setAttr = function (view, arg1, arg2) {
 	}
 };
 
-var ensureEl = function (parent) { return isString(parent) ? html(parent) : getEl(parent); };
 var getEl = function (parent) { return (parent.nodeType && parent) || (!parent.el && parent) || getEl(parent.el); };
 
 var isString = function (a) { return typeof a === 'string'; };
@@ -516,7 +519,7 @@ var isWatchable = function (a) { return a && a instanceof Watchable; };
 var isCondition = function (a) { return a && a instanceof Condition; };
 var isComponent = function (a) { return a && a.__radi; };
 
-export const text = function (str) { return document.createTextNode(str); };
+const text = function (str) { return document.createTextNode(str); };
 
 var radiArgs = function (element, args) {
 	for (var i = 0; i < args.length; i++) {
@@ -530,7 +533,7 @@ var radiArgs = function (element, args) {
 		if (isComponent(arg)) {
 			element.appendChild(arg.__radi().out);
 		} else if (isCondition(arg)) {
-			var arg2 = arg.__do(), a, id = arg2.id
+			var arg2 = arg.__do(), a, id = arg2.id;
 			if (isString(arg2.r) || isNumber(arg2.r)) {
 				a = text(arg2.r);
 			} else {
@@ -538,17 +541,17 @@ var radiArgs = function (element, args) {
 			}
 			element.appendChild(a);
 			(function(arg){arg.watch(function(v) {
-				var arg2 = arg.__do(), b
+				var arg2 = arg.__do(), b;
 				if (id === arg2.id) return false
 				if (isString(arg2.r) || isNumber(arg2.r)) {
 					b = text(arg2.r);
 				} else {
 					b = arg2.r;
 				}
-				a.parentNode.replaceChild(b, a)
-				a = b
-				id = arg2.id
-			})})(arg)
+				a.parentNode.replaceChild(b, a);
+				a = b;
+				id = arg2.id;
+			});})(arg);
 		} else if (typeof arg === 'function') {
 			arg.call(this, element);
 		} else if (isString(arg) || isNumber(arg)) {
@@ -571,13 +574,13 @@ var radiArgs = function (element, args) {
 		}
 
 	}
-}
+};
 
 var htmlCache = {};
 
 var memoizeHTML = function (query) { return htmlCache[query] || (htmlCache[query] = createElement(query)); };
 
-export const r = function (query) {
+const r = function (query) {
 	var args = [], len = arguments.length - 1;
 	while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
 
@@ -605,8 +608,8 @@ r.extend = function (query) {
 	return r.bind.apply(r, [ this, clone ].concat( args ));
 };
 
-export const component = function (o) {
-	var fn = o.view.toString().replace(STRIP_COMMENTS, '')
+const component = function (o) {
+	var fn = o.view.toString().replace(STRIP_COMMENTS, '');
 	var match = FIND_L.exec(fn);
 	var output = [];
 	var cursor = 0;
@@ -669,16 +672,16 @@ Component.prototype.props = function props (p) {
 	return this;
 };
 
-export const mount = function (comp, id) {
+const mount = function (comp, id) {
 	const where = (id.constructor === String) ? document.getElementById(id) : id;
 	var out = (comp instanceof Component) ? comp.__radi().out : comp;
 	where.appendChild(out);
 	return out;
-}
+};
 
 var emptyNode = text('');
 
-export const list = function (data, act) {
+const list = function (data, act) {
 	if (!data) return '';
 	var SELF = this;
 
@@ -686,24 +689,23 @@ export const list = function (data, act) {
 
 	fragment.appendChild(toplink);
 
-	var ret = [];
-	var inst = data.get()
+	var inst = data.get();
 
 	if (isArray(inst)) {
 		for (var i = 0; i < inst.length; i++) {
-			inst[i+'__ob__'].watch((v) => {})
+			inst[i+'__ob__'].watch((v) => {});
 			fragment.appendChild(
 				act.call(SELF, inst[i], i)
-			)
+			);
 		}
 	} else {
-		var i = 0
+		var i = 0;
 		for (var key in inst) {
-			inst[i+'__ob__'].watch((v) => {})
+			inst[i+'__ob__'].watch((v) => {});
 			fragment.appendChild(
 				act.call(SELF, inst[key], key, i)
-			)
-			i++
+			);
+			i++;
 		}
 	}
 
@@ -711,33 +713,33 @@ export const list = function (data, act) {
 
 	var w = function(a, b) {
 		if (a > 0) {
-			var start = b.length - a
+			var start = b.length - a;
 			for (var i = start; i < b.length; i++) {
-				b[i+'__ob__'].watch((v) => {})
+				b[i+'__ob__'].watch((v) => {});
 				fragment.appendChild(
 					act.call(SELF, b[i], i)
-				)
+				);
 			}
-			var temp = fragment.lastChild
-			link.parentElement.insertBefore(fragment, link.nextSibling)
-			link = temp
+			var temp = fragment.lastChild;
+			link.parentElement.insertBefore(fragment, link.nextSibling);
+			link = temp;
 		} else
 		if (a < 0) {
 			for (var i = 0; i < Math.abs(a); i++) {
-				var templink = link.previousSibling
-				link.parentElement.removeChild(link)
-				link = templink
+				var templink = link.previousSibling;
+				link.parentElement.removeChild(link);
+				link = templink;
 			}
 		}
-	}
+	};
 
-	if (data.watch) data.watch(w)
-	if (data.get && data.get()._r_get) data.get()._r_get(w)
+	if (data.watch) data.watch(w);
+	if (data.get && data.get()._r_get) data.get()._r_get(w);
 
 	return fragment;
-}
+};
 
-export const link = function (fn, watch, txt) {
+const link = function (fn, watch, txt) {
 	var args = { s: null }, SELF = this, n, f = fn.bind(this);
 
 	if (txt.length === 1 && fn.toString()
@@ -759,48 +761,48 @@ export const link = function (fn, watch, txt) {
 
 	if (!n) return args.s;
 	return watchable(args, 's');
-}
+};
 
-export const cond = function (a, e) {
+const cond = function (a, e) {
 	return new Condition(a, e)
-}
+};
 var Condition = function Condition (a, e) {
-	this.cases = [{a:a,e:e}]
-	this.w = []
-	this.els = emptyNode.cloneNode()
+	this.cases = [{a:a,e:e}];
+	this.w = [];
+	this.els = emptyNode.cloneNode();
 
-	if (isWatchable(a)) { this.w.push(a) }
+	if (isWatchable(a)) { this.w.push(a); }
 
 	this.watch = function(cb) {
 		for (var w in this.w) {
-			this.w[w].watch(cb)
+			this.w[w].watch(cb);
 		}
-	}
+	};
 
 	this.__do = function() {
-		var ret = {id: null}
+		var ret = {id: null};
 		for (var c in this.cases) {
-			var a = isWatchable(this.cases[c].a) ? this.cases[c].a.get() : this.cases[c].a
+			var a = isWatchable(this.cases[c].a) ? this.cases[c].a.get() : this.cases[c].a;
 			if (a) {
-				ret.id = c
-				ret.r = this.cases[c].e
+				ret.id = c;
+				ret.r = this.cases[c].e;
 				break
 			}
 		}
-		if (typeof ret.r === 'undefined') ret.r = this.els
+		if (typeof ret.r === 'undefined') ret.r = this.els;
 		return ret
-	}
-}
+	};
+};
 Condition.prototype.elseif = function (a, e) {
-	this.cases.push({a:a,e:e})
-	if (isWatchable(a)) { this.w.push(a) }
+	this.cases.push({a:a,e:e});
+	if (isWatchable(a)) { this.w.push(a); }
 	return this
-}
-Condition.prototype.cond = Condition.prototype.elseif
+};
+Condition.prototype.cond = Condition.prototype.elseif;
 Condition.prototype.else = function (e) {
-	this.els = e
+	this.els = e;
 	return this
-}
+};
 
 var l = function (f, w, c) {
 	if (!w) {
@@ -808,17 +810,17 @@ var l = function (f, w, c) {
 	} else {
 		return link.call(this, f, w, c.split(','))
 	}
-}
+};
 
 // For devtools
 window.radi = {
-	freeze: () => { frozenState = true },
+	freeze: () => { frozenState = true; },
 	unfreeze: () => {
-		frozenState = false
+		frozenState = false;
 
 		for (var ii = 0; ii < activeComponents.length; ii++) {
 			if (typeof activeComponents[ii].$this.onMount === 'function') {
-				activeComponents[ii].$this.onMount.call(activeComponents[ii].$this)
+				activeComponents[ii].$this.onMount.call(activeComponents[ii].$this);
 			}
 		}
 	},
@@ -830,3 +832,18 @@ window.radi = {
 	mount: mount,
 	activeComponents: activeComponents
 };
+
+exports.version = version;
+exports.activeComponents = activeComponents;
+exports.text = text;
+exports.r = r;
+exports.component = component;
+exports.mount = mount;
+exports.list = list;
+exports.link = link;
+exports.cond = cond;
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+})));
+//# sourceMappingURL=radi.js.map
