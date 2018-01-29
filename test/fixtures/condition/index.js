@@ -1,4 +1,4 @@
-module.exports = function ({ r, l, condition, mount, component }) {
+module.exports = function ({ r, l, cond, mount, component }) {
   var act_up = null;
 
   global.child = component({
@@ -10,13 +10,17 @@ module.exports = function ({ r, l, condition, mount, component }) {
   const app = component({
     view: function () {
       return r('div',
-        condition(
-          l(!this.show),
-          r('strong', new child())
-        ),
-        condition(
+        cond(
           l(this.show),
           r('strong', 'Not showing')
+        ).elseif(
+          l(this.show),
+          r('strong', 'Not showing')
+        ).cond(
+          l(this.show),
+          r('strong', 'Not showing')
+        ).else(
+          r('strong', new child())
         ),
       );
     },
