@@ -24,7 +24,7 @@ var _op = Object.prototype;
 var isObject = function (o) { return o && o.__proto__ === _op };
 var isArray = function (o) { return Array.isArray(o) === true };
 
-function deepClone2(obj) {
+function clone(obj) {
 	var i, ret;
 	if (typeof obj === "object") {
 		if (obj === null) return obj;
@@ -33,7 +33,7 @@ function deepClone2(obj) {
 			ret = new Array(len);
 			for (i = 0; i < len; i++) {
 				if (typeof obj[i] === "object") {
-					ret[i] = deepClone2(obj[i]);
+					ret[i] = clone(obj[i]);
 				} else {
 					ret[i] = obj[i];
 				}
@@ -43,7 +43,7 @@ function deepClone2(obj) {
 			for (i in obj) {
 				if (obj.hasOwnProperty(i)) {
 					if (typeof(obj[i] === "object")) {
-						ret[i] = deepClone2(obj[i]);
+						ret[i] = clone(obj[i]);
 					} else {
 						ret[i] = obj[i];
 					}
@@ -84,7 +84,7 @@ Object.defineProperties(Object, {
 
 var arrayProxy = function arrayProxy() {
 	var l1 = this[0].length,
-			arr = deepClone2(this[0]),
+			arr = clone(this[0]),
 			// arr = this[0],
 			ret = Array.prototype[this[1]].apply(arr, arguments),
 			l2 = arr.length,
@@ -111,15 +111,16 @@ var arrayProxy = function arrayProxy() {
 var arrayRules = function arrayRules(item, def) {
 	// TODO: Creaete _r_set loop with array of bucket
 	// var bucket = []
-	var bucket = () => {};
+	var bucket = () => {},
+		a = (v) => ({ value: function () { return arrayProxy.apply([this, v], arguments) } });
 	def._r_set = { value: function (v) { if (frozenState) return false; bucket(v, item); } };
 	def._r_get = { value: function (cb) { bucket = cb; } };
-	def.push = { value: function () { return arrayProxy.apply([this, 'push'], arguments) } };
-	def.pop = { value: function () { return arrayProxy.apply([this, 'pop'], arguments) } };
-	def.splice = { value: function () { return arrayProxy.apply([this, 'splice'], arguments) } };
-	def.shift = { value: function () { return arrayProxy.apply([this, 'shift'], arguments) } };
-	def.unshift = { value: function () { return arrayProxy.apply([this, 'unshift'], arguments) } };
-	def.reverse = { value: function () { return arrayProxy.apply([this, 'reverse'], arguments) } };
+	def.push = a('push');
+	def.pop = a('pop');
+	def.splice = a('splice');
+	def.shift = a('shift');
+	def.unshift = a('unshift');
+	def.reverse = a('reverse');
 };
 
 var populateOne = function populateOne(item, ii) {
@@ -534,7 +535,11 @@ var radiArgs = function (element, args) {
 			element.appendChild(arg.__radi().out);
 		} else if (isCondition(arg)) {
 			var arg2 = arg.__do(), a, id = arg2.id;
-			if (isString(arg2.r) || isNumber(arg2.r)) {
+			if (isComponent(arg2.r)) {
+				a = arg2.r.__radi().out;
+			} else if (typeof arg2.r === 'function') {
+				a = arg2.r();
+			} else if (isString(arg2.r) || isNumber(arg2.r)) {
 				a = text(arg2.r);
 			} else {
 				a = arg2.r;
@@ -543,7 +548,11 @@ var radiArgs = function (element, args) {
 			(function(arg){arg.watch(function(v) {
 				var arg2 = arg.__do(), b;
 				if (id === arg2.id) return false
-				if (isString(arg2.r) || isNumber(arg2.r)) {
+				if (isComponent(arg2.r)) {
+					b = arg2.r.__radi().out;
+				} else if (typeof arg2.r === 'function') {
+					b = arg2.r();
+				} else if (isString(arg2.r) || isNumber(arg2.r)) {
 					b = text(arg2.r);
 				} else {
 					b = arg2.r;
@@ -598,7 +607,6 @@ const r = function (query) {
 
 	return element;
 };
-
 r.extend = function (query) {
 	var args = [], len = arguments.length - 1;
 	while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
@@ -615,11 +623,13 @@ const component = function (o) {
 	var cursor = 0;
 
 	while (match !== null) {
-		var n = match.index;
-		var all = match.input;
+		var n = match.index,
+			all = match.input,
+			_l = 1,
+			_r = 0;
 
 		const len = all.length;
-		var _l = 1, _r = 0;
+
 		for (var i = n + 2; i < len; i++) {
 			var char = all.charCodeAt(i);
 			if (char === RL) {
@@ -651,10 +661,8 @@ const component = function (o) {
 var Component = function Component (o) {
 	this.o = {
 		name: o.name,
-		state: deepClone2(o.state),
-		// state: Object.clone(o.state),
-		props: deepClone2(o.props),
-		// props: Object.clone(o.props),
+		state: clone(o.state),
+		props: clone(o.props),
 		actions: o.actions,
 		view: o.view,
 		$view: o.$view,
@@ -804,7 +812,7 @@ Condition.prototype.else = function (e) {
 	return this
 };
 
-var l = function (f, w, c) {
+const l = function (f, w, c) {
 	if (!w) {
 		return f
 	} else {
@@ -812,25 +820,23 @@ var l = function (f, w, c) {
 	}
 };
 
-// For devtools
-window.radi = {
-	freeze: () => { frozenState = true; },
-	unfreeze: () => {
-		frozenState = false;
+const use = function (plug) {
+	if (typeof window.radi[plug] === 'function') {
+		window.radi[plug]();
+	} else {
+		console.warn('[Radi.js] Warn: Cannot find plugin `', plug);
+	}
+};
 
-		for (var ii = 0; ii < activeComponents.length; ii++) {
-			if (typeof activeComponents[ii].$this.onMount === 'function') {
-				activeComponents[ii].$this.onMount.call(activeComponents[ii].$this);
-			}
+const freeze = () => { frozenState = true; };
+const unfreeze = () => {
+	frozenState = false;
+
+	for (var ii = 0; ii < activeComponents.length; ii++) {
+		if (typeof activeComponents[ii].$this.onMount === 'function') {
+			activeComponents[ii].$this.onMount.call(activeComponents[ii].$this);
 		}
-	},
-	r: r,
-	l: l,
-	list: list,
-	version: version,
-	component: component,
-	mount: mount,
-	activeComponents: activeComponents
+	}
 };
 
 exports.version = version;
@@ -842,6 +848,10 @@ exports.mount = mount;
 exports.list = list;
 exports.link = link;
 exports.cond = cond;
+exports.l = l;
+exports.use = use;
+exports.freeze = freeze;
+exports.unfreeze = unfreeze;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 

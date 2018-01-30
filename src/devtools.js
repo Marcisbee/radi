@@ -100,7 +100,7 @@
       )
     },
     state: {
-      _radi_dvtls: true,
+      _radi_no_debug: true,
       paused: false
     },
     actions: {
@@ -133,12 +133,12 @@
                   return r('li',
                     l(item.key),
                     ': ',
-                    cond(
-                      l(Array.isArray(item.value)),
-                      r('strong', 'Array of ', l((item.value).length), ' items')
-                    ).else(
+                    // cond(
+                    //   l(Array.isArray(item.value) && item.value !== null),
+                    //   r('strong', 'Array of ', l((item.value).length), ' items')
+                    // ).else(
                       r('strong', l(item.value))
-                    )
+                    // )
                   );
                 }),
                 cond(l((component.vars.props).length), r('strong', 'Props')),
@@ -147,7 +147,7 @@
                     l(item.key),
                     ': ',
                     cond(
-                      l(Array.isArray(item.value)),
+                      l(Array.isArray(item.value) && item.value !== null),
                       r('strong', 'Array of ', l((item.value).length), ' items')
                     ).else(
                       r('strong', l(item.value))
@@ -174,7 +174,7 @@
       );
     },
     state: {
-      _radi_dvtls: true,
+      _radi_no_debug: true,
       show: null,
       list: []
     },
@@ -186,7 +186,7 @@
         var comp = []
         for (var ii = 0; ii < cp.length; ii++) {
           // Do not debug the debugger
-          if (!cp[ii].$this._radi_dvtls) {
+          if (!cp[ii].$this._radi_no_debug) {
             var arr = {
               id: cp[ii].$this.$id,
               name: cp[ii].$this.$name,

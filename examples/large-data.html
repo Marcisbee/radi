@@ -103,10 +103,38 @@
     }
   </script>
   <script src="../dist/radi.js"></script>
+  <script src="../src/radi-router.js"></script>
   <script src="../src/devtools.js"></script>
   <script>
-    var perf0 = performance.now();
-    const { r, l, component, mount, cond } = radi;
+    var perf0 = performance.now()
+    const { r, l, component, mount, cond } = radi
+
+    const index = component({
+      name: 'index',
+      view: function() {
+        return r('div', 'INDEX')
+      }
+    })
+
+    const foo = component({
+      name: 'foo',
+      view: function() {
+        return r('div', 'FOO')
+      }
+    })
+
+    const bar = component({
+      name: 'bar',
+      view: function() {
+        return r('div', 'BAR')
+      }
+    })
+
+    const router = radi.router({
+			'/': index,
+			'foo': foo,
+			'foo/:bar': bar
+		})
 
     const state = {
       name: 'Marcis',
@@ -232,6 +260,14 @@
         ),
         r('input', { type: 'email', autofocus: true, model: l(this.name) }),
         r('hr'),
+        r('ul',
+          r('a', {href:'#!/'}, '[ / ]'), r('br'),
+          r('a', {href:'#!/foo'}, '[ /foo ]'), r('br'),
+          r('a', {href:'#!/foo/bar'}, '[ /foo/bar ]'), r('br'),
+        ),
+        r('hr'),
+        new router(),
+        r('hr'),
         cond(
           l(this.show),
           r('div',
@@ -330,7 +366,7 @@
       actions: actions
     });
 
-    mount(new main(), 'app');
+    mount(r('div', new main()), 'app');
   </script>
 </body>
 </html>

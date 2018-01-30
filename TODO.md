@@ -8,7 +8,16 @@
 - [x] Add 'else' function
 - [x] Add 'elseif' function
 - [x] Remove old condition function
-- [ ] Create `radi-router`
+- [x] Create `radi-router`
+  - [x] Render routing mechanism
+  - [x] Get props
+  - [x] Render components
+  - [ ] Get query
+  - [ ] Condition component lifecycles
+  - [ ] Route hooks
+  - [ ] Route guards
+  - [ ] Nested routes
+  - [ ] Pass global `$router` data to all components
 - [x] Pass state to actions (by default)
 - [x] Pass props to components
 - [x] Create state manager
