@@ -1,4 +1,4 @@
-export const version = '0.0.2';
+export const version = '0.0.4';
 
 var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
 var FIND_L = /\bl\(/g;
@@ -427,6 +427,8 @@ class Radi {
 			}
 			return this.$link;
 		};
+
+		this.$link.unmount = this.unmount.bind(this)
 	}
 
 	get remount() {
@@ -437,6 +439,15 @@ class Radi {
 	get out() {
 		this.mount();
 		return this.$html;
+	}
+}
+
+var unmountAll = function unmountAll(el) {
+	if (typeof el.unmount === 'function') el.unmount()
+	if (el.children && el.children.length > 0) {
+		for (var i = 0; i < el.children.length; i++) {
+			unmountAll(el.children[i])
+		}
 	}
 }
 
@@ -554,6 +565,7 @@ var radiArgs = function (element, args) {
 				} else {
 					b = arg2.r;
 				}
+				unmountAll(a)
 				a.parentNode.replaceChild(b, a)
 				a = b
 				id = arg2.id

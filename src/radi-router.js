@@ -73,8 +73,8 @@
       view: new Function(fn),
       state: {
         // _radi_no_debug: true,
-        location: window.location.hash.replace('#!', ''),
-        active: '/'
+        location: window.location.hash.substr(1),
+        active: null
       },
       actions: {
         onMount() {
@@ -82,7 +82,7 @@
           this.hashChange()
         },
         hashChange() {
-          this.location = window.location.hash.replace('#!', '')
+          this.location = window.location.hash.substr(1)
           var a = getRoute(this.location)
           if (a) {
             this.active = a.key
