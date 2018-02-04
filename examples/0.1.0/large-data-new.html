@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Radi.js - Large Data</title>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    const rand = Math.random
+
+    function buildData(count, start) {
+      start = (start) ? start : 0;
+      const adjectives = [
+        "pretty",
+        "large",
+        "big",
+        "small",
+        "tall",
+        "short",
+        "long",
+        "handsome",
+        "plain",
+        "quaint",
+        "clean",
+        "elegant",
+        "easy",
+        "angry",
+        "crazy",
+        "helpful",
+        "mushy",
+        "odd",
+        "unsightly",
+        "adorable",
+        "important",
+        "inexpensive",
+        "cheap",
+        "expensive",
+        "fancy",
+      ]
+
+      const colours = [
+        "red",
+        "yellow",
+        "blue",
+        "green",
+        "pink",
+        "brown",
+        "purple",
+        "brown",
+        "white",
+        "black",
+        "orange",
+      ]
+
+      const nouns = [
+        "table",
+        "chair",
+        "house",
+        "bbq",
+        "desk",
+        "car",
+        "pony",
+        "cookie",
+        "sandwich",
+        "burger",
+        "pizza",
+        "mouse",
+        "keyboard",
+      ]
+
+      var i = start + 1;
+      return new Array(count).fill(0).map(_ => ({ id: i++, value: `${adjectives[
+        rand() * 1000 % adjectives.length >> 0]} ${colours[
+        rand() * 1000 % colours.length >> 0]} ${nouns[
+        rand() * 1000 % nouns.length >> 0]}`
+      }))
+    }
+
+    var bnc = {};
+    var av = (k = 'null', i) => {
+      if (typeof bnc[k] === 'undefined') bnc[k] = [];
+      var p = bnc[k];
+      p.push(i);
+      return p.reduce((a, b) => (a + b)) / p.length;
+    }
+    var bench = (k, c, cb) => {
+      let t;
+      c();
+      t = performance.now();
+      window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        let e = performance.now();
+        console.log(k, (e - t).toFixed(2), ', AVG =', av(k, e - t).toFixed(2) + 'ms');
+        cb((e - t).toFixed(2));
+      });
+      });
+    };
+
+    function random_rgba() {
+      var o = Math.round, r = Math.random, s = 175, i = 50;
+      return 'rgb(' + o(r()*s+i) + ',' + o(r()*s+i) + ',' + o(r()*s+i) + ')';
+    }
+  </script>
+  <script src="../../src/radi.0.1.0.js"></script>
+  <script>
+    var perf0 = performance.now()
+    // const { r, l, component, mount, cond } = radi
+
+    const main = component({
+      view: function() {
+        return r('div',
+          '[dyn]: ',
+          dep(() => ('Hello ' + this.world), ['this.world']),
+          r('br'),
+          '[dyn]: ',
+          dep(() => ('Hello ' + this.world), ['this.world']),
+          r('br'),
+          '[stati]: ',
+          'Hello ' + this.world,
+          r('br'),
+          r('button',
+            {
+              onclick: () => this.rename('Cool dude')
+            },
+            'Change name'
+          ),
+          r('button',
+            {
+              onclick: (e) => this.rename(e.timeStamp)
+            },
+            'Change name'
+          ),
+          r('br'),
+          r('br'),
+          '[dyn]: ',
+          dep(() => (JSON.stringify(this.diff)), ['this.diff']),
+          r('br'),
+          r('button',
+            {
+              onclick: this.differ
+            },
+            'Diff test'
+          ),
+          r('br'),
+          r('br'),
+          r('h2', dep(() => (this.name), ['this.name'])),
+          r('input',
+            {
+              model: dep(() => (this.name), ['this.name'])
+            }
+          ),
+          r('hr'),
+          r('div',
+            r('button',
+              { onclick: this.create1000 },
+              'Create 1,000 rows'
+            ),
+            r('button',
+              { onclick: this.add1000 },
+              'Add 1,000 rows'
+            ),
+            r('button',
+              { onclick: this.add10000 },
+              'Add 10,000 rows'
+            ),
+            '\n',
+            r('button',
+              { onclick: this.pop },
+              'Remove 1 row'
+            ),
+            r('button',
+              { onclick: this.reverse },
+              'Reverse Test'
+            ),
+            r('button',
+              { onclick: this.swap },
+              'Swap Test'
+            ),
+            r('button',
+              { onclick: this.remove },
+              'Remove all'
+            )
+          ),
+          r('ul',
+            'Child node on top\n\n',
+            // this.list.loop(item => r('li',
+            // list(l(this.list), item => r('li',
+            list(dep(() => (this.list), ['this.list']), (item, i) => r('li',
+              item.id,
+              ' - ',
+              item.value
+              // dep(() => (item.id), ['this.list.' + i + '.id']),
+              // ' - ',
+              // dep(() => (item.value), ['this.list.' + i + '.value'])
+            )),
+            '\nChild node at bottom'
+          )
+        )
+      },
+
+      state: {
+        count: 0,
+        name: 'Marcis',
+        world: 'World',
+        diff: [{name:"node1","id":1,"is_open":true,"children":
+          [
+        	  {"name":"child1","id":2},
+        	  {"name":"child2","id":3}
+          ]
+        }],
+        list: [],
+      },
+
+      actions: {
+        onMount() {
+          console.log('Mounted in', performance.now() - perf0, 'ms');
+        },
+        rename(name) {
+          this.world = name
+        },
+        differ() {
+          this.diff = [{"name":"node1","id":8,"is_open":true,"children":
+          	[
+          	  {"name":"child2","id": Math.random()},
+          	  {"name":"child1","id":2}
+          	]
+          }]
+        },
+        reverse() {
+          bench('Reverse list', () => {
+            this.list.reverse();
+          }, (b) => {
+            this.bench = b;
+          });
+        },
+        create1000() {
+          bench('Create 1,000 rows', () => {
+            this.list = buildData(1000, this.list.length);
+            this.count = 1000;
+          }, (b) => {
+            this.bench = b;
+          });
+        },
+        add1000() {
+          bench('Add 1,000 rows', () => {
+            this.list = this.list.concat(buildData(1000, this.list.length));
+            this.count += 1000;
+          }, (b) => {
+            this.bench = b;
+          });
+        },
+        add10000() {
+          bench('Add 10,000 rows', () => {
+            this.list = this.list.concat(buildData(10000, this.list.length));
+            this.count += 10000;
+          }, (b) => {
+            this.bench = b;
+          });
+        },
+        pop() {
+          bench('Remove 1 row', () => {
+            this.list.pop();
+            this.count -= 1;
+          }, (b) => {
+            this.bench = b;
+          });
+        },
+        update(events) {
+          bench('Update every 10th row', () => {
+            for (var i = 0; i < this.list.length; i++) {
+              if (!((i + 1) % 10)) this.list[i] = { value: this.list[i].value + ' !!!' };
+            }
+          }, (b) => {
+            this.bench = b;
+          });
+        },
+        remove(events) {
+          bench('Remove all rows', () => {
+            this.list.splice(0, this.list.length);
+            this.count = 0;
+          }, (b) => {
+            this.bench = b;
+          });
+        },
+        swap(events) {
+          bench('Swap 5th and 10th rows', () => {
+            var x = 4, y = 9;
+            this.list[x] = this.list.splice(y, 1, this.list[x])[0];
+          }, (b) => {
+            this.bench = b;
+          });
+        }
+      }
+    })
+
+    mount(
+      new main(),
+      'app'
+    );
+
+    // const state = {
+    //   name: 'Marcis',
+    //   num: 0,
+    //   time: 0,
+    //   count: 0,
+    //   color: 'red',
+    //   show: false,
+    //   list: [],
+    //   bench: '-'
+    // }
+    //
+    // const actions = {
+    //   onMount() {
+    //     console.log('Mounted in', performance.now() - perf0, 'ms');
+    //
+    //     setInterval(() => {
+    //       this.num = ('0' + Math.round(Math.random() * 100)).substr(-2);
+    //     }, 0);
+    //
+    //     setInterval(() => {
+    //       this.time = ('0' + Math.round(Math.random() * 100)).substr(-2);
+    //     }, 1000);
+    //
+    //     setInterval(() => {
+    //       this.color = random_rgba();
+    //     }, 100);
+    //   },
+    //   toggle(events) {
+    //     console.log(this, events);
+    //     bench('Toggle element', () => {
+    //       this.show = !this.show;
+    //     }, (b) => {
+    //       this.bench = b;
+    //     });
+    //   },
+    //   reverse() {
+    //     bench('Reverse list', () => {
+    //       this.list.reverse();
+    //     }, (b) => {
+    //       this.bench = b;
+    //     });
+    //   },
+    //   create1000() {
+    //     bench('Create 1,000 rows', () => {
+    //       this.list = buildData(1000, this.list.length);
+    //       this.count = 1000;
+    //     }, (b) => {
+    //       this.bench = b;
+    //     });
+    //   },
+    //   add1000() {
+    //     bench('Add 1,000 rows', () => {
+    //       this.list = this.list.concat(buildData(1000, this.list.length));
+    //       this.count += 1000;
+    //     }, (b) => {
+    //       this.bench = b;
+    //     });
+    //   },
+    //   add10000() {
+    //     bench('Add 10,000 rows', () => {
+    //       this.list = this.list.concat(buildData(10000, this.list.length));
+    //       this.count += 10000;
+    //     }, (b) => {
+    //       this.bench = b;
+    //     });
+    //   },
+    //   pop() {
+    //     bench('Remove 1 row', () => {
+    //       this.list.pop();
+    //       this.count -= 1;
+    //     }, (b) => {
+    //       this.bench = b;
+    //     });
+    //   },
+    //   update(events) {
+    //     bench('Update every 10th row', () => {
+    //       for (var i = 0; i < this.list.length; i++) {
+    //         if (!((i + 1) % 10)) this.list[i] = { value: this.list[i].value + ' !!!' };
+    //       }
+    //     }, (b) => {
+    //       this.bench = b;
+    //     });
+    //   },
+    //   remove(events) {
+    //     bench('Remove all rows', () => {
+    //       this.list.splice(0, this.list.length);
+    //       this.count = 0;
+    //     }, (b) => {
+    //       this.bench = b;
+    //     });
+    //   },
+    //   swap(events) {
+    //     bench('Swap 5th and 10th rows', () => {
+    //       var x = 4, y = 9;
+    //       this.list[x] = this.list.splice(y, 1, this.list[x])[0];
+    //     }, (b) => {
+    //       this.bench = b;
+    //     });
+    //   }
+    // }
+    //
+    // const view = function () {
+    //   var name = l(this.name);
+    //   return r('div',
+    //     {
+    //       style: {
+    //         'white-space': 'pre'
+    //       }
+    //     },
+    //     '\n\n\n',
+    //     r('h4',
+    //       '[dynamic predefined] My name is ',
+    //       name
+    //     ),
+    //     r('h4',
+    //       '[dynamic] My name is ',
+    //       l(this.name + ' Bergmanis')
+    //     ),
+    //     r('h4',
+    //       '[static] My name is ',
+    //       this.name
+    //     ),
+    //     r('input', { type: 'email', autofocus: true, model: l(this.name) }),
+    //     r('hr'),
+    //     cond(
+    //       l(this.show),
+    //       r('div',
+    //         {
+    //           style: {
+    //             'color': l(this.color)
+    //           }
+    //         },
+    //         '\nThis refreshes 60fps:\n',
+    //         l(this.num),
+    //         '\n\n',
+    //         'This refreshes every second:\n',
+    //         l(this.time)
+    //       )
+    //     ).else(
+    //       r('div', '[ There is something hidden here ]')
+    //     ),
+    //     r('button',
+    //       { onclick: this.toggle.props('asd') },
+    //       'Toggle Color Test'
+    //     ),
+    //     r('hr'),
+    //     r('div',
+    //       r('h3',
+    //         'Item count: ',
+    //         l(this.count),
+    //       ),
+    //       r('h3',
+    //         cond(
+    //           l(this.count < 1000),
+    //           '< 1000'
+    //         ).cond(
+    //           l(this.count < 2000),
+    //           '< 2000'
+    //         ).cond(
+    //           l(this.count < 3000),
+    //           '< 3000'
+    //         ).cond(
+    //           l(this.count < 4000),
+    //           '< 4000'
+    //         ).else(
+    //           '>= 4000'
+    //         )
+    //       ),
+    //       'Benchmark: ',
+    //       l(this.bench),
+    //       ' ms',
+    //       r('div',
+    //         r('button',
+    //           { onclick: this.create1000 },
+    //           'Create 1,000 rows'
+    //         ),
+    //         r('button',
+    //           { onclick: this.add1000 },
+    //           'Add 1,000 rows'
+    //         ),
+    //         r('button',
+    //           { onclick: this.add10000 },
+    //           'Add 10,000 rows'
+    //         ),
+    //         '\n',
+    //         r('button',
+    //           { onclick: this.pop },
+    //           'Remove 1 row'
+    //         ),
+    //         r('button',
+    //           { onclick: this.reverse },
+    //           'Reverse Test'
+    //         ),
+    //         r('button',
+    //           { onclick: this.swap },
+    //           'Swap Test'
+    //         ),
+    //         r('button',
+    //           { onclick: this.remove },
+    //           'Remove all'
+    //         )
+    //       ),
+    //       r('ul',
+    //         'Child node on top\n\n',
+    //         // this.list.loop(item => r('li',
+    //         list(l(this.list), item => r('li',
+    //           l(item.id),
+    //           ' - ',
+    //           l(item.value)
+    //         )),
+    //         '\nChild node at bottom'
+    //       )
+    //     )
+    //   );
+    // };
+    //
+    // const main = component({
+    //   view: view,
+    //   state: state,
+    //   actions: actions
+    // });
+    //
+    // mount(r('div', new main()), 'app');
+  </script>
+</body>
+</html>
