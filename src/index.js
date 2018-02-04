@@ -1,4 +1,4 @@
-export const version = '0.0.4';
+export const version = '0.0.5';
 
 var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
 var FIND_L = /\bl\(/g;
@@ -69,7 +69,9 @@ Object.defineProperties(Object, {
 						what[key] = end
 					}
 				}
-				if (change) populateOne(what, key)
+				if (change) {
+					populateOne(what, key)
+				}
 			}
 		},
 		writable: true
@@ -129,15 +131,16 @@ var populateOne = function populateOne(item, ii) {
 
 	def[ii + '__ob__'] = { value: watchable(item, ii), configurable: true }
 
-	if (typeof item[ii] === 'object') populate(item[ii])
+	if (typeof item[ii] === 'object') populate(item[ii], item.__path + '.' + ii)
 
 	return Object.defineProperties(item, def)
 }
 
 // Add watchers to every object and array
-var populate = function populate(item) {
+var populate = function populate(item, pr) {
+	var path = (typeof pr === 'undefined') ? 'this' : pr;
 	if (item && typeof item === 'object') {
-		var def = { __r: { value: true } }
+		var def = { __r: { value: true }, __path: { value: path } }
 
 		// If input is an Array
 		if (isArray(item)) {
@@ -150,7 +153,7 @@ var populate = function populate(item) {
 				// Should not be able to reconfigure this
 				if (typeof item[ii + '__ob__'] === 'undefined') {
 					def[ii + '__ob__'] = { value: watchable(item, ii), configurable: true }
-					populate(item[ii])
+					populate(item[ii], path + '.' + ii)
 				}
 			}
 
@@ -163,7 +166,7 @@ var populate = function populate(item) {
 				// Should not be able to reconfigure this
 				if (typeof item[ii + '__ob__'] === 'undefined') {
 					def[ii + '__ob__'] = { value: watchable(item, ii), configurable: true }
-					populate(item[ii])
+					populate(item[ii], path + '.' + ii)
 				}
 			}
 
@@ -197,6 +200,7 @@ var Watchable = function Watchable (data, prop) {
 
 var dsc = Object.getOwnPropertyDescriptor
 var watcher = function watcher(targ, prop, handler) {
+	// console.warn('Watcher', targ, targ.__path, prop)
 	var oldval = targ[prop],
 		prev = (typeof dsc(targ, prop) !== 'undefined') ? dsc(targ, prop).set : null,
 		setter = function (newval) {
@@ -217,6 +221,10 @@ var watcher = function watcher(targ, prop, handler) {
 				}
 				if (typeof prev === 'function') prev(newval)
 				handler.call(targ, prop, oldval, newval)
+				// TODO: Make actual triggers
+				// if (typeof targ.__path !== 'undefined') {
+				// 	console.warn('Trigger', targ.__path + '.' + prop)
+				// }
 			} else {
 				return false
 			}
@@ -312,134 +320,141 @@ if (!Array.isArray) {
 var ids = 0;
 export const activeComponents = [];
 
-class Radi {
-	constructor(o) {
-		var state = o.state || {},
-			props = o.props || {},
-			actions = o.actions || {},
-			view = o.view;
+var Radi = function(o) {
+	var SELF = {}
 
-		this.$id = ids++;
+	// var remap = function(o, n) {
+	// 	triggerChanges(o, n, 'this')
+	// }
+	//
+	// SELF.$set = function $set(path, value) {
+	// 	var p = path.replace('this.', '').split('.'),
+	// 		target = SELF
+	// 	for (var i = 0; i < p.length - 1; i++) {
+	// 		target = SELF[p[i]]
+	// 	}
+	// 	target[p[i]] = value
+	// 	trigger(path)
+	// 	return value
+	// }
+	//
+	// var linkedActions = function(a) {
+	// 	var n = {}
+	// 	for (var i in a) {
+	// 		n[i] = (function() {
+	// 			var old = clone(SELF)
+	// 			var b = this.apply(SELF, arguments)
+	// 			remap(old, SELF)
+	// 			return b
+	// 		}).bind(a[i])
+	// 	}
+	// 	return n
+	// }
 
-		this.$this = {};
-		var SELF = this.$this;
-
-		for (var k in state) {
-			if (typeof SELF[k] === 'undefined') {
-				SELF[k] = state[k];
-			} else {
-				throw new Error('[Radi.js] Err: Trying to write state for reserved variable `' + k + '`');
-			}
+	for (var i in o.state) {
+		if (typeof SELF[i] === 'undefined') {
+			SELF[i] = o.state[i];
+		} else {
+			throw new Error('[Radi.js] Err: Trying to write state for reserved variable `' + i + '`');
 		}
-
-		for (var k in props) {
-			if (typeof SELF[k] === 'undefined') {
-				if (isWatchable(props[k])) {
-					SELF[k] = props[k].get();
-					props[k].watch(function (a) {
-						SELF[k] = a;
-					});
-				} else {
-					SELF[k] = props[k];
-				}
-			} else {
-				throw new Error('[Radi.js] Err: Trying to write prop for reserved variable `' + k + '`');
-			}
-		}
-
-		populate(SELF);
-		var data = SELF;
-
-		for (var k in actions) {
-			if (typeof SELF[k] === 'undefined') {
-				const act = actions[k];
-				SELF[k] = function () { return (frozenState) ? function () {} : act.apply(SELF, arguments) };
-
-				(function(SELF, k) {
-					Object.defineProperty(SELF[k], 'props', {
-						value() {
-							var args = arguments;
-							return function () { return (frozenState) ? function () {} : SELF[k].apply(SELF, args, arguments) }
-						}
-					});
-				})(SELF, k)
-			} else {
-				throw new Error('[Radi.js] Error: Trying to write action for reserved variable `' + k + '`');
-			}
-		}
-
-		SELF.$id = this.$id;
-		SELF.$name = o.name;
-		SELF.$state = state;
-		SELF.$props = props;
-		SELF.$actions = actions;
-		// SELF.$data = data;
-
-		this.$html = document.createDocumentFragment();
-
-		this.$view = new Function(
-			'r',
-			'list',
-			'l',
-			'cond',
-			// 'return ' + output
-			'return ' + o.$view
-		)(
-			r.bind(SELF),
-			list.bind(SELF),
-			l.bind(SELF),
-			cond.bind(SELF)
-		);
-
-		// console.log(this.$view);
-
-		this.$link = this.$view.apply(SELF);
-
-		if (this.$link instanceof Component || Array.isArray(this.$link)) {
-			this.$link = r.call(SELF, null, this.$link);
-		}
-		this.$html.appendChild(this.$link);
-
-		this.$html.destroy = (function () {
-			const oldRootElem = this.$link.parentElement;
-			const newRootElem = oldRootElem.cloneNode(false);
-			oldRootElem.parentNode.insertBefore(newRootElem, oldRootElem);
-			this.unmount();
-			oldRootElem.parentNode.removeChild(oldRootElem);
-		}).bind(this);
-
-		this.mount = function () {
-			if (typeof actions.onMount === 'function') {
-				actions.onMount.call(SELF)
-			}
-			activeComponents.push(this);
-		};
-
-		this.unmount = function () {
-			if (typeof actions.onDestroy === 'function') {
-				actions.onDestroy.call(SELF)
-			}
-			for (var i = 0; i < activeComponents.length; i++) {
-				if (activeComponents[i].$id === this.$id) {
-					activeComponents.splice(i, 1);
-					break;
-				}
-			}
-			return this.$link;
-		};
-
-		this.$link.unmount = this.unmount.bind(this)
 	}
 
-	get remount() {
-		this.mount();
-		return this.link;
+	for (var i in o.props) {
+		if (typeof SELF[i] === 'undefined') {
+			if (isWatchable(o.props[i])) {
+				SELF[i] = o.props[i].get();
+				o.props[i].watch(function (a) {
+					SELF[i] = a;
+				});
+			} else {
+				SELF[i] = o.props[i];
+			}
+		} else {
+			throw new Error('[Radi.js] Err: Trying to write prop for reserved variable `' + i + '`');
+		}
 	}
 
-	get out() {
-		this.mount();
-		return this.$html;
+	populate(SELF);
+
+	for (var i in o.actions) {
+		if (typeof SELF[i] === 'undefined') {
+			const act = o.actions[i];
+			SELF[i] = function () { return (frozenState) ? function () {} : act.apply(SELF, arguments) };
+
+			(function(i) {
+				Object.defineProperty(SELF[i], 'props', {
+					value() {
+						var args = arguments;
+						return function () { return (frozenState) ? function () {} : SELF[i].apply(SELF, args, arguments) }
+					}
+				});
+			})(i)
+		} else {
+			throw new Error('[Radi.js] Error: Trying to write action for reserved variable `' + i + '`');
+		}
 	}
+
+	SELF.$id = ids++;
+	SELF.$name = o.name;
+	SELF.$state = o.state || {};
+	SELF.$props = o.props || {};
+	SELF.$actions = o.actions || {};
+	SELF.$html = document.createDocumentFragment();
+
+	// Object.assign(SELF, SELF.$state)
+	// Object.assign(SELF, linkedActions(SELF.$actions))
+
+	SELF.$view = new Function('r','list','l','cond','return ' + o.$view)(
+		r.bind(SELF), list.bind(SELF), l.bind(SELF), cond.bind(SELF)
+	)
+
+	SELF.$render = function() {
+		SELF.$link = SELF.$view()
+		SELF.$link.unmount = SELF.unmount.bind(SELF)
+		SELF.$html.appendChild(SELF.$link)
+		SELF.mount()
+		return SELF.$html
+	}
+
+	// SELF.$html.destroy = function () {
+	// 	const oldRootElem = SELF.$link.parentElement;
+	// 	const newRootElem = oldRootElem.cloneNode(false);
+	// 	oldRootElem.parentNode.insertBefore(newRootElem, oldRootElem);
+	// 	SELF.unmount();
+	// 	oldRootElem.parentNode.removeChild(oldRootElem);
+	// }
+
+	SELF.mount = function () {
+		if (typeof SELF.$actions.onMount === 'function') {
+			SELF.$actions.onMount.call(SELF)
+		}
+		activeComponents.push(SELF);
+	}
+
+	SELF.unmount = function () {
+		if (typeof SELF.$actions.onDestroy === 'function') {
+			SELF.$actions.onDestroy.call(SELF)
+		}
+		for (var i = 0; i < activeComponents.length; i++) {
+			if (activeComponents[i].$id === SELF.$id) {
+				activeComponents.splice(i, 1);
+				break;
+			}
+		}
+		return SELF.$link;
+	}
+
+	// SELF.$link.unmount = SELF.unmount.bind(SELF)
+	// SELF.$remount = function () {
+	// 	this.mount();
+	// 	return this.link
+	// }
+	// SELF.$out = function () {
+	// 	this.mount();
+	// 	return this.$html;
+	// }
+
+	return SELF
 }
 
 var unmountAll = function unmountAll(el) {
@@ -499,13 +514,18 @@ var setAttr = function (view, arg1, arg2) {
 		} else if (isFunction(arg2)) {
 			el[arg1] = function (e) { arg2.call(self, e); };
 		} else if (isWatchable(arg2)) {
-			el.setAttribute(arg1, arg2.get());
-			// Update bind
-			arg2.watch(function (a) {
-				radiMutate(() => {
-					el.setAttribute(arg1, a);
+			var temp = arg2.get()
+			if (isFunction(temp)) {
+				el[arg1] = function (e) { arg2.get().call(self, e); };
+			} else {
+				el.setAttribute(arg1, arg2.get());
+				// Update bind
+				arg2.watch(function (a) {
+					radiMutate(() => {
+						el.setAttribute(arg1, a);
+					});
 				});
-			});
+			}
 		} else {
 			el.setAttribute(arg1, arg2);
 		}
@@ -540,11 +560,11 @@ var radiArgs = function (element, args) {
 
 		// support middleware
 		if (isComponent(arg)) {
-			element.appendChild(arg.__radi().out);
+			element.appendChild(arg.__radi().$render());
 		} else if (isCondition(arg)) {
 			var arg2 = arg.__do(), a, id = arg2.id
 			if (isComponent(arg2.r)) {
-				a = arg2.r.__radi().out;
+				a = arg2.r.__radi().$render();
 			} else if (typeof arg2.r === 'function') {
 				a = arg2.r();
 			} else if (isString(arg2.r) || isNumber(arg2.r)) {
@@ -557,7 +577,7 @@ var radiArgs = function (element, args) {
 				var arg2 = arg.__do(), b
 				if (id === arg2.id) return false
 				if (isComponent(arg2.r)) {
-					b = arg2.r.__radi().out;
+					b = arg2.r.__radi().$render();
 				} else if (typeof arg2.r === 'function') {
 					b = arg2.r();
 				} else if (isString(arg2.r) || isNumber(arg2.r)) {
@@ -691,7 +711,7 @@ Component.prototype.props = function props (p) {
 
 export const mount = function (comp, id) {
 	const where = (id.constructor === String) ? document.getElementById(id) : id;
-	var out = (comp instanceof Component) ? comp.__radi().out : comp;
+	var out = (comp instanceof Component) ? comp.__radi().$render() : comp;
 	where.appendChild(out);
 	return out;
 }
@@ -830,21 +850,13 @@ export const l = function (f, w, c) {
 	}
 }
 
-export const use = function (plug) {
-	if (typeof window.radi[plug] === 'function') {
-		window.radi[plug]()
-	} else {
-		console.warn('[Radi.js] Warn: Cannot find plugin `', plug)
-	}
-}
-
 export const freeze = () => { frozenState = true }
 export const unfreeze = () => {
 	frozenState = false
 
 	for (var ii = 0; ii < activeComponents.length; ii++) {
-		if (typeof activeComponents[ii].$this.onMount === 'function') {
-			activeComponents[ii].$this.onMount.call(activeComponents[ii].$this)
+		if (typeof activeComponents[ii].onMount === 'function') {
+			activeComponents[ii].onMount.call(activeComponents[ii])
 		}
 	}
 }

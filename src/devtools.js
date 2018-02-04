@@ -123,7 +123,7 @@
         // l(this.list).loop((component) => {
           return r('div.raddebug-component',
             r('strong',
-              { onclick: this.toggle.props(component.id) },
+              { onclick: l(this.toggle.props(component.id)) },
               l((component.name) ? component.name : 'unnamed-' + component.id)
             ),
             cond(l(this.show === component.id),
@@ -186,24 +186,24 @@
         var comp = []
         for (var ii = 0; ii < cp.length; ii++) {
           // Do not debug the debugger
-          if (!cp[ii].$this._radi_no_debug) {
+          if (!cp[ii]._radi_no_debug) {
             var arr = {
-              id: cp[ii].$this.$id,
-              name: cp[ii].$this.$name,
+              id: cp[ii].$id,
+              name: cp[ii].$name,
               vars: {
                 state: [],
                 props: [],
                 actions: []
               }
             }
-            for (var nn in cp[ii].$this.$state) {
-              arr.vars.state.push({key: nn, value: cp[ii].$this[nn]})
+            for (var nn in cp[ii].$state) {
+              arr.vars.state.push({key: nn, value: cp[ii][nn]})
             }
-            for (var nn in cp[ii].$this.$props) {
-              arr.vars.props.push({key: nn, value: cp[ii].$this[nn]})
+            for (var nn in cp[ii].$props) {
+              arr.vars.props.push({key: nn, value: cp[ii][nn]})
             }
-            for (var nn in cp[ii].$this.$actions) {
-              arr.vars.actions.push({key: nn, value: cp[ii].$this[nn]})
+            for (var nn in cp[ii].$actions) {
+              arr.vars.actions.push({key: nn, value: cp[ii][nn]})
             }
             comp.push(arr)
           }
@@ -214,6 +214,7 @@
         }, 10)
       },
       toggle(id) {
+        console.log(id)
         this.show = (this.show === id) ? null : id
       }
     }
