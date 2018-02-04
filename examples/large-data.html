@@ -104,7 +104,7 @@
   </script>
   <script src="../dist/radi.js"></script>
   <script src="../src/radi-router.js"></script>
-  <script src="../src/devtools.js"></script>
+  <!-- <script src="../src/devtools.js"></script> -->
   <script>
     var perf0 = performance.now()
     const { r, l, component, mount, cond } = radi
@@ -151,17 +151,17 @@
       onMount() {
         console.log('Mounted in', performance.now() - perf0, 'ms');
 
-        setInterval(() => {
-          this.num = ('0' + Math.round(Math.random() * 100)).substr(-2);
-        }, 0);
-
-        setInterval(() => {
-          this.time = ('0' + Math.round(Math.random() * 100)).substr(-2);
-        }, 1000);
-
-        setInterval(() => {
-          this.color = random_rgba();
-        }, 100);
+        // setInterval(() => {
+        //   this.num = ('0' + Math.round(Math.random() * 100)).substr(-2);
+        // }, 0);
+        //
+        // setInterval(() => {
+        //   this.time = ('0' + Math.round(Math.random() * 100)).substr(-2);
+        // }, 1000);
+        //
+        // setInterval(() => {
+        //   this.color = random_rgba();
+        // }, 100);
       },
       toggle(events) {
         console.log(this, events);

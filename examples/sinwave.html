@@ -52,7 +52,7 @@
                 style: {
                   width: this.barWidth + '%',
                   left: ( this.barWidth * i ) + '%',
-                  transform: l('scale(0.8,.5) translateY(' + bar.translateY + '%) rotate(' + this.rotation + 'deg)'),
+                  transform: l('scale(0.8,.5) translateY(' + bar.translateY + '%) rotate(' + bar.rotation + 'deg)'),
                   backgroundColor: l(bar.color)
                 }
               }
@@ -94,6 +94,7 @@
               id: i,
               color: 'hsl(' + hue + ',95%,55%)',
               translateY: Math.sin(this.count/10 + i/5) * 100 * .5,
+              rotation: (this.count+i)%360,
             });
           }
           return arr;
@@ -102,7 +103,6 @@
           // return false;
           if (this.active) {
             this.count += this.step;
-            this.rotation = (this.count+1)%360;
 
             this.bars = this.getColors();
 
