@@ -115,6 +115,26 @@
     }
   });
 
+  window.treeList = component({
+    name: 'tree-list',
+    // view: () => ( r('div', '>') )
+    view: function() {
+      return r('div',
+        list(l(this.array), (item) => {
+          return r('div', 'item')
+        })
+      )
+    },
+    props: {
+      array: Array
+    },
+    actions: {
+      onMount() {
+        console.log('me mount', this.array)
+      }
+    }
+  })
+
   var data = component({
     view: function() {
       return r('div',
@@ -123,7 +143,7 @@
         // l(this.list).loop((component) => {
           return r('div.raddebug-component',
             r('strong',
-              { onclick: l(this.toggle.props(component.id)) },
+              { onclick: () => l(this.toggle(component.id)) },
               l((component.name) ? component.name : 'unnamed-' + component.id)
             ),
             cond(l(this.show === component.id),
@@ -133,12 +153,13 @@
                   return r('li',
                     l(item.key),
                     ': ',
-                    // cond(
-                    //   l(Array.isArray(item.value) && item.value !== null),
-                    //   r('strong', 'Array of ', l((item.value).length), ' items')
-                    // ).else(
+                    cond(
+                      l(Array.isArray(item.value) && item.value !== null),
+                      new treeList().props({ array: l(item.value) })
+                      // r('strong', 'Array of ', item.value__ob__.length, ' items')
+                    ).else(
                       r('strong', l(item.value))
-                    // )
+                    )
                   );
                 }),
                 cond(l((component.vars.props).length), r('strong', 'Props')),
@@ -211,7 +232,7 @@
         this.list = comp
         setTimeout(() => {
           this.loadList(radi.activeComponents)
-        }, 10)
+        }, 1000)
       },
       toggle(id) {
         console.log(id)

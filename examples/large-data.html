@@ -9,6 +9,98 @@
 <body>
   <div id="app"></div>
   <script>
+    var EventSpitter, exports,
+      __slice = [].slice;
+
+    EventSpitter = (function() {
+      function EventSpitter() {}
+
+      EventSpitter.prototype.on = function(matcher, cbk) {
+        var _base, _ref, _ref1, _ref2;
+
+        if ((_ref1 = this.subscriptions) == null) {
+          this.subscriptions = {};
+        }
+        if ((_ref2 = (_base = this.subscriptions)[matcher]) == null) {
+          _base[matcher] = [];
+        }
+        this.subscriptions[matcher].push(cbk);
+
+        return this;
+      };
+
+      EventSpitter.prototype.listeners = function(evt) {
+        var callbacks, key, subscription, _ref, _ref1;
+
+        if ((_ref = this.subscriptions) == null) {
+          this.subscriptions = {};
+        }
+        callbacks = this.subscriptions[evt] || [];
+        _ref1 = this.regexpSubscriptions;
+        for (key in _ref1) {
+          subscription = _ref1[key];
+          if (subscription.regexp.test(evt)) {
+            callbacks = callbacks.concat(subscription.callbacks);
+          }
+        }
+        return callbacks;
+      };
+
+      EventSpitter.prototype.emit = function() {
+        var args, cbk, evt, _i, _len, _ref;
+
+        evt = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+        _ref = this.listeners(evt);
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          cbk = _ref[_i];
+          cbk.call.apply(cbk, [this, evt].concat(__slice.call(args)));
+        }
+        return this;
+      };
+
+      EventSpitter.prototype.off = function(matcher, cbk) {
+        var c, cbks, i, _i, _len, _ref;
+
+        if (matcher == null) {
+          this.subscriptions = {};
+          this.regexpSubscriptions = {};
+        } else {
+          if (cbk == null) {
+            if ((_ref = this.subscriptions) != null) {
+              delete _ref[matcher];
+            }
+          } else {
+            cbks = this.subscriptions[matcher] || [];
+            for (i = _i = 0, _len = cbks.length; _i < _len; i = ++_i) {
+              c = cbks[i];
+              if (c === cbk) {
+                cbks.splice(i, 1);
+              }
+            }
+          }
+        }
+        return this;
+      };
+
+      EventSpitter.prototype.once = function(matcher, cbk) {
+        var wrappedCbk,
+          _this = this;
+
+        wrappedCbk = function() {
+          var args;
+
+          args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+          cbk.call.apply(cbk, [_this].concat(__slice.call(args)));
+          return _this.off(matcher, wrappedCbk);
+        };
+        return this.on(matcher, wrappedCbk);
+      };
+
+      return EventSpitter;
+
+    })();
+  </script>
+  <script>
     const rand = Math.random
 
     function buildData(count, start) {
@@ -286,7 +378,7 @@
           r('div', '[ There is something hidden here ]')
         ),
         r('button',
-          { onclick: this.toggle.props('asd') },
+          { onclick: () => this.toggle('asd') },
           'Toggle Color Test'
         ),
         r('hr'),
@@ -349,7 +441,7 @@
           r('ul',
             'Child node on top\n\n',
             // this.list.loop(item => r('li',
-            list(l(this.list), item => r('li',
+            list(l(this.list), (item) => r('li',
               l(item.id),
               ' - ',
               l(item.value)
