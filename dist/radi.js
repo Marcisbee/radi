@@ -4,17 +4,7 @@
 	(factory((global.radi = {})));
 }(this, (function (exports) { 'use strict';
 
-const version = '0.0.5';
-
-var es = new EventSpitter;
-
-// es.on('this.list', function(e) {
-// 	console.log( "1 I was triggered by event " + e );
-// })
-//
-// es.on('this.list', function(e) {
-// 	console.log( "2 I was triggered by event " + e );
-// })
+const version = '0.1.0';
 
 var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
 var FIND_L = /\bl\(/g;
@@ -64,121 +54,6 @@ function clone(obj) {
 
 	return ret;
 }
-
-Object.defineProperties(Object, {
-	relocate: {
-		configurable: true,
-		enumerable: false,
-		value: function relocate(what, wit) {
-			for (var key in wit) {
-				const end = wit[key];
-				var change = false;
-				if (end && typeof end === 'object' && !(end instanceof Radi)) {
-					if (typeof what[key] === 'undefined') what[key] = end.constructor();
-					Object.relocate(what[key], end);
-					change = true;
-				} else {
-					if (what[key] !== end) {
-						change = true;
-						what[key] = end;
-					}
-				}
-				if (change) {
-					populateOne(what, key);
-				}
-			}
-		},
-		writable: true
-	}
-});
-
-// var populateOne = function populateOne(item, ii) {
-// 	if (typeof item[ii + '__ob__'] !== 'undefined') return false
-//
-// 	var def = { __r: { value: true } }
-//
-// 	if (typeof item.__path === 'undefined') def.__path = { value: item.__path + '.' + ii }
-//
-// 	var ret = Object.defineProperties(item, def);
-//
-// 	if (typeof item[ii] === 'object') populate(item[ii], item.__path + '.' + ii)
-//
-// 	return ret
-// }
-
-var populateOne = function populateOne(item, path) {
-	if (typeof item !== 'object' || !item) return false
-	if (path === 'this.$view') return false
-	if (path === 'this.$props') return false
-	if (path === 'this.$state') return false
-	if (path === 'this.$link') return false
-	if (path === 'this.$html') return false
-	// if (typeof item[ii + '__ob__'] !== 'undefined') return false
-
-	var def = { __r: { value: true } };
-
-	if (typeof item.__path === 'undefined') def.__path = { value: path };
-
-	var ret = Object.defineProperties(item, def);
-
-	if (typeof item === 'object')
-		for (var ii in item) {
-			if (typeof item === 'object')
-				populateOne(item[ii], path + '.' + ii);
-		}
-
-	// if (typeof item === 'object') populate(item[ii], path)
-
-	return ret
-};
-
-// Add watchers to every object and array
-var populate = function populate(item, pr) {
-	var path = (typeof pr === 'undefined') ? 'this' : pr;
-	if (item && typeof item === 'object') {
-		var def = { __r: { value: true } };
-
-		if (typeof item.__path === 'undefined') def.__path = { value: path };
-
-		var ret = Object.defineProperties(item, def);
-
-		for (var ii in item) {
-			populate(item[ii], path + '.' + ii);
-		}
-
-		// // If input is an Array
-		// if (isArray(item)) {
-		// 	// if (typeof item.__r === 'undefined' && !item.__r) {
-		// 	// 	arrayRules(item, def)
-		// 	// }
-		//
-		// 	for (var ii in item) {
-		// 		// Add watchable
-		// 		// Should not be able to reconfigure this
-		// 		// if (typeof item[ii + '__ob__'] === 'undefined') {
-		// 			// def[ii + '__ob__'] = { value: watchable(item, ii), configurable: true }
-		// 			populate(item[ii], path + '.' + ii)
-		// 		// }
-		// 	}
-		//
-		// } else
-		// // If input is an Object
-		// if (isObject(item)) {
-		//
-		// 	for (var ii in item) {
-		// 		// Add watchable
-		// 		// Should not be able to reconfigure this
-		// 		// if (typeof item[ii + '__ob__'] === 'undefined') {
-		// 			// def[ii + '__ob__'] = { value: watchable(item, ii), configurable: true }
-		// 			populate(item[ii], path + '.' + ii)
-		// 		// }
-		// 	}
-		//
-		// }
-
-		return ret
-	} else { return false }
-};
 
 var parseQuery = function (query) {
 	var tag = null;
@@ -253,80 +128,15 @@ if (!Array.isArray) {
 	};
 }
 
-
-// function triggerChanges(a, b, path) {
-// 	if (!(a === null && b === null))
-// 		if (JSON.stringify(a) !== JSON.stringify(b)) {
-// 			// Found difference in data
-// 			if (Array.isArray(b) && b.length < a.length && !b.length) {
-// 				//
-// 			} else
-// 			if (typeof a === 'object' && typeof a === typeof b) {
-// 				for (var prop in a) {
-// 					triggerChanges(a[prop], b[prop], path + '.' + prop)
-// 				}
-// 			} else {
-// 				// Simple value
-// 				console.warn('Change in value detected', path)
-// 				es.emit(path, b)
-// 			}
-// 		}
-// 		if (typeof a === 'object' && typeof a === typeof b) {
-// 			var len = {
-// 				a: (isObject(a)) ? Object.keys(a).length : a.length,
-// 				b: (isObject(b)) ? Object.keys(b).length : b.length
-// 			}
-// 			if (len.a !== len.b) {
-// 				console.warn('Change in length detected', path)
-// 				es.emit(path, b)
-// 			} else if (JSON.stringify(a) !== JSON.stringify(b)) {
-// 				console.warn('Change in object detected', path)
-// 				es.emit(path, b)
-// 			}
-// 			for (var prop in a) {
-// 				triggerChanges(a[prop], b[prop], path + '.' + prop)
-// 			}
-// 		} else if (JSON.stringify(a) !== JSON.stringify(b)) {
-// 			console.warn('Change in value detected', path)
-// 			es.emit(path, b)
-// 		}
-// }
-
-
-function triggerChanges(a, b, path) {
-	if (path === 'this.$view'
-		|| path === 'this.$props'
-		|| path === 'this.$state'
-		|| path === 'this.$link'
-		|| path === 'this.$html') return false
-  for (var prop in a) {
-		var p = path + '.' + prop;
-    if (typeof b[prop] === 'undefined') {
-			// console.warn('Change in value detected', p)
-			es.emit(p, b[prop]);
-    } else if (JSON.stringify(a[prop]) !== JSON.stringify(b[prop])) {
-      // console.log(typeof b[prop], 2);
-      // if value
-      if (typeof b[prop] !== 'object' || b[prop] === null) {
-				// console.warn('Change in value detected', p)
-				es.emit(p, b[prop]);
-    	} else {
-        // if array
-        if (isArray(b[prop])) {
-					// console.warn('Change in value detected', p)
-					es.emit(p, b[prop]);
-					triggerChanges(a[prop], b[prop], p);
-        }
-        // if object
-        else {
-					// console.warn('Change in value detected', p)
-					es.emit(p, b[prop]);
-          triggerChanges(a[prop], b[prop], p);
-        }
-      }
-    }
-  }
-}
+var arrayMods = function (v, s) {
+	Object.defineProperties(v, {
+		reverse: { value: s.bind('reverse') },
+		push: { value: s.bind('push') },
+		splice: { value: s.bind('splice') },
+		pop: { value: s.bind('pop') },
+		shift: { value: s.bind('shift') }
+	});
+};
 
 
 var ids = 0;
@@ -334,6 +144,69 @@ const activeComponents = [];
 
 var Radi = function(o) {
 	var SELF = {};
+
+	var populate = function populate(to, path) {
+		if (typeof to !== 'object'
+			|| !to
+			|| /^this\.\$(?:view|props|actions|state|link|e|html)$/.test(path)) return false;
+	  var ret = (typeof to.__path === 'undefined') ? Object.defineProperty(to, '__path', { value: path }) : false;
+	  for (var ii in to) {
+	    if (!Object.getOwnPropertyDescriptor(to, ii).set) {
+	      if (typeof to[ii] === 'object') populate(to[ii], path + '.' + ii);
+	      // Initiate watcher if not already watched
+	      watcher(to, ii);
+	      // Trigger changes for this path
+				SELF.$e.emit(path + '.' + ii, to[ii]);
+	    }
+	  }
+		return ret
+	};
+
+	var watcher = function watcher(targ, prop, handler) {
+	  var oldval = targ[prop],
+	    path = targ.__path + '.' + prop,
+	    setter = function (newval) {
+	      if (oldval !== newval) {
+	        if (Array.isArray(oldval)) {
+						var ret;
+	          if (this && this.constructor === String) {
+							ret = Array.prototype[this].apply(oldval, arguments);
+						} else {
+							oldval = newval;
+							arrayMods(oldval, setter);
+	          }
+
+						populate(oldval, path);
+						SELF.$e.emit(path, oldval);
+						return ret;
+	        } else if (typeof newval === 'object') {
+						oldval = clone(newval);
+						populate(oldval, path);
+						SELF.$e.emit(path, oldval);
+	        } else {
+	          oldval = newval;
+						populate(oldval, path);
+						SELF.$e.emit(path, oldval);
+	        }
+	        return newval
+	      } else {
+	        return false
+	      }
+	    };
+
+	  if (Array.isArray(oldval)) arrayMods(oldval, setter);
+
+	  if (delete targ[prop]) {
+	    Object.defineProperty(targ, prop, {
+	      get: function () {
+	        return oldval;
+	      },
+	      set: setter,
+	      enumerable: true,
+	      configurable: true
+	    });
+	  }
+	};
 
 	for (var i in o.state) {
 		if (typeof SELF[i] === 'undefined') {
@@ -343,33 +216,100 @@ var Radi = function(o) {
 		}
 	}
 
-	for (var i in o.props) {
-		if (typeof SELF[i] === 'undefined') {
-			if (isWatchable(o.props[i])) {
-				SELF[i] = o.props[i].get();
-				o.props[i].watch(function (a) {
-					SELF[i] = a;
-				});
-			} else {
-				SELF[i] = o.props[i];
-			}
-		} else {
-			throw new Error('[Radi.js] Err: Trying to write prop for reserved variable `' + i + '`');
-		}
-	}
+	// for (var i in o.props) {
+	// 	if (typeof SELF[i] === 'undefined') {
+	// 		if (isWatchable(o.props[i])) {
+	// 			SELF[i] = o.props[i].get();
+	// 			o.props[i].watch(function (a) {
+	// 				SELF[i] = a;
+	// 			});
+	// 		} else {
+	// 			SELF[i] = o.props[i];
+	// 		}
+	// 	} else {
+	// 		throw new Error('[Radi.js] Err: Trying to write prop for reserved variable `' + i + '`');
+	// 	}
+	// }
 
-	populate(SELF);
-	// SELF = clone(SELF)
+	var __slice = [].slice;
+	SELF.$e = {
+		subscriptions: [],
+		on(matcher, cbk) {
+			var _base, _ref, _ref1, _ref2;
+
+			if ((_ref1 = this.subscriptions) == null) {
+				this.subscriptions = {};
+			}
+			if ((_ref2 = (_base = this.subscriptions)[matcher]) == null) {
+				_base[matcher] = [];
+			}
+			this.subscriptions[matcher].push(cbk);
+
+			return this;
+		},
+		listeners(evt) {
+			var callbacks, key, subscription, _ref, _ref1;
+
+			if ((_ref = this.subscriptions) == null) {
+				this.subscriptions = {};
+			}
+			callbacks = this.subscriptions[evt] || [];
+			_ref1 = this.regexpSubscriptions;
+			for (key in _ref1) {
+				subscription = _ref1[key];
+				if (subscription.regexp.test(evt)) {
+					callbacks = callbacks.concat(subscription.callbacks);
+				}
+			}
+			return callbacks;
+		},
+		emit() {
+			var args, cbk, evt, _i, _len, _ref;
+
+			evt = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+			_ref = this.listeners(evt);
+			for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+				cbk = _ref[_i];
+				cbk.call.apply(cbk, [this, evt].concat(__slice.call(args)));
+			}
+			return this;
+		},
+		off(matcher, cbk) {
+			var c, cbks, i, _i, _len, _ref;
+
+			if (matcher == null) {
+				this.subscriptions = {};
+				this.regexpSubscriptions = {};
+			} else {
+				if (cbk == null) {
+					if ((_ref = this.subscriptions) != null) {
+						delete _ref[matcher];
+					}
+				} else {
+					cbks = this.subscriptions[matcher] || [];
+					for (i = _i = 0, _len = cbks.length; _i < _len; i = ++_i) {
+						c = cbks[i];
+						if (c === cbk) {
+							cbks.splice(i, 1);
+						}
+					}
+				}
+			}
+			return this;
+		}
+	};
+
+	populate(SELF, 'this');
 
 	for (var i in o.actions) {
 		if (typeof SELF[i] === 'undefined') {
 			SELF[i] = (function() {
 				if (frozenState) return null
-				var old = clone(SELF);
-				var b = this.apply(SELF, arguments);
-				populateOne(SELF, 'this');
-				triggerChanges(old, SELF, 'this');
-				return b
+				// var old = clone(SELF)
+				return this.apply(SELF, arguments)
+				// populateOne(SELF, 'this');
+				// triggerChanges(old, SELF, 'this')
+				// return b
 			}).bind(o.actions[i]);
 
 			// (function(i) {
@@ -385,24 +325,6 @@ var Radi = function(o) {
 		}
 	}
 
-	// for (var i in o.actions) {
-	// 	if (typeof SELF[i] === 'undefined') {
-	// 		const act = o.actions[i];
-	// 		SELF[i] = function () { return (frozenState) ? function () {} : act.apply(SELF, arguments) };
-	//
-	// 		(function(i) {
-	// 			Object.defineProperty(SELF[i], 'props', {
-	// 				value() {
-	// 					var args = arguments;
-	// 					return function () { return (frozenState) ? function () {} : SELF[i].apply(SELF, args, arguments) }
-	// 				}
-	// 			});
-	// 		})(i)
-	// 	} else {
-	// 		throw new Error('[Radi.js] Error: Trying to write action for reserved variable `' + i + '`');
-	// 	}
-	// }
-
 	SELF.$id = ids++;
 	SELF.$name = o.name;
 	SELF.$state = o.state || {};
@@ -410,15 +332,11 @@ var Radi = function(o) {
 	SELF.$actions = o.actions || {};
 	SELF.$html = document.createDocumentFragment();
 
-	// Object.assign(SELF, SELF.$state)
-	// Object.assign(SELF, linkedActions(SELF.$actions))
-
-	SELF.$view = new Function('r','list','l','cond','return ' + o.$view)(
-		r.bind(SELF), list.bind(SELF), l.bind(SELF), cond.bind(SELF)
+	SELF.$view = new Function('r','list','ll','cond','return ' + o.$view)(
+		r.bind(SELF), list.bind(SELF), ll.bind(SELF), cond.bind(SELF)
 	);
 
 	SELF.$link = SELF.$view();
-	// SELF.$link.unmount = SELF.unmount.bind(SELF)
 	SELF.$html.appendChild(SELF.$link);
 
 	SELF.$render = function() {
@@ -458,14 +376,6 @@ var Radi = function(o) {
 
 	SELF.$link.unmount = SELF.unmount.bind(SELF);
 	SELF.$link.mount = SELF.mount.bind(SELF);
-	// SELF.$remount = function () {
-	// 	this.mount();
-	// 	return this.link
-	// }
-	// SELF.$out = function () {
-	// 	this.mount();
-	// 	return this.$html;
-	// }
 
 	return SELF
 };
@@ -497,23 +407,30 @@ var radiMutate = function (c) {
 };
 
 var setStyle = function (view, arg1, arg2) {
+	var self = this;
 	var el = getEl(view);
 
 	if (isWatchable(arg2)) {
-		el.style[arg1] = arg2.get();
+		var cache = arg2.get();
+		el.style[arg1] = cache;
+
 		// Update bind
-		arg2.watch((a) => {
-			radiMutate(() => {
-				el.style[arg1] = a;
+		(function(cache, arg1, arg2){
+			self.$e.on(arg2.path, function(e, v) {
+				if (v === cache) return false
+				radiMutate(() => {
+					el.style[arg1] = v;
+				});
+				cache = v;
 			});
-		});
+		})(cache, arg1, arg2);
 	} else if (arg2 !== undefined) {
 		el.style[arg1] = arg2;
 	} else if (isString(arg1)) {
 		el.setAttribute('style', arg1);
 	} else {
 		for (var key in arg1) {
-			setStyle(el, key, arg1[key]);
+			setStyle.call(this, el, key, arg1[key]);
 		}
 	}
 };
@@ -524,17 +441,21 @@ var setAttr = function (view, arg1, arg2) {
 
 	if (arg2 !== undefined) {
 		if (arg1 === 'style') {
-			setStyle(el, arg2);
+			setStyle.call(this, el, arg2);
 		} else if (arg1 === 'model' && isWatchable(arg2)) {
 			var cache = arg2.get();
 			el.value = cache;
-			el['oninput'] = function () { arg2.source[arg2.prop] = cache = el.value; es.emit(arg2.path, el.value); };
-			arg2.watch(function (a) {
-				if (cache !== a)
+			el['oninput'] = function () { arg2.source[arg2.prop] = cache = el.value; self.$e.emit(arg2.path, el.value); };
+			// Update bind
+			(function(cache, arg1, arg2){
+				self.$e.on(arg2.path, function(e, v) {
+					if (v === cache) return false
 					radiMutate(() => {
-						el.value = a;
+						el.value = v;
 					});
-			});
+					cache = v;
+				});
+			})(cache, arg1, arg2);
 		} else if (isFunction(arg2)) {
 			el[arg1] = function (e) { arg2.call(self, e); };
 		} else if (isWatchable(arg2)) {
@@ -542,13 +463,19 @@ var setAttr = function (view, arg1, arg2) {
 			if (isFunction(temp)) {
 				el[arg1] = function (e) { arg2.get().call(self, e); };
 			} else {
-				el.setAttribute(arg1, arg2.get());
+				var cache = arg2.get();
+				let z = el.setAttribute(arg1, cache);
+
 				// Update bind
-				arg2.watch(function (a) {
-					radiMutate(() => {
-						el.setAttribute(arg1, a);
+				(function(cache, arg1, arg2){
+					self.$e.on(arg2.path, function(e, v) {
+						if (v === cache) return false
+						radiMutate(() => {
+							el.setAttribute(arg1, v);
+						});
+						cache = v;
 					});
-				});
+				})(cache, arg1, arg2);
 			}
 		} else {
 			el.setAttribute(arg1, arg2);
@@ -574,6 +501,7 @@ var isComponent = function (a) { return a && a.__radi; };
 const text = function (str) { return document.createTextNode(str); };
 
 var radiArgs = function (element, args) {
+	var self = this;
 	for (var i = 0; i < args.length; i++) {
 		var arg = args[i];
 
@@ -596,24 +524,26 @@ var radiArgs = function (element, args) {
 				a = arg2.r;
 			}
 			element.appendChild(a);
-			(function(arg){arg.watch(function(v) {
-				var arg2 = arg.__do(), b;
-				if (id === arg2.id) return false
-				if (isComponent(arg2.r)) {
-					b = arg2.r.__radi().$render();
-				} else if (typeof arg2.r === 'function') {
-					b = arg2.r();
-				} else if (isString(arg2.r) || isNumber(arg2.r)) {
-					b = text(arg2.r);
-				} else {
-					b = arg2.r;
-				}
-				unmountAll(a);
-				a.parentNode.replaceChild(b, a);
-				a = b;
-				mountAll(a);
-				id = arg2.id;
-			});})(arg);
+			(function(arg){
+				arg.watch(function(v) {
+					var arg2 = arg.__do(), b;
+					if (id === arg2.id) return false
+					if (isComponent(arg2.r)) {
+						b = arg2.r.__radi().$render();
+					} else if (typeof arg2.r === 'function') {
+						b = arg2.r();
+					} else if (isString(arg2.r) || isNumber(arg2.r)) {
+						b = text(arg2.r);
+					} else {
+						b = arg2.r;
+					}
+					unmountAll(a);
+					a.parentNode.replaceChild(b, a);
+					a = b;
+					mountAll(a);
+					id = arg2.id;
+				});
+			})(arg);
 		} else if (typeof arg === 'function') {
 			arg.call(this, element);
 		} else if (isString(arg) || isNumber(arg)) {
@@ -628,21 +558,15 @@ var radiArgs = function (element, args) {
 			element.appendChild(z);
 
 			// Update bind
-			if (arg.path) {
-				(function(cache){es.on(arg.path, function(e, v) {
+			(function(cache, arg){
+				self.$e.on(arg.path, function(e, v) {
 					if (v === cache) return false
 					radiMutate(() => {
 						z.textContent = v;
 					});
 					cache = v;
-				});})(cache);
-			}
-			// arg.watch((a) => {
-			// 	console.warn('Change received', arg.path, arg, arg.prop)
-			// 	radiMutate(() => {
-			// 		z.textContent = a;
-			// 	});
-			// });
+				});
+			})(cache, arg);
 		} else if (typeof arg === 'object') {
 			setAttr.call(this, element, arg);
 		}
@@ -719,7 +643,7 @@ const component = function (o) {
 			}
 		}
 		var obs = obs.join(',');
-		var newString = 'l(function(){ return ' + found.substr(1) + '; },[' + obs + '], "' + m.join(',') + '")';
+		var newString = 'll(function(){ return ' + found.substr(1) + '; },[' + obs + '], "' + m.join(',') + '")';
 
 		output.push(fn.substr(cursor, n - cursor));
 		output.push(newString);
@@ -775,7 +699,6 @@ const list = function (data, act) {
 
 	if (isArray(cache)) {
 		for (var i = 0; i < cache.length; i++) {
-			// cache[i+'__ob__'].watch((v) => {})
 			fragment.appendChild(
 				act.call(SELF, cache[i], i)
 			);
@@ -783,7 +706,6 @@ const list = function (data, act) {
 	} else {
 		var i = 0;
 		for (var key in cache) {
-			// cache[i+'__ob__'].watch((v) => {})
 			fragment.appendChild(
 				act.call(SELF, cache[key], key, i)
 			);
@@ -795,10 +717,11 @@ const list = function (data, act) {
 
 	var w = function(a, b) {
 		if (a > 0) {
-			var start = b.length - a;
-			for (var i = start; i < b.length; i++) {
+			var len = b.length;
+			var start = len - a;
+			for (var i = start; i < len; i++) {
 				fragment.appendChild(
-					act.call(SELF, b[i], i)
+					act.call(SELF, data.source[data.prop][i], i)
 				);
 			}
 			var temp = fragment.lastChild;
@@ -817,39 +740,30 @@ const list = function (data, act) {
 	// var cache = data.get()
 	if (data.path) {
 		var len = cache.length;
-		es.on(data.path, function(e, v) {
+		SELF.$e.on(data.path, function(e, v) {
 			w(v.length - len, v);
 			len = v.length;
 		});
 	}
 
-	// if (data.watch) data.watch(w)
-	// if (data.get && data.get()._r_get) data.get()._r_get(w)
-
 	return fragment;
 };
 
 
-function NW(source, prop) {
-  this.path = source.__path + '.' + prop;
+function NW(source, prop, path) {
+  this.path = ((path) ? path : source.__path) + '.' + prop;
+  // var orginal = source.__path + '.' + prop;
   this.get = () => (source[prop]);
+  // this.get = () => (get((source.__path + '.' + prop).split('.').shift(), source));
   this.source = source;
   this.prop = prop;
-	var path = this.path;
-	this.watch = function watch (c) {
-		var cache = source[prop];
-		if (path) {
-			es.on(path, function(e) {
-				if (source[prop] === cache) return false
-				c(source[prop], cache);
-				cache = source[prop];
-			});
-		}
-	};
 }
 
+// var linkNum = 0
+
 const link = function (fn, watch, txt) {
-	var args = { s: null }, SELF = this, n, f = fn.bind(this);
+	var args = { s: null }, SELF = this, f = () => (fn.call(this));
+	// linkNum += 1;
 
 	if (txt.length === 1 && fn.toString()
 				.replace(/(function \(\)\{ return |\(|\)|\; \})/g, '')
@@ -857,26 +771,40 @@ const link = function (fn, watch, txt) {
 		return new NW(watch[0][0], watch[0][1])
 	}
 
-	for (var i = 0; i < watch.length; i++) {
+	var len = watch.length;
+
+	args.s = f();
+	var path = [];
+	for (var i = 0; i < len; i++) {
+		path.push(watch[i][0].__path + '.' + watch[i][1]);
+	}
+	args.__path = '$+' + path.join('+');
+	console.log( 'reduce', args.__path );
+
+	for (var i = 0; i < len; i++) {
 		var item = watch[i][0][watch[i][1]];
-		if (isWatchable(item)) {
-			n = true;
-			watch[i].watch(function () {
-				args.s = f(SELF);
+		(function(path, args, fn) {
+			SELF.$e.on(path, (e) => {
+				var cache = f();
+				// debugger
+				// if (args.s !== cache) {
+					args.s = cache;
+					// if (path ==='this.bars.95.translateY')
+					// 	console.warn('TRIGGERED', SELF, cache, path, args.__path + '.s', args.s);
+					SELF.$e.emit(args.__path, f());
+				// }
 			});
-		}
+		})(watch[i][0].__path + '.' + watch[i][1], args, fn);
 	}
 
-	args.s = f(SELF);
-
-	if (!n) return args.s;
-	return new NW(args, 's');
+	if (len <= 0) return args.s;
+	return new NW(args, 's', args.__path);
 };
 
 const cond = function (a, e) {
-	return new Condition(a, e)
+	return new Condition(a, e, this)
 };
-var Condition = function Condition (a, e) {
+var Condition = function Condition (a, e, SELF) {
 	this.cases = [{a:a,e:e}];
 	this.w = [];
 	this.els = emptyNode.cloneNode();
@@ -885,7 +813,9 @@ var Condition = function Condition (a, e) {
 
 	this.watch = function(cb) {
 		for (var w in this.w) {
-			this.w[w].watch(cb);
+			SELF.$e.on(this.w[w].path, (e, v) => {
+				cb(v);
+			});
 		}
 	};
 
@@ -914,7 +844,11 @@ Condition.prototype.else = function (e) {
 	return this
 };
 
-const l = function (f, w, c) {
+const l = function (f) {
+	return f
+};
+
+const ll = function (f, w, c) {
 	if (!w) {
 		return f
 	} else {
@@ -943,6 +877,7 @@ exports.list = list;
 exports.link = link;
 exports.cond = cond;
 exports.l = l;
+exports.ll = ll;
 exports.freeze = freeze;
 exports.unfreeze = unfreeze;
 

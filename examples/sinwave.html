@@ -145,6 +145,9 @@
                   width: this.barWidth + '%',
                   left: ( this.barWidth * i ) + '%',
                   transform: l('scale(0.8,.5) translateY(' + bar.translateY + '%) rotate(' + bar.rotation + 'deg)'),
+                  // transform: ll(function() {return 'scale(0.8,.5) translateY(' + bar.translateY + '%) rotate(' + bar.rotation + 'deg)';}, [[bar, 'rotation']], 'bar.rotation'),
+                  // transform: l(this.rotation),
+                  // transform: l(bar.transform),
                   backgroundColor: l(bar.color)
                 }
               }
@@ -182,11 +185,14 @@
           var arr = [];
           for (var i = 0; i < this.barCount; i++) {
             var hue = (360 / this.barCount * i - this.count) % 360;
+            var t = Math.sin(this.count/10 + i/5) * 100 * .5;
+            var r = (this.count+i)%360;
             arr.push({
               id: i,
               color: 'hsl(' + hue + ',95%,55%)',
-              translateY: Math.sin(this.count/10 + i/5) * 100 * .5,
-              rotation: (this.count+i)%360,
+              translateY: t,
+              rotation: r,
+              transform: 'scale(0.8,.5) translateY(' + t + '%) rotate(' + r + 'deg)',
             });
           }
           return arr;
@@ -198,9 +204,13 @@
 
             this.bars = this.getColors();
 
-            window.requestAnimationFrame(() => {
-              this.nextFrame(this);
-            });
+            setTimeout(() => {
+              this.nextFrame();
+            }, 5000);
+
+            // window.requestAnimationFrame(() => {
+            //   this.nextFrame();
+            // });
           }
         }
       }
