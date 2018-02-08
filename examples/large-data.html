@@ -104,7 +104,7 @@
   </script>
   <script src="../dist/radi.js"></script>
   <script src="../src/radi-router.js"></script>
-  <!-- <script src="../src/devtools.js"></script> -->
+  <script src="../src/devtools.js"></script>
   <script>
     var perf0 = performance.now()
     const { r, l, component, mount, cond } = radi
@@ -179,9 +179,9 @@
         });
       },
       create1000() {
-        bench('Create 1,000 rows', () => {
-          this.list = buildData(1000, this.list.length);
-          this.count = 1000;
+        bench('Create 10 rows', () => {
+          this.list = buildData(10, this.list.length);
+          this.count = 10;
         }, (b) => {
           this.bench = b;
         });
@@ -318,7 +318,7 @@
           r('div',
             r('button',
               { onclick: this.create1000 },
-              'Create 1,000 rows'
+              'Create 10 rows'
             ),
             r('button',
               { onclick: this.add1000 },
@@ -352,7 +352,7 @@
             list(l(this.list), (item) => r('li',
               l(item.id),
               ' - ',
-              l(item.value + ' |-')
+              l(item.value)
             )),
             '\nChild node at bottom'
           )

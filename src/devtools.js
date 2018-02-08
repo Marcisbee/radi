@@ -139,6 +139,7 @@
     view: function() {
       return r('div',
         'Components: ',
+        l(this.list),
         list(l(this.list), (component) => {
         // l(this.list).loop((component) => {
           return r('div.raddebug-component',
@@ -155,8 +156,8 @@
                     ': ',
                     cond(
                       l(Array.isArray(item.value) && item.value !== null),
-                      new treeList().props({ array: l(item.value) })
-                      // r('strong', 'Array of ', item.value__ob__.length, ' items')
+                      // new treeList().props({ array: l(item.value) })
+                      // r('strong', 'Array of ', l((item.value).length), ' items')
                     ).else(
                       r('strong', l(item.value))
                     )
@@ -201,7 +202,10 @@
     },
     actions: {
       onMount() {
-        this.loadList(radi.activeComponents)
+        setInterval(() => {
+          this.list = this.loadList(radi.activeComponents);
+        }, 1000)
+        console.log(radi.activeComponents);
       },
       loadList(cp) {
         var comp = []
@@ -229,10 +233,11 @@
             comp.push(arr)
           }
         }
-        this.list = comp
-        setTimeout(() => {
-          this.loadList(radi.activeComponents)
-        }, 1000)
+
+        // setTimeout(() => {
+        //   this.loadList(radi.activeComponents)
+        // }, 1000)
+        return comp;
       },
       toggle(id) {
         console.log(id)

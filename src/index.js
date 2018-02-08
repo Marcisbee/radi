@@ -125,7 +125,9 @@ if (!Array.isArray) {
 }
 
 var arrayMods = function (v, s) {
-	Object.defineProperties(v, {
+	if (v.__radi) return false
+	return Object.defineProperties(v, {
+		__radi: { value: true },
 		reverse: { value: s.bind('reverse') },
 		push: { value: s.bind('push') },
 		splice: { value: s.bind('splice') },
@@ -149,9 +151,8 @@ var Radi = function(o) {
 	var SELF = {}
 
 	var populate = function populate(to, path) {
-		if (typeof to !== 'object'
-			|| !to
-			|| /^this\.\$(?:view|props|actions|state|link|e|html)$/.test(path)) return false;
+		if (typeof to !== 'object' || !to
+			|| /^this\.\$(?:parent|view|props|actions|state|link|e|html)$/.test(path)) return false;
 	  var ret = (typeof to.__path === 'undefined') ? Object.defineProperty(to, '__path', { value: path }) : false;
 	  for (var ii in to) {
 	    if (!Object.getOwnPropertyDescriptor(to, ii).set) {
@@ -163,6 +164,23 @@ var Radi = function(o) {
 	    }
 	  }
 		return ret
+	}
+
+	// NEW CODE
+	SELF.$e = {
+		WATCH: {},
+		get(path) {
+			return SELF.$e.WATCH[path] || (SELF.$e.WATCH[path] = [])
+		},
+		on(path, fn) {
+			return SELF.$e.get(path).push(fn)
+		},
+		emit(path, r) {
+			var list = SELF.$e.get(path), len = list.length
+			for (var i = 0; i < len; i++) {
+				list[i](path, r)
+			}
+		}
 	}
 
 	var watcher = function watcher(targ, prop, handler) {
@@ -219,88 +237,91 @@ var Radi = function(o) {
 		}
 	}
 
-	// for (var i in o.props) {
-	// 	if (typeof SELF[i] === 'undefined') {
-	// 		if (isWatchable(o.props[i])) {
-	// 			SELF[i] = o.props[i].get();
-	// 			o.props[i].watch(function (a) {
-	// 				SELF[i] = a;
-	// 			});
-	// 		} else {
-	// 			SELF[i] = o.props[i];
-	// 		}
-	// 	} else {
-	// 		throw new Error('[Radi.js] Err: Trying to write prop for reserved variable `' + i + '`');
-	// 	}
-	// }
+	for (var i in o.props) {
+		if (typeof SELF[i] === 'undefined') {
+			if (isWatchable(o.props[i])) {
+				SELF[i] = o.props[i].get();
 
-	var __slice = [].slice
-	SELF.$e = {
-		subscriptions: [],
-		on(matcher, cbk) {
-			var _base, _ref, _ref1, _ref2;
-
-			if ((_ref1 = this.subscriptions) == null) {
-				this.subscriptions = {};
-			}
-			if ((_ref2 = (_base = this.subscriptions)[matcher]) == null) {
-				_base[matcher] = [];
-			}
-			this.subscriptions[matcher].push(cbk);
-
-			return this;
-		},
-		listeners(evt) {
-			var callbacks, key, subscription, _ref, _ref1;
-
-			if ((_ref = this.subscriptions) == null) {
-				this.subscriptions = {};
-			}
-			callbacks = this.subscriptions[evt] || [];
-			_ref1 = this.regexpSubscriptions;
-			for (key in _ref1) {
-				subscription = _ref1[key];
-				if (subscription.regexp.test(evt)) {
-					callbacks = callbacks.concat(subscription.callbacks);
+				if (o.props[i].parent) {
+					o.props[i].parent().$e.on(o.props[i].path, (e, a) => {
+						SELF[i] = a;
+					})
 				}
-			}
-			return callbacks;
-		},
-		emit() {
-			var args, cbk, evt, _i, _len, _ref;
-
-			evt = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-			_ref = this.listeners(evt);
-			for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-				cbk = _ref[_i];
-				cbk.call.apply(cbk, [this, evt].concat(__slice.call(args)));
-			}
-			return this;
-		},
-		off(matcher, cbk) {
-			var c, cbks, i, _i, _len, _ref;
-
-			if (matcher == null) {
-				this.subscriptions = {};
-				this.regexpSubscriptions = {};
 			} else {
-				if (cbk == null) {
-					if ((_ref = this.subscriptions) != null) {
-						delete _ref[matcher];
-					}
-				} else {
-					cbks = this.subscriptions[matcher] || [];
-					for (i = _i = 0, _len = cbks.length; _i < _len; i = ++_i) {
-						c = cbks[i];
-						if (c === cbk) {
-							cbks.splice(i, 1);
-						}
-					}
-				}
+				SELF[i] = o.props[i];
 			}
-			return this;
+		} else {
+			throw new Error('[Radi.js] Err: Trying to write prop for reserved variable `' + i + '`');
 		}
 	}
+
+	// var __slice = [].slice
+	// SELF.$e = {
+	// 	subscriptions: [],
+	// 	on(matcher, cbk) {
+	// 		var _base, _ref, _ref1, _ref2;
+	//
+	// 		if ((_ref1 = this.subscriptions) == null) {
+	// 			this.subscriptions = {};
+	// 		}
+	// 		if ((_ref2 = (_base = this.subscriptions)[matcher]) == null) {
+	// 			_base[matcher] = [];
+	// 		}
+	// 		this.subscriptions[matcher].push(cbk);
+	//
+	// 		return this;
+	// 	},
+	// 	listeners(evt) {
+	// 		var callbacks, key, subscription, _ref, _ref1;
+	//
+	// 		if ((_ref = this.subscriptions) == null) {
+	// 			this.subscriptions = {};
+	// 		}
+	// 		callbacks = this.subscriptions[evt] || [];
+	// 		_ref1 = this.regexpSubscriptions;
+	// 		for (key in _ref1) {
+	// 			subscription = _ref1[key];
+	// 			if (subscription.regexp.test(evt)) {
+	// 				callbacks = callbacks.concat(subscription.callbacks);
+	// 			}
+	// 		}
+	// 		return callbacks;
+	// 	},
+	// 	emit() {
+	// 		var args, cbk, evt, _i, _len, _ref;
+	//
+	// 		evt = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+	// 		_ref = this.listeners(evt);
+	// 		for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+	// 			cbk = _ref[_i];
+	// 			cbk.call.apply(cbk, [this, evt].concat(__slice.call(args)));
+	// 		}
+	// 		return this;
+	// 	},
+	// 	off(matcher, cbk) {
+	// 		var c, cbks, i, _i, _len, _ref;
+	//
+	// 		if (matcher == null) {
+	// 			this.subscriptions = {};
+	// 			this.regexpSubscriptions = {};
+	// 		} else {
+	// 			if (cbk == null) {
+	// 				if ((_ref = this.subscriptions) != null) {
+	// 					delete _ref[matcher];
+	// 				}
+	// 			} else {
+	// 				cbks = this.subscriptions[matcher] || [];
+	// 				for (i = _i = 0, _len = cbks.length; _i < _len; i = ++_i) {
+	// 					c = cbks[i];
+	// 					if (c === cbk) {
+	// 						cbks.splice(i, 1);
+	// 					}
+	// 				}
+	// 			}
+	// 		}
+	// 		return this;
+	// 	}
+	// }
 
 	populate(SELF, 'this');
 
@@ -308,12 +329,11 @@ var Radi = function(o) {
 		if (typeof SELF[i] === 'undefined') {
 			SELF[i] = (function() {
 				if (frozenState) return null
-				// var old = clone(SELF)
-				return this.apply(SELF, arguments)
+				return o.actions[this].apply(SELF, arguments);
 				// populateOne(SELF, 'this');
 				// triggerChanges(old, SELF, 'this')
 				// return b
-			}).bind(o.actions[i]);
+			}).bind(i);
 
 			// (function(i) {
 			// 	Object.defineProperty(SELF[i], 'props', {
@@ -334,6 +354,7 @@ var Radi = function(o) {
 	SELF.$props = o.props || {};
 	SELF.$actions = o.actions || {};
 	SELF.$html = document.createDocumentFragment();
+	SELF.$parent = null;
 
 	SELF.$view = new Function('r','list','ll','cond','return ' + o.$view)(
 		r.bind(SELF), list.bind(SELF), ll.bind(SELF), cond.bind(SELF)
@@ -356,7 +377,7 @@ var Radi = function(o) {
 	// }
 
 	SELF.mount = function () {
-		console.log('MOUNT', SELF.$name)
+		// console.log('MOUNT', SELF.$name)
 		if (typeof SELF.$actions.onMount === 'function') {
 			SELF.$actions.onMount.call(SELF)
 		}
@@ -364,7 +385,7 @@ var Radi = function(o) {
 	}
 
 	SELF.unmount = function () {
-		console.log('UNMOUNT', SELF.$name)
+		// console.log('UNMOUNT', SELF.$name)
 		if (typeof SELF.$actions.onDestroy === 'function') {
 			SELF.$actions.onDestroy.call(SELF)
 		}
@@ -402,11 +423,11 @@ var mountAll = function mountAll(el) {
 }
 
 var radiMutate = function (c) {
-	// window.requestAnimationFrame(() => {
-		// window.requestAnimationFrame(() => {
+	// // window.requestAnimationFrame(() => {
+	// 	// window.requestAnimationFrame(() => {
 			c();
-		// });
-	// });
+	// 	// });
+	// // });
 }
 
 var setStyle = function (view, arg1, arg2) {
@@ -557,7 +578,7 @@ var radiArgs = function (element, args) {
 		} else if (Array.isArray(arg)) {
 			radiArgs.call(this, element, arg);
 		} else if (isWatchable(arg)) {
-			var cache = arg.get()
+			var cache = arg.get();
 			let z = text(cache);
 			element.appendChild(z);
 
@@ -612,7 +633,8 @@ r.extend = function (query) {
 export const component = function (o) {
 	var fn = o.view.toString().replace(STRIP_COMMENTS, '')
 	var match = FIND_L.exec(fn);
-	var output = [];
+	// var output = [];
+	var output = '';
 	var cursor = 0;
 
 	while (match !== null) {
@@ -643,20 +665,24 @@ export const component = function (o) {
 			var temp = m[i].split('.')
 			if (temp.length > 1) {
 				var last = temp.splice(-1)[0]
-				obs.push('[' + temp + ', "' + last + '"]')
+				obs.push('[' + temp.join('.') + ', "' + last + '"]')
 			}
 		}
 		var obs = obs.join(',');
 		var newString = 'll(function(){ return ' + found.substr(1) + '; },[' + obs + '], "' + m.join(',') + '")';
 
-		output.push(fn.substr(cursor, n - cursor));
-		output.push(newString);
+		// output.push(fn.substr(cursor, n - cursor));
+		output = output.concat(fn.substr(cursor, n - cursor));
+		// output.push(newString);
+		output = output.concat(newString);
 		cursor = n + found.length;
 
 		match = FIND_L.exec(fn);
 	}
-	output.push(fn.substr(cursor, fn.length - cursor));
-	o.$view = output.join('');
+	// output.push(fn.substr(cursor, fn.length - cursor));
+	output = output.concat(fn.substr(cursor, fn.length - cursor));
+	// o.$view = output.join('');
+	o.$view = output;
 
 	return Component.bind(this, o);
 };
@@ -742,7 +768,6 @@ export const list = function (data, act) {
 		}
 	}
 
-	// var cache = data.get()
 	if (data.path) {
 		var len = cache.length
 		SELF.$e.on(data.path, function(e, v) {
@@ -755,55 +780,55 @@ export const list = function (data, act) {
 }
 
 
-function NW(source, prop, path) {
+function NW(source, prop, path, parent) {
   this.path = ((path) ? path : source.__path) + '.' + prop;
-  // var orginal = source.__path + '.' + prop;
   this.get = () => (source[prop]);
-  // this.get = () => (get((source.__path + '.' + prop).split('.').shift(), source));
   this.source = source;
   this.prop = prop;
+  this.parent = () => (parent);
 }
 
-// var linkNum = 0
+var linkNum = 0;
 
 export const link = function (fn, watch, txt) {
-	var args = { s: null }, SELF = this, f = () => (fn.call(this));
-	// linkNum += 1;
+	var args = {s: null,a: [],t: [],f: fn.toString()}, SELF = this;
 
 	if (txt.length === 1 && fn.toString()
 				.replace(/(function \(\)\{ return |\(|\)|\; \})/g, '')
 				.trim() === txt[0]) {
-		return new NW(watch[0][0], watch[0][1])
+		return new NW(watch[0][0], watch[0][1], null, this)
 	}
 
 	var len = watch.length
 
-	args.s = f();
-	var path = [];
-	for (var i = 0; i < len; i++) {
-		path.push(watch[i][0].__path + '.' + watch[i][1]);
-	}
-	args.__path = '$+' + path.join('+');
-	console.log( 'reduce', args.__path )
+	args.s = fn.call(this);
+	args.a = new Array(len);
+	args.t = new Array(len);
+	args.__path = '$link-' + linkNum;
+	linkNum += 1;
 
 	for (var i = 0; i < len; i++) {
-		var item = watch[i][0][watch[i][1]];
-		(function(path, args, fn) {
-			SELF.$e.on(path, (e) => {
-				var cache = f()
-				// debugger
-				// if (args.s !== cache) {
+		args.a[i] = watch[i][0][watch[i][1]];
+		args.t[i] = '$rdi[' + i + ']';
+		args.f = args.f.replace(txt[i], args.t[i]);
+		// args.f = args.f.replace(new RegExp(txt[i], 'g'), args.t[i]);
+		(function(path, args, p, i) {
+			SELF.$e.on(path, (e, v) => {
+				args.a[i] = v;
+				var cache = args.f.call(SELF, args.a)
+
+				if (args.s !== cache) {
 					args.s = cache;
-					// if (path ==='this.bars.95.translateY')
-					// 	console.warn('TRIGGERED', SELF, cache, path, args.__path + '.s', args.s);
-					SELF.$e.emit(args.__path, f());
-				// }
-			})
-		})(watch[i][0].__path + '.' + watch[i][1], args, fn)
+					SELF.$e.emit(p, args.s);
+				}
+			});
+		})(watch[i][0].__path + '.' + watch[i][1], args, args.__path + '.s', i)
 	}
+
+	args.f = new Function('$rdi', 'return ' + args.f + '();')
 
 	if (len <= 0) return args.s;
-	return new NW(args, 's', args.__path);
+	return new NW(args, 's', args.__path, this);
 }
 
 export const cond = function (a, e) {
@@ -812,15 +837,23 @@ export const cond = function (a, e) {
 var Condition = function Condition (a, e, SELF) {
 	this.cases = [{a:a,e:e}]
 	this.w = []
+	this.cache = []
 	this.els = emptyNode.cloneNode()
 
 	if (isWatchable(a)) { this.w.push(a) }
 
 	this.watch = function(cb) {
+		// console.log('LOAD WATCH', this.w);
 		for (var w in this.w) {
-			SELF.$e.on(this.w[w].path, (e, v) => {
-				cb(v)
-			})
+			this.cache[w] = this.w[w].get();
+			(function(w) {
+				SELF.$e.on(this.w[w].path, (e, v) => {
+					console.log(this.w[w].path, this.cache[w] == v, this.cache[w], v)
+					if (this.cache[w] == v) return false;
+					cb(v)
+					this.cache[w] = v;
+				})
+			}).call(this,w)
 		}
 	}
 

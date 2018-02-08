@@ -44,9 +44,9 @@
   <div id="app"></div>
 
   <script src="../dist/radi.js"></script>
-  <script src="../src/devtools.js"></script>
+  <!-- <script src="../src/devtools.js"></script> -->
   <script>
-    const { r, component, list, link, mount, l } = radi;
+    const { r, component, cond, list, link, mount, l } = radi;
 
     const dot = component({
       view: function () {
@@ -69,6 +69,12 @@
             onmouseenter: () => { this.hover = true; },
             onmouseleave: () => { this.hover = false; },
           },
+          // cond(
+          //   l(this.hover),
+          //   r('span', l('*' + this.text + '*'))
+          // ).else(
+          //   r('span', l(this.text))
+          // )
           l(this.hover ? '*' + this.text + '*' : this.text)
         );
       },

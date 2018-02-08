@@ -130,7 +130,7 @@
     })();
   </script>
   <script src="../dist/radi.js"></script>
-  <!-- <script src="../src/devtools.js"></script> -->
+  <script src="../src/devtools.js"></script>
   <script>
     const { r, component, list, link, mount } = radi;
 
@@ -204,13 +204,9 @@
 
             this.bars = this.getColors();
 
-            setTimeout(() => {
+            window.requestAnimationFrame(() => {
               this.nextFrame();
-            }, 5000);
-
-            // window.requestAnimationFrame(() => {
-            //   this.nextFrame();
-            // });
+            });
           }
         }
       }
