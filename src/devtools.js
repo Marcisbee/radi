@@ -144,7 +144,8 @@
         // l(this.list).loop((component) => {
           return r('div.raddebug-component',
             r('strong',
-              { onclick: () => l(this.toggle(component.id)) },
+              // { onclick: () => l(this.toggle(component.id)) },
+              { onclick: () => this.toggle(component.id) },
               l((component.name) ? component.name : 'unnamed-' + component.id)
             ),
             cond(l(this.show === component.id),

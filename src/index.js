@@ -51,7 +51,7 @@ function clone(obj) {
 	return ret;
 }
 
-var parseQuery = function (query) {
+function parseQuery(query) {
 	var tag = null;
 	var id = null;
 	var className = null;
@@ -96,7 +96,7 @@ var parseQuery = function (query) {
 	return { tag: tag, id: id, className: className };
 };
 
-var createElement = function (query, ns) {
+function createElement(query, ns) {
 	var ref = parseQuery(query);
 	var tag = ref.tag;
 	var id = ref.id;
@@ -136,37 +136,89 @@ var arrayMods = function (v, s) {
 	})
 }
 
-
-var get = function get(path, source) {
-	for (var i = 0; i < path.length; i++) {
-		source = source[path[i]]
-	}
-	return source
-}
-
 var ids = 0;
 export const activeComponents = [];
 
 var Radi = function(o) {
-	var SELF = {}
-
-	var populate = function populate(to, path) {
-		if (typeof to !== 'object' || !to
-			|| /^this\.\$(?:parent|view|props|actions|state|link|e|html)$/.test(path)) return false;
-	  var ret = (typeof to.__path === 'undefined') ? Object.defineProperty(to, '__path', { value: path }) : false;
-	  for (var ii in to) {
-	    if (!Object.getOwnPropertyDescriptor(to, ii).set) {
-	      if (typeof to[ii] === 'object') populate(to[ii], path + '.' + ii)
-	      // Initiate watcher if not already watched
-	      watcher(to, ii)
-	      // Trigger changes for this path
-				SELF.$e.emit(path + '.' + ii, to[ii])
-	    }
-	  }
-		return ret
+	var SELF = {
+		$state: {},
+		__path: 'this'
 	}
 
-	// NEW CODE
+	function addpath(target, path) {
+		if (typeof target.__path === 'undefined') Object.defineProperty(target, '__path', { value: path })
+	}
+
+	function addwatch(target, prop) {
+		if (!Object.getOwnPropertyDescriptor(target, prop).set) watcher(target, prop)
+	}
+
+	function clone2(source) {
+		var obj = source.constructor()
+		for (var i in source) obj[i] = source[i]
+		return obj
+	}
+
+
+
+	// TODO: check out
+	// for (var key in wit) {
+	// 	const end = wit[key]
+	// 	var change = false
+	// 	if (end && typeof end === 'object' && !(end instanceof Radi)) {
+	// 		if (typeof what[key] === 'undefined') what[key] = end.constructor()
+	// 		Object.relocate(what[key], end)
+	// 		change = true
+	// 	} else {
+	// 		if (what[key] !== end) {
+	// 			change = true
+	// 			what[key] = end
+	// 		}
+	// 	}
+	// 	if (change) {
+	// 		populateOne(what, key)
+	// 	}
+	// }
+
+	function apply(target, object) {
+		if (typeof target !== 'object' || !target) return object;
+		var path = target.__path;
+
+		for (var i in object) {
+			if (typeof object[i] === 'object') {
+				if (typeof target[i] === 'undefined') {
+					target[i] = (isArray(object[i])) ? [] : {};
+					addpath(target[i], path.concat('.').concat(i));
+				}
+				apply(target[i], object[i]);
+				// console.log('APPLY 1', path.concat('.').concat(i), target[i])
+				// SELF.$e.emit(path.concat('.').concat(i), target[i]);
+			} else {
+				// var c = (target[i] === object[i]);
+				target[i] = object[i];
+				// if (c) SELF.$e.emit(path.concat('.').concat(i), target[i]);
+			}
+			addwatch(target, i);
+		}
+	}
+
+	// function populate(to, path) {
+	// 	if (typeof to !== 'object' || !to
+	// 		|| /^this\.\$(?:parent|view|props|actions|state|link|e|html)$/.test(path)) return false;
+	//   var ret = (typeof to.__path === 'undefined') ? Object.defineProperty(to, '__path', { value: path }) : false;
+	//   for (var ii in to) {
+	//     if (!Object.getOwnPropertyDescriptor(to, ii).set) {
+	//       if (typeof to[ii] === 'object') populate(to[ii], path + '.' + ii)
+	//       // Initiate watcher if not already watched
+	//       watcher(to, ii)
+	//       // Trigger changes for this path
+	// 			SELF.$e.emit(path + '.' + ii, to[ii])
+	//     }
+	//   }
+	// 	return ret
+	// }
+	//
+
 	SELF.$e = {
 		WATCH: {},
 		get(path) {
@@ -183,7 +235,7 @@ var Radi = function(o) {
 		}
 	}
 
-	var watcher = function watcher(targ, prop, handler) {
+	function watcher(targ, prop, handler) {
 	  var oldval = targ[prop],
 	    path = targ.__path + '.' + prop,
 	    setter = function (newval) {
@@ -191,22 +243,35 @@ var Radi = function(o) {
 	        if (Array.isArray(oldval)) {
 						var ret;
 	          if (this && this.constructor === String) {
-							ret = Array.prototype[this].apply(oldval, arguments)
-						} else {
-							oldval = newval;
-							arrayMods(oldval, setter);
-	          }
+							var newval = clone(oldval);
+							ret = Array.prototype[this].apply(newval, arguments);
+						}
 
-						populate(oldval, path);
+						var l1 = oldval.length;
+						var l2 = newval.length;
+						var diff = l2 - l1;
+
+						if (diff < 0) {
+							for (var i = l1; i > l1 + diff; i--) {
+								delete oldval[(i-1)]
+							}
+						}
+						oldval.length = l2
+						apply(oldval, newval);
+
+						// populate(oldval, path);
 						SELF.$e.emit(path, oldval);
 						return ret;
 	        } else if (typeof newval === 'object') {
-						oldval = clone(newval)
-						populate(oldval, path);
+						// oldval = clone(newval)
+						// for (var i in newval) {
+							apply(oldval, newval);
+						// }
+						// populate(oldval, path);
 						SELF.$e.emit(path, oldval);
 	        } else {
 	          oldval = newval
-						populate(oldval, path);
+						// populate(oldval, path);
 						SELF.$e.emit(path, oldval);
 	        }
 	        return newval
@@ -230,25 +295,25 @@ var Radi = function(o) {
 	}
 
 	for (var i in o.state) {
-		if (typeof SELF[i] === 'undefined') {
-			SELF[i] = o.state[i];
+		if (typeof SELF.$state[i] === 'undefined') {
+			SELF.$state[i] = o.state[i];
 		} else {
 			throw new Error('[Radi.js] Err: Trying to write state for reserved variable `' + i + '`');
 		}
 	}
 
 	for (var i in o.props) {
-		if (typeof SELF[i] === 'undefined') {
+		if (typeof SELF.$state[i] === 'undefined') {
 			if (isWatchable(o.props[i])) {
-				SELF[i] = o.props[i].get();
+				SELF.$state[i] = o.props[i].get();
 
 				if (o.props[i].parent) {
 					o.props[i].parent().$e.on(o.props[i].path, (e, a) => {
-						SELF[i] = a;
+						SELF.$state[i] = a;
 					})
 				}
 			} else {
-				SELF[i] = o.props[i];
+				SELF.$state[i] = o.props[i];
 			}
 		} else {
 			throw new Error('[Radi.js] Err: Trying to write prop for reserved variable `' + i + '`');
@@ -323,7 +388,9 @@ var Radi = function(o) {
 	// 	}
 	// }
 
-	populate(SELF, 'this');
+	apply(SELF, SELF.$state);
+
+	// populate(SELF, 'this');
 
 	for (var i in o.actions) {
 		if (typeof SELF[i] === 'undefined') {
@@ -562,10 +629,10 @@ var radiArgs = function (element, args) {
 					} else {
 						b = arg2.r;
 					}
-					unmountAll(a)
+					// unmountAll(a)
 					a.parentNode.replaceChild(b, a)
 					a = b
-					mountAll(a)
+					// mountAll(a)
 					id = arg2.id
 				})
 			})(arg)
@@ -791,45 +858,76 @@ function NW(source, prop, path, parent) {
 var linkNum = 0;
 
 export const link = function (fn, watch, txt) {
-	var args = {s: null,a: [],t: [],f: fn.toString()}, SELF = this;
+	var args = {}, SELF = this;
 
 	if (txt.length === 1 && fn.toString()
 				.replace(/(function \(\)\{ return |\(|\)|\; \})/g, '')
 				.trim() === txt[0]) {
-		return new NW(watch[0][0], watch[0][1], null, this)
+		return new NW(watch[0][0], watch[0][1])
 	}
 
-	var len = watch.length
+	var len = watch.length;
 
-	args.s = fn.call(this);
-	args.a = new Array(len);
-	args.t = new Array(len);
-	args.__path = '$link-' + linkNum;
-	linkNum += 1;
+	args.s = fn.call(SELF);
+	args.__path = '$link-' + (linkNum++);
 
 	for (var i = 0; i < len; i++) {
-		args.a[i] = watch[i][0][watch[i][1]];
-		args.t[i] = '$rdi[' + i + ']';
-		args.f = args.f.replace(txt[i], args.t[i]);
-		// args.f = args.f.replace(new RegExp(txt[i], 'g'), args.t[i]);
 		(function(path, args, p, i) {
-			SELF.$e.on(path, (e, v) => {
-				args.a[i] = v;
-				var cache = args.f.call(SELF, args.a)
+			SELF.$e.on(path, (e) => {
+				var cache = fn.call(SELF);
 
 				if (args.s !== cache) {
 					args.s = cache;
 					SELF.$e.emit(p, args.s);
 				}
 			});
-		})(watch[i][0].__path + '.' + watch[i][1], args, args.__path + '.s', i)
+		})(watch[i][0].__path + '.' + watch[i][1], args, args.__path.concat('.s'), i)
 	}
 
-	args.f = new Function('$rdi', 'return ' + args.f + '();')
-
 	if (len <= 0) return args.s;
-	return new NW(args, 's', args.__path, this);
+	return new NW(args, 's', null, this);
 }
+
+// export const link = function (fn, watch, txt) {
+// 	var args = {s: null,a: [],t: [],f: fn.toString()}, SELF = this;
+//
+// 	if (txt.length === 1 && fn.toString()
+// 				.replace(/(function \(\)\{ return |\(|\)|\; \})/g, '')
+// 				.trim() === txt[0]) {
+// 		return new NW(watch[0][0], watch[0][1], null, this)
+// 	}
+//
+// 	var len = watch.length
+//
+// 	args.s = fn.call(this);
+// 	args.a = new Array(len);
+// 	args.t = new Array(len);
+// 	args.__path = '$link-' + linkNum;
+// 	linkNum += 1;
+//
+// 	for (var i = 0; i < len; i++) {
+// 		args.a[i] = watch[i][0][watch[i][1]];
+// 		args.t[i] = '$rdi[' + i + ']';
+// 		args.f = args.f.replace(txt[i], args.t[i]);
+// 		// args.f = args.f.replace(new RegExp(txt[i], 'g'), args.t[i]);
+// 		(function(path, args, p, i) {
+// 			SELF.$e.on(path, (e, v) => {
+// 				args.a[i] = v;
+// 				var cache = args.f.call(SELF, args.a)
+//
+// 				if (args.s !== cache) {
+// 					args.s = cache;
+// 					SELF.$e.emit(p, args.s);
+// 				}
+// 			});
+// 		})(watch[i][0].__path + '.' + watch[i][1], args, args.__path + '.s', i)
+// 	}
+//
+// 	args.f = new Function('$rdi', 'return ' + args.f + '();')
+//
+// 	if (len <= 0) return args.s;
+// 	return new NW(args, 's', args.__path, this);
+// }
 
 export const cond = function (a, e) {
 	return new Condition(a, e, this)
@@ -845,13 +943,13 @@ var Condition = function Condition (a, e, SELF) {
 	this.watch = function(cb) {
 		// console.log('LOAD WATCH', this.w);
 		for (var w in this.w) {
-			this.cache[w] = this.w[w].get();
+			// this.cache[w] = this.w[w].get();
 			(function(w) {
-				SELF.$e.on(this.w[w].path, (e, v) => {
-					console.log(this.w[w].path, this.cache[w] == v, this.cache[w], v)
-					if (this.cache[w] == v) return false;
-					cb(v)
-					this.cache[w] = v;
+				SELF.$e.on(this.w[w].path, (e) => {
+					// console.log(this.w[w].path, this.cache[w] == v, this.cache[w], v)
+					// if (this.cache[w] == v) return false;
+					cb(this.w[w].get())
+					// this.cache[w] = v;
 				})
 			}).call(this,w)
 		}
