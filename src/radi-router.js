@@ -38,35 +38,36 @@
 		}
 	}
 
-	var getRoute = function getRoute(curr) {
-		if (lr === curr) return ld
-		if (!cr) cr = Object.keys(this)
-		if (!crg) crg = parseAllRoutes(cr)
+  radi.router = function(ro) {
 
-		for (var i = 0; i < crg.length; i++) {
-			if (crg[i][0].test(curr)) {
-				ld = new Route(curr, crg[i], this, cr[i])
-				break
-			}
-		}
-		return ld
-	}
+  	function getRoute(curr) {
+  		if (lr === curr) return ld
+  		if (!cr) cr = Object.keys(ro.routes)
+  		if (!crg) crg = parseAllRoutes(cr)
 
-  radi.router = function(routes) {
-    getRoute = getRoute.bind(routes)
-    window.routes = routes
+  		for (var i = 0; i < crg.length; i++) {
+  			if (crg[i][0].test(curr)) {
+  				ld = new Route(curr, crg[i], ro.routes, cr[i])
+  				break
+  			}
+  		}
+  		return ld
+  	}
 
-    var conds = []
-    for (var route in routes) {
-      conds.push(`cond(
-        l(this.active === '${route}'),
-        () => (r('div', new routes['${route}']()))
+    window.r_routes = ro.routes
+    window.r_before = ro.beforeEach || true
+    window.r_after = ro.afterEach || null
+
+    var conds = ''
+    for (var route in ro.routes) {
+      conds = conds.concat(`cond(
+        l(this.active === '${route}' && (r_before === true || r_before('${route}',2))),
+        function () { var ret = r('div', new r_routes['${route}']()); if(r_after)r_after(); return ret; }
       ).`)
     }
-    if (conds.length > 0) conds.push('else(\'Error 404\')')
+    if (conds !== '') conds = conds.concat('else(\'Error 404\')')
 
-    // var fn = 'return r(\'div\', \'Router\')'
-    var fn = `return r('div', ${conds.join('')})`
+    var fn = `return r('div', ${conds})`
 
     return radi.component({
       name: 'radi-router',

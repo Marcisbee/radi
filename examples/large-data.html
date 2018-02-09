@@ -130,10 +130,30 @@
       }
     })
 
+    const denied = component({
+      name: 'denied',
+      view: function() {
+        return r('div', 'Access Denied')
+      }
+    })
+
     const router = radi.router({
-			'/': index,
-			'foo': foo,
-			'foo/:bar': bar
+      routes: {
+  			'/': index,
+  			'/foo': foo,
+  			'/foo/:bar': bar
+      },
+      beforeEach(from, to) {
+        console.log('beforeEach', arguments)
+        if (from === '/foo') {
+          return false
+        } else {
+          return true
+        }
+      },
+      afterEach(from, to) {
+        // After
+      }
 		})
 
     const state = {
