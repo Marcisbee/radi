@@ -314,13 +314,13 @@ function Radi(o) {
 
 	SELF.$html.appendChild(SELF.$link)
 
-	// SELF.$html.destroy = function () {
-	// 	const oldRootElem = SELF.$link.parentElement;
-	// 	const newRootElem = oldRootElem.cloneNode(false);
-	// 	oldRootElem.parentNode.insertBefore(newRootElem, oldRootElem);
-	// 	SELF.unmount();
-	// 	oldRootElem.parentNode.removeChild(oldRootElem);
-	// }
+	SELF.$html.destroy = function () {
+		const oldRootElem = SELF.$link.parentElement;
+		const newRootElem = oldRootElem.cloneNode(false);
+		oldRootElem.parentNode.insertBefore(newRootElem, oldRootElem);
+		SELF.unmount();
+		oldRootElem.parentNode.removeChild(oldRootElem);
+	}
 
 	SELF.mount = function () {
 		if (typeof SELF.$actions.onMount === 'function') {
@@ -836,4 +836,21 @@ export const unfreeze = () => {
 			activeComponents[ii].onMount.call(activeComponents[ii])
 		}
 	}
+}
+
+const pack = {
+	activeComponents: activeComponents,
+	r: r,
+	l: l,
+	cond: cond,
+	component: component,
+	mount: mount,
+	freeze: freeze,
+	unfreeze: unfreeze,
+}
+
+window.$Radi = pack
+
+export function use (plugin) {
+	return plugin(pack)
 }
