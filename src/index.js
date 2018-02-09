@@ -1,22 +1,25 @@
-export const version = '0.1.0';
+export const version = '0.1.1'
 
-var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
-var FIND_L = /\bl\(/g;
+var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg
+var FIND_L = /\bl\(/g
+var RL = '('.charCodeAt(0)
+var RR = ')'.charCodeAt(0)
+var HASH = '#'.charCodeAt(0)
+var DOT = '.'.charCodeAt(0)
 
-var RL = '('.charCodeAt(0);
-var RR = ')'.charCodeAt(0);
-var HASH = '#'.charCodeAt(0);
-var DOT = '.'.charCodeAt(0);
+var TAGNAME = 0
+var ID = 1
+var CLASSNAME = 2
 
-var TAGNAME = 0;
-var ID = 1;
-var CLASSNAME = 2;
+var frozenState = false
 
-var frozenState = false;
+function isArray (o) { return Array.isArray(o) === true }
 
-var _op = Object.prototype,
-isObject = function (o) { return o && o.__proto__ === _op },
-isArray = function (o) { return Array.isArray(o) === true }
+if (!Array.isArray) {
+	Array.isArray = function (arg) {
+		return Object.prototype.toString.call(arg) === '[object Array]';
+	};
+}
 
 function clone(obj) {
 	var i, ret, ret2;
@@ -118,14 +121,9 @@ function createElement(query, ns) {
 	return element;
 };
 
-if (!Array.isArray) {
-	Array.isArray = function(arg) {
-		return Object.prototype.toString.call(arg) === '[object Array]';
-	};
-}
-
 var arrayMods = function (v, s) {
-	if (v.__radi) return false
+	if (!isArray(v) || v.__radi) return false
+	// if (v.__radi) return false
 	return Object.defineProperties(v, {
 		__radi: { value: true },
 		reverse: { value: s.bind('reverse') },
@@ -139,139 +137,71 @@ var arrayMods = function (v, s) {
 var ids = 0;
 export const activeComponents = [];
 
-var Radi = function(o) {
+function Radi(o) {
 	var SELF = {
-		$state: {},
 		__path: 'this'
 	}
 
-	function addpath(target, path) {
-		if (typeof target.__path === 'undefined') Object.defineProperty(target, '__path', { value: path })
+	function populate(to, path) {
+		var ret
+		if (typeof to !== 'object' || !to) return false;
+	  ret = (typeof to.__path === 'undefined') ? Object.defineProperty(to, '__path', { value: path }) : false;
+	  for (var ii in to) {
+	    if (to.hasOwnProperty(ii) && !Object.getOwnPropertyDescriptor(to, ii).set) {
+	      if (typeof to[ii] === 'object') populate(to[ii], path + '.' + ii)
+	      // Initiate watcher if not already watched
+	      watcher(to, ii, path.concat('.').concat(ii))
+	      // Trigger changes for this path
+				SELF.$e.emit(path + '.' + ii, to[ii])
+	    }
+	  }
+		return ret
 	}
 
-	function addwatch(target, prop) {
-		if (!Object.getOwnPropertyDescriptor(target, prop).set) watcher(target, prop)
-	}
-
-	function clone2(source) {
-		var obj = source.constructor()
-		for (var i in source) obj[i] = source[i]
-		return obj
-	}
-
-
-
-	// TODO: check out
-	// for (var key in wit) {
-	// 	const end = wit[key]
-	// 	var change = false
-	// 	if (end && typeof end === 'object' && !(end instanceof Radi)) {
-	// 		if (typeof what[key] === 'undefined') what[key] = end.constructor()
-	// 		Object.relocate(what[key], end)
-	// 		change = true
-	// 	} else {
-	// 		if (what[key] !== end) {
-	// 			change = true
-	// 			what[key] = end
-	// 		}
-	// 	}
-	// 	if (change) {
-	// 		populateOne(what, key)
-	// 	}
-	// }
-
-	function apply(target, object) {
-		if (typeof target !== 'object' || !target) return object;
-		var path = target.__path;
-
-		for (var i in object) {
-			if (typeof object[i] === 'object') {
-				if (typeof target[i] === 'undefined') {
-					target[i] = (isArray(object[i])) ? [] : {};
-					addpath(target[i], path.concat('.').concat(i));
+	Object.defineProperty(SELF, '$e', {
+		enumerable: false,
+		value: {
+			WATCH: {},
+			get(path) {
+				return SELF.$e.WATCH[path] || (SELF.$e.WATCH[path] = [])
+			},
+			on(path, fn) {
+				if (frozenState) return null
+				return SELF.$e.get(path).push(fn)
+			},
+			emit(path, r) {
+				if (frozenState) return null
+				var list = SELF.$e.get(path), len = list.length
+				for (var i = 0; i < len; i++) {
+					list[i](path, r)
 				}
-				apply(target[i], object[i]);
-				// console.log('APPLY 1', path.concat('.').concat(i), target[i])
-				// SELF.$e.emit(path.concat('.').concat(i), target[i]);
-			} else {
-				// var c = (target[i] === object[i]);
-				target[i] = object[i];
-				// if (c) SELF.$e.emit(path.concat('.').concat(i), target[i]);
-			}
-			addwatch(target, i);
-		}
-	}
-
-	// function populate(to, path) {
-	// 	if (typeof to !== 'object' || !to
-	// 		|| /^this\.\$(?:parent|view|props|actions|state|link|e|html)$/.test(path)) return false;
-	//   var ret = (typeof to.__path === 'undefined') ? Object.defineProperty(to, '__path', { value: path }) : false;
-	//   for (var ii in to) {
-	//     if (!Object.getOwnPropertyDescriptor(to, ii).set) {
-	//       if (typeof to[ii] === 'object') populate(to[ii], path + '.' + ii)
-	//       // Initiate watcher if not already watched
-	//       watcher(to, ii)
-	//       // Trigger changes for this path
-	// 			SELF.$e.emit(path + '.' + ii, to[ii])
-	//     }
-	//   }
-	// 	return ret
-	// }
-	//
-
-	SELF.$e = {
-		WATCH: {},
-		get(path) {
-			return SELF.$e.WATCH[path] || (SELF.$e.WATCH[path] = [])
-		},
-		on(path, fn) {
-			return SELF.$e.get(path).push(fn)
-		},
-		emit(path, r) {
-			var list = SELF.$e.get(path), len = list.length
-			for (var i = 0; i < len; i++) {
-				list[i](path, r)
 			}
 		}
-	}
+	});
 
-	function watcher(targ, prop, handler) {
+	function watcher(targ, prop, path) {
 	  var oldval = targ[prop],
-	    path = targ.__path + '.' + prop,
-	    setter = function (newval) {
+			setter = function (newval) {
 	      if (oldval !== newval) {
 	        if (Array.isArray(oldval)) {
 						var ret;
 	          if (this && this.constructor === String) {
-							var newval = clone(oldval);
-							ret = Array.prototype[this].apply(newval, arguments);
-						}
+							ret = Array.prototype[this].apply(oldval, arguments)
+						} else {
+							oldval = newval;
+							arrayMods(oldval, setter);
+	          }
 
-						var l1 = oldval.length;
-						var l2 = newval.length;
-						var diff = l2 - l1;
-
-						if (diff < 0) {
-							for (var i = l1; i > l1 + diff; i--) {
-								delete oldval[(i-1)]
-							}
-						}
-						oldval.length = l2
-						apply(oldval, newval);
-
-						// populate(oldval, path);
+						populate(oldval, path);
 						SELF.$e.emit(path, oldval);
 						return ret;
 	        } else if (typeof newval === 'object') {
-						// oldval = clone(newval)
-						// for (var i in newval) {
-							apply(oldval, newval);
-						// }
-						// populate(oldval, path);
+						oldval = clone(newval)
+						populate(oldval, path);
 						SELF.$e.emit(path, oldval);
 	        } else {
 	          oldval = newval
-						// populate(oldval, path);
+						populate(oldval, path);
 						SELF.$e.emit(path, oldval);
 	        }
 	        return newval
@@ -295,145 +225,94 @@ var Radi = function(o) {
 	}
 
 	for (var i in o.state) {
-		if (typeof SELF.$state[i] === 'undefined') {
-			SELF.$state[i] = o.state[i];
+		if (typeof SELF[i] === 'undefined') {
+			SELF[i] = o.state[i];
 		} else {
 			throw new Error('[Radi.js] Err: Trying to write state for reserved variable `' + i + '`');
 		}
 	}
 
 	for (var i in o.props) {
-		if (typeof SELF.$state[i] === 'undefined') {
+		if (typeof SELF[i] === 'undefined') {
 			if (isWatchable(o.props[i])) {
-				SELF.$state[i] = o.props[i].get();
+				SELF[i] = o.props[i].get();
 
 				if (o.props[i].parent) {
 					o.props[i].parent().$e.on(o.props[i].path, (e, a) => {
-						SELF.$state[i] = a;
+						SELF[i] = a;
 					})
 				}
 			} else {
-				SELF.$state[i] = o.props[i];
+				SELF[i] = o.props[i];
 			}
 		} else {
 			throw new Error('[Radi.js] Err: Trying to write prop for reserved variable `' + i + '`');
 		}
 	}
 
-	// var __slice = [].slice
-	// SELF.$e = {
-	// 	subscriptions: [],
-	// 	on(matcher, cbk) {
-	// 		var _base, _ref, _ref1, _ref2;
-	//
-	// 		if ((_ref1 = this.subscriptions) == null) {
-	// 			this.subscriptions = {};
-	// 		}
-	// 		if ((_ref2 = (_base = this.subscriptions)[matcher]) == null) {
-	// 			_base[matcher] = [];
-	// 		}
-	// 		this.subscriptions[matcher].push(cbk);
-	//
-	// 		return this;
-	// 	},
-	// 	listeners(evt) {
-	// 		var callbacks, key, subscription, _ref, _ref1;
-	//
-	// 		if ((_ref = this.subscriptions) == null) {
-	// 			this.subscriptions = {};
-	// 		}
-	// 		callbacks = this.subscriptions[evt] || [];
-	// 		_ref1 = this.regexpSubscriptions;
-	// 		for (key in _ref1) {
-	// 			subscription = _ref1[key];
-	// 			if (subscription.regexp.test(evt)) {
-	// 				callbacks = callbacks.concat(subscription.callbacks);
-	// 			}
-	// 		}
-	// 		return callbacks;
-	// 	},
-	// 	emit() {
-	// 		var args, cbk, evt, _i, _len, _ref;
-	//
-	// 		evt = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-	// 		_ref = this.listeners(evt);
-	// 		for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-	// 			cbk = _ref[_i];
-	// 			cbk.call.apply(cbk, [this, evt].concat(__slice.call(args)));
-	// 		}
-	// 		return this;
-	// 	},
-	// 	off(matcher, cbk) {
-	// 		var c, cbks, i, _i, _len, _ref;
-	//
-	// 		if (matcher == null) {
-	// 			this.subscriptions = {};
-	// 			this.regexpSubscriptions = {};
-	// 		} else {
-	// 			if (cbk == null) {
-	// 				if ((_ref = this.subscriptions) != null) {
-	// 					delete _ref[matcher];
-	// 				}
-	// 			} else {
-	// 				cbks = this.subscriptions[matcher] || [];
-	// 				for (i = _i = 0, _len = cbks.length; _i < _len; i = ++_i) {
-	// 					c = cbks[i];
-	// 					if (c === cbk) {
-	// 						cbks.splice(i, 1);
-	// 					}
-	// 				}
-	// 			}
-	// 		}
-	// 		return this;
-	// 	}
-	// }
-
-	apply(SELF, SELF.$state);
-
-	// populate(SELF, 'this');
+	populate(SELF, 'this');
 
 	for (var i in o.actions) {
 		if (typeof SELF[i] === 'undefined') {
 			SELF[i] = (function() {
 				if (frozenState) return null
 				return o.actions[this].apply(SELF, arguments);
-				// populateOne(SELF, 'this');
-				// triggerChanges(old, SELF, 'this')
-				// return b
 			}).bind(i);
-
-			// (function(i) {
-			// 	Object.defineProperty(SELF[i], 'props', {
-			// 		value() {
-			// 			var args = arguments;
-			// 			return function () { return (frozenState) ? function () {} : SELF[i].apply(SELF, args, arguments) }
-			// 		}
-			// 	});
-			// })(i)
 		} else {
 			throw new Error('[Radi.js] Error: Trying to write action for reserved variable `' + i + '`');
 		}
 	}
 
-	SELF.$id = ids++;
-	SELF.$name = o.name;
-	SELF.$state = o.state || {};
-	SELF.$props = o.props || {};
-	SELF.$actions = o.actions || {};
-	SELF.$html = document.createDocumentFragment();
-	SELF.$parent = null;
+	Object.defineProperties(SELF, {
+		$id: {
+			enumerable: false,
+			value: ids++
+		},
+		$name: {
+			enumerable: false,
+			value: o.name
+		},
+		$state: {
+			enumerable: false,
+			value: o.state || {}
+		},
+		$props: {
+			enumerable: false,
+			value: o.props || {}
+		},
+		$actions: {
+			enumerable: false,
+			value: o.actions || {}
+		},
+		$html: {
+			enumerable: false,
+			value: document.createDocumentFragment()
+		},
+		$parent: {
+			enumerable: false,
+			value: null
+		},
+		$view: {
+			enumerable: false,
+			value: new Function('r','list','ll','cond','return ' + o.$view)(
+				r.bind(SELF), list.bind(SELF), ll.bind(SELF), cond.bind(SELF)
+			)
+		},
+		$render: {
+			enumerable: false,
+			value: function() {
+				SELF.mount()
+				return SELF.$html
+			}
+		},
+	});
 
-	SELF.$view = new Function('r','list','ll','cond','return ' + o.$view)(
-		r.bind(SELF), list.bind(SELF), ll.bind(SELF), cond.bind(SELF)
-	)
+	Object.defineProperty(SELF, '$link', {
+		enumerable: false,
+		value: SELF.$view()
+	})
 
-	SELF.$link = SELF.$view()
 	SELF.$html.appendChild(SELF.$link)
-
-	SELF.$render = function() {
-		SELF.mount()
-		return SELF.$html
-	}
 
 	// SELF.$html.destroy = function () {
 	// 	const oldRootElem = SELF.$link.parentElement;
@@ -444,7 +323,6 @@ var Radi = function(o) {
 	// }
 
 	SELF.mount = function () {
-		// console.log('MOUNT', SELF.$name)
 		if (typeof SELF.$actions.onMount === 'function') {
 			SELF.$actions.onMount.call(SELF)
 		}
@@ -452,7 +330,6 @@ var Radi = function(o) {
 	}
 
 	SELF.unmount = function () {
-		// console.log('UNMOUNT', SELF.$name)
 		if (typeof SELF.$actions.onDestroy === 'function') {
 			SELF.$actions.onDestroy.call(SELF)
 		}
@@ -471,7 +348,7 @@ var Radi = function(o) {
 	return SELF
 }
 
-var unmountAll = function unmountAll(el) {
+function unmountAll(el) {
 	if (typeof el.unmount === 'function') el.unmount()
 	if (el.children && el.children.length > 0) {
 		for (var i = 0; i < el.children.length; i++) {
@@ -480,7 +357,7 @@ var unmountAll = function unmountAll(el) {
 	}
 }
 
-var mountAll = function mountAll(el) {
+function mountAll(el) {
 	if (typeof el.mount === 'function') el.mount()
 	if (el.children && el.children.length > 0) {
 		for (var i = 0; i < el.children.length; i++) {
@@ -489,15 +366,11 @@ var mountAll = function mountAll(el) {
 	}
 }
 
-var radiMutate = function (c) {
-	// // window.requestAnimationFrame(() => {
-	// 	// window.requestAnimationFrame(() => {
-			c();
-	// 	// });
-	// // });
+function radiMutate(c) {
+	c();
 }
 
-var setStyle = function (view, arg1, arg2) {
+function setStyle(view, arg1, arg2) {
 	var self = this;
 	var el = getEl(view);
 
@@ -526,7 +399,7 @@ var setStyle = function (view, arg1, arg2) {
 	}
 };
 
-var setAttr = function (view, arg1, arg2) {
+function setAttr(view, arg1, arg2) {
 	var self = this;
 	var el = getEl(view);
 
@@ -592,7 +465,7 @@ var isComponent = function (a) { return a && a.__radi; };
 
 export const text = function (str) { return document.createTextNode(str); };
 
-var radiArgs = function (element, args) {
+function radiArgs(element, args) {
 	var self = this
 	for (var i = 0; i < args.length; i++) {
 		var arg = args[i];
@@ -629,10 +502,10 @@ var radiArgs = function (element, args) {
 					} else {
 						b = arg2.r;
 					}
-					// unmountAll(a)
+					unmountAll(a)
 					a.parentNode.replaceChild(b, a)
 					a = b
-					// mountAll(a)
+					mountAll(a)
 					id = arg2.id
 				})
 			})(arg)
@@ -668,9 +541,9 @@ var radiArgs = function (element, args) {
 
 var htmlCache = {};
 
-var memoizeHTML = function (query) { return htmlCache[query] || (htmlCache[query] = createElement(query)); };
+function memoizeHTML(query) { return htmlCache[query] || (htmlCache[query] = createElement(query)); };
 
-export const r = function (query) {
+export function r(query) {
 	var args = [], len = arguments.length - 1;
 	while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
 
@@ -697,12 +570,11 @@ r.extend = function (query) {
 	return r.bind.apply(r, [ this, clone ].concat( args ));
 };
 
-export const component = function (o) {
-	var fn = o.view.toString().replace(STRIP_COMMENTS, '')
-	var match = FIND_L.exec(fn);
-	// var output = [];
-	var output = '';
-	var cursor = 0;
+export function component(o) {
+	var fn = o.view.toString().replace(STRIP_COMMENTS, ''),
+		match = FIND_L.exec(fn),
+		cursor = 0;
+	o.$view = '';
 
 	while (match !== null) {
 		var n = match.index,
@@ -738,22 +610,16 @@ export const component = function (o) {
 		var obs = obs.join(',');
 		var newString = 'll(function(){ return ' + found.substr(1) + '; },[' + obs + '], "' + m.join(',') + '")';
 
-		// output.push(fn.substr(cursor, n - cursor));
-		output = output.concat(fn.substr(cursor, n - cursor));
-		// output.push(newString);
-		output = output.concat(newString);
+		o.$view = o.$view.concat(fn.substr(cursor, n - cursor)).concat(newString);
 		cursor = n + found.length;
 
 		match = FIND_L.exec(fn);
 	}
-	// output.push(fn.substr(cursor, fn.length - cursor));
-	output = output.concat(fn.substr(cursor, fn.length - cursor));
-	// o.$view = output.join('');
-	o.$view = output;
+	o.$view = o.$view.concat(fn.substr(cursor, fn.length - cursor));
 
 	return Component.bind(this, o);
 };
-var Component = function Component (o) {
+function Component(o) {
 	this.o = {
 		name: o.name,
 		state: clone(o.state),
@@ -765,7 +631,7 @@ var Component = function Component (o) {
 
 	this.__radi = function() { return new Radi(this.o); };
 };
-Component.prototype.props = function props (p) {
+Component.prototype.props = function props(p) {
 	for (var k in p) {
 		if (typeof this.o.props[k] === 'undefined') {
 			console.warn('[Radi.js] Warn: Creating a prop `', k, '` that is not defined in component');
@@ -819,7 +685,7 @@ export const list = function (data, act) {
 			var start = len - a
 			for (var i = start; i < len; i++) {
 				fragment.appendChild(
-					act.call(SELF, data.source[data.prop][i], i)
+					act.call(SELF, b[i], i)
 				)
 			}
 			var temp = fragment.lastChild
@@ -847,87 +713,56 @@ export const list = function (data, act) {
 }
 
 
-function NW(source, prop, path, parent) {
-  this.path = ((path) ? path : source.__path) + '.' + prop;
+function NW(source, prop, parent) {
+  this.path = source.__path + '.' + prop;
   this.get = () => (source[prop]);
   this.source = source;
   this.prop = prop;
-  this.parent = () => (parent);
+  this.parent = parent;
 }
 
 var linkNum = 0;
 
 export const link = function (fn, watch, txt) {
-	var args = {}, SELF = this;
+	var args = {s: null,a: [],t: [],f: fn.toString()}, SELF = this;
 
 	if (txt.length === 1 && fn.toString()
 				.replace(/(function \(\)\{ return |\(|\)|\; \})/g, '')
 				.trim() === txt[0]) {
-		return new NW(watch[0][0], watch[0][1])
+		return new NW(watch[0][0], watch[0][1], function () { return SELF; })
 	}
 
-	var len = watch.length;
+	var len = watch.length
 
-	args.s = fn.call(SELF);
-	args.__path = '$link-' + (linkNum++);
+	args.s = fn.call(this);
+	args.a = new Array(len);
+	args.t = new Array(len);
+	args.__path = '$link-' + linkNum;
+	linkNum += 1;
 
 	for (var i = 0; i < len; i++) {
+		args.a[i] = watch[i][0][watch[i][1]];
+		args.t[i] = '$rdi[' + i + ']';
+		args.f = args.f.replace(txt[i], args.t[i]);
+		// args.f = args.f.replace(new RegExp(txt[i], 'g'), args.t[i]);
 		(function(path, args, p, i) {
-			SELF.$e.on(path, (e) => {
-				var cache = fn.call(SELF);
+			SELF.$e.on(path, (e, v) => {
+				args.a[i] = v;
+				var cache = args.f.call(SELF, args.a)
 
 				if (args.s !== cache) {
 					args.s = cache;
 					SELF.$e.emit(p, args.s);
 				}
 			});
-		})(watch[i][0].__path + '.' + watch[i][1], args, args.__path.concat('.s'), i)
+		})(watch[i][0].__path + '.' + watch[i][1], args, args.__path + '.s', i)
 	}
 
-	if (len <= 0) return args.s;
-	return new NW(args, 's', null, this);
-}
+	args.f = new Function('$rdi', 'return ' + args.f + '();')
 
-// export const link = function (fn, watch, txt) {
-// 	var args = {s: null,a: [],t: [],f: fn.toString()}, SELF = this;
-//
-// 	if (txt.length === 1 && fn.toString()
-// 				.replace(/(function \(\)\{ return |\(|\)|\; \})/g, '')
-// 				.trim() === txt[0]) {
-// 		return new NW(watch[0][0], watch[0][1], null, this)
-// 	}
-//
-// 	var len = watch.length
-//
-// 	args.s = fn.call(this);
-// 	args.a = new Array(len);
-// 	args.t = new Array(len);
-// 	args.__path = '$link-' + linkNum;
-// 	linkNum += 1;
-//
-// 	for (var i = 0; i < len; i++) {
-// 		args.a[i] = watch[i][0][watch[i][1]];
-// 		args.t[i] = '$rdi[' + i + ']';
-// 		args.f = args.f.replace(txt[i], args.t[i]);
-// 		// args.f = args.f.replace(new RegExp(txt[i], 'g'), args.t[i]);
-// 		(function(path, args, p, i) {
-// 			SELF.$e.on(path, (e, v) => {
-// 				args.a[i] = v;
-// 				var cache = args.f.call(SELF, args.a)
-//
-// 				if (args.s !== cache) {
-// 					args.s = cache;
-// 					SELF.$e.emit(p, args.s);
-// 				}
-// 			});
-// 		})(watch[i][0].__path + '.' + watch[i][1], args, args.__path + '.s', i)
-// 	}
-//
-// 	args.f = new Function('$rdi', 'return ' + args.f + '();')
-//
-// 	if (len <= 0) return args.s;
-// 	return new NW(args, 's', args.__path, this);
-// }
+	if (len <= 0) return args.s;
+	return new NW(args, 's', function () { return SELF; });
+}
 
 export const cond = function (a, e) {
 	return new Condition(a, e, this)
@@ -941,9 +776,7 @@ var Condition = function Condition (a, e, SELF) {
 	if (isWatchable(a)) { this.w.push(a) }
 
 	this.watch = function(cb) {
-		// console.log('LOAD WATCH', this.w);
 		for (var w in this.w) {
-			// this.cache[w] = this.w[w].get();
 			(function(w) {
 				SELF.$e.on(this.w[w].path, (e) => {
 					// console.log(this.w[w].path, this.cache[w] == v, this.cache[w], v)
@@ -992,7 +825,9 @@ export const ll = function (f, w, c) {
 	}
 }
 
-export const freeze = () => { frozenState = true }
+export const freeze = () => {
+	frozenState = true
+}
 export const unfreeze = () => {
 	frozenState = false
 
