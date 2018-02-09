@@ -1,6 +1,6 @@
-const { mount } = require('../../src/index.js');
+const { mount, r } = require('../../src/index.js');
 
-var main = require('./app');
+import main from './app';
 
 var app = mount(new main(), 'app');
 
