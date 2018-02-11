@@ -336,7 +336,6 @@
         return r('table.table.table-striped.latest-data',
           r('tbody',
             list(l(this.dbs), (db, i) => {
-            // l(this.dbs).loop((db, i) => {
               return r('tr',
                 r('td.dbname',
                   db.dbname
@@ -350,7 +349,6 @@
                   )
                 ),
                 list(l(db.lastSample.topFiveQueries), (q, i) => {
-                // l(db.lastSample.topFiveQueries).loop((q, i) => {
                   return r('td',
                     {
                       class: l('Query ' + q.elapsedClassName)
@@ -375,7 +373,6 @@
       actions: {
         onMount() {
           this.dbs = [];
-
           this.load()
         },
         load() {

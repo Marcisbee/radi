@@ -129,7 +129,6 @@ function createElement(query, ns) {
 
 var arrayMods = function (v, s) {
 	if (!isArray(v) || v.__radi) return false
-	// if (v.__radi) return false
 	return Object.defineProperties(v, {
 		__radi: { value: true },
 		reverse: { value: s.bind('reverse') },
@@ -768,10 +767,10 @@ const link = function (fn, watch, txt) {
 	return new NW(args, 's', function () { return SELF; });
 };
 
-const cond = function (a, e) {
+function cond (a, e) {
 	return new Condition(a, e, this)
-};
-var Condition = function Condition (a, e, SELF) {
+}
+function Condition (a, e, SELF) {
 	this.cases = [{a:a,e:e}];
 	this.w = [];
 	this.cache = [];
@@ -782,11 +781,8 @@ var Condition = function Condition (a, e, SELF) {
 	this.watch = function(cb) {
 		for (var w in this.w) {
 			(function(w) {
-				SELF.$e.on(this.w[w].path, (e) => {
-					// console.log(this.w[w].path, this.cache[w] == v, this.cache[w], v)
-					// if (this.cache[w] == v) return false;
-					cb(this.w[w].get());
-					// this.cache[w] = v;
+				SELF.$e.on(this.w[w].path, (e, v) => {
+					cb(v);
 				});
 			}).call(this,w);
 		}
@@ -805,7 +801,7 @@ var Condition = function Condition (a, e, SELF) {
 		if (typeof ret.r === 'undefined') ret.r = this.els;
 		return ret
 	};
-};
+}
 Condition.prototype.elseif = function (a, e) {
 	this.cases.push({a:a,e:e});
 	if (isWatchable(a)) { this.w.push(a); }
@@ -817,22 +813,22 @@ Condition.prototype.else = function (e) {
 	return this
 };
 
-const l = function (f) {
+function l (f) {
 	return f
-};
+}
 
-const ll = function (f, w, c) {
+function ll (f, w, c) {
 	if (!w) {
 		return f
 	} else {
 		return link.call(this, f, w, c.split(','))
 	}
-};
+}
 
-const freeze = () => {
+function freeze () {
 	frozenState = true;
-};
-const unfreeze = () => {
+}
+function unfreeze () {
 	frozenState = false;
 
 	for (var ii = 0; ii < activeComponents.length; ii++) {
@@ -840,7 +836,7 @@ const unfreeze = () => {
 			activeComponents[ii].onMount.call(activeComponents[ii]);
 		}
 	}
-};
+}
 
 const pack = {
 	activeComponents: activeComponents,

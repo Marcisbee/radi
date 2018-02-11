@@ -104,10 +104,11 @@
   </script>
   <script src="../dist/radi.js"></script>
   <script src="../src/radi-router.js"></script>
-  <script src="../src/devtools.js"></script>
+  <!-- <script src="../src/devtools.js"></script> -->
   <script>
     var perf0 = performance.now()
-    const { r, l, component, mount, cond } = radi
+    const { r, l, component, mount, cond, use } = radi
+    const router = window.router.default
 
     const index = component({
       name: 'index',
@@ -137,7 +138,7 @@
       }
     })
 
-    const router = radi.router({
+    const Router = use(router)({
       routes: {
   			'/': index,
   			'/foo': foo,
@@ -286,7 +287,7 @@
           r('a', {href:'#/foo/bar'}, '[ /foo/bar ]'), r('br'),
         ),
         r('hr'),
-        new router(),
+        new Router(),
         r('hr'),
         cond(
           l(this.show),

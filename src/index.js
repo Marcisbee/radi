@@ -123,7 +123,6 @@ function createElement(query, ns) {
 
 var arrayMods = function (v, s) {
 	if (!isArray(v) || v.__radi) return false
-	// if (v.__radi) return false
 	return Object.defineProperties(v, {
 		__radi: { value: true },
 		reverse: { value: s.bind('reverse') },
@@ -764,10 +763,10 @@ export const link = function (fn, watch, txt) {
 	return new NW(args, 's', function () { return SELF; });
 }
 
-export const cond = function (a, e) {
+export function cond (a, e) {
 	return new Condition(a, e, this)
 }
-var Condition = function Condition (a, e, SELF) {
+function Condition (a, e, SELF) {
 	this.cases = [{a:a,e:e}]
 	this.w = []
 	this.cache = []
@@ -778,11 +777,8 @@ var Condition = function Condition (a, e, SELF) {
 	this.watch = function(cb) {
 		for (var w in this.w) {
 			(function(w) {
-				SELF.$e.on(this.w[w].path, (e) => {
-					// console.log(this.w[w].path, this.cache[w] == v, this.cache[w], v)
-					// if (this.cache[w] == v) return false;
-					cb(this.w[w].get())
-					// this.cache[w] = v;
+				SELF.$e.on(this.w[w].path, (e, v) => {
+					cb(v)
 				})
 			}).call(this,w)
 		}
@@ -813,11 +809,11 @@ Condition.prototype.else = function (e) {
 	return this
 }
 
-export const l = function (f) {
+export function l (f) {
 	return f
 }
 
-export const ll = function (f, w, c) {
+export function ll (f, w, c) {
 	if (!w) {
 		return f
 	} else {
@@ -825,10 +821,10 @@ export const ll = function (f, w, c) {
 	}
 }
 
-export const freeze = () => {
+export function freeze () {
 	frozenState = true
 }
-export const unfreeze = () => {
+export function unfreeze () {
 	frozenState = false
 
 	for (var ii = 0; ii < activeComponents.length; ii++) {

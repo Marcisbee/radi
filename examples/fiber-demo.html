@@ -69,12 +69,6 @@
             onmouseenter: () => { this.hover = true; },
             onmouseleave: () => { this.hover = false; },
           },
-          // cond(
-          //   l(this.hover),
-          //   r('span', l('*' + this.text + '*'))
-          // ).else(
-          //   r('span', l(this.text))
-          // )
           l(this.hover ? '*' + this.text + '*' : this.text)
         );
       },
@@ -107,6 +101,8 @@
 
         s = s / 2;
 
+        // Radi don't really care about 'slowdown' this, but it's here cuz someone
+        // could ask for this to be here
         var slowDown = true;
         if (slowDown) {
           var e = performance.now() + 0.8;
