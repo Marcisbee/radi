@@ -28,7 +28,7 @@ If you're not, you can [access these files on unpkg](https://unpkg.com/radi/dist
 
 Radi.js currently is compatible with browsers that support ES6. In stable release v1 it will support ES5 compatible browsers and even some below that, yes - looking at IE8 too.
 
-<!-- ## Ecosystem
+## Ecosystem
 
 | Project | Status | Description |
 |---------|--------|-------------|
@@ -38,7 +38,7 @@ Radi.js currently is compatible with browsers that support ES6. In stable releas
 
 [radi-router-status]: https://img.shields.io/npm/v/radi-router.svg
 
-[radi-router-package]: https://npmjs.com/package/radi-router -->
+[radi-router-package]: https://npmjs.com/package/radi-router
 
 ## Documentation
 
