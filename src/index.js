@@ -141,6 +141,29 @@ function Radi(o) {
 		__path: 'this'
 	}
 
+	Object.defineProperties(SELF, {
+		$e: {
+			enumerable: false,
+			value: {
+				WATCH: {},
+				get(path) {
+					return SELF.$e.WATCH[path] || (SELF.$e.WATCH[path] = [])
+				},
+				on(path, fn) {
+					if (frozenState) return null
+					return SELF.$e.get(path).push(fn)
+				},
+				emit(path, r) {
+					if (frozenState) return null
+					var list = SELF.$e.get(path), len = list.length
+					for (var i = 0; i < len; i++) {
+						list[i](path, r)
+					}
+				}
+			}
+		}
+	})
+
 	function populate(to, path) {
 		var ret
 		if (typeof to !== 'object' || !to) return false;
@@ -156,27 +179,6 @@ function Radi(o) {
 	  }
 		return ret
 	}
-
-	Object.defineProperty(SELF, '$e', {
-		enumerable: false,
-		value: {
-			WATCH: {},
-			get(path) {
-				return SELF.$e.WATCH[path] || (SELF.$e.WATCH[path] = [])
-			},
-			on(path, fn) {
-				if (frozenState) return null
-				return SELF.$e.get(path).push(fn)
-			},
-			emit(path, r) {
-				if (frozenState) return null
-				var list = SELF.$e.get(path), len = list.length
-				for (var i = 0; i < len; i++) {
-					list[i](path, r)
-				}
-			}
-		}
-	});
 
 	function watcher(targ, prop, path) {
 	  var oldval = targ[prop],
@@ -306,10 +308,12 @@ function Radi(o) {
 		},
 	});
 
-	Object.defineProperty(SELF, '$link', {
-		enumerable: false,
-		value: SELF.$view()
-	})
+	Object.defineProperties(SELF, {
+		$link: {
+			enumerable: false,
+			value: SELF.$view()
+		}
+	});
 
 	SELF.$html.appendChild(SELF.$link)
 
@@ -427,21 +431,27 @@ function setAttr(view, arg1, arg2) {
 				el[arg1] = function (e) { arg2.get().call(self, e); };
 			} else {
 				var cache = arg2.get();
-				let z = el.setAttribute(arg1, cache);
+				if (cache !== false)
+					el.setAttribute(arg1, cache);
 
 				// Update bind
 				(function(cache, arg1, arg2){
 					self.$e.on(arg2.path, function(e, v) {
 						if (v === cache) return false
 						radiMutate(() => {
-							el.setAttribute(arg1, v);
+							if (v !== false) {
+								el.setAttribute(arg1, v);
+							} else {
+								el.removeAttribute(arg1);
+							}
 						});
 						cache = v;
 					});
 				})(cache, arg1, arg2);
 			}
 		} else {
-			el.setAttribute(arg1, arg2);
+			if (arg2 !== false)
+				el.setAttribute(arg1, arg2);
 		}
 	} else {
 		for (var key in arg1) {
@@ -658,10 +668,11 @@ export const list = function (data, act) {
 	fragment.appendChild(toplink);
 
 	var ret = [];
-	var cache = data.source[data.prop]
+	var cache = data.source[data.prop] || []
+	var cacheLen = cache.length || 0
 
 	if (isArray(cache)) {
-		for (var i = 0; i < cache.length; i++) {
+		for (var i = 0; i < cacheLen; i++) {
 			fragment.appendChild(
 				act.call(SELF, cache[i], i)
 			)
@@ -701,7 +712,7 @@ export const list = function (data, act) {
 	}
 
 	if (data.path) {
-		var len = cache.length
+		var len = cacheLen;
 		SELF.$e.on(data.path, function(e, v) {
 			w(v.length - len, v)
 			len = v.length
@@ -835,6 +846,7 @@ export function unfreeze () {
 }
 
 const pack = {
+	version: version,
 	activeComponents: activeComponents,
 	r: r,
 	l: l,
