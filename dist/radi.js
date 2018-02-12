@@ -4,7 +4,7 @@
 	(factory((global.radi = {})));
 }(this, (function (exports) { 'use strict';
 
-const version = '0.1.1';
+const version = '0.1.2';
 
 var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
 var FIND_L = /\bl\(/g;
@@ -438,7 +438,11 @@ function setAttr(view, arg1, arg2) {
 			} else {
 				var cache = arg2.get();
 				if (cache !== false)
-					el.setAttribute(arg1, cache);
+					if (arg1 === 'html') {
+						el.innerHTML = cache;
+					} else {
+						el.setAttribute(arg1, cache);
+					}
 
 				// Update bind
 				(function(cache, arg1, arg2){
@@ -446,7 +450,11 @@ function setAttr(view, arg1, arg2) {
 						if (v === cache) return false
 						radiMutate(() => {
 							if (v !== false) {
-								el.setAttribute(arg1, v);
+								if (arg1 === 'html') {
+									el.innerHTML = v;
+								} else {
+									el.setAttribute(arg1, v);
+								}
 							} else {
 								el.removeAttribute(arg1);
 							}
@@ -456,8 +464,12 @@ function setAttr(view, arg1, arg2) {
 				})(cache, arg1, arg2);
 			}
 		} else {
-			if (arg2 !== false)
-				el.setAttribute(arg1, arg2);
+			if (cache !== false)
+				if (arg1 === 'html') {
+					el.innerHTML = arg2;
+				} else {
+					el.setAttribute(arg1, arg2);
+				}
 		}
 	} else {
 		for (var key in arg1) {
@@ -850,6 +862,7 @@ function unfreeze () {
 }
 
 const pack = {
+	version: version,
 	activeComponents: activeComponents,
 	r: r,
 	l: l,

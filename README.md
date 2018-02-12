@@ -36,7 +36,7 @@ Radi.js currently is compatible with browsers that support ES6. In stable releas
 
 [radi-router]: https://github.com/radi-js/radi-router
 
-[radi-router-status]: https://img.shields.io/npm/v/radi-router.svg
+[radi-router-status]: https://img.shields.io/npm/v/radi-router.svg?style=flat-square
 
 [radi-router-package]: https://npmjs.com/package/radi-router
 
