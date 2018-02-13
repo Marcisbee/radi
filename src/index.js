@@ -1,4 +1,4 @@
-export const version = '0.1.3'
+export const version = '0.1.4'
 
 var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg
 var FIND_L = /\bl\(/g
@@ -12,6 +12,7 @@ var ID = 1
 var CLASSNAME = 2
 
 var frozenState = false
+var registered = {}
 
 function isArray (o) { return Array.isArray(o) === true }
 
@@ -571,7 +572,14 @@ export function r(query) {
 	var element;
 
 	if (isString(query)) {
-		element = memoizeHTML(query).cloneNode(false);
+		if (typeof registered[query] !== 'undefined') {
+      // TODO: Make props and childs looped,
+			// aka don't assume that first obj are props
+			var props = args[0] || {}
+			return element = new registered[query]().props(props);
+		} else {
+			element = memoizeHTML(query).cloneNode(false);
+		}
 	} else if (isNode(query)) {
 		element = query.cloneNode(false);
 	} else {
@@ -873,4 +881,16 @@ window.$Radi = pack
 
 export function use (plugin) {
 	return plugin(pack)
+}
+
+export function register (c) {
+	var cmp = new c()
+	var n = cmp.o.name
+	if (!n) {
+		console.warn('[Radi.js] Warn: Cannot register component without name');
+	} else if (typeof registered[n] !== 'undefined') {
+		console.warn('[Radi.js] Warn: Component with name \'' + n + '\' already registered');
+	} else {
+		registered[n] = c
+	}
 }

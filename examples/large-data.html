@@ -103,59 +103,10 @@
     }
   </script>
   <script src="../dist/radi.js"></script>
-  <script src="../src/radi-router.js"></script>
-  <!-- <script src="../src/devtools.js"></script> -->
+  <script src="../src/devtools.js"></script>
   <script>
     var perf0 = performance.now()
-    const { r, l, component, mount, cond, use } = radi
-    const router = window.router.default
-
-    const index = component({
-      name: 'index',
-      view: function() {
-        return r('div', 'INDEX')
-      }
-    })
-
-    const foo = component({
-      name: 'foo',
-      view: function() {
-        return r('div', 'FOO')
-      }
-    })
-
-    const bar = component({
-      name: 'bar',
-      view: function() {
-        return r('div', 'BAR')
-      }
-    })
-
-    const denied = component({
-      name: 'denied',
-      view: function() {
-        return r('div', 'Access Denied')
-      }
-    })
-
-    const Router = use(router)({
-      routes: {
-  			'/': index,
-  			'/foo': foo,
-  			'/foo/:bar': bar
-      },
-      beforeEach(from, to) {
-        console.log('beforeEach', arguments)
-        if (from === '/foo') {
-          return false
-        } else {
-          return true
-        }
-      },
-      afterEach(from, to) {
-        // After
-      }
-		})
+    const { r, l, component, mount, cond, use, register } = radi
 
     const state = {
       name: 'Marcis',
@@ -258,6 +209,18 @@
       }
     }
 
+    const reg = component({
+      name: 'reg-comp',
+      view: function() {
+        return r('h1', 'This is ', l(this.name), ' component')
+      },
+      props: {
+        name: String,
+      }
+    })
+
+    register(reg)
+
     const view = function () {
       var name = l(this.name);
       return r('div',
@@ -266,6 +229,7 @@
             'white-space': 'pre'
           }
         },
+        r('reg-comp', { name: name }),
         '\n\n\n',
         r('h4',
           '[dynamic predefined] My name is ',
@@ -280,14 +244,6 @@
           this.name
         ),
         r('input', { type: 'email', autofocus: true, model: l(this.name) }),
-        r('hr'),
-        r('ul',
-          r('a', {href:'#/'}, '[ / ]'), r('br'),
-          r('a', {href:'#/foo'}, '[ /foo ]'), r('br'),
-          r('a', {href:'#/foo/bar'}, '[ /foo/bar ]'), r('br'),
-        ),
-        r('hr'),
-        new Router(),
         r('hr'),
         cond(
           l(this.show),
