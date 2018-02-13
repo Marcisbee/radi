@@ -49,7 +49,7 @@ Documentation is currently being written. For now just a few examples to work ou
 Lets create component using JSX, tho it's not mandatory
 we can just use hyperscript `r('h1', 'Hello', this.sample, '!')`. I'm using JSX for html familiarity and to showcase compatibility.
 
-```
+```jsx
 /** @jsx r **/
 const { r, mount, component } = radi;
 
@@ -75,7 +75,7 @@ This example will mount h1 to body like so `<body><h1>Hello World</h1></body>`
 
 This will be different as we'll need to update state and use actions. We'll need to use binder function `l(..)`. It binds any value to real DOM. When something in this function updates, DOM will change too.
 
-```
+```jsx
 /** @jsx r **/
 const { r, l, mount, component } = radi;
 
