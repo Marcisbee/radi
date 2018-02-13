@@ -1,4 +1,4 @@
-export const version = '0.1.2'
+export const version = '0.1.3'
 
 var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg
 var FIND_L = /\bl\(/g
@@ -723,9 +723,9 @@ export const list = function (data, act) {
 		}
 	}
 
-	if (data.path) {
+	if (cache.__path) {
 		var len = cacheLen;
-		SELF.$e.on(data.path, function(e, v) {
+		SELF.$e.on(cache.__path, function(e, v) {
 			w(v.length - len, v)
 			len = v.length
 		})
