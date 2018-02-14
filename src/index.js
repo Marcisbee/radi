@@ -1,4 +1,4 @@
-export const version = '0.1.4'
+export const version = '0.1.5'
 
 var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg
 var FIND_L = /\bl\(/g
@@ -914,9 +914,9 @@ export function register (c) {
 	var n = cmp.o.name
 	if (!n) {
 		console.warn('[Radi.js] Warn: Cannot register component without name');
-	} else if (typeof registered[n] !== 'undefined') {
-		console.warn('[Radi.js] Warn: Component with name \'' + n + '\' already registered');
 	} else {
+		if (typeof registered[n] !== 'undefined')
+			console.warn('[Radi.js] Warn: Component with name \'' + n + '\' beeing replaced');
 		registered[n] = c
 	}
 }

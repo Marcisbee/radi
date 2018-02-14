@@ -28,13 +28,13 @@
   }
   HTTP.prototype.then = function then(OK, ERR) {
     // loading(true)
-    var header = this.http.getResponseHeader
+    var self = this
     this.http.onreadystatechange = function(e) {
       var res = this
       if (res.readyState === XMLHttpRequest.DONE) {
         var h = {
-          header: header,
-          status: res.staus,
+          headers: self.http.getAllResponseHeaders(),
+          status: res.status,
           response: res.response
         }
         if (res.status === 200) {
