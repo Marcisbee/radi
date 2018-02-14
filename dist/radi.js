@@ -4,7 +4,7 @@
 	(factory((global.radi = {})));
 }(this, (function (exports) { 'use strict';
 
-const version = '0.1.3';
+const version = '0.1.4';
 
 var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
 var FIND_L = /\bl\(/g;
@@ -264,7 +264,7 @@ function Radi(o) {
 		if (typeof SELF[i] === 'undefined') {
 			SELF[i] = (function() {
 				if (frozenState) return null
-				return o.actions[this].apply(SELF, arguments);
+				return o.actions[this].apply(SELF, arguments)
 			}).bind(i);
 		} else {
 			throw new Error('[Radi.js] Error: Trying to write action for reserved variable `' + i + '`');
@@ -376,8 +376,29 @@ function mountAll(el) {
 	}
 }
 
-function radiMutate(c) {
+// var pl = 0
+// var lock = false
+// var pipequeued = false
+// var pipeline = {}
+//
+// function render() {
+// 	lock = true
+// 	for (var i in pipeline) {
+// 		pipeline[i]()
+// 	}
+// 	pipeline = {}
+// 	pl = 0
+// 	lock = false
+// 	pipequeued = false
+// }
+
+function radiMutate(c, key, type) {
 	c();
+	// if (!lock) {
+	// 	pipeline[key + '-' + type] = c
+	// 	if (!pipequeued) setTimeout(render)
+	// 	pipequeued = true
+	// }
 }
 
 function setStyle(view, arg1, arg2) {
@@ -394,7 +415,7 @@ function setStyle(view, arg1, arg2) {
 				if (v === cache) return false
 				radiMutate(() => {
 					el.style[arg1] = v;
-				});
+				}, el.key, 'style');
 				cache = v;
 			});
 		})(cache, arg1, arg2);
@@ -426,7 +447,7 @@ function setAttr(view, arg1, arg2) {
 					if (v === cache) return false
 					radiMutate(() => {
 						el.value = v;
-					});
+					}, el.key, 'attr1');
 					cache = v;
 				});
 			})(cache, arg1, arg2);
@@ -459,7 +480,7 @@ function setAttr(view, arg1, arg2) {
 							} else {
 								el.removeAttribute(arg1);
 							}
-						});
+						}, el.key, 'attr2');
 						cache = v;
 					});
 				})(cache, arg1, arg2);
@@ -555,7 +576,7 @@ function radiArgs(element, args) {
 					if (v === cache) return false
 					radiMutate(() => {
 						z.textContent = v;
-					});
+					}, element.key, 'text');
 					cache = v;
 				});
 			})(cache, arg);
@@ -569,6 +590,8 @@ function radiArgs(element, args) {
 var htmlCache = {};
 
 function memoizeHTML(query) { return htmlCache[query] || (htmlCache[query] = createElement(query)); }
+
+var rkeys = 0;
 
 function r(query) {
 	var args = [], len = arguments.length - 1;
@@ -590,6 +613,9 @@ function r(query) {
 	} else {
 		element = document.createDocumentFragment();
 	}
+
+	element.key = rkeys;
+	rkeys += 1;
 
 	radiArgs.call(this, element, args);
 

@@ -15,7 +15,7 @@
   "scripts": {
     "build": "npm run bundle && npm run minify",
     "bundle": "rollup -i src/index.js -o dist/radi.js -m -f umd -n radi",
-    "minify": "uglifyjs dist/radi.js -o dist/radi.min.js -mc pure_funcs=Object.defineProperty --source-map includeSources,url=radi.js.map",
+    "minify": "uglifyjs dist/radi.js -o dist/radi.min.js --keep-fnames --source-map includeSources,url=radi.js.map",
     "test": "nyc mocha",
     "report": "nyc report"
   },
