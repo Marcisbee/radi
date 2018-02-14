@@ -102,11 +102,19 @@
       return 'rgb(' + o(r()*s+i) + ',' + o(r()*s+i) + ',' + o(r()*s+i) + ')';
     }
   </script>
-  <script src="../dist/radi.js"></script>
+  <script src="../dist/radi.min.js"></script>
   <script src="../src/devtools.js"></script>
+  <script src="../src/radi-http.js"></script>
   <script>
     var perf0 = performance.now()
     const { r, l, component, mount, cond, use, register } = radi
+
+    http.get('https://randomuser.me/api', { results: 2 })
+      .then((response) => {
+        var json = response.json()
+      }, (err) => {
+        // Error
+      });
 
     const state = {
       name: 'Marcis',
