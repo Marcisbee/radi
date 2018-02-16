@@ -89,7 +89,8 @@
 
   var stateActor = component({
     view: function() {
-      return r('div.raddebug-state-actor',
+      return r('div',
+        { class: 'raddebug-state-actor' },
         'State Actor: ',
         cond(
           l(!this.paused),
@@ -140,7 +141,8 @@
       return r('div',
         list(l(this.list), (component) => {
         // l(this.list).loop((component) => {
-          return r('div.raddebug-component',
+          return r('div',
+            { class: 'raddebug-component' },
             r('strong',
               // { onclick: () => l(this.toggle(component.id)) },
               { onclick: () => this.toggle(component.id) },
@@ -222,6 +224,9 @@
             for (var nn in cp[ii].$state) {
               arr.vars.state.push({key: nn, value: cp[ii][nn]})
             }
+            for (var nn in cp[ii].$mixins) {
+              arr.vars.state.push({key: nn, value: cp[ii][nn], t: 'mix'})
+            }
             for (var nn in cp[ii].$props) {
               arr.vars.props.push({key: nn, value: cp[ii][nn]})
             }
@@ -245,17 +250,20 @@
   });
 
   mount(
-    r('div.raddebug-wrap',
-    r('div.raddebug-body',
-      r('div.raddebug-logo',
-        r('img', {
-          src: LOGO,
-          width: 107
-        }),
+    r('div',
+      { class: 'raddebug-wrap' },
+      r('div',
+        { class: 'raddebug-body' },
+        r('div',
+          { class: 'raddebug-logo' },
+          r('img', {
+            src: LOGO,
+            width: 107
+          }),
+        ),
+        r('div', new stateActor()),
+        r('div', new data())
       ),
-      r('div', new stateActor()),
-      r('div', new data())
-    ),
     ),
     document.body
   );

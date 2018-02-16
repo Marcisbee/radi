@@ -37,11 +37,14 @@
 
     const counter = component({
       view: function() {
-        return r('div#app',
-          r('div.counter',
+        return r('div',
+          { id: 'app' },
+          r('div',
+            { class: 'counter' },
             l(this.counter)
           ),
-          r('div.buttons',
+          r('div',
+            { class: 'buttons' },
             r('button', { onclick: this.down, disabled: l(this.counter <= 0) }, '-'),
             r('button', { onclick: this.up }, '+')
           )

@@ -4,22 +4,15 @@
 	(factory((global.radi = {})));
 }(this, (function (exports) { 'use strict';
 
-const version = '0.1.5';
+const version = '0.1.6';
 
 var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
 var FIND_L = /\bl\(/g;
 var RL = '('.charCodeAt(0);
 var RR = ')'.charCodeAt(0);
-var HASH = '#'.charCodeAt(0);
-var DOT = '.'.charCodeAt(0);
-
-var TAGNAME = 0;
-var ID = 1;
-var CLASSNAME = 2;
 
 var frozenState = false;
 var registered = {};
-
 function isArray (o) { return Array.isArray(o) === true }
 
 if (!Array.isArray) {
@@ -61,74 +54,11 @@ function clone(obj) {
 	return ret;
 }
 
-function parseQuery(query) {
-	var tag = null;
-	var id = null;
-	var className = null;
-	var mode = TAGNAME;
-	var buffer = '';
-
-	for (var i = 0; i <= query.length; i++) {
-		var char = query.charCodeAt(i);
-		var isHash = char === HASH;
-		var isDot = char === DOT;
-		var isEnd = !char;
-
-		if (isHash || isDot || isEnd) {
-			if (mode === TAGNAME) {
-				if (i === 0) {
-					tag = 'div';
-				} else {
-					tag = buffer;
-				}
-			} else if (mode === ID) {
-				id = buffer;
-			} else {
-				if (className) {
-					className += ' ' + buffer;
-				} else {
-					className = buffer;
-				}
-			}
-
-			if (isHash) {
-				mode = ID;
-			} else if (isDot) {
-				mode = CLASSNAME;
-			}
-
-			buffer = '';
-		} else {
-			buffer += query[i];
-		}
-	}
-
-	return { tag: tag, id: id, className: className };
-}
-
 function createElement(query, ns) {
-	var ref = parseQuery(query);
-	var tag = ref.tag;
-	var id = ref.id;
-	var className = ref.className;
-	var element = ns ? document.createElementNS(ns, tag) : document.createElement(tag);
-
-	if (id) {
-		element.id = id;
-	}
-
-	if (className) {
-		if (ns) {
-			element.setAttribute('class', className);
-		} else {
-			element.className = className;
-		}
-	}
-
-	return element;
+	return ns ? document.createElementNS(ns, query) : document.createElement(query);
 }
 
-var arrayMods = function (v, s) {
+function arrayMods (v, s) {
 	if (!isArray(v) || v.__radi) return false
 	return Object.defineProperties(v, {
 		__radi: { value: true },
@@ -138,7 +68,7 @@ var arrayMods = function (v, s) {
 		pop: { value: s.bind('pop') },
 		shift: { value: s.bind('shift') }
 	})
-};
+}
 
 var ids = 0;
 const activeComponents = [];
@@ -148,7 +78,22 @@ function Radi(o) {
 		__path: 'this'
 	};
 
+  // apply mixins
+	for (var i in o.$mixins) {
+		if (typeof SELF[i] === 'undefined') {
+			SELF[i] = o.$mixins[i];
+		}
+	}
+
 	Object.defineProperties(SELF, {
+		$mixins: {
+			enumerable: false,
+			value: o.$mixins,
+		},
+		$mixins_keys: {
+			enumerable: false,
+			value: new RegExp('^this\\.(' + Object.keys(o.$mixins).join('|').replace(/\$/g, '\\$').replace(/\./g, '\\.') + ')'),
+		},
 		$e: {
 			enumerable: false,
 			value: {
@@ -176,19 +121,26 @@ function Radi(o) {
 		if (typeof to !== 'object' || !to) return false;
 	  ret = (typeof to.__path === 'undefined') ? Object.defineProperty(to, '__path', { value: path }) : false;
 	  for (var ii in to) {
+			var isMixin = SELF.$mixins_keys.test(path + '.' + ii);
 	    if (to.hasOwnProperty(ii) && !Object.getOwnPropertyDescriptor(to, ii).set) {
 	      if (typeof to[ii] === 'object') populate(to[ii], path + '.' + ii);
 	      // Initiate watcher if not already watched
 	      watcher(to, ii, path.concat('.').concat(ii));
 	      // Trigger changes for this path
 				SELF.$e.emit(path + '.' + ii, to[ii]);
-	    }
+	    } else
+			if (isMixin) {
+				watcher(to, ii, path.concat('.').concat(ii));
+			}
 	  }
 		return ret
 	}
 
+  // TODO: Bring back multiple watcher sets
+	var dsc = Object.getOwnPropertyDescriptor;
 	function watcher(targ, prop, path) {
 	  var oldval = targ[prop],
+			prev = (typeof dsc(targ, prop) !== 'undefined') ? dsc(targ, prop).set : null,
 			setter = function (newval) {
 	      if (oldval !== newval) {
 	        if (Array.isArray(oldval)) {
@@ -202,6 +154,7 @@ function Radi(o) {
 
 						populate(oldval, path);
 						SELF.$e.emit(path, oldval);
+						if (typeof prev === 'function') prev(newval);
 						return ret;
 	        } else if (typeof newval === 'object') {
 						oldval = clone(newval);
@@ -212,6 +165,7 @@ function Radi(o) {
 						populate(oldval, path);
 						SELF.$e.emit(path, oldval);
 	        }
+					if (typeof prev === 'function') prev(newval);
 	        return newval
 	      } else {
 	        return false
@@ -657,7 +611,7 @@ function component(o) {
 
 		var found = all.substr(n, i + 1 - n);
 
-		var m = found.match(/[a-zA-Z_$]+(?:\.\w+(?:\[.*\])?)+/g) || [];
+		var m = found.match(/[a-zA-Z_$]+(?:\.[a-zA-Z_$]+(?:\[.*\])?)+/g) || [];
 		// var obs = (m.length > 0) ? m.join('__ob__,') + '__ob__' : '';
 		var obs = [];
 		for (var i = 0; i < m.length; i++) {
@@ -687,6 +641,7 @@ function Component(o) {
 		actions: o.actions,
 		view: o.view,
 		$view: o.$view,
+		$mixins: this.$mixins || {},
 	};
 
 	this.__radi = function() { return new Radi(this.o); };
@@ -700,6 +655,7 @@ Component.prototype.props = function props(p) {
 	}
 	return this;
 };
+Component.prototype.$mixins = {};
 
 const mount = function (comp, id) {
 	const where = (id.constructor === String) ? document.getElementById(id) : id;
@@ -909,8 +865,12 @@ const pack = {
 
 window.$Radi = pack;
 
+const mixin = function(n, m) {
+	return Component.prototype.$mixins[n] = m
+};
+
 function use (plugin) {
-	return plugin(pack)
+	return plugin(pack, mixin)
 }
 
 function register (c) {

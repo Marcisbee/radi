@@ -109,10 +109,36 @@
     var perf0 = performance.now()
     const { r, l, component, mount, cond, use, register } = radi
 
-    http.get('https://randomuser.me/api', { results: 2 })
+    // TODO: Env files
+    // TODO: Global configs:
+    //       Base url
+    //       Base headers
+    // http.defaults = {
+    //   baseURL: 'https://randomuser.me',
+    //   accept: {
+    //     headers.common: 'application/json',
+    //   },
+    // }
+    // // TODO: Add interceptors
+    // http.interceptors.response.use(
+    //   response => response,
+    //   (error) => {
+    //     if (error.status === 401) {
+    //       // Do some magic
+    //     }
+    //     return error;
+    //   });
+
+
+    http.get('/api', { results: 2 })
       .then((response) => {
+        response.headers
+        response.status
+        response.text()
+        response.json()
         var json = response.json()
       }, (err) => {
+
         // Error
       });
 

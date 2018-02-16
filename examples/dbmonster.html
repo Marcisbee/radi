@@ -333,14 +333,17 @@
 
     const main = component({
       view: function () {
-        return r('table.table.table-striped.latest-data',
+        return r('table',
+          { class: 'table table-striped latest-data' },
           r('tbody',
             list(l(this.dbs), (db, i) => {
               return r('tr',
-                r('td.dbname',
+                r('td',
+                  { class: 'dbname' },
                   db.dbname
                 ),
-                r('td.query-count',
+                r('td',
+                  { class: 'query-count' },
                   r('span',
                     {
                       class: l(db.lastSample.countClassName)
@@ -354,11 +357,13 @@
                       class: l('Query ' + q.elapsedClassName)
                     },
                     l(q.formatElapsed),
-                    r('div.popover.left',
-                      r('div.popover-content',
+                    r('div',
+                      { class: 'popover left' },
+                      r('div',
+                        { class: 'popover-content' },
                         l(q.query)
                       ),
-                      r('div.arrow')
+                      r('div', { class: 'arrow' })
                     )
                   )
                 })

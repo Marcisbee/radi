@@ -45,10 +45,12 @@
     const sinWave = component({
       name: 'sin-wave',
       view: function () {
-        return r('div.animated-sin-wave',
+        return r('div',
+          { class: 'animated-sin-wave' },
           list(l(this.bars), function (bar, i) {
-            return r('div.bar',
+            return r('div',
               {
+                class: 'bar',
                 style: {
                   width: this.barWidth + '%',
                   left: ( this.barWidth * i ) + '%',
