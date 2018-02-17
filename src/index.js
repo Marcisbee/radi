@@ -1,6 +1,7 @@
-export const version = '0.1.6'
+export const version = '0.1.7'
 
-var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg
+// var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg
+var STRIP_COMMENTS = /(?:\/\*(?:[\s\S]*?)\*\/)|(?:^\s*\/\/(?:.*)$)/mg
 var FIND_L = /\bl\(/g
 var RL = '('.charCodeAt(0)
 var RR = ')'.charCodeAt(0)
