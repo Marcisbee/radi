@@ -1,6 +1,6 @@
 {
   "name": "radi",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "main": "dist/radi.js",
   "module": "src/index.js",
   "license": "MIT",

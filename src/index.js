@@ -1,4 +1,4 @@
-export const version = '0.1.7'
+export const version = '0.1.8'
 
 // var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg
 var STRIP_COMMENTS = /(?:\/\*(?:[\s\S]*?)\*\/)|(?:^\s*\/\/(?:.*)$)/mg
@@ -391,7 +391,7 @@ function setAttr(view, arg1, arg2) {
 		} else if (arg1 === 'model' && isWatchable(arg2)) {
 			var cache = arg2.get()
 			el.value = cache;
-			el['oninput'] = function () { arg2.source[arg2.prop] = cache = el.value; self.$e.emit(arg2.path, el.value) };
+			el['oninput'] = function () { arg2.set(el.value); cache = el.value; self.$e.emit(arg2.path, el.value) };
 			// Update bind
 			(function(cache, arg1, arg2){
 				self.$e.on(arg2.path, function(e, v) {
@@ -727,10 +727,20 @@ export const list = function (data, act) {
 	return fragment;
 }
 
+function set(path, source, value) {
+	if (typeof path === 'string') path = path.split('.')
+	path.shift()
+	var prop = path.splice(-1)
+	for (var i = 0; i < path.length; i++) {
+		source = source[path[i]]
+	}
+	return source[prop] = value
+}
 
 function NW(source, prop, parent) {
   this.path = source.__path + '.' + prop;
   this.get = () => (source[prop]);
+  this.set = (value) => (set(this.path.split('.'), parent(), value));
   this.source = source;
   this.prop = prop;
   this.parent = parent;
