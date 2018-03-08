@@ -138,11 +138,11 @@ export function NW(source, prop, parent) {
 
 let linkNum = 0;
 
-export const link = function (fn, watch, txt) {
-  let args = {
-      s: null, a: [], t: [], f: fn.toString(),
-    },
-    SELF = this;
+export const link = (fn, watch, txt) => {
+  const args = {
+    s: null, a: [], t: [], f: fn.toString(),
+  };
+  const SELF = this;
 
   if (
     txt.length === 1 &&
@@ -166,21 +166,22 @@ export const link = function (fn, watch, txt) {
     args.a[i] = watch[i][0][watch[i][1]];
     args.t[i] = `$rdi[${i}]`;
     args.f = args.f.replace(txt[i], args.t[i]);
-    // args.f = args.f.replace(new RegExp(txt[i], 'g'), args.t[i]);
-    (function (path, args, p, i) {
-      SELF.$e.on(path, (e, v) => {
-        args.a[i] = v;
-        const cache = args.f.call(SELF, args.a);
 
-        if (args.s !== cache) {
-          args.s = cache;
-          SELF.$e.emit(p, args.s);
+    (function iife(path, scopedArgs, p, j) {
+      SELF.$e.on(path, (e, v) => {
+        scopedArgs.a[j] = v;
+        const cache = scopedArgs.f.call(SELF, scopedArgs.a);
+
+        if (scopedArgs.s !== cache) {
+          scopedArgs.s = cache;
+          SELF.$e.emit(p, scopedArgs.s);
         }
       });
     }(`${watch[i][0].__path}.${watch[i][1]}`, args, `${args.__path}.s`, i));
   }
 
   args.f = new Function('$rdi', `return ${args.f}();`);
+
 
   if (len <= 0) return args.s;
   return new NW(args, 's', (() => SELF));
