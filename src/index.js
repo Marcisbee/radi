@@ -1,26 +1,26 @@
-import * as REGEX from "./consts/REGEX";
-import { clone } from "./utilities/clone";
-import { createElement } from "./utilities/createElement";
-import { arrayMods } from "./utilities/arrayMods";
-import { unmountAll } from "./utilities/unmountAll";
-import { mountAll } from "./utilities/mountAll";
-import { radiMutate } from "./utilities/radiMutate";
-import { setStyle } from "./utilities/setStyle";
-import { r } from "./utilities/r";
-import { component } from "./utilities/component";
-import { Component } from "./utilities/ComponentClass";
-import { GLOBALS } from "./consts/GLOBALS";
+import * as REGEX from './consts/REGEX';
+import { clone } from './utilities/clone';
+import { createElement } from './utilities/createElement';
+import { arrayMods } from './utilities/arrayMods';
+import { unmountAll } from './utilities/unmountAll';
+import { mountAll } from './utilities/mountAll';
+import { radiMutate } from './utilities/radiMutate';
+import { setStyle } from './utilities/setStyle';
+import { r } from './utilities/r';
+import { component } from './utilities/component';
+import { Component } from './utilities/ComponentClass';
+import { GLOBALS } from './consts/GLOBALS';
 
 export function isString(a) {
-  return typeof a === "string";
+  return typeof a === 'string';
 }
 
 export function isNumber(a) {
-  return typeof a === "number";
+  return typeof a === 'number';
 }
 
 export function isFunction(a) {
-  return typeof a === "function";
+  return typeof a === 'function';
 }
 
 export function isNode(a) {
@@ -53,28 +53,28 @@ export function text(str) {
   return document.createTextNode(str);
 }
 
-export const mount = function(comp, id) {
+export const mount = function (comp, id) {
   const where = id.constructor === String ? document.getElementById(id) : id;
-  var out = comp instanceof Component ? comp.__radi().$render() : comp;
+  const out = comp instanceof Component ? comp.__radi().$render() : comp;
   where.appendChild(out);
   return out;
 };
 
-var emptyNode = text("");
+const emptyNode = text('');
 
-export const list = function(data, act) {
-  if (!data) return "";
-  var SELF = this;
+export const list = function (data, act) {
+  if (!data) return '';
+  const SELF = this;
 
-  var link,
+  let link,
     fragment = document.createDocumentFragment(),
     toplink = emptyNode.cloneNode();
 
   fragment.appendChild(toplink);
 
-  var ret = [];
-  var cache = data.source[data.prop] || [];
-  var cacheLen = cache.length || 0;
+  const ret = [];
+  const cache = data.source[data.prop] || [];
+  const cacheLen = cache.length || 0;
 
   if (Array.isArray(cache)) {
     for (var i = 0; i < cacheLen; i++) {
@@ -82,7 +82,7 @@ export const list = function(data, act) {
     }
   } else {
     var i = 0;
-    for (var key in cache) {
+    for (const key in cache) {
       fragment.appendChild(act.call(SELF, cache[key], key, i));
       i++;
     }
@@ -90,19 +90,19 @@ export const list = function(data, act) {
 
   link = fragment.lastChild;
 
-  var w = function(a, b) {
+  const w = function (a, b) {
     if (a > 0) {
-      var len = b.length;
-      var start = len - a;
+      const len = b.length;
+      const start = len - a;
       for (var i = start; i < len; i++) {
         fragment.appendChild(act.call(SELF, b[i], i));
       }
-      var temp = fragment.lastChild;
+      const temp = fragment.lastChild;
       link.parentElement.insertBefore(fragment, link.nextSibling);
       link = temp;
     } else if (a < 0) {
       for (var i = 0; i < Math.abs(a); i++) {
-        var templink = link.previousSibling;
+        const templink = link.previousSibling;
         link.parentElement.removeChild(link);
         link = templink;
       }
@@ -110,8 +110,8 @@ export const list = function(data, act) {
   };
 
   if (cache.__path) {
-    var len = cacheLen;
-    SELF.$e.on(cache.__path, function(e, v) {
+    let len = cacheLen;
+    SELF.$e.on(cache.__path, (e, v) => {
       w(v.length - len, v);
       len = v.length;
     });
@@ -121,74 +121,72 @@ export const list = function(data, act) {
 };
 
 export function set(path, source, value) {
-  if (typeof path === "string") path = path.split(".");
+  if (typeof path === 'string') path = path.split('.');
   path.shift();
-  var prop = path.splice(-1);
-  for (var i = 0; i < path.length; i++) {
+  const prop = path.splice(-1);
+  for (let i = 0; i < path.length; i++) {
     source = source[path[i]];
   }
   return (source[prop] = value);
 }
 
 export function NW(source, prop, parent) {
-  this.path = source.__path + "." + prop;
+  this.path = `${source.__path}.${prop}`;
   this.get = () => source[prop];
-  this.set = value => set(this.path.split("."), parent(), value);
+  this.set = value => set(this.path.split('.'), parent(), value);
   this.source = source;
   this.prop = prop;
   this.parent = parent;
 }
 
-var linkNum = 0;
+let linkNum = 0;
 
-export const link = function(fn, watch, txt) {
-  var args = { s: null, a: [], t: [], f: fn.toString() },
+export const link = function (fn, watch, txt) {
+  let args = {
+      s: null, a: [], t: [], f: fn.toString(),
+    },
     SELF = this;
 
   if (
     txt.length === 1 &&
     fn
       .toString()
-      .replace(/(function \(\)\{ return |\(|\)|\; \})/g, "")
+      .replace(/(function \(\)\{ return |\(|\)|\; \})/g, '')
       .trim() === txt[0]
   ) {
-    return new NW(watch[0][0], watch[0][1], function() {
-      return SELF;
-    });
+    return new NW(watch[0][0], watch[0][1], (() => SELF));
   }
 
-  var len = watch.length;
+  const len = watch.length;
 
   args.s = fn.call(this);
   args.a = new Array(len);
   args.t = new Array(len);
-  args.__path = "$link-" + linkNum;
+  args.__path = `$link-${linkNum}`;
   linkNum += 1;
 
-  for (var i = 0; i < len; i++) {
+  for (let i = 0; i < len; i++) {
     args.a[i] = watch[i][0][watch[i][1]];
-    args.t[i] = "$rdi[" + i + "]";
+    args.t[i] = `$rdi[${i}]`;
     args.f = args.f.replace(txt[i], args.t[i]);
     // args.f = args.f.replace(new RegExp(txt[i], 'g'), args.t[i]);
-    (function(path, args, p, i) {
+    (function (path, args, p, i) {
       SELF.$e.on(path, (e, v) => {
         args.a[i] = v;
-        var cache = args.f.call(SELF, args.a);
+        const cache = args.f.call(SELF, args.a);
 
         if (args.s !== cache) {
           args.s = cache;
           SELF.$e.emit(p, args.s);
         }
       });
-    })(watch[i][0].__path + "." + watch[i][1], args, args.__path + ".s", i);
+    }(`${watch[i][0].__path}.${watch[i][1]}`, args, `${args.__path}.s`, i));
   }
 
-  args.f = new Function("$rdi", "return " + args.f + "();");
+  args.f = new Function('$rdi', `return ${args.f}();`);
 
   if (len <= 0) return args.s;
-  return new NW(args, "s", function() {
-    return SELF;
-  });
+  return new NW(args, 's', (() => SELF));
 };
 
 export function cond(a, e) {
@@ -196,7 +194,7 @@ export function cond(a, e) {
 }
 
 export function Condition(a, e, SELF) {
-  this.cases = [{ a: a, e: e }];
+  this.cases = [{ a, e }];
   this.w = [];
   this.cache = [];
   this.els = emptyNode.cloneNode();
@@ -205,9 +203,9 @@ export function Condition(a, e, SELF) {
     this.w.push(a);
   }
 
-  this.watch = function(cb) {
-    for (var w in this.w) {
-      (function(w) {
+  this.watch = function (cb) {
+    for (const w in this.w) {
+      (function (w) {
         SELF.$e.on(this.w[w].path, (e, v) => {
           cb(v);
         });
@@ -215,10 +213,10 @@ export function Condition(a, e, SELF) {
     }
   };
 
-  this.__do = function() {
-    var ret = { id: null };
-    for (var c in this.cases) {
-      var a = isWatchable(this.cases[c].a)
+  this.__do = function () {
+    const ret = { id: null };
+    for (const c in this.cases) {
+      const a = isWatchable(this.cases[c].a)
         ? this.cases[c].a.get()
         : this.cases[c].a;
       if (a) {
@@ -227,13 +225,13 @@ export function Condition(a, e, SELF) {
         break;
       }
     }
-    if (typeof ret.r === "undefined") ret.r = this.els;
+    if (typeof ret.r === 'undefined') ret.r = this.els;
     return ret;
   };
 }
 
-Condition.prototype.elseif = function(a, e) {
-  this.cases.push({ a: a, e: e });
+Condition.prototype.elseif = function (a, e) {
+  this.cases.push({ a, e });
   if (isWatchable(a)) {
     this.w.push(a);
   }
@@ -242,63 +240,60 @@ Condition.prototype.elseif = function(a, e) {
 
 Condition.prototype.cond = Condition.prototype.elseif;
 
-Condition.prototype.else = function(e) {
+Condition.prototype.else = function (e) {
   this.els = e;
   return this;
 };
 
 export function ll(f, w, c) {
-  return w ? link.call(this, f, w, c.split(",")) : f;
+  return w ? link.call(this, f, w, c.split(',')) : f;
 }
 
 export const _Radi = {
   version: GLOBALS.VERSION,
   activeComponents: GLOBALS.ACTIVE_COMPONENTS,
-  r: r,
+  r,
   l: f => f,
-  cond: cond,
-  component: component,
-  mount: mount,
+  cond,
+  component,
+  mount,
   freeze: () => {
     GLOBALS.FROZEN_STATE = true;
   },
   unfreeze: () => {
     GLOBALS.FROZEN_STATE = false;
 
-    for (var ii = 0; ii < GLOBALS.ACTIVE_COMPONENTS.length; ii++) {
-      if (typeof GLOBALS.ACTIVE_COMPONENTS[ii].onMount === "function") {
-        GLOBALS.ACTIVE_COMPONENTS[ii].onMount.call(
-          GLOBALS.ACTIVE_COMPONENTS[ii]
-        );
+    for (let ii = 0; ii < GLOBALS.ACTIVE_COMPONENTS.length; ii++) {
+      if (typeof GLOBALS.ACTIVE_COMPONENTS[ii].onMount === 'function') {
+        GLOBALS.ACTIVE_COMPONENTS[ii].onMount.call(GLOBALS.ACTIVE_COMPONENTS[ii]);
       }
     }
-  }
+  },
 };
 
 window.$Radi = _Radi;
 
 export function register(c) {
-  var cmp = new c();
-  var n = cmp.o.name;
+  const cmp = new c();
+  const n = cmp.o.name;
   if (!n) {
-    console.warn("[Radi.js] Warn: Cannot register component without name");
+    console.warn('[Radi.js] Warn: Cannot register component without name');
   } else {
-    if (typeof GLOBALS.REGISTERED[n] !== "undefined")
-      console.warn(
-        "[Radi.js] Warn: Component with name '" + n + "' beeing replaced"
-      );
+    if (typeof GLOBALS.REGISTERED[n] !== 'undefined') {
+      console.warn(`[Radi.js] Warn: Component with name '${n}' beeing replaced`);
+    }
     GLOBALS.REGISTERED[n] = c;
   }
 }
 
 export function Radi(o) {
-  var SELF = {
-    __path: "this"
+  const SELF = {
+    __path: 'this',
   };
 
   // apply mixins
   for (var i in o.$mixins) {
-    if (typeof SELF[i] === "undefined") {
+    if (typeof SELF[i] === 'undefined') {
       SELF[i] = o.$mixins[i];
     }
   }
@@ -306,18 +301,16 @@ export function Radi(o) {
   Object.defineProperties(SELF, {
     $mixins: {
       enumerable: false,
-      value: o.$mixins
+      value: o.$mixins,
     },
     $mixins_keys: {
       enumerable: false,
-      value: new RegExp(
-        "^this\\.(" +
-          Object.keys(o.$mixins)
-            .join("|")
-            .replace(/\$/g, "\\$")
-            .replace(/\./g, "\\.") +
-          ")"
-      )
+      value: new RegExp(`^this\\.(${
+        Object.keys(o.$mixins)
+          .join('|')
+          .replace(/\$/g, '\\$')
+          .replace(/\./g, '\\.')
+      })`),
     },
     $e: {
       enumerable: false,
@@ -332,51 +325,51 @@ export function Radi(o) {
         },
         emit(path, r) {
           if (GLOBALS.FROZEN_STATE) return null;
-          var list = SELF.$e.get(path),
+          let list = SELF.$e.get(path),
             len = list.length;
-          for (var i = 0; i < len; i++) {
+          for (let i = 0; i < len; i++) {
             list[i](path, r);
           }
-        }
-      }
-    }
+        },
+      },
+    },
   });
 
   function populate(to, path) {
-    var ret;
-    if (typeof to !== "object" || !to) return false;
+    let ret;
+    if (typeof to !== 'object' || !to) return false;
     ret =
-      typeof to.__path === "undefined"
-        ? Object.defineProperty(to, "__path", { value: path })
+      typeof to.__path === 'undefined'
+        ? Object.defineProperty(to, '__path', { value: path })
         : false;
-    for (var ii in to) {
-      var isMixin = SELF.$mixins_keys.test(path + "." + ii);
+    for (const ii in to) {
+      const isMixin = SELF.$mixins_keys.test(`${path}.${ii}`);
       if (
         to.hasOwnProperty(ii) &&
         !Object.getOwnPropertyDescriptor(to, ii).set
       ) {
-        if (typeof to[ii] === "object") populate(to[ii], path + "." + ii);
+        if (typeof to[ii] === 'object') populate(to[ii], `${path}.${ii}`);
         // Initiate watcher if not already watched
-        watcher(to, ii, path.concat(".").concat(ii));
+        watcher(to, ii, path.concat('.').concat(ii));
         // Trigger changes for this path
-        SELF.$e.emit(path + "." + ii, to[ii]);
+        SELF.$e.emit(`${path}.${ii}`, to[ii]);
       } else if (isMixin) {
-        watcher(to, ii, path.concat(".").concat(ii));
+        watcher(to, ii, path.concat('.').concat(ii));
       }
     }
     return ret;
   }
 
   // TODO: Bring back multiple watcher sets
-  var dsc = Object.getOwnPropertyDescriptor;
+  const dsc = Object.getOwnPropertyDescriptor;
   function watcher(targ, prop, path) {
     var oldval = targ[prop],
       prev =
-        typeof dsc(targ, prop) !== "undefined" ? dsc(targ, prop).set : null,
-      setter = function(newval) {
+        typeof dsc(targ, prop) !== 'undefined' ? dsc(targ, prop).set : null,
+      setter = function (newval) {
         if (oldval !== newval) {
           if (Array.isArray(oldval)) {
-            var ret;
+            let ret;
             if (this && this.constructor === String) {
               ret = Array.prototype[this].apply(oldval, arguments);
             } else {
@@ -386,9 +379,9 @@ export function Radi(o) {
 
             populate(oldval, path);
             SELF.$e.emit(path, oldval);
-            if (typeof prev === "function") prev(newval);
+            if (typeof prev === 'function') prev(newval);
             return ret;
-          } else if (typeof newval === "object") {
+          } else if (typeof newval === 'object') {
             oldval = clone(newval);
             populate(oldval, path);
             SELF.$e.emit(path, oldval);
@@ -397,39 +390,36 @@ export function Radi(o) {
             populate(oldval, path);
             SELF.$e.emit(path, oldval);
           }
-          if (typeof prev === "function") prev(newval);
+          if (typeof prev === 'function') prev(newval);
           return newval;
-        } else {
-          return false;
         }
+        return false;
       };
 
     if (Array.isArray(oldval)) arrayMods(oldval, setter);
 
     if (delete targ[prop]) {
       Object.defineProperty(targ, prop, {
-        get: function() {
+        get() {
           return oldval;
         },
         set: setter,
         enumerable: true,
-        configurable: true
+        configurable: true,
       });
     }
   }
 
   for (var i in o.state) {
-    if (typeof SELF[i] === "undefined") {
+    if (typeof SELF[i] === 'undefined') {
       SELF[i] = o.state[i];
     } else {
-      throw new Error(
-        "[Radi.js] Err: Trying to write state for reserved variable `" + i + "`"
-      );
+      throw new Error(`[Radi.js] Err: Trying to write state for reserved variable \`${i}\``);
     }
   }
 
   for (var i in o.props) {
-    if (typeof SELF[i] === "undefined") {
+    if (typeof SELF[i] === 'undefined') {
       if (isWatchable(o.props[i])) {
         SELF[i] = o.props[i].get();
 
@@ -442,86 +432,82 @@ export function Radi(o) {
         SELF[i] = o.props[i];
       }
     } else {
-      throw new Error(
-        "[Radi.js] Err: Trying to write prop for reserved variable `" + i + "`"
-      );
+      throw new Error(`[Radi.js] Err: Trying to write prop for reserved variable \`${i}\``);
     }
   }
 
-  populate(SELF, "this");
+  populate(SELF, 'this');
 
   for (var i in o.actions) {
-    if (typeof SELF[i] === "undefined") {
-      SELF[i] = function() {
+    if (typeof SELF[i] === 'undefined') {
+      SELF[i] = function () {
         if (GLOBALS.FROZEN_STATE) return null;
         return o.actions[this].apply(SELF, arguments);
       }.bind(i);
     } else {
-      throw new Error(
-        "[Radi.js] Error: Trying to write action for reserved variable `" +
-          i +
-          "`"
-      );
+      throw new Error(`[Radi.js] Error: Trying to write action for reserved variable \`${
+        i
+      }\``);
     }
   }
 
   Object.defineProperties(SELF, {
     $id: {
       enumerable: false,
-      value: GLOBALS.IDS++
+      value: GLOBALS.IDS++,
     },
     $name: {
       enumerable: false,
-      value: o.name
+      value: o.name,
     },
     $state: {
       enumerable: false,
-      value: o.state || {}
+      value: o.state || {},
     },
     $props: {
       enumerable: false,
-      value: o.props || {}
+      value: o.props || {},
     },
     $actions: {
       enumerable: false,
-      value: o.actions || {}
+      value: o.actions || {},
     },
     $html: {
       enumerable: false,
-      value: document.createDocumentFragment()
+      value: document.createDocumentFragment(),
     },
     $parent: {
       enumerable: false,
-      value: null
+      value: null,
     },
     $view: {
       enumerable: false,
-      value: new Function("r", "list", "ll", "cond", "return " + o.$view)(
+      value: new Function('r', 'list', 'll', 'cond', `return ${o.$view}`)(
         r.bind(SELF),
         list.bind(SELF),
         ll.bind(SELF),
-        cond.bind(SELF)
-      )
+        cond.bind(SELF),
+      ),
     },
     $render: {
       enumerable: false,
-      value: function() {
+      value() {
         SELF.mount();
         return SELF.$html;
-      }
-    }
+      },
+    },
   });
 
   Object.defineProperties(SELF, {
     $link: {
       enumerable: false,
-      value: SELF.$view()
-    }
+      value: SELF.$view(),
+    },
   });
 
   SELF.$html.appendChild(SELF.$link);
 
-  SELF.$html.destroy = function() {
+  SELF.$html.destroy = function () {
     const oldRootElem = SELF.$link.parentElement;
     const newRootElem = oldRootElem.cloneNode(false);
     oldRootElem.parentNode.insertBefore(newRootElem, oldRootElem);
@@ -529,18 +515,18 @@ export function Radi(o) {
     oldRootElem.parentNode.removeChild(oldRootElem);
   };
 
-  SELF.mount = function() {
-    if (typeof SELF.$actions.onMount === "function") {
+  SELF.mount = function () {
+    if (typeof SELF.$actions.onMount === 'function') {
       SELF.$actions.onMount.call(SELF);
     }
     GLOBALS.ACTIVE_COMPONENTS.push(SELF);
   };
 
-  SELF.unmount = function() {
-    if (typeof SELF.$actions.onDestroy === "function") {
+  SELF.unmount = function () {
+    if (typeof SELF.$actions.onDestroy === 'function') {
       SELF.$actions.onDestroy.call(SELF);
     }
-    for (var i = 0; i < GLOBALS.ACTIVE_COMPONENTS.length; i++) {
+    for (let i = 0; i < GLOBALS.ACTIVE_COMPONENTS.length; i++) {
       if (GLOBALS.ACTIVE_COMPONENTS[i].$id === SELF.$id) {
         GLOBALS.ACTIVE_COMPONENTS.splice(i, 1);
         break;
@@ -556,61 +542,62 @@ export function Radi(o) {
 }
 
 export function setAttr(view, arg1, arg2) {
-  var self = this;
-  var el = getEl(view);
+  const self = this;
+  const el = getEl(view);
 
   if (arg2 !== undefined) {
-    if (arg1 === "style") {
+    if (arg1 === 'style') {
       setStyle.call(this, el, arg2);
-    } else if (arg1 === "model" && isWatchable(arg2)) {
+    } else if (arg1 === 'model' && isWatchable(arg2)) {
       var cache = arg2.get();
       el.value = cache;
-      el["oninput"] = function() {
+      el.oninput = function () {
         arg2.set(el.value);
         cache = el.value;
         self.$e.emit(arg2.path, el.value);
       };
       // Update bind
-      (function(cache, arg1, arg2) {
-        self.$e.on(arg2.path, function(e, v) {
+      (function (cache, arg1, arg2) {
+        self.$e.on(arg2.path, (e, v) => {
           if (v === cache) return false;
           radiMutate(
             () => {
               el.value = v;
             },
             el.key,
-            "attr1"
+            'attr1',
           );
           cache = v;
         });
-      })(cache, arg1, arg2);
+      }(cache, arg1, arg2));
     } else if (isFunction(arg2)) {
-      el[arg1] = function(e) {
+      el[arg1] = function (e) {
         arg2.call(self, e);
       };
     } else if (isWatchable(arg2)) {
-      var temp = arg2.get();
+      const temp = arg2.get();
       if (isFunction(temp)) {
-        el[arg1] = function(e) {
+        el[arg1] = function (e) {
           arg2.get().call(self, e);
         };
       } else {
         var cache = arg2.get();
-        if (cache !== false)
-          if (arg1 === "html") {
+        if (cache !== false) {
+          if (arg1 === 'html') {
             el.innerHTML = cache;
           } else {
             el.setAttribute(arg1, cache);
           }
+        }
 
         // Update bind
-        (function(cache, arg1, arg2) {
-          self.$e.on(arg2.path, function(e, v) {
+        (function (cache, arg1, arg2) {
+          self.$e.on(arg2.path, (e, v) => {
             if (v === cache) return false;
             radiMutate(
               () => {
                 if (v !== false) {
-                  if (arg1 === "html") {
+                  if (arg1 === 'html') {
                     el.innerHTML = v;
                   } else {
                     el.setAttribute(arg1, v);
@@ -620,22 +607,21 @@ export function setAttr(view, arg1, arg2) {
                 }
               },
               el.key,
-              "attr2"
+              'attr2',
             );
             cache = v;
           });
-        })(cache, arg1, arg2);
+        }(cache, arg1, arg2));
       }
-    } else {
-      if (cache !== false)
-        if (arg1 === "html") {
-          el.innerHTML = arg2;
-        } else {
-          el.setAttribute(arg1, arg2);
-        }
+    } else if (cache !== false) {
+      if (arg1 === 'html') {
+        el.innerHTML = arg2;
+      } else {
+        el.setAttribute(arg1, arg2);
+      }
     }
   } else {
-    for (var key in arg1) {
+    for (const key in arg1) {
       setAttr.call(this, el, key, arg1[key]);
     }
   }
@@ -651,12 +637,12 @@ export function radiArgs(element, args) {
     if (isComponent(arg)) {
       element.appendChild(arg.__radi().$render());
     } else if (isCondition(arg)) {
-      var arg2 = arg.__do(),
+      let arg2 = arg.__do(),
         a,
         id = arg2.id;
       if (isComponent(arg2.r)) {
         a = arg2.r.__radi().$render();
-      } else if (typeof arg2.r === "function") {
+      } else if (typeof arg2.r === 'function') {
         a = arg2.r();
       } else if (isString(arg2.r) || isNumber(arg2.r)) {
         a = text(arg2.r);
@@ -665,8 +651,7 @@ export function radiArgs(element, args) {
       }
       element.appendChild(a);
       afterAppendChild(arg, id, a);
-    } else if (typeof arg === "function") {
-      debugger;
+    } else if (typeof arg === 'function') {
       arg.call(this, element);
     } else if (isString(arg) || isNumber(arg)) {
       element.appendChild(text(arg));
@@ -675,27 +660,27 @@ export function radiArgs(element, args) {
     } else if (Array.isArray(arg)) {
       radiArgs.call(this, element, arg);
     } else if (isWatchable(arg)) {
-      var cache = arg.get();
-      var z = text(cache);
+      const cache = arg.get();
+      const z = text(cache);
       element.appendChild(z);
 
       // Update bind
       updateBind(self, z, element)(cache, arg);
-    } else if (typeof arg === "object") {
+    } else if (typeof arg === 'object') {
       setAttr.call(this, element, arg);
     }
   });
 }
 
 export const afterAppendChild = (arg, id, a) => {
-  arg.watch(function(v) {
+  arg.watch((v) => {
     const arg2 = arg.__do();
     let b = null;
 
     if (id === arg2.id) return false;
     if (isComponent(arg2.r)) {
       b = arg2.r.__radi().$render();
-    } else if (typeof arg2.r === "function") {
+    } else if (typeof arg2.r === 'function') {
       b = arg2.r();
     } else if (isString(arg2.r) || isNumber(arg2.r)) {
       b = text(arg2.r);
@@ -726,6 +711,6 @@ const updateBundInnerFn = (cache, z, element) => (e, v) => {
       z.textContent = v;
     },
     element.key,
-    "text"
+    'text',
   );
 };
