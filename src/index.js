@@ -210,10 +210,10 @@ export function Condition(a, e, SELF) {
     }
   };
 
-  this.__do = function () {
+  this.__do = () => {
     const ret = { id: null };
-    for (const c in this.cases) {
-      const a = isWatchable(this.cases[c].a)
+    for (const c in this.cases) { // eslint-disable-line
+      const a = isWatchable(this.cases[c].a) // eslint-disable-line
         ? this.cases[c].a.get()
         : this.cases[c].a;
       if (a) {
