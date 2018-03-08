@@ -15,9 +15,11 @@
   "scripts": {
     "pack": "webpack --config ./.webpack/dev.js",
     "build": "npm run bundle",
-    "bundle": "rollup -i src/index.js -o dist/radi.js -m -f umd -n radi"
+    "bundle": "rollup -i src/index.js -o dist/radi.js -m -f umd -n radi",
+    "test": "jest"
   },
   "devDependencies": {
+    "chai": "^4.1.2",
     "http-server": "^0.11.1",
     "jsdom": "^11.5.1",
     "webpack": "^4.1.1",
