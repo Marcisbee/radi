@@ -1,6 +1,5 @@
 'use strict';
 
-const expect = require('chai').expect;
 const { JSDOM } = require('jsdom');
 const fs = require('fs');
 const path = require('path');
