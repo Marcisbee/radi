@@ -180,8 +180,7 @@ export const link = (fn, watch, txt) => {
     }(`${watch[i][0].__path}.${watch[i][1]}`, args, `${args.__path}.s`, i));
   }
 
-  args.f = new Function('$rdi', `return ${args.f}();`);
-
+  args.f = () => args.f();
 
   if (len <= 0) return args.s;
   return new NW(args, 's', (() => SELF));
