@@ -1,4 +1,4 @@
-const clone = require("../clone").clone;
+import { clone } from "../clone";
 
 describe("clone.js", () => {
   it("returns null when object to clone is null", () => {
