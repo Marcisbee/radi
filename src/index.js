@@ -120,7 +120,7 @@ export const list = function(data, act) {
   return fragment;
 };
 
-function set(path, source, value) {
+export function set(path, source, value) {
   if (typeof path === "string") path = path.split(".");
   path.shift();
   var prop = path.splice(-1);
@@ -130,7 +130,7 @@ function set(path, source, value) {
   return (source[prop] = value);
 }
 
-function NW(source, prop, parent) {
+export function NW(source, prop, parent) {
   this.path = source.__path + "." + prop;
   this.get = () => source[prop];
   this.set = value => set(this.path.split("."), parent(), value);
@@ -195,7 +195,7 @@ export function cond(a, e) {
   return new Condition(a, e, this);
 }
 
-function Condition(a, e, SELF) {
+export function Condition(a, e, SELF) {
   this.cases = [{ a: a, e: e }];
   this.w = [];
   this.cache = [];
@@ -251,7 +251,7 @@ export function ll(f, w, c) {
   return w ? link.call(this, f, w, c.split(",")) : f;
 }
 
-const _Radi = {
+export const _Radi = {
   version: GLOBALS.VERSION,
   activeComponents: GLOBALS.ACTIVE_COMPONENTS,
   r: r,
