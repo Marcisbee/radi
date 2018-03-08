@@ -13,16 +13,17 @@
     "vdom"
   ],
   "scripts": {
-    "build": "npm run bundle && npm run minify",
-    "bundle": "rollup -i src/index.js -o dist/radi.js -m -f umd -n radi",
-    "minify": "uglifyjs dist/radi.js -o dist/radi.min.js --keep-fnames --source-map includeSources,url=radi.js.map",
-    "test": "nyc mocha",
-    "report": "nyc report"
+    "pack": "webpack --config ./.webpack/dev.js",
+    "build": "npm run bundle",
+    "bundle": "rollup -i src/index.js -o dist/radi.js -m -f umd -n radi"
   },
   "devDependencies": {
-    "chai": "^4.1.2",
+    "http-server": "^0.11.1",
     "jsdom": "^11.5.1",
-    "mocha": "^4.1.0",
-    "nyc": "^11.4.1"
-  }
+    "webpack": "^4.1.1",
+    "webpack-cli": "^2.0.10"
+  },
+  "prettier": {},
+  "jest": {},
+  "babel": {}
 }

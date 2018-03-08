@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,12 +14,12 @@
       overflow: hidden;
     }
 
-    .animated-sin-wave > .bar {
+    .animated-sin-wave>.bar {
       position: absolute;
       height: 100%;
       border-radius: 50%;
       max-width: 10px;
-      transform: scale(0.8,.5) translateY(0%) rotate(0deg)
+      transform: scale(0.8, .5) translateY(0%) rotate(0deg)
     }
 
     .animated-sin-wave-description {
@@ -35,10 +36,11 @@
     }
   </style>
 </head>
+
 <body>
   <div id="app"></div>
   <script src="../dist/radi.js"></script>
-  <script src="../src/devtools.js"></script>
+  <script src="../src/devTools"></script>
   <script>
     const { r, component, list, link, mount } = radi;
 
@@ -53,7 +55,7 @@
                 class: 'bar',
                 style: {
                   width: this.barWidth + '%',
-                  left: ( this.barWidth * i ) + '%',
+                  left: (this.barWidth * i) + '%',
                   transform: l('scale(0.8,.5) translateY(' + bar.translateY + '%) rotate(' + bar.rotation + 'deg)'),
                   // transform: ll(function() {return 'scale(0.8,.5) translateY(' + bar.translateY + '%) rotate(' + bar.rotation + 'deg)';}, [[bar, 'rotation']], 'bar.rotation'),
                   // transform: l(this.rotation),
@@ -97,8 +99,8 @@
             arr.push({
               id: i,
               color: 'hsl(' + hue + ',95%,55%)',
-              translateY: Math.sin(this.count/10 + i/5) * 100 * .5,
-              rotation: (this.count+i)%360,
+              translateY: Math.sin(this.count / 10 + i / 5) * 100 * .5,
+              rotation: (this.count + i) % 360,
             });
           }
           return arr;
@@ -124,4 +126,5 @@
     ), 'app');
   </script>
 </body>
+
 </html>
