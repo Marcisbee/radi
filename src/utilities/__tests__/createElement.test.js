@@ -12,7 +12,7 @@ afterAll(() => {
 });
 
 describe("createElement.js", () => {
-  it("it creates an element with given query", () => {
+  it("creates an element with given query", () => {
     const createElementSpy = sinon.spy();
     document.createElement = createElementSpy;
     createElement("div");
@@ -20,7 +20,7 @@ describe("createElement.js", () => {
     expect(createElementSpy.getCall(0).args).toEqual(["div"]);
   });
 
-  it("it creates an element with given query and given namespace URI", () => {
+  it("creates an element with given query and given namespace URI", () => {
     const createElementNSSpy = sinon.spy();
     document.createElementNS = createElementNSSpy;
     createElement("div", "http://www.w3.org/1999/xhtml");
