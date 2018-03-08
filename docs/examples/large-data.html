@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>Radi.js - Large Data</title>
 </head>
+
 <body>
   <div id="app"></div>
   <script>
@@ -72,10 +74,11 @@
       ]
 
       var i = start + 1;
-      return new Array(count).fill(0).map(_ => ({ id: i++, value: `${adjectives[
-        rand() * 1000 % adjectives.length >> 0]} ${colours[
-        rand() * 1000 % colours.length >> 0]} ${nouns[
-        rand() * 1000 % nouns.length >> 0]}`
+      return new Array(count).fill(0).map(_ => ({
+        id: i++, value: `${adjectives[
+          rand() * 1000 % adjectives.length >> 0]} ${colours[
+          rand() * 1000 % colours.length >> 0]} ${nouns[
+          rand() * 1000 % nouns.length >> 0]}`
       }))
     }
 
@@ -99,11 +102,11 @@
 
     function random_rgba() {
       var o = Math.round, r = Math.random, s = 175, i = 50;
-      return 'rgb(' + o(r()*s+i) + ',' + o(r()*s+i) + ',' + o(r()*s+i) + ')';
+      return 'rgb(' + o(r() * s + i) + ',' + o(r() * s + i) + ',' + o(r() * s + i) + ')';
     }
   </script>
   <script src="../dist/radi.min.js"></script>
-  <script src="../src/devtools.js"></script>
+  <script src="../src/devTools"></script>
   <script src="../src/radi-http.js"></script>
   <script>
     var perf0 = performance.now()
@@ -245,7 +248,7 @@
 
     const reg = component({
       name: 'reg-comp',
-      view: function() {
+      view: function () {
         return r('h1', 'This is ', l(this.name), ' component')
       },
       props: {
@@ -381,4 +384,5 @@
     mount(r('div', new main()), 'app');
   </script>
 </body>
+
 </html>

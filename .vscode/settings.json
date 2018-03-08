@@ -1,0 +1,8 @@
+{
+  "files.exclude": {
+    "node_modules/": "explorerExcludedFiles",
+    ".nyc_output/": "explorerExcludedFiles",
+    "\\.DS_Store": "explorerExcludedFiles",
+    "\\.cache": "explorerExcludedFiles"
+  }
+}
