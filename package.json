@@ -16,10 +16,14 @@
     "pack": "webpack --config ./.webpack/dev.js",
     "build": "npm run bundle",
     "bundle": "rollup -i src/index.js -o dist/radi.js -m -f umd -n radi",
+    "lint": "eslint src/**/*.js",
     "test": "jest"
   },
   "devDependencies": {
     "babel-preset-env": "^1.6.1",
+    "eslint": "^4.18.2",
+    "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-plugin-import": "^2.9.0",
     "http-server": "^0.11.1",
     "jest": "^22.4.2",
     "jsdom": "^11.5.1",
