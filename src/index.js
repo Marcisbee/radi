@@ -1,6 +1,5 @@
 import * as REGEX from './consts/REGEX';
 import { clone } from './utilities/clone';
-import { createElement } from './utilities/createElement';
 import { arrayMods } from './utilities/arrayMods';
 import { unmountAll } from './utilities/unmountAll';
 import { mountAll } from './utilities/mountAll';
@@ -36,12 +35,9 @@ export function isCondition(a) {
 }
 
 export function isComponent(a) {
-  return a && a.__radi;
+  return a && a.__radi; // eslint-disable-line
 }
 
-export function ensureEl(parent) {
-  return isString(parent) ? html(parent) : getEl(parent);
-}
 
 export function getEl(parent) {
   return (
@@ -53,7 +49,7 @@ export function text(str) {
   return document.createTextNode(str);
 }
 
-export const mount = function (comp, id) {
+export const mount = (comp, id) => {
   const where = id.constructor === String ? document.getElementById(id) : id;
   const out = comp instanceof Component ? comp.__radi().$render() : comp;
   where.appendChild(out);
@@ -62,7 +58,7 @@ export const mount = function (comp, id) {
 
 const emptyNode = text('');
 
-export const list = function (data, act) {
+export const list = (data, act) => {
   if (!data) return '';
   const SELF = this;
 
