@@ -4,6 +4,8 @@ module.exports = {
         'document': true
     },
     "rules": {
-        'no-underscore-dangle': [0]
+        "no-underscore-dangle": "off",
+        "no-plusplus": "off",
+        "no-return-assign": "off",
     }
 };

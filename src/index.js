@@ -1,3 +1,5 @@
+/* eslint-disable no-param-reassign */
+
 import * as REGEX from './consts/REGEX';
 import { clone } from './utilities/clone';
 import { arrayMods } from './utilities/arrayMods';
@@ -35,7 +37,7 @@ export function isCondition(a) {
 }
 
 export function isComponent(a) {
-  return a && a.__radi; // eslint-disable-line
+  return a && a.__radi;
 }
 
 
@@ -62,23 +64,22 @@ export const list = (data, act) => {
   if (!data) return '';
   const SELF = this;
 
-  let link,
-    fragment = document.createDocumentFragment(),
-    toplink = emptyNode.cloneNode();
+  let link;
+  const fragment = document.createDocumentFragment();
+  const toplink = emptyNode.cloneNode();
 
   fragment.appendChild(toplink);
 
-  const ret = [];
   const cache = data.source[data.prop] || [];
   const cacheLen = cache.length || 0;
 
   if (Array.isArray(cache)) {
-    for (var i = 0; i < cacheLen; i++) {
+    for (let i = 0; i < cacheLen; i++) {
       fragment.appendChild(act.call(SELF, cache[i], i));
     }
   } else {
-    var i = 0;
-    for (const key in cache) {
+    let i = 0;
+    for (const key in cache) { // eslint-disable-line
       fragment.appendChild(act.call(SELF, cache[key], key, i));
       i++;
     }
@@ -86,18 +87,18 @@ export const list = (data, act) => {
 
   link = fragment.lastChild;
 
-  const w = function (a, b) {
+  const w = (a, b) => {
     if (a > 0) {
       const len = b.length;
       const start = len - a;
-      for (var i = start; i < len; i++) {
+      for (let i = start; i < len; i++) {
         fragment.appendChild(act.call(SELF, b[i], i));
       }
       const temp = fragment.lastChild;
       link.parentElement.insertBefore(fragment, link.nextSibling);
       link = temp;
     } else if (a < 0) {
-      for (var i = 0; i < Math.abs(a); i++) {
+      for (let i = 0; i < Math.abs(a); i++) {
         const templink = link.previousSibling;
         link.parentElement.removeChild(link);
         link = templink;
