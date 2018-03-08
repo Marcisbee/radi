@@ -12,7 +12,7 @@ describe("memoizeHTML.js", () => {
   });
 
   it("adds the requested element to cache if it's not there yet", () => {
-    expect(typeof memoizeHTML("span")).toBe("object");
-    expect(typeof GLOBALS.HTML_CACHE.span).toBe("object");
+    expect(memoizeHTML("span")).toBeInstanceOf(HTMLSpanElement);
+    expect(GLOBALS.HTML_CACHE.span).toBeInstanceOf(HTMLSpanElement);
   });
 });

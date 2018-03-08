@@ -5,6 +5,7 @@ import { radiArgs } from "../index";
 import { GLOBALS } from "../consts/GLOBALS";
 
 export function r(query) {
+  // TODO: just use .slice(1)
   var args = [],
     len = arguments.length - 1;
   while (len-- > 0) args[len] = arguments[len + 1];
@@ -35,6 +36,7 @@ export function r(query) {
 }
 
 r.extend = function(query) {
+  // TODO: just use .slice(1)
   var args = [],
     len = arguments.length - 1;
   while (len-- > 0) args[len] = arguments[len + 1];
