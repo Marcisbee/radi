@@ -11,7 +11,7 @@ describe("memoizeHTML.js", () => {
     expect(memoizeHTML("div")).toEqual({ foo: "bar" });
   });
 
-  it("adds the given element to cache if it's not there yet", () => {
+  it("adds the requested element to cache if it's not there yet", () => {
     expect(typeof memoizeHTML("span")).toBe("object");
     expect(typeof GLOBALS.HTML_CACHE.span).toBe("object");
   });
