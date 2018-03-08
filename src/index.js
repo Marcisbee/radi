@@ -200,10 +200,10 @@ export function Condition(a, e, SELF) {
     this.w.push(a);
   }
 
-  this.watch = function (cb) {
-    for (const w in this.w) {
-      (function (w) {
-        SELF.$e.on(this.w[w].path, (e, v) => {
+  this.watch = (cb) => {
+    for (const w in this.w) { // eslint-disable-line
+      (function iife(wArgument) {
+        SELF.$e.on(this.w[wArgument].path, (e, v) => {
           cb(v);
         });
       }.call(this, w));
