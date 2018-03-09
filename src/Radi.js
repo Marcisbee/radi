@@ -31,7 +31,7 @@ export default class Radi {
     });
 
     this.addNonEnumerableProperties({
-      // TODO: REMOVE let _r = {r};
+      // TODO: REMOVE let _r = {r}; FIXME
       $view: new Function('r', 'list', 'll', 'cond', `let _r = {r}; return ${o.$view}`)(
         r.bind(this),
         list.bind(this),
