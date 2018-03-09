@@ -145,17 +145,18 @@ export const link = (fn, watch, txt) => {
     args.t[i] = `$rdi[${i}]`;
     args.f = args.f.replace(txt[i], args.t[i]);
 
-    (function iife(path, scopedArgs, p, j) {
-      SELF.$eventService.on(path, (e, v) => {
-        scopedArgs.a[j] = v;
-        const cache = scopedArgs.f.call(SELF, scopedArgs.a);
+    const path = `${watch[i][0].__path}.${watch[i][1]}`;
+    const p = `${args.__path}.s`;
 
-        if (scopedArgs.s !== cache) {
-          scopedArgs.s = cache;
-          SELF.$eventService.emit(p, scopedArgs.s);
-        }
-      });
-    }(`${watch[i][0].__path}.${watch[i][1]}`, args, `${args.__path}.s`, i));
+    SELF.$eventService.on(path, (path, value) => {
+      args.a[i] = value;
+      const cache = args.f.call(SELF, args.a);
+
+      if (args.s !== cache) {
+        args.s = cache;
+        SELF.$eventService.emit(p, args.s);
+      }
+    });
   }
 
   args.f = () => args.f();
@@ -290,57 +291,19 @@ export function setAttr(view, arg1, arg2) {
   el.setAttribute(arg1, arg2);
 }
 
-export function radiArgs(element, args) {
-  const self = this;
-
-  args.forEach((arg, i) => {
-    if (!arg) return;
-
-    // support middleware
-    if (isComponent(arg)) {
-      element.appendChild(arg.__radi().$render());
-    } else if (isCondition(arg)) {
-      let arg2 = arg.__do(),
-        a,
-        id = arg2.id;
-      if (isComponent(arg2.r)) {
-        a = arg2.r.__radi().$render();
-      } else if (typeof arg2.r === 'function') {
-        a = arg2.r();
-      } else if (isString(arg2.r) || isNumber(arg2.r)) {
-        a = text(arg2.r);
-      } else {
-        a = arg2.r;
-      }
-      element.appendChild(a);
-      afterAppendChild(arg, id, a);
-    } else if (typeof arg === 'function') {
-      arg.call(this, element);
-    } else if (isString(arg) || isNumber(arg)) {
-      element.appendChild(text(arg));
-    } else if (isNode(getEl(arg))) {
-      element.appendChild(arg);
-    } else if (Array.isArray(arg)) {
-      radiArgs.call(this, element, arg);
-    } else if (isWatchable(arg)) {
-      const cache = arg.get();
-      const z = text(cache);
-      element.appendChild(z);
-
-      // Update bind
-      updateBind(self, z, element)(cache, arg);
-    } else if (typeof arg === 'object') {
-      setAttr.call(this, element, arg);
-    }
-  });
-}
-
-export const afterAppendChild = (arg, id, a) => {
-  arg.watch((v) => {
-    const arg2 = arg.__do();
-    let b = null;
+/**
+ * afterAppendChild
+ * @param {Condition} condition
+ * @param {any} id
+ * @param {any} a
+ */
+export const afterAppendChild = (condition, id, a) => {
+  condition.watch(() => {
+    const arg2 = condition.__do();
 
     if (id === arg2.id) return false;
+
+    let b = null;
     if (isComponent(arg2.r)) {
       b = arg2.r.__radi().$render();
     } else if (typeof arg2.r === 'function') {
