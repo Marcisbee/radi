@@ -242,9 +242,8 @@ Condition.prototype.else = function (e) {
   return this;
 };
 
-export function ll(f, w, c) {
-  return w ? link.call(this, f, w, c.split(',')) : f;
-}
+export const ll = (f, w, c) =>
+  w ? link.call(this, f, w, c.split(',')) : f;
 
 export const _Radi = {
   version: GLOBALS.VERSION,
@@ -270,272 +269,264 @@ export const _Radi = {
 
 window.$Radi = _Radi;
 
-export function register(c) {
-  const cmp = new c();
-  const n = cmp.o.name;
-  if (!n) {
+export const register = (Component) => {
+  const component = new Component();
+  const name = component.o.name;
+
+  if (!name) {
     console.warn('[Radi.js] Warn: Cannot register component without name');
-  } else {
-    if (typeof GLOBALS.REGISTERED[n] !== 'undefined') {
-      console.warn(`[Radi.js] Warn: Component with name '${n}' beeing replaced`);
-    }
-    GLOBALS.REGISTERED[n] = c;
-  }
-}
-
-export function Radi(o) {
-  const SELF = {
-    __path: 'this',
-  };
-
-  // apply mixins
-  for (var i in o.$mixins) {
-    if (typeof SELF[i] === 'undefined') {
-      SELF[i] = o.$mixins[i];
-    }
+    return;
   }
 
-  Object.defineProperties(SELF, {
-    $mixins: {
-      enumerable: false,
-      value: o.$mixins,
-    },
-    $mixins_keys: {
-      enumerable: false,
-      value: new RegExp(`^this\\.(${
-        Object.keys(o.$mixins)
-          .join('|')
-          .replace(/\$/g, '\\$')
-          .replace(/\./g, '\\.')
-      })`),
-    },
-    $e: {
-      enumerable: false,
-      value: {
-        WATCH: {},
-        get(path) {
-          return SELF.$e.WATCH[path] || (SELF.$e.WATCH[path] = []);
-        },
-        on(path, fn) {
-          if (GLOBALS.FROZEN_STATE) return null;
-          return SELF.$e.get(path).push(fn);
-        },
-        emit(path, r) {
-          if (GLOBALS.FROZEN_STATE) return null;
-          let list = SELF.$e.get(path),
-            len = list.length;
-          for (let i = 0; i < len; i++) {
-            list[i](path, r);
-          }
-        },
-      },
-    },
-  });
+  if (typeof GLOBALS.REGISTERED[name] !== 'undefined') {
+    console.warn(`[Radi.js] Warn: Component with name '${name}' beeing replaced`);
+  }
 
-  function populate(to, path) {
-    let ret;
-    if (typeof to !== 'object' || !to) return false;
-    ret =
-      typeof to.__path === 'undefined'
-        ? Object.defineProperty(to, '__path', { value: path })
-        : false;
-    for (const ii in to) {
-      const isMixin = SELF.$mixins_keys.test(`${path}.${ii}`);
-      if (
-        to.hasOwnProperty(ii) &&
-        !Object.getOwnPropertyDescriptor(to, ii).set
-      ) {
-        if (typeof to[ii] === 'object') populate(to[ii], `${path}.${ii}`);
-        // Initiate watcher if not already watched
-        watcher(to, ii, path.concat('.').concat(ii));
-        // Trigger changes for this path
-        SELF.$e.emit(`${path}.${ii}`, to[ii]);
-      } else if (isMixin) {
-        watcher(to, ii, path.concat('.').concat(ii));
+  GLOBALS.REGISTERED[name] = Component;
+};
+
+export class Radi {
+  constructor(o) {
+    this.__path = 'this';
+
+    const SELF = this;
+
+    // apply mixins
+    for (let i in o.$mixins) {
+      if (typeof SELF[i] === 'undefined') {
+        SELF[i] = o.$mixins[i];
       }
     }
-    return ret;
-  }
 
-  // TODO: Bring back multiple watcher sets
-  const dsc = Object.getOwnPropertyDescriptor;
-  function watcher(targ, prop, path) {
-    var oldval = targ[prop],
-      prev =
-        typeof dsc(targ, prop) !== 'undefined' ? dsc(targ, prop).set : null,
-      setter = function (newval) {
-        if (oldval !== newval) {
-          if (Array.isArray(oldval)) {
-            let ret;
-            if (this && this.constructor === String) {
-              ret = Array.prototype[this].apply(oldval, arguments);
+    Object.defineProperties(SELF, {
+      $mixins: {
+        value: o.$mixins,
+      },
+      $mixins_keys: {
+        value: new RegExp(`^this\\.(${
+          Object.keys(o.$mixins)
+            .join('|')
+            .replace(/\$/g, '\\$')
+            .replace(/\./g, '\\.')
+        })`),
+      },
+      $e: {
+        value: {
+          WATCH: {},
+          get(path) {
+            return SELF.$e.WATCH[path] || (SELF.$e.WATCH[path] = []);
+          },
+          on(path, fn) {
+            if (GLOBALS.FROZEN_STATE) return null;
+            return SELF.$e.get(path).push(fn);
+          },
+          emit(path, r) {
+            if (GLOBALS.FROZEN_STATE) return null;
+            let list = SELF.$e.get(path);
+            let len = list.length;
+            for (let i = 0; i < len; i++) {
+              list[i](path, r);
+            }
+          },
+        },
+      },
+    });
+
+    function populate(to, path) {
+      if (typeof to !== 'object' || !to) return false;
+
+      for (const ii in to) {
+        const isMixin = SELF.$mixins_keys.test(`${path}.${ii}`);
+        if (
+          to.hasOwnProperty(ii) &&
+          !Object.getOwnPropertyDescriptor(to, ii).set
+        ) {
+          if (typeof to[ii] === 'object') populate(to[ii], `${path}.${ii}`);
+          // Initiate watcher if not already watched
+          watcher(to, ii, path.concat('.').concat(ii));
+          // Trigger changes for this path
+          SELF.$e.emit(`${path}.${ii}`, to[ii]);
+        } else if (isMixin) {
+          watcher(to, ii, path.concat('.').concat(ii));
+        }
+      }
+
+      return typeof to.__path === 'undefined'
+        ? Object.defineProperty(to, '__path', { value: path })
+        : false;
+    }
+
+    // TODO: Bring back multiple watcher sets
+    const dsc = Object.getOwnPropertyDescriptor;
+    function watcher(targ, prop, path) {
+      var oldval = targ[prop],
+        prev =
+          typeof dsc(targ, prop) !== 'undefined' ? dsc(targ, prop).set : null,
+        setter = function (newval) {
+          if (oldval !== newval) {
+            if (Array.isArray(oldval)) {
+              let ret;
+              if (this && this.constructor === String) {
+                ret = Array.prototype[this].apply(oldval, arguments);
+              } else {
+                oldval = newval;
+                arrayMods(oldval, setter);
+              }
+
+              populate(oldval, path);
+              SELF.$e.emit(path, oldval);
+              if (typeof prev === 'function') prev(newval);
+              return ret;
+            } else if (typeof newval === 'object') {
+              oldval = clone(newval);
+              populate(oldval, path);
+              SELF.$e.emit(path, oldval);
             } else {
               oldval = newval;
-              arrayMods(oldval, setter);
+              populate(oldval, path);
+              SELF.$e.emit(path, oldval);
             }
-
-            populate(oldval, path);
-            SELF.$e.emit(path, oldval);
             if (typeof prev === 'function') prev(newval);
-            return ret;
-          } else if (typeof newval === 'object') {
-            oldval = clone(newval);
-            populate(oldval, path);
-            SELF.$e.emit(path, oldval);
-          } else {
-            oldval = newval;
-            populate(oldval, path);
-            SELF.$e.emit(path, oldval);
+            return newval;
           }
-          if (typeof prev === 'function') prev(newval);
-          return newval;
-        }
-        return false;
-      };
+          return false;
+        };
 
-    if (Array.isArray(oldval)) arrayMods(oldval, setter);
+      if (Array.isArray(oldval)) arrayMods(oldval, setter);
 
-    if (delete targ[prop]) {
-      Object.defineProperty(targ, prop, {
-        get() {
-          return oldval;
-        },
-        set: setter,
-        enumerable: true,
-        configurable: true,
-      });
+      if (delete targ[prop]) {
+        Object.defineProperty(targ, prop, {
+          get() {
+            return oldval;
+          },
+          set: setter,
+          enumerable: true,
+          configurable: true,
+        });
+      }
     }
-  }
 
-  for (var i in o.state) {
-    if (typeof SELF[i] === 'undefined') {
-      SELF[i] = o.state[i];
-    } else {
-      throw new Error(`[Radi.js] Err: Trying to write state for reserved variable \`${i}\``);
+    for (let key in o.state) {
+      if (typeof SELF[key] !== 'undefined') {
+        throw new Error(`[Radi.js] Error: Trying to write state for reserved variable \`${i}\``);
+      }
+
+      SELF[key] = o.state[key];
     }
-  }
 
-  for (var i in o.props) {
-    if (typeof SELF[i] === 'undefined') {
-      if (isWatchable(o.props[i])) {
-        SELF[i] = o.props[i].get();
+    for (let key in o.props) {
+      if (typeof SELF[key] !== 'undefined') {
+        throw new Error(`[Radi.js] Error: Trying to write prop for reserved variable \`${i}\``);
+      }
 
-        if (o.props[i].parent) {
-          o.props[i].parent().$e.on(o.props[i].path, (e, a) => {
-            SELF[i] = a;
+      const prop = o.props[key];
+
+      if (isWatchable(prop)) {
+        SELF[key] = prop.get();
+
+        if (prop.parent) {
+          prop.parent().$e.on(prop.path, (e, a) => {
+            SELF[key] = a;
           });
         }
       } else {
-        SELF[i] = o.props[i];
+        SELF[key] = prop;
       }
-    } else {
-      throw new Error(`[Radi.js] Err: Trying to write prop for reserved variable \`${i}\``);
     }
-  }
 
-  populate(SELF, 'this');
+    populate(SELF, 'this');
 
-  for (var i in o.actions) {
-    if (typeof SELF[i] === 'undefined') {
-      SELF[i] = function () {
+    for (let key in o.actions) {
+      if (typeof SELF[key] !== 'undefined') {
+        throw new Error(`[Radi.js] Error: Trying to write action for reserved variable \`${
+          i
+        }\``);
+      }
+
+      SELF[key] = () => {
         if (GLOBALS.FROZEN_STATE) return null;
-        return o.actions[this].apply(SELF, arguments);
-      }.bind(i);
-    } else {
-      throw new Error(`[Radi.js] Error: Trying to write action for reserved variable \`${
-        i
-      }\``);
+        return o.actions[key].apply(SELF, arguments);
+      };
     }
+
+    Object.defineProperties(SELF, {
+      $id: {
+        value: GLOBALS.IDS++,
+      },
+      $name: {
+        value: o.name,
+      },
+      $state: {
+        value: o.state || {},
+      },
+      $props: {
+        value: o.props || {},
+      },
+      $actions: {
+        value: o.actions || {},
+      },
+      $html: {
+        value: document.createDocumentFragment(),
+      },
+      $parent: {
+        value: null,
+      },
+      $view: {
+        value: new Function('r', 'list', 'll', 'cond', `return ${o.$view}`)(
+          r.bind(this),
+          list.bind(this),
+          ll.bind(this),
+          cond.bind(this),
+        )(),
+      },
+    });
+
+    Object.defineProperties(SELF, {
+      $link: {
+        value: this.$view(),
+      },
+    });
+
+    this.$html.appendChild(this.$link);
+
+    this.$html.destroy = () => {
+      const oldRootElem = this.$link.parentElement;
+      const newRootElem = oldRootElem.cloneNode(false);
+      oldRootElem.parentNode.insertBefore(newRootElem, oldRootElem);
+      this.unmount();
+      oldRootElem.parentNode.removeChild(oldRootElem);
+    };
+
+    this.$link.unmount = this.unmount.bind(this);
+    this.$link.mount = this.mount.bind(this);
   }
 
-  Object.defineProperties(SELF, {
-    $id: {
-      enumerable: false,
-      value: GLOBALS.IDS++,
-    },
-    $name: {
-      enumerable: false,
-      value: o.name,
-    },
-    $state: {
-      enumerable: false,
-      value: o.state || {},
-    },
-    $props: {
-      enumerable: false,
-      value: o.props || {},
-    },
-    $actions: {
-      enumerable: false,
-      value: o.actions || {},
-    },
-    $html: {
-      enumerable: false,
-      value: document.createDocumentFragment(),
-    },
-    $parent: {
-      enumerable: false,
-      value: null,
-    },
-    $view: {
-      enumerable: false,
-      value: new Function('r', 'list', 'll', 'cond', `return ${o.$view}`)(
-        r.bind(SELF),
-        list.bind(SELF),
-        ll.bind(SELF),
-        cond.bind(SELF),
-      ),
-    },
-    $render: {
-      enumerable: false,
-      value() {
-        SELF.mount();
-        return SELF.$html;
-      },
-    },
-  });
-
-  Object.defineProperties(SELF, {
-    $link: {
-      enumerable: false,
-      value: SELF.$view(),
-    },
-  });
-
-  SELF.$html.appendChild(SELF.$link);
-
-  SELF.$html.destroy = function () {
-    const oldRootElem = SELF.$link.parentElement;
-    const newRootElem = oldRootElem.cloneNode(false);
-    oldRootElem.parentNode.insertBefore(newRootElem, oldRootElem);
-    SELF.unmount();
-    oldRootElem.parentNode.removeChild(oldRootElem);
-  };
-
-  SELF.mount = function () {
-    if (typeof SELF.$actions.onMount === 'function') {
-      SELF.$actions.onMount.call(SELF);
+  mount() {
+    if (typeof this.$actions.onMount === 'function') {
+      this.$actions.onMount.call(this);
     }
-    GLOBALS.ACTIVE_COMPONENTS.push(SELF);
-  };
+    GLOBALS.ACTIVE_COMPONENTS.push(this);
+  }
 
-  SELF.unmount = function () {
-    if (typeof SELF.$actions.onDestroy === 'function') {
-      SELF.$actions.onDestroy.call(SELF);
+  unmount() {
+    if (typeof this.$actions.onDestroy === 'function') {
+      this.$actions.onDestroy.call(this);
     }
+
     for (let i = 0; i < GLOBALS.ACTIVE_COMPONENTS.length; i++) {
-      if (GLOBALS.ACTIVE_COMPONENTS[i].$id === SELF.$id) {
+      if (GLOBALS.ACTIVE_COMPONENTS[i].$id === this.$id) {
         GLOBALS.ACTIVE_COMPONENTS.splice(i, 1);
         break;
       }
     }
-    return SELF.$link;
-  };
 
-  SELF.$link.unmount = SELF.unmount.bind(SELF);
-  SELF.$link.mount = SELF.mount.bind(SELF);
+    return this.$link;
+  }
 
-  return SELF;
+  $render() {
+    SELF.mount();
+    return SELF.$html;
+  }
 }
 
 export function setAttr(view, arg1, arg2) {
