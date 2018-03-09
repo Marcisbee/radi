@@ -1,5 +1,5 @@
 export const clone = (obj) => {
-  if (typeof obj !== "object") return obj;
+  if (typeof obj !== 'object') return obj;
   if (obj === null) return obj;
   if (Array.isArray(obj)) return obj.map(element => clone(element));
 

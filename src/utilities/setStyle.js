@@ -1,7 +1,7 @@
-import { getEl } from "../index";
-import { isWatchable } from "../index";
-import { radiMutate } from "./radiMutate";
-import { isString } from "../index";
+import { getEl } from '../index';
+import { isWatchable } from '../index';
+import { radiMutate } from './radiMutate';
+import { isString } from '../index';
 
 export const setStyle = (view, arg1, arg2) => {
   const el = getEl(view);
@@ -17,7 +17,7 @@ export const setStyle = (view, arg1, arg2) => {
           el.style[arg1] = v;
         },
         el.key,
-        "style"
+        'style'
       );
       cache = v;
     });
@@ -29,7 +29,7 @@ export const setStyle = (view, arg1, arg2) => {
   }
 
   if (isString(arg1)) {
-    return el.setAttribute("style", arg1);
+    return el.setAttribute('style', arg1);
   }
 
   for (let key in arg1) {

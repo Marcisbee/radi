@@ -1,6 +1,6 @@
-import { Radi } from "../index";
-import { GLOBALS } from "../consts/GLOBALS";
-import { clone } from "./clone";
+import { Radi } from '../index';
+import { GLOBALS } from '../consts/GLOBALS';
+import { clone } from './clone';
 
 export class Component {
   constructor(o) {
@@ -23,11 +23,11 @@ export class Component {
 
   props(propsUpdates) {
     for (let key in propsUpdates) {
-      if (typeof this.o.props[key] === "undefined") {
+      if (typeof this.o.props[key] === 'undefined') {
         console.warn(
-          "[Radi.js] Warn: Creating a prop `",
+          '[Radi.js] Warn: Creating a prop `',
           key,
-          "` that is not defined in component"
+          '` that is not defined in component'
         );
       }
       this.o.props[key] = propsUpdates[key];

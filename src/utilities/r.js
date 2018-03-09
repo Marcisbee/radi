@@ -1,8 +1,8 @@
-import { isString } from "../index";
-import { memoizeHTML } from "./memoizeHTML";
-import { isNode } from "../index";
-import { radiArgs } from "../index";
-import { GLOBALS } from "../consts/GLOBALS";
+import { isString } from '../index';
+import { memoizeHTML } from './memoizeHTML';
+import { isNode } from '../index';
+import { radiArgs } from '../index';
+import { GLOBALS } from '../consts/GLOBALS';
 
 export const r = (query, ...args) => {
   if (queryIsComponent(query)) {
@@ -21,7 +21,7 @@ export const r = (query, ...args) => {
 }
 
 export const queryIsComponent = (query) =>
-  isString(query) && typeof GLOBALS.REGISTERED[query] !== "undefined";
+  isString(query) && typeof GLOBALS.REGISTERED[query] !== 'undefined';
 
 export const getElementFromQuery = (query) => {
   if (isString(query)) return memoizeHTML(query).cloneNode(false);
