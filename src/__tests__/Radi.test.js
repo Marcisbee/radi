@@ -7,7 +7,7 @@ describe('Radi.js', () => {
       props: {},
       actions: {},
       $mixins: {},
-      $view: () => {},
+      $view: () => () => document.createElement('h1'),
       name: 'foobar'
     });
   });

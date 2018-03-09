@@ -11,135 +11,107 @@ import { Component } from './utilities/ComponentClass';
 import { GLOBALS } from './consts/GLOBALS';
 import { list, ll, cond } from './index';
 
+class EventService {
+  constructor(radiInstance) {
+    this.WATCH = {};
+    this.radiInstance = radiInstance;
+  }
+
+  get(path) {
+    return this.WATCH[path] || (this.WATCH[path] = []);
+  }
+
+  on(path, fn) {
+    if (GLOBALS.FROZEN_STATE) return null;
+    return this.get(path).push(fn);
+  }
+
+  emit(path, r) {
+    if (GLOBALS.FROZEN_STATE) return null;
+    let list = this.get(path);
+    let len = list.length;
+    for (let i = 0; i < len; i++) {
+      list[i](path, r);
+    }
+  }
+}
+
 export default class Radi {
   constructor(o) {
     this.__path = 'this';
 
-    const SELF = this;
+    this.addNonEnumerableProperties({
+      $mixins: o.$mixins,
+      $mixins_keys: this.getMixinsKeys(o.$mixins),
+      $e: new EventService(this),
+      $id: GLOBALS.IDS++,
+      $name: o.name,
+      $state: o.state || {},
+      $props: o.props || {},
+      $actions: o.actions || {},
+      $html: document.createDocumentFragment(),
+      $parent: null,
+      $view: new Function('r', 'list', 'll', 'cond', `return ${o.$view}`)(
+        r.bind(this),
+        list.bind(this),
+        ll.bind(this),
+        cond.bind(this),
+      )(),
+    });
 
-    const dsc = Object.getOwnPropertyDescriptor;
+    this.addNonEnumerableProperties({
+      $link: this.$view()
+    });
 
     // apply mixins
     for (let i in o.$mixins) {
-      if (typeof SELF[i] === 'undefined') {
-        SELF[i] = o.$mixins[i];
+      if (typeof this[i] === 'undefined') {
+        this[i] = o.$mixins[i];
       }
     }
 
-    Object.defineProperties(SELF, {
-      $mixins: {
-        value: o.$mixins,
-      },
-      $mixins_keys: {
-        value: new RegExp(`^this\\.(${
-          Object.keys(o.$mixins)
-            .join('|')
-            .replace(/\$/g, '\\$')
-            .replace(/\./g, '\\.')
-        })`),
-      },
-      $e: {
-        value: {
-          WATCH: {},
-          get(path) {
-            return SELF.$e.WATCH[path] || (SELF.$e.WATCH[path] = []);
-          },
-          on(path, fn) {
-            if (GLOBALS.FROZEN_STATE) return null;
-            return SELF.$e.get(path).push(fn);
-          },
-          emit(path, r) {
-            if (GLOBALS.FROZEN_STATE) return null;
-            let list = SELF.$e.get(path);
-            let len = list.length;
-            for (let i = 0; i < len; i++) {
-              list[i](path, r);
-            }
-          },
-        },
-      },
-    });
-
     for (let key in o.state) {
-      if (typeof SELF[key] !== 'undefined') {
+      if (typeof this[key] !== 'undefined') {
         throw new Error(`[Radi.js] Error: Trying to write state for reserved variable \`${i}\``);
       }
 
-      SELF[key] = o.state[key];
+      this[key] = o.state[key];
     }
 
     for (let key in o.props) {
-      if (typeof SELF[key] !== 'undefined') {
+      if (typeof this[key] !== 'undefined') {
         throw new Error(`[Radi.js] Error: Trying to write prop for reserved variable \`${i}\``);
       }
 
       const prop = o.props[key];
 
       if (isWatchable(prop)) {
-        SELF[key] = prop.get();
+        this[key] = prop.get();
 
         if (prop.parent) {
           prop.parent().$e.on(prop.path, (e, a) => {
-            SELF[key] = a;
+            this[key] = a;
           });
         }
       } else {
-        SELF[key] = prop;
+        this[key] = prop;
       }
     }
 
     this.populate(this, 'this');
 
     for (let key in o.actions) {
-      if (typeof SELF[key] !== 'undefined') {
+      if (typeof this[key] !== 'undefined') {
         throw new Error(`[Radi.js] Error: Trying to write action for reserved variable \`${
           i
         }\``);
       }
 
-      SELF[key] = () => {
+      this[key] = () => {
         if (GLOBALS.FROZEN_STATE) return null;
-        return o.actions[key].apply(SELF, arguments);
+        return o.actions[key].apply(this, arguments);
       };
     }
-
-    Object.defineProperties(SELF, {
-      $id: {
-        value: GLOBALS.IDS++,
-      },
-      $name: {
-        value: o.name,
-      },
-      $state: {
-        value: o.state || {},
-      },
-      $props: {
-        value: o.props || {},
-      },
-      $actions: {
-        value: o.actions || {},
-      },
-      $html: {
-        value: document.createDocumentFragment(),
-      },
-      $parent: {
-        value: null,
-      },
-      $view: {
-        value: new Function('r', 'list', 'll', 'cond', `return ${o.$view}`)(
-          r.bind(this),
-          list.bind(this),
-          ll.bind(this),
-          cond.bind(this),
-        )(),
-      },
-    });
-
-    Object.defineProperties(SELF, {
-      $link: {
-        value: SELF.$view(),
-      },
-    });
 
     this.$html.appendChild(this.$link);
 
@@ -153,6 +125,23 @@ export default class Radi {
 
     this.$link.unmount = this.unmount.bind(this);
     this.$link.mount = this.mount.bind(this);
+  }
+
+  addNonEnumerableProperties(object) {
+    for (let key in object) {
+      Object.defineProperty(this, key, {
+        value: object[key]
+      });
+    }
+  }
+
+  getMixinsKeys(mixins) {
+    return new RegExp(`^this\\.(${
+      Object.keys(mixins)
+        .join('|')
+        .replace(/\$/g, '\\$')
+        .replace(/\./g, '\\.')
+    })`);
   }
 
   populate(to, path) {
@@ -197,17 +186,17 @@ export default class Radi {
             }
 
             this.populate(oldval, path);
-            SELF.$e.emit(path, oldval);
+            this.$e.emit(path, oldval);
             if (typeof prev === 'function') prev(newval);
             return ret;
           } else if (typeof newval === 'object') {
             oldval = clone(newval);
             this.populate(oldval, path);
-            SELF.$e.emit(path, oldval);
+            this.$e.emit(path, oldval);
           } else {
             oldval = newval;
             this.populate(oldval, path);
-            SELF.$e.emit(path, oldval);
+            this.$e.emit(path, oldval);
           }
           if (typeof prev === 'function') prev(newval);
           return newval;
@@ -252,7 +241,7 @@ export default class Radi {
   }
 
   $render() {
-    SELF.mount();
-    return SELF.$html;
+    this.mount();
+    return this.$html;
   }
 }
