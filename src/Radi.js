@@ -10,81 +10,8 @@ import { component } from './utilities/component';
 import { Component } from './utilities/ComponentClass';
 import { GLOBALS } from './consts/GLOBALS';
 import { list, ll, cond } from './index';
-
-export class EventService {
-  constructor(radiInstance) {
-    this.radiInstance = radiInstance;
-    this.WATCH = {};
-  }
-
-  get(path) {
-    return this.WATCH[path] || (this.WATCH[path] = []);
-  }
-
-  on(path, callback) {
-    if (GLOBALS.FROZEN_STATE) return null;
-    return this.get(path).push(callback);
-  }
-
-  emit(path, r) {
-    if (GLOBALS.FROZEN_STATE) return null;
-    const list = this.get(path);
-    list.forEach(callback => callback(path, r));
-  }
-}
-
-export class PopulateService {
-  constructor(radiInstance, to, path) {
-    this.radiInstance = radiInstance;
-    this.to = to;
-    this.path = path;
-  }
-
-  populate() {
-    if (typeof this.to !== 'object' || !this.to) return false;
-
-    for (let key in this.to) {
-      const fullPath = `${this.path}.${key}`;
-      const isMixin = this.radiInstance.isMixin(fullPath);
-      if (this.shouldPopulateKey(key)) {
-        if (typeof this.to[key] === 'object') {
-          this.populate(this.to[key], fullPath);
-        }
-        this.initWatcherForKey(key);
-        this.emitEventForKey(key);
-        continue;
-      }
-
-      if (isMixin) {
-        this.initWatcherForKey(key);
-      }
-    }
-
-    return this.ensurePath();
-  }
-
-  shouldPopulateKey(key) {
-    return (
-      this.to.hasOwnProperty(key) &&
-      !Object.getOwnPropertyDescriptor(this.to, key).set
-    );
-  }
-
-  initWatcherForKey(key) {
-    this.radiInstance.watcher(this.to, key, this.path.concat('.').concat(key));
-  }
-
-  emitEventForKey(key) {
-    this.radiInstance.$eventService.emit(`${this.path}.${key}`, this.to[key]);
-  }
-
-  ensurePath() {
-    if (typeof this.to.__path === 'undefined') {
-      Object.defineProperty(this.to, '__path', { value: this.path });
-    }
-    return this.to;
-  }
-}
+import EventService from './EventService';
+import PopulateService from './PopulateService';
 
 export default class Radi {
   constructor(o) {
@@ -93,7 +20,7 @@ export default class Radi {
     this.addNonEnumerableProperties({
       $mixins: o.$mixins,
       $mixins_keys: this.getMixinsKeys(o.$mixins),
-      $eventService: new EventService(this),
+      $eventService: new EventService(),
       $id: GLOBALS.IDS++,
       $name: o.name,
       $state: o.state || {},
@@ -193,56 +120,6 @@ export default class Radi {
 
   isMixin(path) {
     return this.$mixins_keys.test(path);
-  }
-
-  // TODO: Bring back multiple watcher sets
-  watcher(target, prop, path) {
-    let oldVal = target[prop];
-    const prev =
-      typeof Object.getOwnPropertyDescriptor(target, prop) !== 'undefined'
-        ? Object.getOwnPropertyDescriptor(target, prop).set
-        : null;
-    const self = this;
-
-    const setter = function (newVal) {
-      if (oldVal === newVal) return false;
-
-      const originalOldVal = oldVal;
-      let result = newVal;
-
-      if (Array.isArray(oldVal) && this && this.constructor === String) {
-        result = Array.prototype[this].apply(oldVal, arguments);
-      }
-
-      oldVal = clone(newVal);
-
-      if (
-        Array.isArray(originalOldVal) &&
-        (!this || this.constructor !== String)
-      ) {
-        arrayMods(oldval, setter);
-      }
-
-      new PopulateService(self, oldVal, path).populate();
-      self.$eventService.emit(path, oldVal);
-
-      if (typeof prev === 'function') prev(newVal);
-
-      return result;
-    };
-
-    if (Array.isArray(oldVal)) arrayMods(oldVal, setter);
-
-    if (delete target[prop]) {
-      Object.defineProperty(target, prop, {
-        get() {
-          return oldVal;
-        },
-        set: setter,
-        enumerable: true,
-        configurable: true,
-      });
-    }
   }
 
   mount() {
