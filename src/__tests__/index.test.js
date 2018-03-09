@@ -24,7 +24,6 @@ import {
   afterAppendChild,
   updateBind,
   updateBundInnerFn,
-  Radi,
   _Radi
 } from '../index';
 import { GLOBALS } from '../consts/GLOBALS';
@@ -254,8 +253,6 @@ describe('index.js', () => {
     expect(Object.keys(GLOBALS.REGISTERED)).toHaveLength(1);
     expect(constructorSpyThree.calledOnce).toBe(true);
   });
-
-  // TODO: Add tests for the Radi function/class
 
   // TODO: Add tests for the setAttr function
 

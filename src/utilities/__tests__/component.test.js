@@ -4,7 +4,8 @@ describe('component.js', () => {
   it('works without crashing', () => {
     const testComponent = component({
       view: function() {
-        return this.sample;
+        // Test ()
+        return l(this.sample);
       },
       state: {
         sample: 'World'

@@ -50,12 +50,10 @@ export function component(o) {
      `;
 
     o.$view = o.$view.concat(fn.substr(cursor, n - cursor)).concat(newString);
-    console.log(o.$view)
     cursor = n + found.length;
 
     match = REGEX.FIND_L.exec(fn);
   }
   o.$view = o.$view.concat(fn.substr(cursor, fn.length - cursor));
-  console.log(o.$view)
   return Component.bind(this, o);
 }
