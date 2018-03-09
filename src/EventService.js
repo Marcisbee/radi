@@ -14,9 +14,9 @@ export default class EventService {
     return this.get(path).push(callback);
   }
 
-  emit(path, r) {
+  emit(path, value) {
     if (GLOBALS.FROZEN_STATE) return null;
     const list = this.get(path);
-    list.forEach(callback => callback(path, r));
+    list.forEach(callback => callback(path, value));
   }
 }

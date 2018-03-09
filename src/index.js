@@ -12,6 +12,7 @@ import { component } from './utilities/component';
 import { Component } from './utilities/ComponentClass';
 import { GLOBALS } from './consts/GLOBALS';
 import Radi from './Radi';
+import Condition from './Condition';
 
 export function isString(a) {
   return typeof a === 'string';
@@ -59,7 +60,7 @@ export const mount = (comp, id) => {
   return out;
 };
 
-const emptyNode = text('');
+export const emptyNode = text('');
 
 export const list = (data, act) => {
   if (!data) return '';
@@ -152,7 +153,7 @@ export const link = (fn, watch, txt) => {
       .replace(/(function \(\)\{ return |\(|\)|\; \})/g, '')
       .trim() === txt[0]
   ) {
-    return new NW(watch[0][0], watch[0][1], (() => SELF));
+    return new NW(watch[0][0], watch[0][1], () => SELF);
   }
 
   const len = watch.length;
@@ -190,58 +191,6 @@ export const link = (fn, watch, txt) => {
 export function cond(a, e) {
   return new Condition(a, e, this);
 }
-
-export function Condition(a, e, SELF) {
-  this.cases = [{ a, e }];
-  this.w = [];
-  this.cache = [];
-  this.els = emptyNode.cloneNode();
-
-  if (isWatchable(a)) {
-    this.w.push(a);
-  }
-
-  this.watch = (cb) => {
-    for (const w in this.w) { // eslint-disable-line
-      (function iife(wArgument) {
-        SELF.$eventService.on(this.w[wArgument].path, (e, v) => {
-          cb(v);
-        });
-      }.call(this, w));
-    }
-  };
-
-  this.__do = () => {
-    const ret = { id: null };
-    for (const c in this.cases) { // eslint-disable-line
-      const a = isWatchable(this.cases[c].a) // eslint-disable-line
-        ? this.cases[c].a.get()
-        : this.cases[c].a;
-      if (a) {
-        ret.id = c;
-        ret.r = this.cases[c].e;
-        break;
-      }
-    }
-    if (typeof ret.r === 'undefined') ret.r = this.els;
-    return ret;
-  };
-}
-
-Condition.prototype.elseif = function (a, e) {
-  this.cases.push({ a, e });
-  if (isWatchable(a)) {
-    this.w.push(a);
-  }
-  return this;
-};
-
-Condition.prototype.cond = Condition.prototype.elseif;
-
-Condition.prototype.else = function (e) {
-  this.els = e;
-  return this;
-};
 
 export const ll = (f, w, c) =>
   w ? link.call(this, f, w, c.split(',')) : f;

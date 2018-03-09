@@ -9,7 +9,7 @@ import { r } from './utilities/r';
 import { component } from './utilities/component';
 import { Component } from './utilities/ComponentClass';
 import { GLOBALS } from './consts/GLOBALS';
-import { list, ll, cond } from './index';
+import { isWatchable, list, ll, cond } from './index';
 import EventService from './EventService';
 import PopulateService from './PopulateService';
 
@@ -64,8 +64,8 @@ export default class Radi {
         this[key] = prop.get();
 
         if (prop.parent) {
-          prop.parent().$eventService.on(prop.path, (e, a) => {
-            this[key] = a;
+          prop.parent().$eventService.on(prop.path, (path, value) => {
+            this[key] = value;
           });
         }
       } else {
