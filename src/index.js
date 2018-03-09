@@ -13,6 +13,7 @@ import { Component } from './utilities/ComponentClass';
 import { GLOBALS } from './consts/GLOBALS';
 import Radi from './Radi';
 import Condition from './Condition';
+import Watchable from './Watchable';
 
 export function isString(a) {
   return typeof a === 'string';
@@ -31,7 +32,7 @@ export function isNode(a) {
 }
 
 export function isWatchable(a) {
-  return a && a instanceof NW;
+  return a && a instanceof Watchable;
 }
 
 export function isCondition(a) {
@@ -129,15 +130,6 @@ export function set(path, source, value) {
   return (source[prop] = value);
 }
 
-export function NW(source, prop, parent) {
-  this.path = `${source.__path}.${prop}`;
-  this.get = () => source[prop];
-  this.set = value => set(this.path.split('.'), parent(), value);
-  this.source = source;
-  this.prop = prop;
-  this.parent = parent;
-}
-
 let linkNum = 0;
 
 export const link = (fn, watch, txt) => {
@@ -153,7 +145,7 @@ export const link = (fn, watch, txt) => {
       .replace(/(function \(\)\{ return |\(|\)|\; \})/g, '')
       .trim() === txt[0]
   ) {
-    return new NW(watch[0][0], watch[0][1], () => SELF);
+    return new Watchable(watch[0][0], watch[0][1], () => SELF);
   }
 
   const len = watch.length;
@@ -185,7 +177,7 @@ export const link = (fn, watch, txt) => {
   args.f = () => args.f();
 
   if (len <= 0) return args.s;
-  return new NW(args, 's', (() => SELF));
+  return new Watchable(args, 's', (() => SELF));
 };
 
 export function cond(a, e) {
