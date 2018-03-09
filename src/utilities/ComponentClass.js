@@ -1,4 +1,4 @@
-import { Radi } from '../index';
+import Radi from '../Radi';
 import { GLOBALS } from '../consts/GLOBALS';
 import { clone } from './clone';
 

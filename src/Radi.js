@@ -28,12 +28,16 @@ export default class Radi {
       $actions: o.actions || {},
       $html: document.createDocumentFragment(),
       $parent: null,
-      $view: new Function('r', 'list', 'll', 'cond', `return ${o.$view}`)(
+    });
+
+    this.addNonEnumerableProperties({
+      // TODO: REMOVE let _r = {r};
+      $view: new Function('r', 'list', 'll', 'cond', `let _r = {r}; return ${o.$view}`)(
         r.bind(this),
         list.bind(this),
         ll.bind(this),
         cond.bind(this),
-      )(),
+      ),
     });
 
     this.addNonEnumerableProperties({

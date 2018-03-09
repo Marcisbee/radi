@@ -116,11 +116,10 @@ export const set = (path, source, value) => {
 
 let linkNum = 0;
 
-export const link = (fn, watch, txt) => {
+export const link = (radiInstance, fn, watch, txt) => {
   const args = {
     s: null, a: [], t: [], f: fn.toString(),
   };
-  const SELF = this;
 
   if (
     txt.length === 1 &&
@@ -134,7 +133,7 @@ export const link = (fn, watch, txt) => {
 
   const len = watch.length;
 
-  args.s = fn.call(this);
+  args.s = fn.call(radiInstance);
   args.a = new Array(len);
   args.t = new Array(len);
   args.__path = `$link-${linkNum}`;
@@ -148,13 +147,13 @@ export const link = (fn, watch, txt) => {
     const path = `${watch[i][0].__path}.${watch[i][1]}`;
     const p = `${args.__path}.s`;
 
-    SELF.$eventService.on(path, (path, value) => {
+    radiInstance.$eventService.on(path, (path, value) => {
       args.a[i] = value;
-      const cache = args.f.call(SELF, args.a);
+      const cache = args.f.call(radiInstance, args.a);
 
       if (args.s !== cache) {
         args.s = cache;
-        SELF.$eventService.emit(p, args.s);
+        radiInstance.$eventService.emit(p, args.s);
       }
     });
   }
@@ -169,8 +168,9 @@ export function cond(a, e) {
   return new Condition(a, e, this);
 }
 
-export const ll = (f, w, c) =>
-  w ? link.call(this, f, w, c.split(',')) : f;
+export function ll(f, w, c) {
+  return w ? link(this, f, w, c.split(',')) : f;
+}
 
 export const _Radi = {
   version: GLOBALS.VERSION,

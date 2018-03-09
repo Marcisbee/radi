@@ -1,11 +1,20 @@
-import { isString, updateBind } from '../index';
+import {
+  isString,
+  updateBind,
+  isComponent,
+  isCondition,
+  afterAppendChild,
+  isNumber,
+  isNode,
+  isWatchable,
+  text,
+  getEl
+} from '../index';
 import { memoizeHTML } from './memoizeHTML';
-import { isNode } from '../index';
-import { radiArgs } from '../index';
 import { GLOBALS } from '../consts/GLOBALS';
 import { _Radi } from '../index';
 
-export const r = (query, props, ...children) => {
+export function r(query, props, ...children) {
   if (queryIsComponent(query)) {
     // TODO: Make props and childs looped,
     // aka don't assume that first obj are props
@@ -15,7 +24,8 @@ export const r = (query, props, ...children) => {
   const element = getElementFromQuery(query);
   addKey(element);
 
-  radiJsx(element, children);
+  const radiInstance = this;
+  radiJsx(radiInstance, element, children);
 
   return element;
 }
@@ -42,48 +52,59 @@ r.extend = (query, ...args) => {
 
 /**
  * radiJsx
+ * @param {Radi} radiInstance
  * @param {HTMLElement} element
  * @param {Array<any>} children
  */
-export function radiJsx(element, children) {
-  children.forEach((child, i) => {
-    if (!child) return;
+export const radiJsx = (radiInstance, element, children) => {
+  children.forEach(appendChild(radiInstance, element));
+};
 
-    // support middleware
-    if (isComponent(child)) {
-      element.appendChild(child.__radi().$render());
-    } else if (isCondition(child)) {
-      let child2 = child.__do(),
-        a,
-        id = child2.id;
-      if (isComponent(child2.r)) {
-        a = child2.r.__radi().$render();
-      } else if (typeof child2.r === 'function') {
-        a = child2.r();
-      } else if (isString(child2.r) || isNumber(child2.r)) {
-        a = text(child2.r);
-      } else {
-        a = child2.r;
-      }
-      element.appendChild(a);
-      afterAppendChild(child, id, a);
-    } else if (typeof child === 'function') {
-      child(element);
-    } else if (isString(child) || isNumber(child)) {
-      element.appendChild(text(child));
-    } else if (isNode(getEl(child))) {
-      element.appendChild(child);
-    } else if (Array.isArray(child)) {
-      radiArgs(element, child);
-    } else if (isWatchable(child)) {
-      const cache = child.get();
-      const z = text(cache);
-      element.appendChild(z);
+const appendChild = (radiInstance, element) => (child) => {
+  if (!child) return;
 
-      // Update bind
-      updateBind(_Radi, z, element)(cache, child);
-    } else if (typeof child === 'object') {
-      setAttr.call(this, element, child);
-    }
-  });
-}
+  if (isComponent(child)) {
+    element.appendChild(child.__radi().$render());
+    return;
+  }
+
+  if (isCondition(child)) {
+    const child2 = child.__do();
+    const id = child2.id;
+    appendChild(element, child2);
+    afterAppendChild(child, id, a);
+    return;
+  }
+
+  if (typeof child === 'function') {
+    child(element);
+    return;
+  }
+
+  if (isString(child) || isNumber(child)) {
+    element.appendChild(text(child));
+    return;
+  }
+
+  if (isNode(getEl(child))) {
+    element.appendChild(child);
+    return;
+  }
+
+  if (Array.isArray(child)) {
+    radiJsx(element, child);
+    return;
+  }
+
+  if (isWatchable(child)) {
+    const cache = child.get();
+    const textNode = text(cache);
+    element.appendChild(textNode);
+    updateBind(radiInstance, textNode, element)(cache, child);
+    return;
+  }
+
+  if (typeof child === 'object') {
+    setAttr.call(radiInstance, element, child);
+  }
+};
