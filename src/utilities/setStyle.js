@@ -10,7 +10,7 @@ export const setStyle = (view, arg1, arg2) => {
     let cache = arg2.get();
     el.style[arg1] = cache;
 
-    this.$e.on(arg2.path, (e, v) => {
+    this.$eventService.on(arg2.path, (e, v) => {
       if (v === cache) return false;
       radiMutate(
         () => {

@@ -109,7 +109,7 @@ export const list = (data, act) => {
 
   if (cache.__path) {
     let len = cacheLen;
-    SELF.$e.on(cache.__path, (e, v) => {
+    SELF.$eventService.on(cache.__path, (e, v) => {
       w(v.length - len, v);
       len = v.length;
     });
@@ -169,13 +169,13 @@ export const link = (fn, watch, txt) => {
     args.f = args.f.replace(txt[i], args.t[i]);
 
     (function iife(path, scopedArgs, p, j) {
-      SELF.$e.on(path, (e, v) => {
+      SELF.$eventService.on(path, (e, v) => {
         scopedArgs.a[j] = v;
         const cache = scopedArgs.f.call(SELF, scopedArgs.a);
 
         if (scopedArgs.s !== cache) {
           scopedArgs.s = cache;
-          SELF.$e.emit(p, scopedArgs.s);
+          SELF.$eventService.emit(p, scopedArgs.s);
         }
       });
     }(`${watch[i][0].__path}.${watch[i][1]}`, args, `${args.__path}.s`, i));
@@ -204,7 +204,7 @@ export function Condition(a, e, SELF) {
   this.watch = (cb) => {
     for (const w in this.w) { // eslint-disable-line
       (function iife(wArgument) {
-        SELF.$e.on(this.w[wArgument].path, (e, v) => {
+        SELF.$eventService.on(this.w[wArgument].path, (e, v) => {
           cb(v);
         });
       }.call(this, w));
@@ -299,11 +299,11 @@ export function setAttr(view, arg1, arg2) {
       el.oninput = function () {
         arg2.set(el.value);
         cache = el.value;
-        self.$e.emit(arg2.path, el.value);
+        self.$eventService.emit(arg2.path, el.value);
       };
       // Update bind
       (function (cache, arg1, arg2) {
-        self.$e.on(arg2.path, (e, v) => {
+        self.$eventService.on(arg2.path, (e, v) => {
           if (v === cache) return false;
           radiMutate(
             () => {
@@ -337,7 +337,7 @@ export function setAttr(view, arg1, arg2) {
 
         // Update bind
         (function (cache, arg1, arg2) {
-          self.$e.on(arg2.path, (e, v) => {
+          self.$eventService.on(arg2.path, (e, v) => {
             if (v === cache) return false;
             radiMutate(
               () => {
@@ -442,7 +442,7 @@ export const afterAppendChild = (arg, id, a) => {
 };
 
 export const updateBind = (self, z, element) => (cache, arg) => {
-  self.$e.on(arg.path, updateBundInnerFn(cache, z, element));
+  self.$eventService.on(arg.path, updateBundInnerFn(cache, z, element));
 };
 
 // TODO: Rename and understand.

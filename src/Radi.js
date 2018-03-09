@@ -11,7 +11,7 @@ import { Component } from './utilities/ComponentClass';
 import { GLOBALS } from './consts/GLOBALS';
 import { list, ll, cond } from './index';
 
-class EventService {
+export class EventService {
   constructor(radiInstance) {
     this.WATCH = {};
     this.radiInstance = radiInstance;
@@ -21,18 +21,15 @@ class EventService {
     return this.WATCH[path] || (this.WATCH[path] = []);
   }
 
-  on(path, fn) {
+  on(path, callback) {
     if (GLOBALS.FROZEN_STATE) return null;
-    return this.get(path).push(fn);
+    return this.get(path).push(callback);
   }
 
   emit(path, r) {
     if (GLOBALS.FROZEN_STATE) return null;
-    let list = this.get(path);
-    let len = list.length;
-    for (let i = 0; i < len; i++) {
-      list[i](path, r);
-    }
+    const list = this.get(path);
+    list.forEach(callback => callback(path, r));
   }
 }
 
@@ -63,10 +60,9 @@ export default class Radi {
       $link: this.$view()
     });
 
-    // apply mixins
-    for (let i in o.$mixins) {
-      if (typeof this[i] === 'undefined') {
-        this[i] = o.$mixins[i];
+    for (let key in o.$mixins) {
+      if (typeof this[key] === 'undefined') {
+        this[key] = o.$mixins[key];
       }
     }
 
@@ -74,7 +70,6 @@ export default class Radi {
       if (typeof this[key] !== 'undefined') {
         throw new Error(`[Radi.js] Error: Trying to write state for reserved variable \`${i}\``);
       }
-
       this[key] = o.state[key];
     }
 
@@ -89,7 +84,7 @@ export default class Radi {
         this[key] = prop.get();
 
         if (prop.parent) {
-          prop.parent().$e.on(prop.path, (e, a) => {
+          prop.parent().$eventService.on(prop.path, (e, a) => {
             this[key] = a;
           });
         }
@@ -102,26 +97,17 @@ export default class Radi {
 
     for (let key in o.actions) {
       if (typeof this[key] !== 'undefined') {
-        throw new Error(`[Radi.js] Error: Trying to write action for reserved variable \`${
-          i
-        }\``);
+        throw new Error(`[Radi.js] Error: Trying to write action for reserved variable \`${i}\``);
       }
 
-      this[key] = () => {
+      this[key] = (...arguments) => {
         if (GLOBALS.FROZEN_STATE) return null;
         return o.actions[key].apply(this, arguments);
       };
     }
 
     this.$html.appendChild(this.$link);
-
-    this.$html.destroy = () => {
-      const oldRootElem = this.$link.parentElement;
-      const newRootElem = oldRootElem.cloneNode(false);
-      oldRootElem.parentNode.insertBefore(newRootElem, oldRootElem);
-      this.unmount();
-      oldRootElem.parentNode.removeChild(oldRootElem);
-    };
+    this.$html.destroy = () => this.destroyHtml();
 
     this.$link.unmount = this.unmount.bind(this);
     this.$link.mount = this.mount.bind(this);
@@ -133,6 +119,14 @@ export default class Radi {
         value: object[key]
       });
     }
+  }
+
+  destroyHtml() {
+    const oldRootElem = this.$link.parentElement;
+    const newRootElem = oldRootElem.cloneNode(false);
+    oldRootElem.parentNode.insertBefore(newRootElem, oldRootElem);
+    this.unmount();
+    oldRootElem.parentNode.removeChild(oldRootElem);
   }
 
   getMixinsKeys(mixins) {
@@ -157,7 +151,7 @@ export default class Radi {
         // Initiate watcher if not already watched
         this.watcher(to, ii, path.concat('.').concat(ii));
         // Trigger changes for this path
-        this.$e.emit(`${path}.${ii}`, to[ii]);
+        this.$eventService.emit(`${path}.${ii}`, to[ii]);
       } else if (isMixin) {
         this.watcher(to, ii, path.concat('.').concat(ii));
       }
@@ -186,17 +180,17 @@ export default class Radi {
             }
 
             this.populate(oldval, path);
-            this.$e.emit(path, oldval);
+            this.$eventService.emit(path, oldval);
             if (typeof prev === 'function') prev(newval);
             return ret;
           } else if (typeof newval === 'object') {
             oldval = clone(newval);
             this.populate(oldval, path);
-            this.$e.emit(path, oldval);
+            this.$eventService.emit(path, oldval);
           } else {
             oldval = newval;
             this.populate(oldval, path);
-            this.$e.emit(path, oldval);
+            this.$eventService.emit(path, oldval);
           }
           if (typeof prev === 'function') prev(newval);
           return newval;
