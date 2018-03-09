@@ -1,11 +1,11 @@
-export const arrayMods = (v, s) => {
-  if (!Array.isArray(v) || v.__radi) return false;
-  return Object.defineProperties(v, {
+export const arrayMods = (arr, fn) => {
+  if (!Array.isArray(arr) || arr.__radi) return false;
+  return Object.defineProperties(arr, {
     __radi: { value: true },
-    reverse: { value: s.bind("reverse") },
-    push: { value: s.bind("push") },
-    splice: { value: s.bind("splice") },
-    pop: { value: s.bind("pop") },
-    shift: { value: s.bind("shift") }
+    reverse: { value: fn.bind('reverse') },
+    push: { value: fn.bind('push') },
+    splice: { value: fn.bind('splice') },
+    pop: { value: fn.bind('pop') },
+    shift: { value: fn.bind('shift') }
   });
 };

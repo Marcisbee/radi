@@ -1,9 +1,6 @@
-import { GLOBALS } from "../consts/GLOBALS";
-import { createElement } from "./createElement";
+import { GLOBALS } from '../consts/GLOBALS';
+import { createElement } from './createElement';
 
-export const memoizeHTML = query => {
-  return (
-    GLOBALS.HTML_CACHE[query] ||
-    (GLOBALS.HTML_CACHE[query] = createElement(query))
-  );
-};
+export const memoizeHTML = (query) =>
+  GLOBALS.HTML_CACHE[query] ||
+  (GLOBALS.HTML_CACHE[query] = createElement(query));

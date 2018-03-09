@@ -1,5 +1,5 @@
-export const createElement = (query, ns) => {
-  return ns
-    ? document.createElementNS(ns, query)
+export const createElement = (query, namespace) => {
+  return namespace
+    ? document.createElementNS(namespace, query)
     : document.createElement(query);
 };
