@@ -13,8 +13,8 @@ import { list, ll, cond } from './index';
 
 export class EventService {
   constructor(radiInstance) {
-    this.WATCH = {};
     this.radiInstance = radiInstance;
+    this.WATCH = {};
   }
 
   get(path) {
@@ -33,6 +33,59 @@ export class EventService {
   }
 }
 
+export class PopulateService {
+  constructor(radiInstance, to, path) {
+    this.radiInstance = radiInstance;
+    this.to = to;
+    this.path = path;
+  }
+
+  populate() {
+    if (typeof this.to !== 'object' || !this.to) return false;
+
+    for (let key in this.to) {
+      const fullPath = `${this.path}.${key}`;
+      const isMixin = this.radiInstance.isMixin(fullPath);
+      if (this.shouldPopulateKey(key)) {
+        if (typeof this.to[key] === 'object') {
+          this.populate(this.to[key], fullPath);
+        }
+        this.initWatcherForKey(key);
+        this.emitEventForKey(key);
+        continue;
+      }
+
+      if (isMixin) {
+        this.initWatcherForKey(key);
+      }
+    }
+
+    return this.ensurePath();
+  }
+
+  shouldPopulateKey(key) {
+    return (
+      this.to.hasOwnProperty(key) &&
+      !Object.getOwnPropertyDescriptor(this.to, key).set
+    );
+  }
+
+  initWatcherForKey(key) {
+    this.radiInstance.watcher(this.to, key, this.path.concat('.').concat(key));
+  }
+
+  emitEventForKey(key) {
+    this.radiInstance.$eventService.emit(`${this.path}.${key}`, this.to[key]);
+  }
+
+  ensurePath() {
+    if (typeof this.to.__path === 'undefined') {
+      Object.defineProperty(this.to, '__path', { value: this.path });
+    }
+    return this.to;
+  }
+}
+
 export default class Radi {
   constructor(o) {
     this.__path = 'this';
@@ -40,7 +93,7 @@ export default class Radi {
     this.addNonEnumerableProperties({
       $mixins: o.$mixins,
       $mixins_keys: this.getMixinsKeys(o.$mixins),
-      $e: new EventService(this),
+      $eventService: new EventService(this),
       $id: GLOBALS.IDS++,
       $name: o.name,
       $state: o.state || {},
@@ -93,16 +146,16 @@ export default class Radi {
       }
     }
 
-    this.populate(this, 'this');
+    new PopulateService(this, this, 'this').populate();
 
     for (let key in o.actions) {
       if (typeof this[key] !== 'undefined') {
         throw new Error(`[Radi.js] Error: Trying to write action for reserved variable \`${i}\``);
       }
 
-      this[key] = (...arguments) => {
+      this[key] = (...args) => {
         if (GLOBALS.FROZEN_STATE) return null;
-        return o.actions[key].apply(this, arguments);
+        return o.actions[key].apply(this, args);
       };
     }
 
@@ -138,72 +191,52 @@ export default class Radi {
     })`);
   }
 
-  populate(to, path) {
-    if (typeof to !== 'object' || !to) return false;
-
-    for (const ii in to) {
-      const isMixin = this.$mixins_keys.test(`${path}.${ii}`);
-      if (
-        to.hasOwnProperty(ii) &&
-        !Object.getOwnPropertyDescriptor(to, ii).set
-      ) {
-        if (typeof to[ii] === 'object') this.populate(to[ii], `${path}.${ii}`);
-        // Initiate watcher if not already watched
-        this.watcher(to, ii, path.concat('.').concat(ii));
-        // Trigger changes for this path
-        this.$eventService.emit(`${path}.${ii}`, to[ii]);
-      } else if (isMixin) {
-        this.watcher(to, ii, path.concat('.').concat(ii));
-      }
-    }
-
-    return typeof to.__path === 'undefined'
-      ? Object.defineProperty(to, '__path', { value: path })
-      : false;
+  isMixin(path) {
+    return this.$mixins_keys.test(path);
   }
 
   // TODO: Bring back multiple watcher sets
-  watcher(targ, prop, path) {
-    const dsc = Object.getOwnPropertyDescriptor;
-    var oldval = targ[prop],
-      prev =
-        typeof dsc(targ, prop) !== 'undefined' ? dsc(targ, prop).set : null,
-      setter = function (newval) {
-        if (oldval !== newval) {
-          if (Array.isArray(oldval)) {
-            let ret;
-            if (this && this.constructor === String) {
-              ret = Array.prototype[this].apply(oldval, arguments);
-            } else {
-              oldval = newval;
-              arrayMods(oldval, setter);
-            }
+  watcher(target, prop, path) {
+    let oldVal = target[prop];
+    const prev =
+      typeof Object.getOwnPropertyDescriptor(target, prop) !== 'undefined'
+        ? Object.getOwnPropertyDescriptor(target, prop).set
+        : null;
+    const self = this;
 
-            this.populate(oldval, path);
-            this.$eventService.emit(path, oldval);
-            if (typeof prev === 'function') prev(newval);
-            return ret;
-          } else if (typeof newval === 'object') {
-            oldval = clone(newval);
-            this.populate(oldval, path);
-            this.$eventService.emit(path, oldval);
-          } else {
-            oldval = newval;
-            this.populate(oldval, path);
-            this.$eventService.emit(path, oldval);
-          }
-          if (typeof prev === 'function') prev(newval);
-          return newval;
-        }
-        return false;
-      };
+    const setter = function (newVal) {
+      if (oldVal === newVal) return false;
 
-    if (Array.isArray(oldval)) arrayMods(oldval, setter);
+      const originalOldVal = oldVal;
+      let result = newVal;
 
-    if (delete targ[prop]) {
-      Object.defineProperty(targ, prop, {
+      if (Array.isArray(oldVal) && this && this.constructor === String) {
+        result = Array.prototype[this].apply(oldVal, arguments);
+      }
+
+      oldVal = clone(newVal);
+
+      if (
+        Array.isArray(originalOldVal) &&
+        (!this || this.constructor !== String)
+      ) {
+        arrayMods(oldval, setter);
+      }
+
+      new PopulateService(self, oldVal, path).populate();
+      self.$eventService.emit(path, oldVal);
+
+      if (typeof prev === 'function') prev(newVal);
+
+      return result;
+    };
+
+    if (Array.isArray(oldVal)) arrayMods(oldVal, setter);
+
+    if (delete target[prop]) {
+      Object.defineProperty(target, prop, {
         get() {
-          return oldval;
+          return oldVal;
         },
         set: setter,
         enumerable: true,
