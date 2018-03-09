@@ -31,7 +31,7 @@ export const getElementFromQuery = (query) => {
 
 export const addKey = (element) => {
   element.key = GLOBALS.R_KEYS;
-  GLOBALS.R_KEYS += 1;
+  GLOBALS.R_KEYS++;
   return element;
 };
 
