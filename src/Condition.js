@@ -1,4 +1,4 @@
-import { emptyNode, isWatchable } from './index';
+import { EMPTY_NODE, isWatchable } from './index';
 
 export default class Condition {
   constructor(a, e, radiInstance) {
@@ -7,7 +7,7 @@ export default class Condition {
     this.w = [];
     this.cache = [];
     // TODO: rename: els = elements
-    this.els = emptyNode.cloneNode();
+    this.els = EMPTY_NODE.cloneNode();
 
     if (isWatchable(a)) {
       this.w.push(a);

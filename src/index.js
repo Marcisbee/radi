@@ -14,54 +14,36 @@ import { GLOBALS } from './consts/GLOBALS';
 import Radi from './Radi';
 import Condition from './Condition';
 import Watchable from './Watchable';
+import { register } from './utilities/register';
 
-export function isString(a) {
-  return typeof a === 'string';
-}
+export const isString = a => typeof a === 'string';
 
-export function isNumber(a) {
-  return typeof a === 'number';
-}
+export const isNumber = a => typeof a === 'number';
 
-export function isFunction(a) {
-  return typeof a === 'function';
-}
+export const isFunction = a => typeof a === 'function';
 
-export function isNode(a) {
-  return a && a.nodeType;
-}
+export const isNode = a => !!(a && a.nodeType);
 
-export function isWatchable(a) {
-  return a && a instanceof Watchable;
-}
+export const isWatchable = a => a && a instanceof Watchable;
 
-export function isCondition(a) {
-  return a && a instanceof Condition;
-}
+export const isCondition = a => a && a instanceof Condition;
 
-export function isComponent(a) {
-  return a && a.__radi;
-}
+export const isComponent = a => !!(a && a.__radi);
 
+export const getEl = (parent) =>
+  (parent.nodeType && parent) || (!parent.el && parent) || getEl(parent.el);
 
-export function getEl(parent) {
-  return (
-    (parent.nodeType && parent) || (!parent.el && parent) || getEl(parent.el)
-  );
-}
+export const text = str => document.createTextNode(str);
 
-export function text(str) {
-  return document.createTextNode(str);
-}
-
-export const mount = (comp, id) => {
-  const where = id.constructor === String ? document.getElementById(id) : id;
-  const out = comp instanceof Component ? comp.__radi().$render() : comp;
-  where.appendChild(out);
-  return out;
+export const mount = (component, id) => {
+  const container = isString(id) ? document.getElementById(id) : id;
+  const rendered =
+    component instanceof Component ? component.__radi().$render() : component;
+  container.appendChild(rendered);
+  return rendered;
 };
 
-export const emptyNode = text('');
+export const EMPTY_NODE = text('');
 
 export const list = (data, act) => {
   if (!data) return '';
@@ -69,7 +51,7 @@ export const list = (data, act) => {
 
   let link;
   const fragment = document.createDocumentFragment();
-  const toplink = emptyNode.cloneNode();
+  const toplink = EMPTY_NODE.cloneNode();
 
   fragment.appendChild(toplink);
 
@@ -82,7 +64,7 @@ export const list = (data, act) => {
     }
   } else {
     let i = 0;
-    for (const key in cache) { // eslint-disable-line
+    for (const key in cache) {
       fragment.appendChild(act.call(SELF, cache[key], key, i));
       i++;
     }
@@ -91,6 +73,7 @@ export const list = (data, act) => {
   link = fragment.lastChild;
 
   const w = (a, b) => {
+    if (a === 0) return;
     if (a > 0) {
       const len = b.length;
       const start = len - a;
@@ -100,12 +83,12 @@ export const list = (data, act) => {
       const temp = fragment.lastChild;
       link.parentElement.insertBefore(fragment, link.nextSibling);
       link = temp;
-    } else if (a < 0) {
-      for (let i = 0; i < Math.abs(a); i++) {
-        const templink = link.previousSibling;
-        link.parentElement.removeChild(link);
-        link = templink;
-      }
+      return;
+    }
+    for (let i = 0; i < Math.abs(a); i++) {
+      const templink = link.previousSibling;
+      link.parentElement.removeChild(link);
+      link = templink;
     }
   };
 
@@ -120,14 +103,15 @@ export const list = (data, act) => {
   return fragment;
 };
 
-export function set(path, source, value) {
+export const set = (path, source, value) => {
   if (typeof path === 'string') path = path.split('.');
   path.shift();
   const prop = path.splice(-1);
-  for (let i = 0; i < path.length; i++) {
-    source = source[path[i]];
+  let shallowSource = source;
+  for (let pathPart of path) {
+    shallowSource = shallowSource[pathPart];
   }
-  return (source[prop] = value);
+  return (shallowSource[prop] = value);
 }
 
 let linkNum = 0;
@@ -211,106 +195,99 @@ export const _Radi = {
 
 window.$Radi = _Radi;
 
-export const register = (Component) => {
-  const component = new Component();
-  const name = component.o.name;
-
-  if (!name) {
-    console.warn('[Radi.js] Warn: Cannot register component without name');
-    return;
-  }
-
-  if (typeof GLOBALS.REGISTERED[name] !== 'undefined') {
-    console.warn(`[Radi.js] Warn: Component with name '${name}' beeing replaced`);
-  }
-
-  GLOBALS.REGISTERED[name] = Component;
-};
-
 export function setAttr(view, arg1, arg2) {
   const self = this;
   const el = getEl(view);
 
-  if (arg2 !== undefined) {
-    if (arg1 === 'style') {
-      setStyle.call(this, el, arg2);
-    } else if (arg1 === 'model' && isWatchable(arg2)) {
-      var cache = arg2.get();
-      el.value = cache;
-      el.oninput = function () {
-        arg2.set(el.value);
-        cache = el.value;
-        self.$eventService.emit(arg2.path, el.value);
-      };
-      // Update bind
-      (function (cache, arg1, arg2) {
-        self.$eventService.on(arg2.path, (e, v) => {
-          if (v === cache) return false;
-          radiMutate(
-            () => {
-              el.value = v;
-            },
-            el.key,
-            'attr1',
-          );
-          cache = v;
-        });
-      }(cache, arg1, arg2));
-    } else if (isFunction(arg2)) {
-      el[arg1] = function (e) {
-        arg2.call(self, e);
-      };
-    } else if (isWatchable(arg2)) {
-      const temp = arg2.get();
-      if (isFunction(temp)) {
-        el[arg1] = function (e) {
-          arg2.get().call(self, e);
-        };
-      } else {
-        var cache = arg2.get();
-        if (cache !== false) {
-          if (arg1 === 'html') {
-            el.innerHTML = cache;
-          } else {
-            el.setAttribute(arg1, cache);
-          }
-        }
-
-        // Update bind
-        (function (cache, arg1, arg2) {
-          self.$eventService.on(arg2.path, (e, v) => {
-            if (v === cache) return false;
-            radiMutate(
-              () => {
-                if (v !== false) {
-                  if (arg1 === 'html') {
-                    el.innerHTML = v;
-                  } else {
-                    el.setAttribute(arg1, v);
-                  }
-                } else {
-                  el.removeAttribute(arg1);
-                }
-              },
-              el.key,
-              'attr2',
-            );
-            cache = v;
-          });
-        }(cache, arg1, arg2));
-      }
-    } else if (cache !== false) {
-      if (arg1 === 'html') {
-        el.innerHTML = arg2;
-      } else {
-        el.setAttribute(arg1, arg2);
-      }
-    }
-  } else {
+  if (typeof arg2 === 'undefined') {
     for (const key in arg1) {
       setAttr.call(this, el, key, arg1[key]);
     }
+    return;
   }
+
+  if (arg1 === 'style') {
+    setStyle.call(this, el, arg2);
+    return;
+  }
+
+  if (arg1 === 'model' && isWatchable(arg2)) {
+    let cache = arg2.get();
+    el.value = cache;
+
+    el.oninput = function () {
+      arg2.set(el.value);
+      cache = el.value;
+      self.$eventService.emit(arg2.path, el.value);
+    };
+
+    self.$eventService.on(arg2.path, (path, value) => {
+      if (value === cache) return false;
+      radiMutate(
+        () => {
+          el.value = value;
+        },
+        el.key,
+        'attr1',
+      );
+      cache = value;
+    });
+    return;
+  }
+
+  if (isFunction(arg2)) {
+    el[arg1] = (e) => {
+      arg2.call(self, e);
+    };
+    return;
+  }
+
+  if (isWatchable(arg2)) {
+    const temp = arg2.get();
+    if (isFunction(temp)) {
+      el[arg1] = (e) => {
+        arg2.get().call(self, e);
+      };
+      return;
+    }
+    let cache = arg2.get();
+    if (cache !== false) {
+      if (arg1 === 'html') {
+        el.innerHTML = arg2;
+        return;
+      }
+      el.setAttribute(arg1, arg2);
+    }
+
+    self.$eventService.on(arg2.path, (path, value) => {
+      if (value === cache) return false;
+      radiMutate(
+        () => {
+          if (value === false) {
+            el.removeAttribute(arg1);
+            return;
+          }
+
+          if (arg1 === 'html') {
+            el.innerHTML = v;
+            return;
+          }
+
+          el.setAttribute(arg1, value);
+        },
+        el.key,
+        'attr2',
+      );
+      cache = value;
+    });
+    return;
+  }
+
+  if (arg1 === 'html') {
+    el.innerHTML = arg2;
+    return;
+  }
+  el.setAttribute(arg1, arg2);
 }
 
 export function radiArgs(element, args) {
