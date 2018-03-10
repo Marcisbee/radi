@@ -17,7 +17,8 @@
     "build": "npm run bundle",
     "bundle": "rollup -i src/index.js -o dist/radi.js -m -f umd -n radi",
     "lint": "eslint src/**/*.js",
-    "test": "jest"
+    "test": "jest",
+    "pre-commit": "pretty-quick --staged"
   },
   "devDependencies": {
     "babel-preset-env": "^1.6.1",
@@ -25,13 +26,22 @@
     "eslint-config-airbnb-base": "^12.1.0",
     "eslint-plugin-import": "^2.9.0",
     "http-server": "^0.11.1",
+    "husky": "^0.14.3",
     "jest": "^22.4.2",
     "jsdom": "^11.5.1",
+    "prettier": "^1.11.1",
+    "pretty-quick": "^1.4.1",
     "sinon": "^4.4.2",
     "webpack": "^4.1.1",
     "webpack-cli": "^2.0.10"
   },
-  "prettier": {},
+  "babel": {},
   "jest": {},
-  "babel": {}
+  "prettier": {
+    "tabWidth": 2,
+    "trailingComma": "none",
+    "printWidth": 100,
+    "singleQuote": true,
+    "semi": true
+  }
 }
