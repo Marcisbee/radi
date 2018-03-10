@@ -14,7 +14,7 @@ describe('component.js', () => {
         sample: 'World'
       },
       actions: {
-        setSample() { this.sample = 'World!' }
+        setSample() { this.sample = 'New World!' }
       }
     });
     const radiInstance = new TestComponent().__radi();

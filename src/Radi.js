@@ -1,9 +1,7 @@
 import * as REGEX from './consts/REGEX';
 import clone from './utilities/clone';
-import arrayMods from './utilities/arrayMods';
 import unmountAll from './utilities/unmountAll';
 import mountAll from './utilities/mountAll';
-import radiMutate from './utilities/radiMutate';
 import r from './utilities/r';
 import component from './utilities/component';
 import Component from './utilities/ComponentClass';
@@ -33,13 +31,6 @@ export default class Radi {
     });
 
     this.addNonEnumerableProperties({
-      // TODO: REMOVE let _r = {r}; FIXME
-/*      $view: new Function('r', 'list', 'll', 'cond', `let _r2 = { default: r }; return ${o.$view}`)(
-        r.bind(this),
-        this.list,
-        this.ll,
-        this.cond,
-      ),*/
       $view: o.$view
     });
 

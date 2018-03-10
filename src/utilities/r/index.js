@@ -3,13 +3,11 @@ import {
   isComponent,
   isNumber,
   isNode,
-  text,
-  getEl
+  text
 } from '../../index';
 import setAttributes from './setAttributes';
-import memoizeHTML from './../memoizeHTML';
+import cacheHTML from './../cacheHTML';
 import GLOBALS from '../../consts/GLOBALS';
-import radiMutate from '../radiMutate';
 import Listener from '../Listener.js';
 
 export default function r(query, props, ...children) {
@@ -33,7 +31,7 @@ export const queryIsComponent = (query) =>
   isString(query) && typeof GLOBALS.REGISTERED[query] !== 'undefined';
 
 export const getElementFromQuery = (query) => {
-  if (isString(query)) return memoizeHTML(query).cloneNode(false);
+  if (isString(query)) return cacheHTML(query).cloneNode(false);
   if (isNode(query)) return query.cloneNode(false);
   return document.createDocumentFragment();
 };
@@ -45,7 +43,7 @@ export const addKey = (element) => {
 };
 
 r.extend = (query, ...args) => {
-  const clone = memoizeHTML(query);
+  const clone = cacheHTML(query);
   return r(clone, ...args);
 };
 
@@ -84,7 +82,7 @@ export const appendChild = (element) => (child) => {
     return;
   }
 
-  if (isNode(getEl(child))) {
+  if (isNode(child)) {
     element.appendChild(child);
     return;
   }

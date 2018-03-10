@@ -4,18 +4,13 @@ import {
   isNumber,
   isFunction,
   isNode,
-  isWatchable,
-  isCondition,
   isComponent,
-  getEl,
   text,
   set,
   link,
   _Radi
 } from '../index';
 import mount from '../mount';
-import Condition from '../Condition';
-import Watchable from '../Watchable';
 import GLOBALS from '../consts/GLOBALS';
 import r from '../utilities/r';
 import component from '../utilities/component';
@@ -48,30 +43,10 @@ describe('index.js', () => {
     expect(isNode(7)).toBe(false);
   });
 
-  test('its isWatchable function works', () => {
-    const watchable = new Watchable({ __path: 'foo', bar: 'baz' }, 'bar', () => {});
-    expect(isWatchable(watchable)).toBe(true);
-    expect(isWatchable(7)).toBe(false);
-  });
-
-  test('its isCondition function works', () => {
-    const condition = new Condition(7, 8, 9);
-    expect(isCondition(condition)).toBe(true);
-    expect(isCondition(4)).toBe(false);
-  });
-
   test('its isComponent function works', () => {
     const fakeComponent = { __radi: true };
     expect(isComponent(fakeComponent)).toBe(true);
     expect(isComponent('foobar')).toBe(false);
-  });
-
-  test('its getEl function gets the element', () => {
-    expect(getEl(document.createElement('div'))).toBeInstanceOf(HTMLDivElement);
-    const fakeEl = { el: false };
-    expect(getEl(fakeEl)).toBe(fakeEl);
-    const fakeElTwo = { el: document.createElement('div') };
-    expect(getEl(fakeElTwo)).toBeInstanceOf(HTMLDivElement);
   });
 
   test('its text function creates a text node', () => {
@@ -137,7 +112,6 @@ describe('index.js', () => {
       version: GLOBALS.VERSION,
       activeComponents: GLOBALS.ACTIVE_COMPONENTS,
       r,
-      Condition,
       component,
       mount
     }));

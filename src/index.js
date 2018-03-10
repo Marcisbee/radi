@@ -14,9 +14,6 @@ export const isNode = a => !!(a && a.nodeType);
 
 export const isComponent = a => !!(a && a.__radi);
 
-export const getEl = (parent) =>
-  (parent.nodeType && parent) || (!parent.el && parent) || getEl(parent.el);
-
 export const text = str => document.createTextNode(str);
 
 export const EMPTY_NODE = text('');
