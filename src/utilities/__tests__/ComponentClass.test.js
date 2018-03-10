@@ -1,5 +1,5 @@
-import { Component } from '../ComponentClass';
-import { r } from '../r';
+import Component from '../ComponentClass';
+import r from '../r';
 
 /** @jsx r **/
 describe('ComponentClass.js', () => {

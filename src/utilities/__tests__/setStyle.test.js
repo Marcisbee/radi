@@ -1,4 +1,4 @@
-import { setStyle } from '../setStyle';
+import setStyle from '../setStyle';
 
 describe('setStyle.js', () => {
   //it('works when arg2 is watchable', () => {

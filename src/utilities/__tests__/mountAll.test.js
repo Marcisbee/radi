@@ -1,5 +1,5 @@
 import sinon from 'sinon';
-import { mountAll } from '../mountAll';
+import mountAll from '../mountAll';
 
 describe('mountAll.js', () => {
   it('mounts the given element', () => {

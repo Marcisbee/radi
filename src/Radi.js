@@ -1,14 +1,16 @@
 import * as REGEX from './consts/REGEX';
-import { clone } from './utilities/clone';
-import { arrayMods } from './utilities/arrayMods';
-import { unmountAll } from './utilities/unmountAll';
-import { mountAll } from './utilities/mountAll';
-import { radiMutate } from './utilities/radiMutate';
-import { setStyle } from './utilities/setStyle';
-import { r } from './utilities/r';
-import { component } from './utilities/component';
-import { Component } from './utilities/ComponentClass';
-import { GLOBALS } from './consts/GLOBALS';
+import clone from './utilities/clone';
+import arrayMods from './utilities/arrayMods';
+import unmountAll from './utilities/unmountAll';
+import mountAll from './utilities/mountAll';
+import radiMutate from './utilities/radiMutate';
+import setStyle from './utilities/setStyle';
+import r from './utilities/r';
+import component from './utilities/component';
+import Component from './utilities/ComponentClass';
+import Condition from './Condition';
+import Watchable from './Watchable';
+import GLOBALS from './consts/GLOBALS';
 import { isWatchable, EMPTY_NODE } from './index';
 import EventService from './EventService';
 import PopulateService from './PopulateService';
@@ -32,7 +34,7 @@ export default class Radi {
 
     this.addNonEnumerableProperties({
       // TODO: REMOVE let _r = {r}; FIXME
-      $view: new Function('r', 'list', 'll', 'cond', `let _r = {r}; return ${o.$view}`)(
+      $view: new Function('r', 'list', 'll', 'cond', `let _r2 = { default: r }; return ${o.$view}`)(
         r.bind(this),
         list.bind(this),
         ll.bind(this),

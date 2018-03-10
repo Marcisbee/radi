@@ -1,9 +1,9 @@
 import Radi from '../Radi';
-import { GLOBALS } from '../consts/GLOBALS';
-import { clone } from './clone';
+import GLOBALS from '../consts/GLOBALS';
+import clone from './clone';
 import ViewParser from './ViewParser';
 
-export class Component {
+export default class Component {
   constructor(o) {
     this.o = {
       name: o.name,

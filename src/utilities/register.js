@@ -1,6 +1,6 @@
-import { GLOBALS } from '../consts/GLOBALS';
+import GLOBALS from '../consts/GLOBALS';
 
-export const register = (Component) => {
+const register = (Component) => {
   const component = new Component();
   const { name } = component.o;
 
@@ -15,3 +15,5 @@ export const register = (Component) => {
 
   GLOBALS.REGISTERED[name] = Component;
 };
+
+export default register;

@@ -1,3 +1,5 @@
-export const radiMutate = (c, key, type) => {
+const radiMutate = (c, key, type) => {
   c();
 };
+
+export default radiMutate;

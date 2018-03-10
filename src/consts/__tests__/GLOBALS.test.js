@@ -1,4 +1,4 @@
-import { GLOBALS } from "../GLOBALS";
+import GLOBALS from "../GLOBALS";
 
 describe("GLOBALS.js", () => {
   it("exports constants", () => {

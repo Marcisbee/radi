@@ -1,5 +1,5 @@
-import { GLOBALS } from '../../consts/GLOBALS';
-import { memoizeHTML } from '../memoizeHTML';
+import GLOBALS from '../../consts/GLOBALS';
+import memoizeHTML from '../memoizeHTML';
 
 afterEach(() => {
   GLOBALS.HTML_CACHE = {};

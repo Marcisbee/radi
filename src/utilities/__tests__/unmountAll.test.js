@@ -1,5 +1,5 @@
 import sinon from 'sinon';
-import { unmountAll } from '../unmountAll';
+import unmountAll from '../unmountAll';
 
 describe('unmountAll.js', () => {
   it('unmounts the given element', () => {

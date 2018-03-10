@@ -1,9 +1,7 @@
-import { getEl } from '../index';
-import { isWatchable } from '../index';
-import { radiMutate } from './radiMutate';
-import { isString } from '../index';
+import { getEl, isWatchable, isString } from '../index';
+import radiMutate from './radiMutate';
 
-export const setStyle = (radiInstance, view, arg1, arg2) => {
+const setStyle = (radiInstance, view, arg1, arg2) => {
   const el = getEl(view);
 
   if (isWatchable(arg2)) {
@@ -36,3 +34,5 @@ export const setStyle = (radiInstance, view, arg1, arg2) => {
     setStyle(radiInstance, el, key, arg1[key]);
   }
 };
+
+export default setStyle;

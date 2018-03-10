@@ -1,4 +1,4 @@
-export const arrayMods = (arr, fn) => {
+const arrayMods = (arr, fn) => {
   if (!Array.isArray(arr) || arr.__radi) return false;
   return Object.defineProperties(arr, {
     __radi: { value: true },
@@ -9,3 +9,5 @@ export const arrayMods = (arr, fn) => {
     shift: { value: fn.bind('shift') }
   });
 };
+
+export default arrayMods;

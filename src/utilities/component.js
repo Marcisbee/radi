@@ -1,6 +1,6 @@
-import { Component } from './ComponentClass';
+import Component from './ComponentClass';
 import ViewParser from './ViewParser';
 
-export function component(o) {
+export default function component(o) {
   return Component.bind(this, o);
 }

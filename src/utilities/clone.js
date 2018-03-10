@@ -1,4 +1,4 @@
-export const clone = (obj) => {
+const clone = (obj) => {
   if (typeof obj !== 'object') return obj;
   if (obj === null) return obj;
   if (Array.isArray(obj)) return obj.map(element => clone(element));
@@ -12,3 +12,5 @@ export const clone = (obj) => {
 
   return cloned;
 };
+
+export default clone;

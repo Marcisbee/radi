@@ -1,5 +1,5 @@
-import { clone } from './utilities/clone';
-import { arrayMods } from './utilities/arrayMods';
+import clone from './utilities/clone';
+import arrayMods from './utilities/arrayMods';
 import PopulateService from './PopulateService';
 
 // TODO: Bring back multiple watcher sets

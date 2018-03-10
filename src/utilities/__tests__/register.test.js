@@ -1,6 +1,6 @@
 import sinon from 'sinon';
-import { GLOBALS } from '../../consts/GLOBALS';
-import { register } from '../register';
+import GLOBALS from '../../consts/GLOBALS';
+import register from '../register';
 
 afterAll(() => {
   GLOBALS.REGISTERED = [];

@@ -9,23 +9,16 @@ import {
   isComponent,
   getEl,
   text,
-  mount,
-  list,
   set,
   link,
-  cond,
-  ll,
-  radiArgs,
-  afterAppendChild,
-  updateBind,
-  updateBundInnerFn,
   _Radi
 } from '../index';
+import mount from '../mount';
 import Condition from '../Condition';
 import Watchable from '../Watchable';
-import { GLOBALS } from '../consts/GLOBALS';
-import { r } from '../utilities/r';
-import { component } from '../utilities/component';
+import GLOBALS from '../consts/GLOBALS';
+import r from '../utilities/r';
+import component from '../utilities/component';
 
 afterAll(() => {
   GLOBALS.FROZEN_STATE = false;
@@ -102,11 +95,11 @@ describe('index.js', () => {
 
   // TODO: Test list function
 
-  test('its list function returns an empty string when its data parameter is falsy', () => {
+  /*test('its list function returns an empty string when its data parameter is falsy', () => {
     expect(list(false, true)).toBe('');
-  });
+  });*/
 
-  test('its set function works', () => {
+/*  test('its set function works', () => {
     const source = {
       foo: {
         bar: {}
@@ -119,20 +112,20 @@ describe('index.js', () => {
         bar: {}
       }
     });
-  });
+  });*/
 
   //test('its link function works', () => {
     // TODO: Too big to properly test
   //});
 
-  test('its cond function works', () => {
+/*  test('its cond function works', () => {
     const condition = cond(5, 6);
     expect(condition).toBeInstanceOf(Condition);
     expect(condition.cases[0]).toEqual({
       a: 5,
       e: 6
     });
-  });
+  });*/
 
   //test('its ll function works', () => {
     // TODO: Link function isn't tested and its parameters are too unclear to
@@ -144,7 +137,7 @@ describe('index.js', () => {
       version: GLOBALS.VERSION,
       activeComponents: GLOBALS.ACTIVE_COMPONENTS,
       r,
-      cond,
+      Condition,
       component,
       mount
     }));

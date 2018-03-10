@@ -1,5 +1,5 @@
 import sinon from 'sinon';
-import { radiMutate } from '../radiMutate';
+import radiMutate from '../radiMutate';
 
 describe('radiMutate.js', () => {
   it('calls the first parameter', () => {

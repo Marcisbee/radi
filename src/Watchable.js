@@ -11,8 +11,8 @@ export default class Watchable {
   }
 
   set(value) {
-    const shallow = this.getShallowSource();
-    return (shallowSource[prop] = value);
+    const shallowSource = this.getShallowSource();
+    return (shallowSource[this.prop] = value);
   }
 
   getShallowSource() {

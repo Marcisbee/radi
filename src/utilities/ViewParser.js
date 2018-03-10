@@ -1,4 +1,4 @@
-import { GLOBALS } from '../consts/GLOBALS';
+import GLOBALS from '../consts/GLOBALS';
 import * as REGEX from '../consts/REGEX';
 
 export default class ViewParser {

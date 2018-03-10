@@ -1,5 +1,5 @@
-import { component } from '../component';
-import { r } from '../r';
+import component from '../component';
+import r from '../r';
 
 /** @jsx r **/
 describe('component.js', () => {

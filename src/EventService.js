@@ -1,4 +1,4 @@
-import { GLOBALS } from './consts/GLOBALS';
+import GLOBALS from './consts/GLOBALS';
 
 export default class EventService {
   constructor() {

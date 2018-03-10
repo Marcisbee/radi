@@ -8,12 +8,13 @@ import {
   text,
   getEl
 } from '../index';
-import { setAttr } from './setAttr';
-import { memoizeHTML } from './memoizeHTML';
-import { GLOBALS } from '../consts/GLOBALS';
+import setAttr from './setAttr';
+import memoizeHTML from './memoizeHTML';
+import GLOBALS from '../consts/GLOBALS';
 import { _Radi } from '../index';
+import radiMutate from './radiMutate';
 
-export function r(query, props, ...children) {
+export default function r(query, props, ...children) {
   if (queryIsComponent(query)) {
     // TODO: Make props and childs looped,
     // aka don't assume that first obj are props

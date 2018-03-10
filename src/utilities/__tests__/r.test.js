@@ -1,6 +1,6 @@
 import sinon from 'sinon';
-import { GLOBALS } from '../../consts/GLOBALS';
-import { r } from '../r';
+import GLOBALS from '../../consts/GLOBALS';
+import r from '../r';
 
 afterEach(() => {
   GLOBALS.REGISTERED = {};
@@ -66,10 +66,5 @@ describe('r.js', () => {
   test('its extend method gets a cached version of the element from query', () => {
     r('button');
     expect(GLOBALS.HTML_CACHE.button).toBeInstanceOf(HTMLButtonElement);
-  });
-
-  test('its extend method returns a bound r', () => {
-    expect(typeof r.extend('div')).toBe('function');
-    expect(r.extend('div').name).toBe('bound r');
   });
 });

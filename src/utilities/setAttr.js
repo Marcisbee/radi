@@ -1,8 +1,8 @@
-import { setStyle } from './setStyle';
+import setStyle from './setStyle';
 import { getEl, isFunction, isWatchable } from '../index';
-import { radiMutate } from './radiMutate';
+import radiMutate from './radiMutate';
 
-export const setAttr = (radiInstance, view, arg1, arg2) => {
+const setAttr = (radiInstance, view, arg1, arg2) => {
   const el = getEl(view);
 
   if (typeof arg2 === 'undefined') {
@@ -95,3 +95,5 @@ export const setAttr = (radiInstance, view, arg1, arg2) => {
   }
   el.setAttribute(arg1, arg2);
 }
+
+export default setAttr;

@@ -1,4 +1,4 @@
-import { arrayMods } from '../arrayMods';
+import arrayMods from '../arrayMods';
 
 describe('arrayMods.js', () => {
   it('binds the given function to the given array\'s methods', () => {

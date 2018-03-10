@@ -1,5 +1,5 @@
 import sinon from 'sinon';
-import { createElement } from '../createElement';
+import createElement from '../createElement';
 
 beforeAll(() => {
   global.oldDocument = document;
