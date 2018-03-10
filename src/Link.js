@@ -1,3 +1,5 @@
+import Watchable from './Watchable';
+
 export default class Link {
   constructor(radiInstance, fn, watch, text) {
     this.radiInstance = radiInstance;
@@ -13,11 +15,11 @@ export default class Link {
     };
 
     if (
-      txt.length === 1 &&
+      text.length === 1 &&
       fn
         .toString()
         .replace(/(function \(\)\{ return |\(|\)|\; \})/g, '')
-        .trim() === txt[0]
+        .trim() === text[0]
     ) {
       return new Watchable(watch[0][0], watch[0][1], () => radiInstance);
     }
@@ -27,7 +29,7 @@ export default class Link {
     args.s = fn.call(radiInstance);
     args.a = new Array(len);
     args.t = new Array(len);
-    args.__path = `$link-${linkNum}`;
+    args.__path = `$link-${Link.linkNum}`;
     Link.linkNum++;
 
     for (let i = 0; i < len; i++) {
@@ -35,7 +37,7 @@ export default class Link {
       const field = watch[i][1];
       args.a[i] = radiInstance[field];
       args.t[i] = `$rdi[${i}]`;
-      args.f = args.f.replace(txt[i], args.t[i]);
+      args.f = args.f.replace(text[i], args.t[i]);
 
       const path = `${radiInstance.__path}.${field}`;
       const p = `${args.__path}.s`;
