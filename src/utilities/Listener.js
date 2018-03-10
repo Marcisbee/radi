@@ -6,7 +6,7 @@ export default class Listener {
     this.key = key;
     this.childPath = childPath;
     this.value = null;
-    this.changeListener = null;
+    this.changeListeners = [];
 
     this.radiInstance.addListener(key, this);
     this.handleUpdate(this.radiInstance[this.key]);
@@ -14,13 +14,13 @@ export default class Listener {
 
   handleUpdate(value) {
     this.value = this.getShallowValue(value);
-    if (this.changeListener) {
-      this.changeListener(value);
+    for (let changeListener of this.changeListeners) {
+      changeListener(value);
     }
   }
 
   onValueChange(changeListener) {
-    this.changeListener = changeListener;
+    this.changeListeners.push(changeListener);
     changeListener(this.value);
   }
 
