@@ -5,4 +5,4 @@ node_modules/
 .cache
 yarn-error.log
 
-.vscode
+.vscode/
