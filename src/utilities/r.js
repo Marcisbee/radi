@@ -13,6 +13,7 @@ import memoizeHTML from './memoizeHTML';
 import GLOBALS from '../consts/GLOBALS';
 import { _Radi } from '../index';
 import radiMutate from './radiMutate';
+import { Listener } from './l.js';
 
 export default function r(query, props, ...children) {
   if (queryIsComponent(query)) {
@@ -74,6 +75,14 @@ export const appendChild = (radiInstance, element) => (child) => {
     appendChild(element, child2);
     afterAppendChild(child, id, a);
     return;
+  }
+
+  if (child instanceof Listener) {
+    let el = element.appendChild(text(child.value));
+    child.onValueChange((value) => {
+      el.remove();
+      el = element.appendChild(text(value));
+    });
   }
 
   if (typeof child === 'function') {

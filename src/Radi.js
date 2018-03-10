@@ -34,25 +34,27 @@ export default class Radi {
       $actions: o.actions || {},
       $html: document.createDocumentFragment(),
       $parent: null,
+      // Variables like state and props are actually stored here so that we can
+      // have custom setters
+      privateStore: {}
     });
 
     this.addNonEnumerableProperties({
       // TODO: REMOVE let _r = {r}; FIXME
-      $view: new Function('r', 'list', 'll', 'cond', `let _r2 = { default: r }; return ${o.$view}`)(
+/*      $view: new Function('r', 'list', 'll', 'cond', `let _r2 = { default: r }; return ${o.$view}`)(
         r.bind(this),
         this.list,
         this.ll,
         this.cond,
-      ),
+      ),*/
+      $view: o.$view
     });
 
-    this.addNonEnumerableProperties({
-      $link: this.$view()
-    });
+//    console.log(o.$view())
 
     for (let key in o.$mixins) {
       if (typeof this[key] === 'undefined') {
-        this[key] = o.$mixins[key];
+        this.addCustomField(key, o.$mixins[key]);
       }
     }
 
@@ -60,7 +62,7 @@ export default class Radi {
       if (typeof this[key] !== 'undefined') {
         throw new Error(`[Radi.js] Error: Trying to write state for reserved variable \`${i}\``);
       }
-      this[key] = o.state[key];
+      this.addCustomField(key, o.state[key]);
     }
 
     for (let key in o.props) {
@@ -71,30 +73,32 @@ export default class Radi {
       const prop = o.props[key];
 
       if (isWatchable(prop)) {
-        this[key] = prop.get();
+        this.addCustomField(key, prop.get());
 
         if (prop.parent) {
           prop.parent().$eventService.on(prop.path, (path, value) => {
-            this[key] = value;
+            this.addCustomField(key, value);
           });
         }
       } else {
-        this[key] = prop;
+        this.addCustomField(key, prop);
       }
     }
-
-    new PopulateService(this, this, 'this').populate();
 
     for (let key in o.actions) {
       if (typeof this[key] !== 'undefined') {
         throw new Error(`[Radi.js] Error: Trying to write action for reserved variable \`${i}\``);
       }
 
-      this[key] = (...args) => {
+      this.addCustomField(key, (...args) => {
         if (GLOBALS.FROZEN_STATE) return null;
         return o.actions[key].apply(this, args);
-      };
+      });
     }
+
+    this.addNonEnumerableProperties({
+      $link: this.$view(this)
+    });
 
     this.$html.appendChild(this.$link);
     this.$html.destroy = () => this.destroyHtml();
@@ -109,6 +113,28 @@ export default class Radi {
         value: object[key]
       });
     }
+  }
+
+  addCustomField(key, value) {
+    this.privateStore[key] = {
+      listeners: [],
+      listen: listener => this.privateStore[key].listeners.push(listener),
+      value
+    };
+    Object.defineProperty(this, key, {
+      get: () => this.privateStore[key].value,
+      set: (value) => {
+        const item = this.privateStore[key];
+        item.value = value;
+        item.listeners.forEach(listener => listener.handleUpdate(value));
+      },
+      enumerable: true,
+      configurable: true
+    });
+  }
+
+  addListener(key, listener) {
+    this.privateStore[key].listen(listener);
   }
 
   destroyHtml() {
