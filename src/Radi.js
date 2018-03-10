@@ -8,14 +8,9 @@ import setStyle from './utilities/setStyle';
 import r from './utilities/r';
 import component from './utilities/component';
 import Component from './utilities/ComponentClass';
-import Condition from './Condition';
-import Watchable from './Watchable';
 import GLOBALS from './consts/GLOBALS';
 import { isWatchable, EMPTY_NODE } from './index';
-import EventService from './EventService';
-import PopulateService from './PopulateService';
 import List from './List';
-import Link from './Link';
 
 export default class Radi {
   constructor(o) {
@@ -26,7 +21,6 @@ export default class Radi {
     this.addNonEnumerableProperties({
       $mixins: o.$mixins,
       $mixins_keys: this.getMixinsKeys(o.$mixins),
-      $eventService: new EventService(),
       $id: GLOBALS.IDS++,
       $name: o.name,
       $state: o.state || {},
@@ -70,19 +64,7 @@ export default class Radi {
         throw new Error(`[Radi.js] Error: Trying to write prop for reserved variable \`${i}\``);
       }
 
-      const prop = o.props[key];
-
-      if (isWatchable(prop)) {
-        this.addCustomField(key, prop.get());
-
-        if (prop.parent) {
-          prop.parent().$eventService.on(prop.path, (path, value) => {
-            this.addCustomField(key, value);
-          });
-        }
-      } else {
-        this.addCustomField(key, prop);
-      }
+      this.addCustomField(key, o.props[key]);
     }
 
     for (let key in o.actions) {
@@ -185,15 +167,7 @@ export default class Radi {
     return this.$html;
   }
 
-  cond(a, e) {
-    return new Condition(this, a, e);
-  }
-
   list(data, act) {
     return new List(this, data, act).create();
   };
-
-  ll(fn, watch, c) {
-    return watch ? new Link(this, fn, watch, c.split(',')).init() : fn;
-  }
 }

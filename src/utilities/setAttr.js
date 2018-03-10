@@ -17,7 +17,7 @@ const setAttr = (radiInstance, view, arg1, arg2) => {
     return;
   }
 
-  if (arg1 === 'model' && isWatchable(arg2)) {
+/*  if (arg1 === 'model' && isWatchable(arg2)) {
     let cache = arg2.get();
     el.value = cache;
 
@@ -39,7 +39,7 @@ const setAttr = (radiInstance, view, arg1, arg2) => {
       cache = value;
     });
     return;
-  }
+  }*/
 
   if (isFunction(arg2)) {
     el[arg1] = (e) => {
@@ -48,7 +48,7 @@ const setAttr = (radiInstance, view, arg1, arg2) => {
     return;
   }
 
-  if (isWatchable(arg2)) {
+/*  if (isWatchable(arg2)) {
     const temp = arg2.get();
     if (isFunction(temp)) {
       el[arg1] = (e) => {
@@ -87,7 +87,7 @@ const setAttr = (radiInstance, view, arg1, arg2) => {
       cache = value;
     });
     return;
-  }
+  }*/
 
   if (arg1 === 'html') {
     el.innerHTML = arg2;

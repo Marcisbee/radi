@@ -1,10 +1,8 @@
 import {
   isString,
   isComponent,
-  isCondition,
   isNumber,
   isNode,
-  isWatchable,
   text,
   getEl
 } from '../index';
@@ -69,13 +67,13 @@ export const appendChild = (radiInstance, element) => (child) => {
     return;
   }
 
-  if (isCondition(child)) {
+/*  if (isCondition(child)) {
     const child2 = child.__do();
     const id = child2.id;
     appendChild(element, child2);
     afterAppendChild(child, id, a);
     return;
-  }
+  }*/
 
   if (child instanceof Listener) {
     let el = element.appendChild(text(child.value));
@@ -105,13 +103,13 @@ export const appendChild = (radiInstance, element) => (child) => {
     return;
   }
 
-  if (isWatchable(child)) {
+/*  if (isWatchable(child)) {
     const cache = child.get();
     const textNode = text(cache);
     element.appendChild(textNode);
     updateBind(radiInstance, textNode, element)(cache, child);
     return;
-  }
+  }*/
 
   if (typeof child === 'object') {
     setAttr(radiInstance, element, child);
