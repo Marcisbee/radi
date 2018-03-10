@@ -1,13 +1,4 @@
-import * as REGEX from './consts/REGEX';
-import clone from './utilities/clone';
-import unmountAll from './utilities/unmountAll';
-import mountAll from './utilities/mountAll';
-import r from './utilities/r';
-import component from './utilities/component';
-import Component from './utilities/ComponentClass';
 import GLOBALS from './consts/GLOBALS';
-import { isWatchable, EMPTY_NODE } from './index';
-import List from './List';
 
 export default class Radi {
   constructor(o) {
@@ -33,8 +24,6 @@ export default class Radi {
     this.addNonEnumerableProperties({
       $view: o.$view
     });
-
-//    console.log(o.$view())
 
     for (let key in o.$mixins) {
       if (typeof this[key] === 'undefined') {

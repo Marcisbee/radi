@@ -1,8 +1,6 @@
-import { isString } from '../../index';
-
 // TODO: Add support for Listener (should be quite easy)
 const setStyles = (element, styles) => {
-  if (isString(styles)) return element.style = styles;
+  if (typeof styles === 'string') return element.style = styles;
 
   if (typeof styles !== 'object' || Array.isArray(styles)) return;
 
@@ -12,7 +10,7 @@ const setStyles = (element, styles) => {
 };
 
 const setStyle = (element, property, value) => {
-  if (typeof value === 'undefined' || isNaN(value)) return;
+  if (typeof value === 'undefined') return;
   element.style[property] = parseValue(value);
 };
 

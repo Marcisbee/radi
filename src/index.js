@@ -1,28 +1,16 @@
 import r from './utilities/r';
+import l from './utilities/l';
 import component from './utilities/component';
 import GLOBALS from './consts/GLOBALS';
 import register from './utilities/register';
 import mount from './mount';
-
-export const isString = a => typeof a === 'string';
-
-export const isNumber = a => typeof a === 'number';
-
-export const isFunction = a => typeof a === 'function';
-
-export const isNode = a => !!(a && a.nodeType);
-
-export const isComponent = a => !!(a && a.__radi);
-
-export const text = str => document.createTextNode(str);
-
-export const EMPTY_NODE = text('');
+import remountActiveComponents from './remountActiveComponents';
 
 export const _Radi = {
   version: GLOBALS.VERSION,
   activeComponents: GLOBALS.ACTIVE_COMPONENTS,
   r,
-  l: f => f,
+  l,
   component,
   mount,
   register,
@@ -35,12 +23,4 @@ export const _Radi = {
   },
 };
 
-window.$Radi = _Radi;
-
-export const remountActiveComponents = () => {
-  for (let component of GLOBALS.ACTIVE_COMPONENTS) {
-    if (typeof component.onMount === 'function') {
-      component.onMount(component)
-    }
-  }
-};
+if (window) window.$Radi = _Radi;

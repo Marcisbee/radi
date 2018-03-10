@@ -13,6 +13,7 @@ import {
 import mount from '../mount';
 import GLOBALS from '../consts/GLOBALS';
 import r from '../utilities/r';
+import l from '../utilities/l';
 import component from '../utilities/component';
 
 afterAll(() => {
@@ -23,35 +24,10 @@ afterAll(() => {
 });
 
 describe('index.js', () => {
-  test('its isString function works', () => {
-    expect(isString('foobar')).toBe(true);
-    expect(isString(7)).toBe(false);
-  });
-
-  test('its isNumber function works', () => {
-    expect(isNumber(7)).toBe(true);
-    expect(isNumber('foobar')).toBe(false);
-  });
-
-  test('its isFunction funtion works', () => {
-    expect(isFunction(() => {})).toBe(true);
-    expect(isFunction('foobar')).toBe(false);
-  });
-
-  test('its isNode function works', () => {
+/*  test('its isNode function works', () => {
     expect(isNode(document.createElement('div'))).toBe(true);
     expect(isNode(7)).toBe(false);
-  });
-
-  test('its isComponent function works', () => {
-    const fakeComponent = { __radi: true };
-    expect(isComponent(fakeComponent)).toBe(true);
-    expect(isComponent('foobar')).toBe(false);
-  });
-
-  test('its text function creates a text node', () => {
-    expect(text('foobar')).toBeInstanceOf(Text);
-  });
+  });*/
 
   // TODO: Make this test pass by making the container an actual Node
   /*test('its mount function works', () => {
@@ -107,15 +83,15 @@ describe('index.js', () => {
     // make a viable test
   //});
 
-  test('its _Radi object functions as a namespace', () => {
+  it('provides a _Radi namespace', () => {
     expect(_Radi).toEqual(expect.objectContaining({
       version: GLOBALS.VERSION,
       activeComponents: GLOBALS.ACTIVE_COMPONENTS,
+      l,
       r,
       component,
       mount
     }));
-    expect(_Radi.l('foo')).toBe('foo');
     expect(GLOBALS.FROZEN_STATE).toBe(false);
     _Radi.freeze();
     expect(GLOBALS.FROZEN_STATE).toBe(true);

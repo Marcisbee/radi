@@ -28,8 +28,6 @@ export default class Listener {
     const cloned = clone(value);
     if (!this.childPath) return cloned;
     const pathNesting = this.childPath.split('.');
-    pathNesting.shift();
-    pathNesting.pop();
     let shallowValue = cloned;
     for (let pathNestingLevel of pathNesting) {
       shallowValue = shallowValue[pathNestingLevel];

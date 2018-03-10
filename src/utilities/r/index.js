@@ -1,14 +1,8 @@
-import {
-  isString,
-  isComponent,
-  isNumber,
-  isNode,
-  text
-} from '../../index';
 import setAttributes from './setAttributes';
 import cacheHTML from './../cacheHTML';
 import GLOBALS from '../../consts/GLOBALS';
 import Listener from '../Listener.js';
+import Component from '../ComponentClass';
 
 export default function r(query, props, ...children) {
   if (queryIsComponent(query)) {
@@ -28,10 +22,10 @@ export default function r(query, props, ...children) {
 };
 
 export const queryIsComponent = (query) =>
-  isString(query) && typeof GLOBALS.REGISTERED[query] !== 'undefined';
+  typeof query === 'string' && typeof GLOBALS.REGISTERED[query] !== 'undefined';
 
 export const getElementFromQuery = (query) => {
-  if (isString(query)) return cacheHTML(query).cloneNode(false);
+  if (typeof query === 'string') return cacheHTML(query).cloneNode(false);
   if (isNode(query)) return query.cloneNode(false);
   return document.createDocumentFragment();
 };
@@ -59,7 +53,7 @@ export const appendChildren = (element, children) => {
 export const appendChild = (element) => (child) => {
   if (!child) return;
 
-  if (isComponent(child)) {
+  if (child instanceof Component) {
     element.appendChild(child.__radi().$render());
     return;
   }
@@ -77,8 +71,8 @@ export const appendChild = (element) => (child) => {
     return;
   }
 
-  if (isString(child) || isNumber(child)) {
-    element.appendChild(text(child));
+  if (typeof child === 'string' || typeof child === 'number') {
+    element.appendChild(document.createTextNode(child));
     return;
   }
 
@@ -95,5 +89,7 @@ export const appendChild = (element) => (child) => {
 
 export const handleListenerValue = (value) => {
   if (isNode(value)) return value;
-  return text(value);
+  return document.createTextNode(value);
 };
+
+export const isNode = a => !!(a && a.nodeType);

@@ -1,5 +1,4 @@
 import setStyles from './setStyles';
-import { isFunction } from '../../index';
 
 // TODO: Add support for Listener (should be quite easy)
 const setAttributes = (element, attributes) => {
@@ -13,7 +12,7 @@ const setAttributes = (element, attributes) => {
       continue;
     }
 
-    if (isFunction(value)) {
+    if (typeof value === 'function') {
       element[key] = value(element);
       continue;
     }
