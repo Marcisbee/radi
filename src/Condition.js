@@ -1,7 +1,7 @@
 import { EMPTY_NODE, isWatchable } from './index';
 
 export default class Condition {
-  constructor(a, e, radiInstance) {
+  constructor(radiInstance, a, e) {
     this.radiInstance = radiInstance;
     this.cases = [{ a, e }];
     this.w = [];

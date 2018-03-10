@@ -160,7 +160,7 @@ export default class Radi {
   }
 
   cond(a, e) {
-    return new Condition(a, e, this);
+    return new Condition(this, a, e);
   }
 
   list(data, act) {
