@@ -6,12 +6,12 @@ import {
   text,
   getEl
 } from '../index';
-import setAttr from './setAttr';
+import setAttributes from './setAttributes';
 import memoizeHTML from './memoizeHTML';
 import GLOBALS from '../consts/GLOBALS';
 import { _Radi } from '../index';
 import radiMutate from './radiMutate';
-import { Listener } from './l.js';
+import Listener from './Listener.js';
 
 export default function r(query, props, ...children) {
   if (queryIsComponent(query)) {
@@ -23,11 +23,15 @@ export default function r(query, props, ...children) {
   const element = getElementFromQuery(query);
   addKey(element);
 
+  if (props !== null) {
+    setAttributes(element, props);
+  }
+
   const radiInstance = this;
-  radiJsx(radiInstance, element, children);
+  appendChildren(radiInstance, element, children);
 
   return element;
-}
+};
 
 export const queryIsComponent = (query) =>
   isString(query) && typeof GLOBALS.REGISTERED[query] !== 'undefined';
@@ -50,12 +54,12 @@ r.extend = (query, ...args) => {
 };
 
 /**
- * radiJsx
+ * appendChildren
  * @param {Radi} radiInstance
  * @param {HTMLElement} element
  * @param {Array<any>} children
  */
-export const radiJsx = (radiInstance, element, children) => {
+export const appendChildren = (radiInstance, element, children) => {
   children.forEach(appendChild(radiInstance, element));
 };
 
@@ -67,19 +71,11 @@ export const appendChild = (radiInstance, element) => (child) => {
     return;
   }
 
-/*  if (isCondition(child)) {
-    const child2 = child.__do();
-    const id = child2.id;
-    appendChild(element, child2);
-    afterAppendChild(child, id, a);
-    return;
-  }*/
-
   if (child instanceof Listener) {
-    let el = element.appendChild(text(child.value));
+    let el = element.appendChild(handleListenerValue(child.value));
     child.onValueChange((value) => {
       el.remove();
-      el = element.appendChild(text(value));
+      el = element.appendChild(handleListenerValue(value));
     });
   }
 
@@ -99,69 +95,12 @@ export const appendChild = (radiInstance, element) => (child) => {
   }
 
   if (Array.isArray(child)) {
-    radiJsx(element, child);
+    appendChildren(radiInstance, element, child);
     return;
   }
-
-/*  if (isWatchable(child)) {
-    const cache = child.get();
-    const textNode = text(cache);
-    element.appendChild(textNode);
-    updateBind(radiInstance, textNode, element)(cache, child);
-    return;
-  }*/
-
-  if (typeof child === 'object') {
-    setAttr(radiInstance, element, child);
-  }
 };
 
-/**
- * afterAppendChild
- * @param {Condition} condition
- * @param {any} id
- * @param {any} a
- */
-export const afterAppendChild = (condition, id, a) => {
-  condition.watch(() => {
-    const arg2 = condition.__do();
-
-    if (id === arg2.id) return false;
-
-    let b = null;
-    if (isComponent(arg2.r)) {
-      b = arg2.r.__radi().$render();
-    } else if (typeof arg2.r === 'function') {
-      b = arg2.r();
-    } else if (isString(arg2.r) || isNumber(arg2.r)) {
-      b = text(arg2.r);
-    } else {
-      b = arg2.r;
-    }
-
-    unmountAll(a);
-    a.parentNode.replaceChild(b, a);
-    a = b;
-    mountAll(a);
-    id = arg2.id;
-  });
-};
-
-export const updateBind = (self, z, element) => (cache, arg) => {
-  self.$eventService.on(arg.path, updateBundInnerFn(cache, z, element));
-};
-
-// TODO: Rename and understand.
-const updateBundInnerFn = (cache, z, element) => (e, v) => {
-  if (v === cache) return false;
-
-  cache = v;
-
-  radiMutate(
-    () => {
-      z.textContent = v;
-    },
-    element.key,
-    'text',
-  );
+export const handleListenerValue = (value) => {
+  if (isNode(value)) return value;
+  return text(value);
 };

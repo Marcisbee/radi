@@ -4,7 +4,6 @@ import arrayMods from './utilities/arrayMods';
 import unmountAll from './utilities/unmountAll';
 import mountAll from './utilities/mountAll';
 import radiMutate from './utilities/radiMutate';
-import setStyle from './utilities/setStyle';
 import r from './utilities/r';
 import component from './utilities/component';
 import Component from './utilities/ComponentClass';
