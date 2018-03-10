@@ -1,4 +1,6 @@
 import { setStyle } from './setStyle';
+import { getEl, isFunction, isWatchable } from '../index';
+import { radiMutate } from './radiMutate';
 
 export const setAttr = (radiInstance, view, arg1, arg2) => {
   const el = getEl(view);
@@ -19,7 +21,7 @@ export const setAttr = (radiInstance, view, arg1, arg2) => {
     let cache = arg2.get();
     el.value = cache;
 
-    el.oninput = function () {
+    el.oninput = () => {
       arg2.set(el.value);
       cache = el.value;
       radiInstance.$eventService.emit(arg2.path, el.value);

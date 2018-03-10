@@ -1,9 +1,7 @@
 import {
   isString,
-  updateBind,
   isComponent,
   isCondition,
-  afterAppendChild,
   isNumber,
   isNode,
   isWatchable,
@@ -61,7 +59,7 @@ export const radiJsx = (radiInstance, element, children) => {
   children.forEach(appendChild(radiInstance, element));
 };
 
-const appendChild = (radiInstance, element) => (child) => {
+export const appendChild = (radiInstance, element) => (child) => {
   if (!child) return;
 
   if (isComponent(child)) {
@@ -108,4 +106,54 @@ const appendChild = (radiInstance, element) => (child) => {
   if (typeof child === 'object') {
     setAttr(radiInstance, element, child);
   }
+};
+
+/**
+ * afterAppendChild
+ * @param {Condition} condition
+ * @param {any} id
+ * @param {any} a
+ */
+export const afterAppendChild = (condition, id, a) => {
+  condition.watch(() => {
+    const arg2 = condition.__do();
+
+    if (id === arg2.id) return false;
+
+    let b = null;
+    if (isComponent(arg2.r)) {
+      b = arg2.r.__radi().$render();
+    } else if (typeof arg2.r === 'function') {
+      b = arg2.r();
+    } else if (isString(arg2.r) || isNumber(arg2.r)) {
+      b = text(arg2.r);
+    } else {
+      b = arg2.r;
+    }
+
+    unmountAll(a);
+    a.parentNode.replaceChild(b, a);
+    a = b;
+    mountAll(a);
+    id = arg2.id;
+  });
+};
+
+export const updateBind = (self, z, element) => (cache, arg) => {
+  self.$eventService.on(arg.path, updateBundInnerFn(cache, z, element));
+};
+
+// TODO: Rename and understand.
+const updateBundInnerFn = (cache, z, element) => (e, v) => {
+  if (v === cache) return false;
+
+  cache = v;
+
+  radiMutate(
+    () => {
+      z.textContent = v;
+    },
+    element.key,
+    'text',
+  );
 };

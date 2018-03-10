@@ -2,7 +2,7 @@ import { GLOBALS } from '../consts/GLOBALS';
 
 export const register = (Component) => {
   const component = new Component();
-  const name = component.o.name;
+  const { name } = component.o;
 
   if (!name) {
     console.warn('[Radi.js] Warn: Cannot register component without name');
