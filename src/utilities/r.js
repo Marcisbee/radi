@@ -10,6 +10,7 @@ import {
   text,
   getEl
 } from '../index';
+import { setAttr } from './setAttr';
 import { memoizeHTML } from './memoizeHTML';
 import { GLOBALS } from '../consts/GLOBALS';
 import { _Radi } from '../index';
@@ -105,6 +106,6 @@ const appendChild = (radiInstance, element) => (child) => {
   }
 
   if (typeof child === 'object') {
-    setAttr.call(radiInstance, element, child);
+    setAttr(radiInstance, element, child);
   }
 };

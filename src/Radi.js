@@ -128,14 +128,14 @@ export default class Radi {
 
   mount() {
     if (typeof this.$actions.onMount === 'function') {
-      this.$actions.onMount.call(this);
+      this.$actions.onMount(this);
     }
     GLOBALS.ACTIVE_COMPONENTS.push(this);
   }
 
   unmount() {
     if (typeof this.$actions.onDestroy === 'function') {
-      this.$actions.onDestroy.call(this);
+      this.$actions.onDestroy(this);
     }
 
     for (let i = 0; i < GLOBALS.ACTIVE_COMPONENTS.length; i++) {

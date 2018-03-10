@@ -52,11 +52,10 @@ export default class ViewParser {
        `
         ll(
           function() { return ${found.substr(1)}; },
-          [\`${obs}\`],
+          [${obs}],
           '${m.join(',')}'
         )
        `;
-
 
       $view = $view.concat(this.view.substr(cursor, n - cursor)).concat(newString);
       cursor = n + found.length;

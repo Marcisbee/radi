@@ -15,7 +15,6 @@ import {
   link,
   cond,
   ll,
-  setAttr,
   radiArgs,
   afterAppendChild,
   updateBind,

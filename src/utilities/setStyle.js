@@ -3,14 +3,14 @@ import { isWatchable } from '../index';
 import { radiMutate } from './radiMutate';
 import { isString } from '../index';
 
-export const setStyle = (view, arg1, arg2) => {
+export const setStyle = (radiInstance, view, arg1, arg2) => {
   const el = getEl(view);
 
   if (isWatchable(arg2)) {
     let cache = arg2.get();
     el.style[arg1] = cache;
 
-    this.$eventService.on(arg2.path, (e, v) => {
+    radiInstance.$eventService.on(arg2.path, (e, v) => {
       if (v === cache) return false;
       radiMutate(
         () => {
@@ -33,6 +33,6 @@ export const setStyle = (view, arg1, arg2) => {
   }
 
   for (let key in arg1) {
-    setStyle.call(this, el, key, arg1[key]);
+    setStyle(radiInstance, el, key, arg1[key]);
   }
 };

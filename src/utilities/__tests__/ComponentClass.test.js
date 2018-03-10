@@ -1,5 +1,7 @@
 import { Component } from '../ComponentClass';
+import { r } from '../r';
 
+/** @jsx r **/
 describe('ComponentClass.js', () => {
   it('can be instantiated', () => {
     expect(new Component({
@@ -18,16 +20,14 @@ describe('ComponentClass.js', () => {
       state: { foo: 'bar' },
       props: { bar: 'foo' },
       actions: { baz: 'foo' },
-      view: { a: 'b' },
-      $view: { b: 'a' }
+      view: <h1>Hello</h1>,
     });
 
     expect(component.o.name).toBe('foo');
     expect(component.o.state).toEqual({ foo: 'bar' });
     expect(component.o.props).toEqual({ bar: 'foo' });
     expect(component.o.actions).toEqual({ baz: 'foo' });
-    expect(component.o.view).toEqual({ a: 'b' });
-    expect(component.o.$view).toEqual({ b: 'a' });
+    expect(component.o.view).toEqual(<h1>Hello</h1>);
   });
 
   it('adds a __radi method', () => {
@@ -36,8 +36,7 @@ describe('ComponentClass.js', () => {
       state: {},
       props: {},
       actions: {},
-      view: {},
-      $view: {}
+      view: <h1>Hello World!</h1>,
     }).__radi).toBe('function');
   });
 
@@ -47,8 +46,7 @@ describe('ComponentClass.js', () => {
       state: { foo: 'bar' },
       props: { foo: 'bar', bar: 'foo' },
       actions: { baz: 'foo' },
-      view: { a: 'b' },
-      $view: { b: 'a' }
+      view: <h1>Hello World!</h1>,
     });
     component.props({
       bar: 'baz',
@@ -67,8 +65,7 @@ describe('ComponentClass.js', () => {
       state: {},
       props: {},
       actions: {},
-      view: {},
-      $view: {}
+      view: <h1>Hello World!</h1>,
     }).$mixins).toEqual({});
   });
 });

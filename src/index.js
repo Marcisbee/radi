@@ -6,7 +6,6 @@ import { arrayMods } from './utilities/arrayMods';
 import { unmountAll } from './utilities/unmountAll';
 import { mountAll } from './utilities/mountAll';
 import { radiMutate } from './utilities/radiMutate';
-import { setStyle } from './utilities/setStyle';
 import { r } from './utilities/r';
 import { component } from './utilities/component';
 import { Component } from './utilities/ComponentClass';
@@ -128,7 +127,7 @@ export const link = (radiInstance, fn, watch, txt) => {
       .replace(/(function \(\)\{ return |\(|\)|\; \})/g, '')
       .trim() === txt[0]
   ) {
-    return new Watchable(watch[0][0], watch[0][1], () => SELF);
+    return new Watchable(watch[0][0], watch[0][1], () => radiInstance);
   }
 
   const len = watch.length;
@@ -140,11 +139,13 @@ export const link = (radiInstance, fn, watch, txt) => {
   linkNum += 1;
 
   for (let i = 0; i < len; i++) {
-    args.a[i] = watch[i][0][watch[i][1]];
+    const radiInstance = watch[i][0];
+    const field = watch[i][1];
+    args.a[i] = radiInstance[field];
     args.t[i] = `$rdi[${i}]`;
     args.f = args.f.replace(txt[i], args.t[i]);
 
-    const path = `${watch[i][0].__path}.${watch[i][1]}`;
+    const path = `${radiInstance.__path}.${field}`;
     const p = `${args.__path}.s`;
 
     radiInstance.$eventService.on(path, (path, value) => {
@@ -158,18 +159,18 @@ export const link = (radiInstance, fn, watch, txt) => {
     });
   }
 
-  args.f = () => args.f();
+  args.f = new Function('$rdi', 'return ' + args.f + '();')
 
   if (len <= 0) return args.s;
-  return new Watchable(args, 's', (() => SELF));
+  return new Watchable(args, 's', () => radiInstance);
 };
 
 export function cond(a, e) {
   return new Condition(a, e, this);
 }
 
-export function ll(f, w, c) {
-  return w ? link(this, f, w, c.split(',')) : f;
+export function ll(fn, watch, c) {
+  return watch ? link(this, fn, watch, c.split(',')) : fn;
 }
 
 export const _Radi = {
@@ -188,108 +189,13 @@ export const _Radi = {
 
     for (let ii = 0; ii < GLOBALS.ACTIVE_COMPONENTS.length; ii++) {
       if (typeof GLOBALS.ACTIVE_COMPONENTS[ii].onMount === 'function') {
-        GLOBALS.ACTIVE_COMPONENTS[ii].onMount.call(GLOBALS.ACTIVE_COMPONENTS[ii]);
+        GLOBALS.ACTIVE_COMPONENTS[ii].onMount(GLOBALS.ACTIVE_COMPONENTS[ii]);
       }
     }
   },
 };
 
 window.$Radi = _Radi;
-
-export function setAttr(view, arg1, arg2) {
-  const self = this;
-  const el = getEl(view);
-
-  if (typeof arg2 === 'undefined') {
-    for (const key in arg1) {
-      setAttr.call(this, el, key, arg1[key]);
-    }
-    return;
-  }
-
-  if (arg1 === 'style') {
-    setStyle.call(this, el, arg2);
-    return;
-  }
-
-  if (arg1 === 'model' && isWatchable(arg2)) {
-    let cache = arg2.get();
-    el.value = cache;
-
-    el.oninput = function () {
-      arg2.set(el.value);
-      cache = el.value;
-      self.$eventService.emit(arg2.path, el.value);
-    };
-
-    self.$eventService.on(arg2.path, (path, value) => {
-      if (value === cache) return false;
-      radiMutate(
-        () => {
-          el.value = value;
-        },
-        el.key,
-        'attr1',
-      );
-      cache = value;
-    });
-    return;
-  }
-
-  if (isFunction(arg2)) {
-    el[arg1] = (e) => {
-      arg2.call(self, e);
-    };
-    return;
-  }
-
-  if (isWatchable(arg2)) {
-    const temp = arg2.get();
-    if (isFunction(temp)) {
-      el[arg1] = (e) => {
-        arg2.get().call(self, e);
-      };
-      return;
-    }
-    let cache = arg2.get();
-    if (cache !== false) {
-      if (arg1 === 'html') {
-        el.innerHTML = arg2;
-        return;
-      }
-      el.setAttribute(arg1, arg2);
-    }
-
-    self.$eventService.on(arg2.path, (path, value) => {
-      if (value === cache) return false;
-      radiMutate(
-        () => {
-          if (value === false) {
-            el.removeAttribute(arg1);
-            return;
-          }
-
-          if (arg1 === 'html') {
-            el.innerHTML = v;
-            return;
-          }
-
-          el.setAttribute(arg1, value);
-        },
-        el.key,
-        'attr2',
-      );
-      cache = value;
-    });
-    return;
-  }
-
-  if (arg1 === 'html') {
-    el.innerHTML = arg2;
-    return;
-  }
-  el.setAttribute(arg1, arg2);
-}
 
 /**
  * afterAppendChild
