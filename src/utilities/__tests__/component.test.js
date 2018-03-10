@@ -12,8 +12,14 @@ describe('component.js', () => {
       },
       state: {
         sample: 'World'
+      },
+      actions: {
+        setSample() { this.sample = 'World!' }
       }
     });
-    console.log(new TestComponent().__radi().$render().childNodes[0].innerHTML)
+    const radiInstance = new TestComponent().__radi();
+    console.log(radiInstance.$render().childNodes[0].innerHTML)
+    radiInstance.setSample();
+    console.log(radiInstance.$render().childNodes[0].innerHTML)
   });
 });
