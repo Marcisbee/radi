@@ -1,4 +1,4 @@
-import { isString } from '../index';
+import { isString } from '../../index';
 
 // TODO: Add support for Listener (should be quite easy)
 const setStyles = (element, styles) => {

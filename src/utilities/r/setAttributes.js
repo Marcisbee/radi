@@ -1,5 +1,5 @@
 import setStyles from './setStyles';
-import { isFunction } from '../index';
+import { isFunction } from '../../index';
 
 // TODO: Add support for Listener (should be quite easy)
 const setAttributes = (element, attributes) => {
