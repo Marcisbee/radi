@@ -1,21 +1,13 @@
 import * as REGEX from './consts/REGEX';
 import clone from './utilities/clone';
-import arrayMods from './utilities/arrayMods';
 import unmountAll from './utilities/unmountAll';
 import mountAll from './utilities/mountAll';
-import radiMutate from './utilities/radiMutate';
-import setStyle from './utilities/setStyle';
 import r from './utilities/r';
 import component from './utilities/component';
 import Component from './utilities/ComponentClass';
-import Condition from './Condition';
-import Watchable from './Watchable';
 import GLOBALS from './consts/GLOBALS';
 import { isWatchable, EMPTY_NODE } from './index';
-import EventService from './EventService';
-import PopulateService from './PopulateService';
 import List from './List';
-import Link from './Link';
 
 export default class Radi {
   constructor(o) {
@@ -26,7 +18,6 @@ export default class Radi {
     this.addNonEnumerableProperties({
       $mixins: o.$mixins,
       $mixins_keys: this.getMixinsKeys(o.$mixins),
-      $eventService: new EventService(),
       $id: GLOBALS.IDS++,
       $name: o.name,
       $state: o.state || {},
@@ -34,25 +25,20 @@ export default class Radi {
       $actions: o.actions || {},
       $html: document.createDocumentFragment(),
       $parent: null,
+      // Variables like state and props are actually stored here so that we can
+      // have custom setters
+      privateStore: {}
     });
 
     this.addNonEnumerableProperties({
-      // TODO: REMOVE let _r = {r}; FIXME
-      $view: new Function('r', 'list', 'll', 'cond', `let _r2 = { default: r }; return ${o.$view}`)(
-        r.bind(this),
-        this.list,
-        this.ll,
-        this.cond,
-      ),
+      $view: o.$view
     });
 
-    this.addNonEnumerableProperties({
-      $link: this.$view()
-    });
+//    console.log(o.$view())
 
     for (let key in o.$mixins) {
       if (typeof this[key] === 'undefined') {
-        this[key] = o.$mixins[key];
+        this.addCustomField(key, o.$mixins[key]);
       }
     }
 
@@ -60,7 +46,7 @@ export default class Radi {
       if (typeof this[key] !== 'undefined') {
         throw new Error(`[Radi.js] Error: Trying to write state for reserved variable \`${i}\``);
       }
-      this[key] = o.state[key];
+      this.addCustomField(key, o.state[key]);
     }
 
     for (let key in o.props) {
@@ -68,33 +54,23 @@ export default class Radi {
         throw new Error(`[Radi.js] Error: Trying to write prop for reserved variable \`${i}\``);
       }
 
-      const prop = o.props[key];
-
-      if (isWatchable(prop)) {
-        this[key] = prop.get();
-
-        if (prop.parent) {
-          prop.parent().$eventService.on(prop.path, (path, value) => {
-            this[key] = value;
-          });
-        }
-      } else {
-        this[key] = prop;
-      }
+      this.addCustomField(key, o.props[key]);
     }
-
-    new PopulateService(this, this, 'this').populate();
 
     for (let key in o.actions) {
       if (typeof this[key] !== 'undefined') {
         throw new Error(`[Radi.js] Error: Trying to write action for reserved variable \`${i}\``);
       }
 
-      this[key] = (...args) => {
+      this.addCustomField(key, (...args) => {
         if (GLOBALS.FROZEN_STATE) return null;
         return o.actions[key].apply(this, args);
-      };
+      });
     }
+
+    this.addNonEnumerableProperties({
+      $link: this.$view(this)
+    });
 
     this.$html.appendChild(this.$link);
     this.$html.destroy = () => this.destroyHtml();
@@ -109,6 +85,28 @@ export default class Radi {
         value: object[key]
       });
     }
+  }
+
+  addCustomField(key, value) {
+    this.privateStore[key] = {
+      listeners: [],
+      listen: listener => this.privateStore[key].listeners.push(listener),
+      value
+    };
+    Object.defineProperty(this, key, {
+      get: () => this.privateStore[key].value,
+      set: (value) => {
+        const item = this.privateStore[key];
+        item.value = value;
+        item.listeners.forEach(listener => listener.handleUpdate(value));
+      },
+      enumerable: true,
+      configurable: true
+    });
+  }
+
+  addListener(key, listener) {
+    this.privateStore[key].listen(listener);
   }
 
   destroyHtml() {
@@ -159,15 +157,7 @@ export default class Radi {
     return this.$html;
   }
 
-  cond(a, e) {
-    return new Condition(this, a, e);
-  }
-
   list(data, act) {
     return new List(this, data, act).create();
   };
-
-  ll(fn, watch, c) {
-    return watch ? new Link(this, fn, watch, c.split(',')).init() : fn;
-  }
 }

@@ -1,8 +1,6 @@
 import r from './utilities/r';
 import component from './utilities/component';
 import GLOBALS from './consts/GLOBALS';
-import Condition from './Condition';
-import Watchable from './Watchable';
 import register from './utilities/register';
 import mount from './mount';
 
@@ -14,14 +12,7 @@ export const isFunction = a => typeof a === 'function';
 
 export const isNode = a => !!(a && a.nodeType);
 
-export const isWatchable = a => a && a instanceof Watchable;
-
-export const isCondition = a => a && a instanceof Condition;
-
 export const isComponent = a => !!(a && a.__radi);
-
-export const getEl = (parent) =>
-  (parent.nodeType && parent) || (!parent.el && parent) || getEl(parent.el);
 
 export const text = str => document.createTextNode(str);
 
@@ -32,7 +23,6 @@ export const _Radi = {
   activeComponents: GLOBALS.ACTIVE_COMPONENTS,
   r,
   l: f => f,
-  Condition,
   component,
   mount,
   register,
