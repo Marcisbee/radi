@@ -2,11 +2,10 @@ import Listener from './Listener';
 
 /**
  * @param {Component} component
- * @param {string} key
- * @param {string} [childPath='']
+ * @param {...string} path
  * @returns {Listener}
  */
-const l = (component, key, childPath = '') =>
-  new Listener(component, key, childPath);
+const l = (component, ...path) =>
+  new Listener(component, ...path);
 
 export default l;

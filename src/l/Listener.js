@@ -3,17 +3,16 @@ import clone from '../utils/clone';
 export default class Listener {
   /**
    * @param {Component} component
-   * @param {string} key
-   * @param {string} [childPath]
+   * @param {...string} path
    */
-  constructor(component, key, childPath) {
+  constructor(component, ...path) {
     this.component = component;
-    this.key = key;
-    this.childPath = childPath;
+    this.key = path[path.length - 1];
+    this.childPath = path.slice(0, path.length - 1);
     this.value = null;
     this.changeListeners = [];
 
-    this.component.addListener(key, this);
+    this.component.addListener(this.key, this);
     this.handleUpdate(this.component[this.key]);
   }
 
@@ -42,9 +41,8 @@ export default class Listener {
   getShallowValue(value) {
     const cloned = clone(value);
     if (!this.childPath) return cloned;
-    const pathNesting = this.childPath.split('.');
     let shallowValue = cloned;
-    for (const pathNestingLevel of pathNesting) {
+    for (const pathNestingLevel of this.childPath) {
       shallowValue = shallowValue[pathNestingLevel];
     }
     return shallowValue;

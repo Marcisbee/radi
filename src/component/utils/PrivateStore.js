@@ -35,6 +35,9 @@ export default class PrivateStore {
    * @param {Listener} listener
    */
   addListener(key, listener) {
+    if (typeof this.store[key] === 'undefined') {
+      this.createItemWrapper(key);
+    }
     this.store[key].listeners.push(listener);
   }
 
