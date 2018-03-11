@@ -1,10 +1,10 @@
-import r from './utilities/r';
-import l from './utilities/l';
-import component from './utilities/component';
+import r from './r';
+import l from './l';
+import component from './component';
 import GLOBALS from './consts/GLOBALS';
-import register from './utilities/register';
+import register from './register';
 import mount from './mount';
-import remountActiveComponents from './remountActiveComponents';
+import remountActiveComponents from './utils/remountActiveComponents';
 
 export const _Radi = {
   version: GLOBALS.VERSION,

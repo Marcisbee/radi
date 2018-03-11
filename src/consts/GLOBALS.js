@@ -5,8 +5,7 @@ const GLOBALS = {
   FROZEN_STATE: false,
   VERSION: '0.1.8',
   ACTIVE_COMPONENTS: {},
-  HTML_CACHE: {},
-  R_KEYS: 0
+  HTML_CACHE: {}
 };
 
 export default GLOBALS;

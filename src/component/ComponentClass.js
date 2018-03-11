@@ -1,8 +1,8 @@
 import GLOBALS from '../consts/GLOBALS';
-import clone from './clone';
-import generateId from './generateId';
-import Renderer from './Renderer';
-import PrivateStore from './PrivateStore';
+import clone from '../utils/clone';
+import generateId from '../utils/generateId';
+import Renderer from './utils/Renderer';
+import PrivateStore from './utils/PrivateStore';
 
 export default class Component {
   constructor(o) {
@@ -22,7 +22,8 @@ export default class Component {
     this.copyObjToInstance(this.$mixins);
     this.copyObjToInstance(this.$state);
     this.copyObjToInstance(this.$props);
-    this.copyObjToInstance(this.$actions, this.handleAction);
+    // The bind on this.handleAction is necessary
+    this.copyObjToInstance(this.$actions, this.handleAction.bind(this));
 
     this.addNonEnumerableProperties({
       $view: o.view(this),
@@ -48,7 +49,7 @@ export default class Component {
   handleAction(action) {
     return (...args) => {
       if (GLOBALS.FROZEN_STATE) return null;
-      return action.apply(this.args);
+      return action.call(this, args);
     };
   }
 

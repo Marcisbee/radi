@@ -1,4 +1,4 @@
-import clone from './clone';
+import clone from '../utils/clone';
 
 export default class Listener {
   constructor(component, key, childPath) {

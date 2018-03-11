@@ -1,4 +1,4 @@
-import GLOBALS from './consts/GLOBALS';
+import GLOBALS from '../consts/GLOBALS';
 
 const remountActiveComponents = () => {
   for (let key in GLOBALS.ACTIVE_COMPONENTS) {

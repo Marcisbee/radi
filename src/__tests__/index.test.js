@@ -12,7 +12,7 @@ import {
 } from '../index';
 import mount from '../mount';
 import GLOBALS from '../consts/GLOBALS';
-import r from '../utilities/r';
+import r from '../r';
 import l from '../utilities/l';
 import component from '../utilities/component';
 

@@ -1,4 +1,4 @@
-import GLOBALS from '../consts/GLOBALS';
+import GLOBALS from '../../consts/GLOBALS';
 import createElement from './createElement';
 
 const cacheHTML = (query) =>
