@@ -1,3 +1,7 @@
+/**
+ * @param {*} obj
+ * @returns {*}
+ */
 const clone = (obj) => {
   if (typeof obj !== 'object') return obj;
   if (obj === null) return obj;

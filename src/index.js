@@ -2,7 +2,6 @@ import r from './r';
 import l from './l';
 import component from './component';
 import GLOBALS from './consts/GLOBALS';
-import register from './register';
 import mount from './mount';
 import remountActiveComponents from './utils/remountActiveComponents';
 
@@ -13,7 +12,6 @@ export const _Radi = {
   l,
   component,
   mount,
-  register,
   freeze: () => {
     GLOBALS.FROZEN_STATE = true;
   },

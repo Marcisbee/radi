@@ -1,5 +1,8 @@
-// UUID v4 generator
-// https://gist.github.com/jcxplorer/823878
+/**
+ * UUID v4 generator
+ * https://gist.github.com/jcxplorer/823878
+ * @returns {string}
+ */
 const generateId = () => {
   let uuid = '';
   for (let i = 0; i < 32; i++) {

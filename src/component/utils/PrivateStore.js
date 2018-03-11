@@ -1,7 +1,4 @@
 export default class PrivateStore {
-  /**
-   * @constructor
-   */
   constructor() {
     this.store = {};
   }
@@ -9,8 +6,8 @@ export default class PrivateStore {
   /**
    * setItem
    * @param {string} key
-   * @param {any} value
-   * @return {any}
+   * @param {*} value
+   * @returns {*}
    */
   setItem(key, value) {
     if (typeof this.store[key] === 'undefined') {
@@ -24,6 +21,7 @@ export default class PrivateStore {
   /**
    * getItem
    * @param {string} key
+   * @returns {*}
    */
   getItem(key) {
     return this.store[key].value;
@@ -33,21 +31,24 @@ export default class PrivateStore {
    * addListener
    * @param {string} key
    * @param {Listener} listener
+   * @returns {Listener}
    */
   addListener(key, listener) {
     if (typeof this.store[key] === 'undefined') {
       this.createItemWrapper(key);
     }
     this.store[key].listeners.push(listener);
+    return listener;
   }
 
   /**
    * createItemWrapper
    * @private
    * @param {string} key
+   * @returns {object}
    */
   createItemWrapper(key) {
-    this.store[key] = {
+    return this.store[key] = {
       listeners: [],
       value: null,
     };

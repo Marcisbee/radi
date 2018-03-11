@@ -1,3 +1,8 @@
+/**
+ * @param {Component} component
+ * @param {string} id
+ * @returns {HTMLElement|Node}
+ */
 const mount = (component, id) => {
   const container = typeof id === 'string' ? document.getElementById(id) : id;
   const rendered =
