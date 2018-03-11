@@ -1,5 +1,7 @@
 import GLOBALS from '../consts/GLOBALS';
 import clone from './clone';
+import generateId from './generateId';
+import Renderer from './Renderer';
 
 export default class Component {
   constructor(o) {
@@ -7,47 +9,52 @@ export default class Component {
       name: o.name
     };
 
-    this.__path = 'this';
-
-    this.linkNum = 0;
-
-    const state = clone(o.state || {});
-    const props = clone(o.props || {});
-    const mixins = o.$mixins || {};
-
     this.addNonEnumerableProperties({
-      $mixins: mixins,
-      $id: GLOBALS.IDS++,
+      $mixins: o.$mixins || {},
+      $id: generateId(),
       $name: o.name,
-      $state: state,
-      $props: props,
+      $state: clone(o.state || {}),
+      $props: clone(o.props || {}),
       $actions: o.actions || {},
-      $html: document.createDocumentFragment(),
-      $parent: null,
       // Variables like state and props are actually stored here so that we can
       // have custom setters
-      privateStore: {}
+      $privateStore: {}
     });
 
+    this.copyDataToInstance();
+
+    this.addNonEnumerableProperties({
+      $view: o.view(this),
+    });
+
+    this.$view.unmount = this.unmount.bind(this);
+    this.$view.mount = this.mount.bind(this);
+
+    this.addNonEnumerableProperties({
+      $renderer: new Renderer(this),
+    });
+  }
+
+  copyDataToInstance() {
     for (let key in this.$mixins) {
       if (typeof this[key] === 'undefined') {
         this.addCustomField(key, this.$mixins[key]);
       }
     }
 
-    for (let key in state) {
+    for (let key in this.$state) {
       if (typeof this[key] !== 'undefined') {
         throw new Error(`[Radi.js] Error: Trying to write state for reserved variable \`${i}\``);
       }
-      this.addCustomField(key, state[key]);
+      this.addCustomField(key, this.$state[key]);
     }
 
-    for (let key in props) {
+    for (let key in this.$props) {
       if (typeof this[key] !== 'undefined') {
         throw new Error(`[Radi.js] Error: Trying to write prop for reserved variable \`${i}\``);
       }
 
-      this.addCustomField(key, props[key]);
+      this.addCustomField(key, this.$props[key]);
     }
 
     for (let key in this.$actions) {
@@ -60,28 +67,19 @@ export default class Component {
         return this.$actions[key].apply(this, args);
       });
     }
-
-    this.addNonEnumerableProperties({
-      $view: o.view(this),
-    });
-
-    this.$html.appendChild(this.$view);
-    this.$html.destroy = () => this.destroyHtml();
-
-    this.$view.unmount = this.unmount.bind(this);
-    this.$view.mount = this.mount.bind(this);
   }
 
-  props(propsUpdates) {
-    for (let key in propsUpdates) {
+  setProps(props) {
+    for (let key in props) {
+      this.o.props[key] = props[key];
       if (typeof this.o.props[key] === 'undefined') {
         console.warn(
-          '[Radi.js] Warn: Creating a prop `',
-          key,
-          '` that is not defined in component'
+          `[Radi.js] Warn: Creating a prop \`${key}\` that is not defined in component`
         );
+        this.addCustomField(key, props[key]);
+        continue;
       }
-      this.o.props[key] = propsUpdates[key];
+      this[key] = props[key];
     }
     return this;
   }
@@ -95,15 +93,15 @@ export default class Component {
   }
 
   addCustomField(key, value) {
-    this.privateStore[key] = {
+    this.$privateStore[key] = {
       listeners: [],
-      listen: listener => this.privateStore[key].listeners.push(listener),
+      listen: listener => this.$privateStore[key].listeners.push(listener),
       value
     };
     Object.defineProperty(this, key, {
-      get: () => this.privateStore[key].value,
+      get: () => this.$privateStore[key].value,
       set: (value) => {
-        const item = this.privateStore[key];
+        const item = this.$privateStore[key];
         item.value = value;
         item.listeners.forEach(listener => listener.handleUpdate(value));
       },
@@ -113,15 +111,7 @@ export default class Component {
   }
 
   addListener(key, listener) {
-    this.privateStore[key].listen(listener);
-  }
-
-  destroyHtml() {
-    const oldRootElem = this.$link.parentElement;
-    const newRootElem = oldRootElem.cloneNode(false);
-    oldRootElem.parentNode.insertBefore(newRootElem, oldRootElem);
-    this.unmount();
-    oldRootElem.parentNode.removeChild(oldRootElem);
+    this.$privateStore[key].listen(listener);
   }
 
   isMixin(key) {
@@ -132,26 +122,19 @@ export default class Component {
     if (typeof this.$actions.onMount === 'function') {
       this.$actions.onMount(this);
     }
-    GLOBALS.ACTIVE_COMPONENTS.push(this);
+    GLOBALS.ACTIVE_COMPONENTS[this.$id] = this;
   }
 
   unmount() {
     if (typeof this.$actions.onDestroy === 'function') {
       this.$actions.onDestroy(this);
     }
-
-    for (let i = 0; i < GLOBALS.ACTIVE_COMPONENTS.length; i++) {
-      if (GLOBALS.ACTIVE_COMPONENTS[i].$id === this.$id) {
-        GLOBALS.ACTIVE_COMPONENTS.splice(i, 1);
-        break;
-      }
-    }
-
+    delete GLOBALS.ACTIVE_COMPONENT[this.$id];
     return this.$view;
   }
 
   $render() {
     this.mount();
-    return this.$html;
+    return this.$renderer.render();
   }
 }

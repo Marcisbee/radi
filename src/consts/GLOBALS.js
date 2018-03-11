@@ -3,9 +3,8 @@ const GLOBALS = {
   REGISTERED: {},
   MIX: {},
   FROZEN_STATE: false,
-  IDS: 0,
   VERSION: '0.1.8',
-  ACTIVE_COMPONENTS: [],
+  ACTIVE_COMPONENTS: {},
   HTML_CACHE: {},
   R_KEYS: 0
 };

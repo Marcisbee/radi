@@ -13,7 +13,7 @@ const register = (Component) => {
     console.warn(`[Radi.js] Warn: Component with name '${name}' beeing replaced`);
   }
 
-  GLOBALS.REGISTERED[name] = Component;
+  GLOBALS.REGISTERED[name] = component;
 };
 
 export default register;

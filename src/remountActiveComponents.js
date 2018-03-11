@@ -1,7 +1,8 @@
 import GLOBALS from './consts/GLOBALS';
 
 const remountActiveComponents = () => {
-  for (let component of GLOBALS.ACTIVE_COMPONENTS) {
+  for (let key in GLOBALS.ACTIVE_COMPONENTS) {
+    const component = GLOBALS.ACTIVE_COMPONENTS[key];
     if (typeof component.onMount === 'function') {
       component.onMount(component);
     }

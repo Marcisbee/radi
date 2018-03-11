@@ -6,7 +6,7 @@ import Component from '../ComponentClass';
 
 export default function r(query, props, ...children) {
   if (queryIsComponent(query)) {
-    return new GLOBALS.REGISTERED[query]().props(props || {});
+    return new GLOBALS.REGISTERED[query]().setProps(props || {});
   }
 
   const element = getElementFromQuery(query);
