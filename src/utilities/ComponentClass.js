@@ -2,26 +2,27 @@ import GLOBALS from '../consts/GLOBALS';
 import clone from './clone';
 import generateId from './generateId';
 import Renderer from './Renderer';
+import PrivateStore from './PrivateStore';
 
 export default class Component {
   constructor(o) {
-    this.o = {
-      name: o.name
-    };
+    this.name = o.name;
 
     this.addNonEnumerableProperties({
-      $mixins: o.$mixins || {},
       $id: generateId(),
-      $name: o.name,
+      $mixins: o.$mixins || {},
       $state: clone(o.state || {}),
       $props: clone(o.props || {}),
       $actions: o.actions || {},
       // Variables like state and props are actually stored here so that we can
       // have custom setters
-      $privateStore: {}
+      $privateStore: new PrivateStore(),
     });
 
-    this.copyDataToInstance();
+    this.copyObjToInstance(this.$mixins);
+    this.copyObjToInstance(this.$state);
+    this.copyObjToInstance(this.$props);
+    this.copyObjToInstance(this.$actions, this.handleAction);
 
     this.addNonEnumerableProperties({
       $view: o.view(this),
@@ -35,38 +36,20 @@ export default class Component {
     });
   }
 
-  copyDataToInstance() {
-    for (let key in this.$mixins) {
-      if (typeof this[key] === 'undefined') {
-        this.addCustomField(key, this.$mixins[key]);
-      }
-    }
-
-    for (let key in this.$state) {
+  copyObjToInstance(obj, handleItem = item => item) {
+    for (let key in obj) {
       if (typeof this[key] !== 'undefined') {
-        throw new Error(`[Radi.js] Error: Trying to write state for reserved variable \`${i}\``);
+        throw new Error(`[Radi.js] Error: Trying to write for reserved variable \`${i}\``);
       }
-      this.addCustomField(key, this.$state[key]);
+      this.addCustomField(key, handleItem(obj[key]));
     }
+  }
 
-    for (let key in this.$props) {
-      if (typeof this[key] !== 'undefined') {
-        throw new Error(`[Radi.js] Error: Trying to write prop for reserved variable \`${i}\``);
-      }
-
-      this.addCustomField(key, this.$props[key]);
-    }
-
-    for (let key in this.$actions) {
-      if (typeof this[key] !== 'undefined') {
-        throw new Error(`[Radi.js] Error: Trying to write action for reserved variable \`${i}\``);
-      }
-
-      this.addCustomField(key, (...args) => {
-        if (GLOBALS.FROZEN_STATE) return null;
-        return this.$actions[key].apply(this, args);
-      });
-    }
+  handleAction(action) {
+    return (...args) => {
+      if (GLOBALS.FROZEN_STATE) return null;
+      return action.apply(this.args);
+    };
   }
 
   setProps(props) {
@@ -93,25 +76,17 @@ export default class Component {
   }
 
   addCustomField(key, value) {
-    this.$privateStore[key] = {
-      listeners: [],
-      listen: listener => this.$privateStore[key].listeners.push(listener),
-      value
-    };
     Object.defineProperty(this, key, {
-      get: () => this.$privateStore[key].value,
-      set: (value) => {
-        const item = this.$privateStore[key];
-        item.value = value;
-        item.listeners.forEach(listener => listener.handleUpdate(value));
-      },
+      get: () => this.$privateStore.getItem(key),
+      set: value => this.$privateStore.setItem(key, value),
       enumerable: true,
       configurable: true
     });
+    this[key] = value;
   }
 
   addListener(key, listener) {
-    this.$privateStore[key].listen(listener);
+    this.$privateStore.addListener(key, listener);
   }
 
   isMixin(key) {

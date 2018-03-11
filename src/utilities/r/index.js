@@ -4,7 +4,7 @@ import GLOBALS from '../../consts/GLOBALS';
 import Listener from '../Listener.js';
 import Component from '../ComponentClass';
 
-export default function r(query, props, ...children) {
+const r = (query, props, ...children) => {
   if (queryIsComponent(query)) {
     return new GLOBALS.REGISTERED[query]().setProps(props || {});
   }
@@ -20,6 +20,8 @@ export default function r(query, props, ...children) {
 
   return element;
 };
+
+export default r;
 
 export const queryIsComponent = (query) =>
   typeof query === 'string' && typeof GLOBALS.REGISTERED[query] !== 'undefined';

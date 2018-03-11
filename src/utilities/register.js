@@ -2,7 +2,7 @@ import GLOBALS from '../consts/GLOBALS';
 
 const register = (Component) => {
   const component = new Component();
-  const { name } = component.o;
+  const { name } = component;
 
   if (!name) {
     console.warn('[Radi.js] Warn: Cannot register component without name');
@@ -10,7 +10,7 @@ const register = (Component) => {
   }
 
   if (typeof GLOBALS.REGISTERED[name] !== 'undefined') {
-    console.warn(`[Radi.js] Warn: Component with name '${name}' beeing replaced`);
+    console.warn(`[Radi.js] Warn: Component with name '${name}' being replaced`);
   }
 
   GLOBALS.REGISTERED[name] = component;
