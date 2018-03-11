@@ -8,7 +8,7 @@ import {
   text,
   set,
   link,
-  _Radi
+  _Radi,
 } from '../index';
 import mount from '../mount';
 import GLOBALS from '../consts/GLOBALS';
@@ -27,10 +27,10 @@ describe('index.js', () => {
 /*  test('its isNode function works', () => {
     expect(isNode(document.createElement('div'))).toBe(true);
     expect(isNode(7)).toBe(false);
-  });*/
+  }); */
 
   // TODO: Make this test pass by making the container an actual Node
-  /*test('its mount function works', () => {
+  /* test('its mount function works', () => {
     const testComponent = component({
       view: function() {
         return this.sample;
@@ -42,13 +42,13 @@ describe('index.js', () => {
     const container = document.createElement('div');
     expect(mount(testComponent, container)).toBe('World');
     expect(container.childNodes[0]).toBeInstanceOf(HTMLHeadingElement);
-  });*/
+  }); */
 
   // TODO: Test list function
 
-  /*test('its list function returns an empty string when its data parameter is falsy', () => {
+  /* test('its list function returns an empty string when its data parameter is falsy', () => {
     expect(list(false, true)).toBe('');
-  });*/
+  }); */
 
 /*  test('its set function works', () => {
     const source = {
@@ -63,11 +63,11 @@ describe('index.js', () => {
         bar: {}
       }
     });
-  });*/
+  }); */
 
-  //test('its link function works', () => {
-    // TODO: Too big to properly test
-  //});
+  // test('its link function works', () => {
+  // TODO: Too big to properly test
+  // });
 
 /*  test('its cond function works', () => {
     const condition = cond(5, 6);
@@ -76,12 +76,12 @@ describe('index.js', () => {
       a: 5,
       e: 6
     });
-  });*/
+  }); */
 
-  //test('its ll function works', () => {
-    // TODO: Link function isn't tested and its parameters are too unclear to
-    // make a viable test
-  //});
+  // test('its ll function works', () => {
+  // TODO: Link function isn't tested and its parameters are too unclear to
+  // make a viable test
+  // });
 
   it('provides a _Radi namespace', () => {
     expect(_Radi).toEqual(expect.objectContaining({
@@ -90,7 +90,7 @@ describe('index.js', () => {
       l,
       r,
       component,
-      mount
+      mount,
     }));
     expect(GLOBALS.FROZEN_STATE).toBe(false);
     _Radi.freeze();
@@ -99,11 +99,11 @@ describe('index.js', () => {
     const onMountSpy = sinon.spy();
     GLOBALS.ACTIVE_COMPONENTS = [
       {
-        onMount: onMountSpy
+        onMount: onMountSpy,
       },
       {
-        onMount: onMountSpy
-      }
+        onMount: onMountSpy,
+      },
     ];
 
     _Radi.unfreeze();

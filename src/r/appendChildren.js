@@ -14,7 +14,7 @@ const appendChildren = (element, children) => {
 
 export default appendChildren;
 
-export const appendChild = (element) => (child) => {
+export const appendChild = element => (child) => {
   if (!child) return;
 
   if (child instanceof Component) {
@@ -47,6 +47,5 @@ export const appendChild = (element) => (child) => {
 
   if (Array.isArray(child)) {
     appendChildren(element, child);
-    return;
   }
 };

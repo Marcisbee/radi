@@ -38,7 +38,7 @@ export default class Component {
   }
 
   copyObjToInstance(obj, handleItem = item => item) {
-    for (let key in obj) {
+    for (const key in obj) {
       if (typeof this[key] !== 'undefined') {
         throw new Error(`[Radi.js] Error: Trying to write for reserved variable \`${i}\``);
       }
@@ -54,12 +54,10 @@ export default class Component {
   }
 
   setProps(props) {
-    for (let key in props) {
+    for (const key in props) {
       this.o.props[key] = props[key];
       if (typeof this.o.props[key] === 'undefined') {
-        console.warn(
-          `[Radi.js] Warn: Creating a prop \`${key}\` that is not defined in component`
-        );
+        console.warn(`[Radi.js] Warn: Creating a prop \`${key}\` that is not defined in component`);
         this.addCustomField(key, props[key]);
         continue;
       }
@@ -69,9 +67,9 @@ export default class Component {
   }
 
   addNonEnumerableProperties(object) {
-    for (let key in object) {
+    for (const key in object) {
       Object.defineProperty(this, key, {
-        value: object[key]
+        value: object[key],
       });
     }
   }
@@ -81,7 +79,7 @@ export default class Component {
       get: () => this.$privateStore.getItem(key),
       set: value => this.$privateStore.setItem(key, value),
       enumerable: true,
-      configurable: true
+      configurable: true,
     });
     this[key] = value;
   }

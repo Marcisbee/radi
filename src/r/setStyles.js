@@ -4,9 +4,11 @@ const setStyles = (element, styles) => {
 
   if (typeof styles !== 'object' || Array.isArray(styles)) return;
 
-  for (let property in styles) {
+  for (const property in styles) {
     setStyle(element, property, styles[property]);
   }
+
+  return element.style;
 };
 
 const setStyle = (element, property, value) => {
@@ -14,7 +16,7 @@ const setStyle = (element, property, value) => {
   element.style[property] = parseValue(value);
 };
 
-const parseValue = (value) =>
-  typeof value === 'number' && !isNaN(value) ? `${value}px` : value;
+const parseValue = value =>
+  (typeof value === 'number' && !isNaN(value) ? `${value}px` : value);
 
 export default setStyles;

@@ -41,7 +41,7 @@ describe('r.js', () => {
   it('clones query when it\'s a node', () => {
     const query = document.createElement('span');
     expect(r(query)).toBeInstanceOf(HTMLSpanElement);
-    expect(r(query) === query).toBe(false)
+    expect(r(query) === query).toBe(false);
   });
 
   it('creates a document fragment when query is neither a node nor a string', () => {

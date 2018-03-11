@@ -8,7 +8,7 @@ describe('Radi.js', () => {
       actions: { hey: () => { console.log('hey'); } },
       $mixins: {},
       $view: () => document.createElement('h1'),
-      name: 'foobar'
+      name: 'foobar',
     });
   });
 });

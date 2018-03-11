@@ -2,7 +2,7 @@ import setStyles from './setStyles';
 
 // TODO: Add support for Listener (should be quite easy)
 const setAttributes = (element, attributes) => {
-  for (let key in attributes) {
+  for (const key in attributes) {
     const value = attributes[key];
 
     if (typeof value === 'undefined') continue;
@@ -24,6 +24,6 @@ const setAttributes = (element, attributes) => {
 
     element.setAttribute(key, value);
   }
-}
+};
 
 export default setAttributes;
