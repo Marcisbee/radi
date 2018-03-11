@@ -8,8 +8,9 @@ export default class Component {
   /**
    * @param {object} o
    * @param {string} [o.name]
-   * @param {object} [o.props]
+   * @param {object} [o.mixins]
    * @param {object} [o.state]
+   * @param {object} [o.props]
    * @param {object} [o.actions]
    * @param {function(Component): (HTMLElement|Component)} view
    */
@@ -60,6 +61,7 @@ export default class Component {
   }
 
   /**
+   * @private
    * @param {function(*): *} action
    * @returns {function(...*): *}
    */
@@ -88,6 +90,7 @@ export default class Component {
   }
 
   /**
+   * @private
    * @param {object} obj
    */
   addNonEnumerableProperties(obj) {
@@ -99,6 +102,7 @@ export default class Component {
   }
 
   /**
+   * @private
    * @param {string} key
    * @param {*} value
    * @returns {*}
@@ -147,8 +151,15 @@ export default class Component {
   /**
    * @returns {HTMLElement}
    */
-  $render() {
+  render() {
     this.mount();
     return this.$renderer.render();
+  }
+
+  /**
+   * @returns {boolean}
+   */
+  static isComponent() {
+    return true;
   }
 }

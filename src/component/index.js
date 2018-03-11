@@ -11,6 +11,13 @@ const component = o => class {
   constructor() {
     return new Component(o);
   }
+
+  /**
+   * @returns {boolean}
+   */
+  static isComponent() {
+    return true;
+  }
 };
 
 export default component;

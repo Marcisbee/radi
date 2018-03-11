@@ -22,15 +22,17 @@ export const appendChild = element => (child) => {
   if (!child) return;
 
   if (child instanceof Component) {
-    element.appendChild(child.$render());
+    element.appendChild(child.render());
     return;
   }
 
   if (child instanceof Listener) {
     let el = element.appendChild(listenerToNode(child.value));
     child.onValueChange((value) => {
+      const newEl = element.appendChild(listenerToNode(value));
+      el.parentNode.insertBefore(newEl, el);
       el.remove();
-      el = element.appendChild(listenerToNode(value));
+      el = newEl;
     });
     return;
   }

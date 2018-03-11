@@ -1,6 +1,5 @@
 import setAttributes from './setAttributes';
 import GLOBALS from '../consts/GLOBALS';
-import isRegisteredComponent from './utils/isRegisteredComponent';
 import getElementFromQuery from './utils/getElementFromQuery';
 import generateId from '../utils/generateId';
 import appendChildren from './appendChildren';
@@ -12,8 +11,9 @@ import appendChildren from './appendChildren';
  * @returns {(HTMLElement|Component)}
  */
 const r = (query, props, ...children) => {
-  if (isRegisteredComponent(query)) {
-    return new GLOBALS.REGISTERED[query]().setProps(props || {});
+  // TODO: component with children?
+  if (typeof query.isComponent === 'function' && query.isComponent()) {
+    return new query().setProps(props || {});
   }
 
   const element = getElementFromQuery(query);
