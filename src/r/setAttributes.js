@@ -1,6 +1,10 @@
 import setStyles from './setStyles';
 
 // TODO: Add support for Listener (should be quite easy)
+/**
+ * @param {HTMLElement} element
+ * @param {object} attributes
+ */
 const setAttributes = (element, attributes) => {
   for (const key in attributes) {
     const value = attributes[key];

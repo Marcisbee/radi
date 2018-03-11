@@ -13,6 +13,7 @@ export default class Renderer {
   }
 
   render() {
+    // TODO: component.$view can be a Component too and not an HTMLElement?
     this.$html.appendChild(this.component.$view);
     this.$html.destroy = () => this.destroyHtml();
     return this.$html;

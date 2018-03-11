@@ -1,8 +1,11 @@
 import GLOBALS from '../../consts/GLOBALS';
-import createElement from './createElement';
 
+/**
+ * @param {string} query
+ * @returns {HTMLElement}
+ */
 const cacheHTML = (query) =>
   GLOBALS.HTML_CACHE[query] ||
-  (GLOBALS.HTML_CACHE[query] = createElement(query));
+  (GLOBALS.HTML_CACHE[query] = document.createElement(query));
 
 export default cacheHTML;

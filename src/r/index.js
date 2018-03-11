@@ -5,6 +5,12 @@ import getElementFromQuery from './utils/getElementFromQuery';
 import generateId from '../utils/generateId';
 import appendChildren from './appendChildren';
 
+/**
+ * @param {*} query
+ * @param {object} props
+ * @param {...*} children
+ * @returns {(HTMLElement|Component)}
+ */
 const r = (query, props, ...children) => {
   if (isRegisteredComponent(query)) {
     return new GLOBALS.REGISTERED[query]().setProps(props || {});

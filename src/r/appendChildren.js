@@ -4,9 +4,8 @@ import isNode from './utils/isNode';
 import listenerToNode from './utils/listenerToNode';
 
 /**
- * appendChildren
  * @param {HTMLElement} element
- * @param {Array<any>} children
+ * @param {*[]} children
  */
 const appendChildren = (element, children) => {
   children.forEach(appendChild(element));
@@ -14,6 +13,11 @@ const appendChildren = (element, children) => {
 
 export default appendChildren;
 
+
+/**
+ * @param {HTMLElement} element
+ * @returns {function(*)}
+ */
 export const appendChild = element => (child) => {
   if (!child) return;
 
@@ -28,6 +32,7 @@ export const appendChild = element => (child) => {
       el.remove();
       el = element.appendChild(listenerToNode(value));
     });
+    return;
   }
 
   if (typeof child === 'function') {

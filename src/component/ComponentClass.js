@@ -5,6 +5,14 @@ import Renderer from './utils/Renderer';
 import PrivateStore from './utils/PrivateStore';
 
 export default class Component {
+  /**
+   * @param {object} o
+   * @param {string} [o.name]
+   * @param {object} [o.props]
+   * @param {object} [o.state]
+   * @param {object} [o.actions]
+   * @param {function(Component): (HTMLElement|Component)} view
+   */
   constructor(o) {
     this.name = o.name;
 
@@ -37,6 +45,11 @@ export default class Component {
     });
   }
 
+  /**
+   * @private
+   * @param {object} obj
+   * @param {function(*): *} [handleItem=item => item]
+   */
   copyObjToInstance(obj, handleItem = item => item) {
     for (const key in obj) {
       if (typeof this[key] !== 'undefined') {
@@ -46,6 +59,10 @@ export default class Component {
     }
   }
 
+  /**
+   * @param {function(*): *} action
+   * @returns {function(...*): *}
+   */
   handleAction(action) {
     return (...args) => {
       if (GLOBALS.FROZEN_STATE) return null;
@@ -53,6 +70,10 @@ export default class Component {
     };
   }
 
+  /**
+   * @param {object} props
+   * @returns {Component}
+   */
   setProps(props) {
     for (const key in props) {
       this.o.props[key] = props[key];
@@ -66,14 +87,22 @@ export default class Component {
     return this;
   }
 
-  addNonEnumerableProperties(object) {
-    for (const key in object) {
+  /**
+   * @param {object} obj
+   */
+  addNonEnumerableProperties(obj) {
+    for (const key in obj) {
       Object.defineProperty(this, key, {
-        value: object[key],
+        value: obj[key],
       });
     }
   }
 
+  /**
+   * @param {string} key
+   * @param {*} value
+   * @returns {*}
+   */
   addCustomField(key, value) {
     Object.defineProperty(this, key, {
       get: () => this.$privateStore.getItem(key),
@@ -84,10 +113,18 @@ export default class Component {
     this[key] = value;
   }
 
+  /**
+   * @param {string} key
+   * @param {Listener} listener
+   */
   addListener(key, listener) {
     this.$privateStore.addListener(key, listener);
   }
 
+  /**
+   * @param {string} key
+   * @returns {boolean}
+   */
   isMixin(key) {
     return typeof this.$mixins[key] !== 'undefined';
   }
@@ -107,6 +144,9 @@ export default class Component {
     return this.$view;
   }
 
+  /**
+   * @returns {HTMLElement}
+   */
   $render() {
     this.mount();
     return this.$renderer.render();
