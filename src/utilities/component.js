@@ -1,5 +1,12 @@
 import Component from './ComponentClass';
 
-export default function component(o) {
-  return Component.bind(this, o);
+const component = (o) => {
+  return class {
+    constructor() {
+      const c = new Component(o)
+      return c;
+    }
+  };
 }
+
+export default component;

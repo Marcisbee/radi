@@ -1,7 +1,7 @@
 import Listener from './Listener';
 
-const l = (radiInstance, key, childPath = '') => {
-  const listener = new Listener(radiInstance, key, childPath);
+const l = (component, key, childPath = '') => {
+  const listener = new Listener(component, key, childPath);
   return listener;
 };
 

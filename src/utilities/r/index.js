@@ -54,7 +54,7 @@ export const appendChild = (element) => (child) => {
   if (!child) return;
 
   if (child instanceof Component) {
-    element.appendChild(child.__radi().$render());
+    element.appendChild(child.$render());
     return;
   }
 

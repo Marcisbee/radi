@@ -6,9 +6,9 @@ import l from '../l';
 describe('component.js', () => {
   it('works without crashing', () => {
     const TestComponent = component({
-      view: function(radi) {
+      view: function(component) {
         // Test ()
-        return <h1>hey { l(radi, 'sample') }</h1>;
+        return <h1>hey { l(component, 'sample') }</h1>;
       },
       state: {
         sample: 'World'
@@ -17,9 +17,9 @@ describe('component.js', () => {
         setSample() { this.sample = 'New World!' }
       }
     });
-    const radiInstance = new TestComponent().__radi();
-    console.log(radiInstance.$render().childNodes[0].innerHTML)
-    radiInstance.setSample();
-    console.log(radiInstance.$render().childNodes[0].innerHTML)
+    const c = new TestComponent();
+    console.log(c.$render().childNodes[0].innerHTML);
+    c.setSample();
+    console.log(c.$render().childNodes[0].innerHTML);
   });
 });

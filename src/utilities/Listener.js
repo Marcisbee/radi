@@ -1,15 +1,15 @@
 import clone from './clone';
 
 export default class Listener {
-  constructor(radiInstance, key, childPath) {
-    this.radiInstance = radiInstance;
+  constructor(component, key, childPath) {
+    this.component = component;
     this.key = key;
     this.childPath = childPath;
     this.value = null;
     this.changeListeners = [];
 
-    this.radiInstance.addListener(key, this);
-    this.handleUpdate(this.radiInstance[this.key]);
+    this.component.addListener(key, this);
+    this.handleUpdate(this.component[this.key]);
   }
 
   handleUpdate(value) {
