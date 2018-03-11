@@ -1,7 +1,8 @@
-
 node_modules/
 .nyc_output/
 
-\.DS_Store
-\.cache
+.DS_Store
+.cache
 yarn-error.log
+
+.vscode/
