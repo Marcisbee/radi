@@ -3,6 +3,7 @@ import clone from '../utils/clone';
 import generateId from '../utils/generateId';
 import Renderer from './utils/Renderer';
 import PrivateStore from './utils/PrivateStore';
+import appendChildren from '../r/appendChildren';
 
 export default class Component {
   /**
@@ -30,6 +31,7 @@ export default class Component {
     });
 
     this.addCustomField('children', document.createDocumentFragment());
+    this.children.forceUpdate = () => this.forceUpdate();
     if (children) this.setChildren(children);
 
     this.copyObjToInstance(this.$mixins);
@@ -97,13 +99,7 @@ export default class Component {
    * @param {Node[]|*[]} children
    */
   setChildren(children) {
-    for (const child of children) {
-      if (child instanceof Node) {
-        this.children.appendChild(child);
-        continue;
-      }
-      this.children.appendChild(document.createTextNode(child));
-    }
+    appendChildren(this.children, children);
     // Update listeners
     this.children = this.children;
   }
@@ -142,6 +138,13 @@ export default class Component {
    */
   addListener(key, listener) {
     this.$privateStore.addListener(key, listener);
+  }
+
+  /**
+   * @returns {Node[]|*[]}
+   */
+  forceUpdate() {
+    return this.children = this.children;
   }
 
   /**
