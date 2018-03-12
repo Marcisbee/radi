@@ -1,4 +1,5 @@
 import setStyles from './setStyles';
+import Listener from '../l/Listener';
 
 // TODO: Add support for Listener (should be quite easy)
 /**
@@ -12,7 +13,7 @@ const setAttributes = (element, attributes) => {
     if (typeof value === 'undefined') continue;
 
     if (key === 'style') {
-      setStyles(element, attributes[key]);
+      setStyles(element, value);
       continue;
     }
 
@@ -23,6 +24,22 @@ const setAttributes = (element, attributes) => {
 
     if (key === 'html') {
       element.innerHTML = value;
+      continue;
+    }
+
+    if (value instanceof Listener) {
+      const listener = value;
+      element.setAttribute(key, listener.value);
+
+      if (!element.attributeListeners) element.attributeListeners = [];
+      element.attributeListeners.push({
+        attributeKey: key,
+        listener
+      });
+
+      listener.onValueChange((value) => {
+        element.setAttribute(key, value);
+      });
       continue;
     }
 

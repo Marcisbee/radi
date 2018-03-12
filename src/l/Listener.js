@@ -34,6 +34,10 @@ export default class Listener {
     changeListener(this.value);
   }
 
+  clearChangeCallbacks() {
+    this.changeListener = [];
+  }
+
   /**
    * @private
    * @param {*} value
