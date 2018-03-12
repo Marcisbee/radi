@@ -1,18 +1,16 @@
 /**
- * @param {Node} oldEl
- * @param {Node} newEl
+ * @param {Node} oldElement
+ * @param {Node} newElement
  * @return {Node}
  */
-const copyAttributeListeners = (oldEl, newEl) => {
-  if (!oldEl.attributeListeners) return;
-  for (const listener of oldEl.attributeListeners) {
-    listener.listener.clearChangeCallbacks();
-    listener.listener.onValueChange((value) => {
-      newEl.setAttribute(listener.attributeKey, value);
-    });
+const copyAttributeListeners = (oldElement, newElement) => {
+  if (!oldElement.attributeListeners) return;
+
+  for (const listener of oldElement.attributeListeners) {
+    listener.updateElement(newElement);
   }
-  newEl.attributeListeners = oldEl.attributeListeners;
-  return newEl;
+
+  return newElement;
 };
 
 export default copyAttributeListeners;

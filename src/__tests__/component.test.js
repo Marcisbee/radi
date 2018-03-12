@@ -19,24 +19,38 @@ describe('component.js', () => {
             hey { l(component, 'sample') }
             <Title>{l(component, 'sample')}</Title>
             <span foo={l(component, 'bar')} />
+            <div style={l(component, 'style')} />
           </h1>
         );
       },
       state: {
         sample: 'World',
-        bar: 'baz'
+        bar: 'baz',
+        style: { color: 'green', width: 200 },
       },
       actions: {
         setSample() { this.sample = 'New World!' },
         setFoo() { this.bar = 'foo' },
+        setStyles() { this.style = { color: 'orange', width: 400 } },
       }
     });
     const c = new TestComponent();
     console.log(c.render().childNodes[0].innerHTML);
-    expect(c.render().childNodes[0].innerHTML).toBe('hey World<h1>WorldsdWorld</h1><span foo="baz"></span>');
+    expect(c.render().childNodes[0].innerHTML).toBe(
+      'hey World' +
+      '<h1>WorldsdWorld</h1>' +
+      '<span foo="baz"></span>' +
+      '<div style="color: green; width: 200px;"></div>'
+    );
     c.setSample();
     c.setFoo();
+    c.setStyles();
     console.log(c.render().childNodes[0].innerHTML);
-    expect(c.render().childNodes[0].innerHTML).toBe('hey New World!<h1>New World!sdWorld</h1><span foo="foo"></span>');
+    expect(c.render().childNodes[0].innerHTML).toBe(
+      'hey New World!' +
+      '<h1>New World!sdWorld</h1>' +
+      '<span foo="foo"></span>' +
+      '<div style="color: orange; width: 400px;"></div>'
+    );
   });
 });
