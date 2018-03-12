@@ -8,8 +8,8 @@ const component = o => class {
   /**
    * @returns {Component}
    */
-  constructor() {
-    return new Component(o);
+  constructor(children) {
+    return new Component(o, children);
   }
 
   /**

@@ -20,7 +20,8 @@ export default class Listener {
    * @param {*} value
    */
   handleUpdate(value) {
-    this.value = this.getShallowValue(value);
+    this.value =
+      this.childPath.length !== 0 ? this.getShallowValue(value) : value;
     for (const changeListener of this.changeListeners) {
       changeListener(value);
     }
@@ -40,7 +41,6 @@ export default class Listener {
    */
   getShallowValue(value) {
     const cloned = clone(value);
-    if (!this.childPath) return cloned;
     let shallowValue = cloned;
     for (const pathNestingLevel of this.childPath) {
       shallowValue = shallowValue[pathNestingLevel];

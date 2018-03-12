@@ -38,6 +38,7 @@ export default class PrivateStore {
       this.createItemWrapper(key);
     }
     this.store[key].listeners.push(listener);
+    listener.handleUpdate(this.store[key].value);
     return listener;
   }
 

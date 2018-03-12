@@ -2,6 +2,7 @@ import Component from '../component/ComponentClass';
 import Listener from '../l/Listener.js';
 import isNode from './utils/isNode';
 import listenerToNode from './utils/listenerToNode';
+import getParentNode from './utils/getParentNode';
 
 /**
  * @param {HTMLElement} element
@@ -18,7 +19,7 @@ export default appendChildren;
  * @param {HTMLElement} element
  * @returns {function(*)}
  */
-export const appendChild = element => (child) => {
+export const appendChild = element => (child, i) => {
   if (!child) return;
 
   if (child instanceof Component) {
@@ -28,11 +29,15 @@ export const appendChild = element => (child) => {
 
   if (child instanceof Listener) {
     let el = element.appendChild(listenerToNode(child.value));
+
     child.onValueChange((value) => {
-      const newEl = element.appendChild(listenerToNode(value));
-      el.parentNode.insertBefore(newEl, el);
-      el.remove();
-      el = newEl;
+      if (el.parentNode || el.childNodes.length > 0) {
+        const newEl = element.appendChild(listenerToNode(value));
+        const parentNode = getParentNode(el);
+        parentNode.insertBefore(newEl, el);
+        el.remove();
+        el = newEl;
+      }
     });
     return;
   }
@@ -48,7 +53,7 @@ export const appendChild = element => (child) => {
   }
 
   if (isNode(child)) {
-    element.appendChild(child);
+    element.appendChild(child.cloneNode(true));
     return;
   }
 

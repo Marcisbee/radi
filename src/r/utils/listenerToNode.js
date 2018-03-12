@@ -5,7 +5,7 @@ import isNode from './isNode';
  * @returns {Node}
  */
 const listenerToNode = (value) => {
-  if (isNode(value)) return value;
+  if (isNode(value)) return value.cloneNode(true);
   return document.createTextNode(value);
 };
 

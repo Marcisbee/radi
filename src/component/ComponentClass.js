@@ -13,8 +13,9 @@ export default class Component {
    * @param {object} [o.props]
    * @param {object} [o.actions]
    * @param {function(Component): (HTMLElement|Component)} view
+   * @param {Node[]|*[]} [children]
    */
-  constructor(o) {
+  constructor(o, children) {
     this.name = o.name;
 
     this.addNonEnumerableProperties({
@@ -27,6 +28,9 @@ export default class Component {
       // have custom setters
       $privateStore: new PrivateStore(),
     });
+
+    this.addCustomField('children', document.createDocumentFragment());
+    if (children) this.setChildren(children);
 
     this.copyObjToInstance(this.$mixins);
     this.copyObjToInstance(this.$state);
@@ -87,6 +91,21 @@ export default class Component {
       this[key] = props[key];
     }
     return this;
+  }
+
+  /**
+   * @param {Node[]|*[]} children
+   */
+  setChildren(children) {
+    for (const child of children) {
+      if (child instanceof Node) {
+        this.children.appendChild(child);
+        continue;
+      }
+      this.children.appendChild(document.createTextNode(child));
+    }
+    // Update listeners
+    this.children = this.children;
   }
 
   /**
