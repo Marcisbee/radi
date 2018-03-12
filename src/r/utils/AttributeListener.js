@@ -34,7 +34,6 @@ export default class AttributeListener {
    * @param {Node} newElement
    */
   updateElement(newElement) {
-    newElement.attributeListeners = this.element.attributeListeners;
     this.element = newElement;
     return this.element;
   }
