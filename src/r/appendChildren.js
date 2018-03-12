@@ -19,7 +19,7 @@ export default appendChildren;
  * @param {HTMLElement} element
  * @returns {function(*)}
  */
-export const appendChild = element => (child, i) => {
+export const appendChild = element => (child) => {
   if (!child) return;
 
   if (child instanceof Component) {
