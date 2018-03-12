@@ -22,13 +22,13 @@ const appendChild = element => (child) => {
     return;
   }
 
-  if (typeof child === 'function') {
-    child(element);
+  if (Array.isArray(child)) {
+    appendChildren(element, child);
     return;
   }
 
-  if (typeof child === 'string' || typeof child === 'number') {
-    element.appendChild(document.createTextNode(child));
+  if (typeof child === 'function') {
+    child(element);
     return;
   }
 
@@ -37,9 +37,7 @@ const appendChild = element => (child) => {
     return;
   }
 
-  if (Array.isArray(child)) {
-    appendChildren(element, child);
-  }
+  element.appendChild(document.createTextNode(child));
 };
 
 export default appendChild;
