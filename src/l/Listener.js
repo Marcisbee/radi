@@ -22,13 +22,6 @@ export default class Listener {
    */
   handleUpdate(value) {
     this.value = this.processValue(this.getShallowValue(value));
-    console.log(this.value)
-    if (this.value instanceof Node) {
-      console.log(this.value)
-      console.log(this.value.childNodes)
-      console.log(this.value.childNodes[0])
-      console.log(this.value.childNodes[0].wholeText)
-    }
     for (const changeListener of this.changeListeners) {
       changeListener(this.value);
     }

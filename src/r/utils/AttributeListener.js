@@ -5,7 +5,7 @@ export default class AttributeListener {
    * @param {object} obj
    * @param {string} obj.attributeKey
    * @param {Listener} obj.listener
-   * @param {Node} element
+   * @param {Node} obj.element
    */
   constructor({ attributeKey, listener, element }) {
     this.attributeKey = attributeKey;

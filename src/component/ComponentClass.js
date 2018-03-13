@@ -99,9 +99,7 @@ export default class Component {
    * @param {Node[]|*[]} children
    */
   setChildren(children) {
-    appendChildren(this.children, children);
-    // Update listeners
-    this.children = this.children;
+    this.children = children;
   }
 
   /**

@@ -11,7 +11,6 @@ const copyAttributeListeners = (oldElement, newElement) => {
   }
 
   newElement.attributeListeners = oldElement.attributeListeners;
-
   return newElement;
 };
 

@@ -7,7 +7,7 @@ describe('component.js', () => {
   it('works without crashing', async () => {
     const Title = component({
       view: (component) => {
-        return <h1>{l(component, 'children')}sd{component.children}</h1>;
+        return <h1>{component.children}</h1>;
       }
     });
 
@@ -51,7 +51,7 @@ describe('component.js', () => {
     console.log(c.render().childNodes[0].innerHTML);
     expect(c.render().childNodes[0].innerHTML).toBe(
       'hey World' +
-      '<h1>WorldsdWorld</h1>' +
+      '<h1>World</h1>' +
       '<div>World!!</div>' +
       '<div><div>A</div></div>' +
       '<div>' +
@@ -70,13 +70,14 @@ describe('component.js', () => {
     console.log(c.render().childNodes[0].innerHTML);
     expect(c.render().childNodes[0].innerHTML).toBe(
       'hey New World!' +
-      '<h1>New World!sdWorld</h1>' +
+      '<h1>New World!</h1>' +
       '<div>New World!!!</div>' +
       '<div><div>B</div></div>' +
       '<div>' +
         '<span>N</span>' +
         '<span>e</span>' +
         '<span>w</span>' +
+        '<span> </span>' +
         '<span>W</span>' +
         '<span>o</span>' +
         '<span>r</span>' +
