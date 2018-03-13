@@ -1,4 +1,3 @@
-import isNode from './isNode';
 import appendChildren from '../appendChildren';
 import ensureArray from './ensureArray';
 
