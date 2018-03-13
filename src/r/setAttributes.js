@@ -1,5 +1,5 @@
 import setStyles from './setStyles';
-import Listener from '../l/Listener';
+import Listener from '../listen/Listener';
 import AttributeListener from './utils/AttributeListener';
 
 /**

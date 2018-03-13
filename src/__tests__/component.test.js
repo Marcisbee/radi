@@ -1,7 +1,8 @@
 import GLOBALS from '../consts/GLOBALS';
 import component from '../component';
+import Component from '../component/Component';
 import r from '../r';
-import l from '../l';
+import l from '../listen';
 
 afterEach(() => {
   GLOBALS.ACTIVE_COMPONENTS = {};
@@ -9,7 +10,8 @@ afterEach(() => {
 
 /** @jsx r **/
 describe('component.js', () => {
-  it('works without crashing', async () => {
+  // This is more of an integration test really
+  test('the full component API works', () => {
     const Title = component({
       view: (component) => {
         return <h1>{component.children}</h1>;
@@ -21,7 +23,7 @@ describe('component.js', () => {
         // Test ()
         return (
           <h1>
-            hey { l(component, 'sample') }
+            hey {l(component, 'sample')}
             <Title>{l(component, 'sample')}</Title>
             <div>
               {l(component, 'sample').process(value => value + '!!')}
@@ -93,5 +95,14 @@ describe('component.js', () => {
       '<span foo="foo"></span>' +
       '<div style="color: orange; width: 400px;"></div>'
     );
+  });
+
+  it('prepares the component class for instantiating', () => {
+    const TestComponent = component({ view: () => document.createElement('h1') });
+    expect(TestComponent.isComponent()).toBe(true);
+    const instance = new TestComponent([1, 2, 3]);
+    expect(instance).toBeInstanceOf(Component);
+    expect(instance.$view).toBeInstanceOf(HTMLHeadingElement);
+    expect(instance.children).toEqual([1, 2, 3]);
   });
 });

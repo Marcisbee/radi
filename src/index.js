@@ -1,5 +1,5 @@
 import r from './r';
-import l from './l';
+import listen from './listen';
 import component from './component';
 import GLOBALS from './consts/GLOBALS';
 import mount from './mount';
@@ -9,7 +9,8 @@ export const _Radi = {
   version: GLOBALS.VERSION,
   activeComponents: GLOBALS.ACTIVE_COMPONENTS,
   r,
-  l,
+  listen,
+  l: listen,
   component,
   mount,
   freeze: () => {

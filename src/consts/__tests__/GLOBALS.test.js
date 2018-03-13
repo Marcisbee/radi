@@ -1,11 +1,11 @@
-import GLOBALS from "../GLOBALS";
+import GLOBALS from '../GLOBALS';
 
-describe("GLOBALS.js", () => {
-  it("exports constants", () => {
-    expect(GLOBALS.MIX).toBeDefined();
-    expect(GLOBALS.FROZEN_STATE).toBeDefined();
-    expect(GLOBALS.VERSION).toBeDefined();
-    expect(GLOBALS.ACTIVE_COMPONENTS).toBeDefined();
-    expect(GLOBALS.HTML_CACHE).toBeDefined();
+describe('GLOBALS.js', () => {
+  it('exports constants', () => {
+    expect(typeof GLOBALS.MIX).toB('object');
+    expect(typeof GLOBALS.FROZEN_STATE).toBe('boolean');
+    expect(typeof GLOBALS.VERSION).toBe('string');
+    expect(typeof GLOBALS.ACTIVE_COMPONENTS).toBe('object');
+    expect(typeof GLOBALS.HTML_CACHE).toBe('object');
   });
 });

@@ -1,5 +1,5 @@
 import Component from '../component/Component';
-import Listener from '../l/Listener.js';
+import Listener from '../listen/Listener.js';
 import isNode from './utils/isNode';
 import getParentNode from './utils/getParentNode';
 import copyElementListeners from './utils/copyElementListeners';
