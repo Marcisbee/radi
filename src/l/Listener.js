@@ -21,7 +21,9 @@ export default class Listener {
    * @param {*} value
    */
   handleUpdate(value) {
-    this.value = this.processValue(this.getShallowValue(value));
+    this.value = this.processValue(
+      this.flattenListeners(this.getShallowValue(value))
+    );
     for (const changeListener of this.changeListeners) {
       changeListener(this.value);
     }
@@ -60,5 +62,22 @@ export default class Listener {
       shallowValue = shallowValue[pathNestingLevel];
     }
     return shallowValue;
+  }
+
+  /**
+   * Flattens out listeners to their value, because listening on a listener
+   * is probably not what you want.
+   * @private
+   * @param {*} value
+   * @returns {*}
+   */
+  flattenListeners(value) {
+    if (Array.isArray(value)) {
+      return value.map(this.flattenListeners);
+    }
+    if (value instanceof Listener) {
+      return this.flattenListeners(value.value);
+    }
+    return value;
   }
 }
