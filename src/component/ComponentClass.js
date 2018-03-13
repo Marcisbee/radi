@@ -177,6 +177,14 @@ export default class Component {
   }
 
   /**
+   * @returns {HTMLElement}
+   */
+  destroy() {
+    this.unmount();
+    return this.$renderer.destroyHtml();
+  }
+
+  /**
    * @returns {boolean}
    */
   static isComponent() {

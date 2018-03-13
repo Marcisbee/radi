@@ -1,4 +1,4 @@
-const { mount } = require('../../src/index.js');
+const mount = require('../../src/mount.js').default;
 
 var main = require('./app');
 

@@ -4,28 +4,27 @@ export default class Renderer {
    */
   constructor(component) {
     this.component = component;
-    this.$html = document.createDocumentFragment();
-  }
-
-  /**
-   * @returns {HTMLElement}
-   */
-  destroyHtml() {
-    const oldRootEl = this.$html;
-    const newRootEl = oldRootEl.cloneNode(false);
-    oldRootEl.parentNode.insertBefore(newRootEl, oldRootEl);
-    this.component.unmount();
-    oldRootEl.remove();
-    return newRootEl;
+    this.html = document.createDocumentFragment();
   }
 
   /**
    * @returns {HTMLElement}
    */
   render() {
-    // TODO: component.$view can be a Component too and not an HTMLElement?
-    this.$html.appendChild(this.component.$view);
-    this.$html.destroy = () => this.destroyHtml();
-    return this.$html;
+    this.html.appendChild(this.component.$view);
+    this.html.destroy = () => this.destroyHtml();
+    return this.html;
+  }
+
+  /**
+   * @returns {HTMLElement}
+   */
+  destroyHtml() {
+    // Empty document fragment, so nothing to destroy
+    if (!this.html.childNodes) return oldRootEl;
+    for (const childNode of this.html.childNodes) {
+      this.html.removeChild(childNode);
+    }
+    return this.html;
   }
 }
