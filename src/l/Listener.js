@@ -11,6 +11,7 @@ export default class Listener {
     this.childPath = path.slice(0, path.length - 1);
     this.value = null;
     this.changeListeners = [];
+    this.processValue = value => value;
 
     this.component.addListener(this.key, this);
     this.handleUpdate(this.component[this.key]);
@@ -20,9 +21,16 @@ export default class Listener {
    * @param {*} value
    */
   handleUpdate(value) {
-    this.value = this.getShallowValue(value);
+    this.value = this.processValue(this.getShallowValue(value));
+    console.log(this.value)
+    if (this.value instanceof Node) {
+      console.log(this.value)
+      console.log(this.value.childNodes)
+      console.log(this.value.childNodes[0])
+      console.log(this.value.childNodes[0].wholeText)
+    }
     for (const changeListener of this.changeListeners) {
-      changeListener(value);
+      changeListener(this.value);
     }
   }
 
@@ -35,7 +43,17 @@ export default class Listener {
   }
 
   clearChangeCallbacks() {
-    this.changeListener = [];
+    this.changeListeners = [];
+  }
+
+  /**
+   * @param {function(*): *} processValue
+   * @returns {function(*): *}
+   */
+  process(processValue) {
+    this.processValue = processValue;
+    this.handleUpdate(this.value);
+    return this;
   }
 
   /**

@@ -1,4 +1,6 @@
 import isNode from './isNode';
+import appendChildren from '../appendChildren';
+import ensureArray from './ensureArray';
 
 /**
  * @param {*} value - Value of the listener
@@ -10,8 +12,10 @@ const listenerToNode = (value) => {
       childNode.cloneNode(true)
     );
   }
-  if (isNode(value)) return [value.cloneNode(true)];
-  return [document.createTextNode(value)];
+
+  const element = document.createDocumentFragment();
+  appendChildren(element, ensureArray(value));
+  return listenerToNode(element);
 };
 
 export default listenerToNode;

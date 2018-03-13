@@ -18,6 +18,19 @@ describe('component.js', () => {
           <h1>
             hey { l(component, 'sample') }
             <Title>{l(component, 'sample')}</Title>
+            <div>
+              {l(component, 'sample').process(value => value + '!!')}
+            </div>
+            <div>
+              {l(component, 'sample').process(
+                value => (value === 'World' ? <div>A</div> : <div>B</div>)
+              )}
+            </div>
+            <div>
+              {l(component, 'sample').process(value =>
+                value.split('').map(char => <span>{char}</span>)
+              )}
+            </div>
             <span foo={l(component, 'bar')} />
             <div style={l(component, 'style')} />
           </h1>
@@ -39,6 +52,15 @@ describe('component.js', () => {
     expect(c.render().childNodes[0].innerHTML).toBe(
       'hey World' +
       '<h1>WorldsdWorld</h1>' +
+      '<div>World!!</div>' +
+      '<div><div>A</div></div>' +
+      '<div>' +
+        '<span>W</span>' +
+        '<span>o</span>' +
+        '<span>r</span>' +
+        '<span>l</span>' +
+        '<span>d</span>' +
+      '</div>' +
       '<span foo="baz"></span>' +
       '<div style="color: green; width: 200px;"></div>'
     );
@@ -49,6 +71,19 @@ describe('component.js', () => {
     expect(c.render().childNodes[0].innerHTML).toBe(
       'hey New World!' +
       '<h1>New World!sdWorld</h1>' +
+      '<div>New World!!!</div>' +
+      '<div><div>B</div></div>' +
+      '<div>' +
+        '<span>N</span>' +
+        '<span>e</span>' +
+        '<span>w</span>' +
+        '<span>W</span>' +
+        '<span>o</span>' +
+        '<span>r</span>' +
+        '<span>l</span>' +
+        '<span>d</span>' +
+        '<span>!</span>' +
+      '</div>' +
       '<span foo="foo"></span>' +
       '<div style="color: orange; width: 400px;"></div>'
     );
