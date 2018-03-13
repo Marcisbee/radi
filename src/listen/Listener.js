@@ -7,8 +7,8 @@ export default class Listener {
    */
   constructor(component, ...path) {
     this.component = component;
-    this.key = path[path.length - 1];
-    this.childPath = path.slice(0, path.length - 1);
+    this.key = path[0];
+    this.childPath = path.slice(1, path.length);
     this.value = null;
     this.changeListeners = [];
     this.processValue = value => value;
@@ -35,10 +35,6 @@ export default class Listener {
     changeListener(this.value);
   }
 
-  clearChangeCallbacks() {
-    this.changeListeners = [];
-  }
-
   /**
    * @param {function(*): *} processValue
    * @returns {function(*): *}
@@ -54,8 +50,8 @@ export default class Listener {
    * @param {*} value
    */
   getShallowValue(value) {
-    let shallowValue = value;
     if (!this.childPath) return value;
+    let shallowValue = value;
     for (const pathNestingLevel of this.childPath) {
       shallowValue = shallowValue[pathNestingLevel];
     }

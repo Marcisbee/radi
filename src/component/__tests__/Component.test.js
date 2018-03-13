@@ -9,7 +9,7 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  global.fakeView = undefined;
+  delete global.fakeView;
 });
 
 afterEach(() => {
@@ -17,10 +17,6 @@ afterEach(() => {
 });
 
 describe('Component.js', () => {
-  it('instantiates without crashing', () => {
-    const component = new Component({ view: fakeView }, []);
-  });
-
   it('instantiates correctly', () => {
     const actionSpy = sinon.spy();
     const viewSpy = sinon.spy();
