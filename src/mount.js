@@ -1,3 +1,5 @@
+import Component from './component/Component';
+
 /**
  * @param {Component} component
  * @param {string} id

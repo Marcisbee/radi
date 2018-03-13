@@ -21,7 +21,7 @@ export default class Component {
 
     this.addNonEnumerableProperties({
       $id: generateId(),
-      $mixins: o.$mixins || {},
+      $mixins: o.mixins || {},
       $state: clone(o.state || {}),
       $props: clone(o.props || {}),
       $actions: o.actions || {},
@@ -30,8 +30,7 @@ export default class Component {
       $privateStore: new PrivateStore(),
     });
 
-    this.addCustomField('children', document.createDocumentFragment());
-    this.children.forceUpdate = () => this.forceUpdate();
+    this.addCustomField('children', []);
     if (children) this.setChildren(children);
 
     this.copyObjToInstance(this.$mixins);
@@ -42,14 +41,11 @@ export default class Component {
 
     this.addNonEnumerableProperties({
       $view: o.view(this),
+      $renderer: new Renderer(this),
     });
 
     this.$view.unmount = this.unmount.bind(this);
     this.$view.mount = this.mount.bind(this);
-
-    this.addNonEnumerableProperties({
-      $renderer: new Renderer(this),
-    });
   }
 
   /**
@@ -74,7 +70,7 @@ export default class Component {
   handleAction(action) {
     return (...args) => {
       if (GLOBALS.FROZEN_STATE) return null;
-      return action.call(this, args);
+      return action.bind(this)(...args);
     };
   }
 
@@ -84,8 +80,8 @@ export default class Component {
    */
   setProps(props) {
     for (const key in props) {
-      this.o.props[key] = props[key];
-      if (typeof this.o.props[key] === 'undefined') {
+      this.$props[key] = props[key];
+      if (typeof this.$props[key] === 'undefined') {
         console.warn(`[Radi.js] Warn: Creating a prop \`${key}\` that is not defined in component`);
         this.addCustomField(key, props[key]);
         continue;
@@ -100,6 +96,7 @@ export default class Component {
    */
   setChildren(children) {
     this.children = children;
+    return this;
   }
 
   /**
@@ -108,6 +105,7 @@ export default class Component {
    */
   addNonEnumerableProperties(obj) {
     for (const key in obj) {
+      if (typeof this[key] !== 'undefined') continue;
       Object.defineProperty(this, key, {
         value: obj[key],
       });
@@ -125,7 +123,6 @@ export default class Component {
       get: () => this.$privateStore.getItem(key),
       set: value => this.$privateStore.setItem(key, value),
       enumerable: true,
-      configurable: true,
     });
     this[key] = value;
   }
@@ -136,13 +133,6 @@ export default class Component {
    */
   addListener(key, listener) {
     this.$privateStore.addListener(key, listener);
-  }
-
-  /**
-   * @returns {Node[]|*[]}
-   */
-  forceUpdate() {
-    return this.children = this.children;
   }
 
   /**
@@ -164,8 +154,7 @@ export default class Component {
     if (typeof this.$actions.onDestroy === 'function') {
       this.$actions.onDestroy(this);
     }
-    delete GLOBALS.ACTIVE_COMPONENT[this.$id];
-    return this.$view;
+    delete GLOBALS.ACTIVE_COMPONENTS[this.$id];
   }
 
   /**

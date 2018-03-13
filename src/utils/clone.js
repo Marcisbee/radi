@@ -5,7 +5,7 @@
 const clone = (obj) => {
   if (typeof obj !== 'object') return obj;
   if (obj === null) return obj;
-  if (Array.isArray(obj)) return obj.map(element => clone(element));
+  if (Array.isArray(obj)) return obj.map(clone);
 
   const cloned = {};
   for (const key in obj) {

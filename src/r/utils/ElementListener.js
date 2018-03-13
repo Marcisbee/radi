@@ -9,10 +9,8 @@ export default class ElementListener {
   constructor({ listener, element }) {
     this.listener = listener;
     this.element = element;
-    this.listenerAsNode = listenerToNode(listener.value);
+    this.listenerAsNode = [];
     this.handleValueChange = this.handleValueChange.bind(this);
-
-    this.value = null;
   }
 
   /**
@@ -21,11 +19,6 @@ export default class ElementListener {
   attach() {
     if (!this.element.listeners) this.element.listeners = [];
     this.element.listeners.push(this);
-
-    for (const node of this.listenerAsNode){
-      this.element.appendChild(node);
-    }
-
     this.listener.onValueChange(this.handleValueChange);
   }
 
@@ -33,7 +26,6 @@ export default class ElementListener {
    * @param {*} value
    */
   handleValueChange(value) {
-    this.value = value;
     const newNode = listenerToNode(value);
     for (const node of newNode) {
       // If listenerAsNode[0] is undefined we're dealing with a fragment so we can
@@ -48,11 +40,6 @@ export default class ElementListener {
     for (const node of this.listenerAsNode) node.remove();
 
     this.listenerAsNode = newNode;
-
-    // Trigger attached listeners manually
-    if (typeof this.element.forceUpdate === 'function') {
-      this.element.forceUpdate();
-    }
   }
 
   /**

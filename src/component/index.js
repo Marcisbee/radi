@@ -1,4 +1,4 @@
-import Component from './ComponentClass';
+import Component from './Component';
 
 /**
  * @param {object} o

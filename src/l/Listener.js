@@ -21,7 +21,7 @@ export default class Listener {
    * @param {*} value
    */
   handleUpdate(value) {
-    this.value = this.processValue(this.getShallowValue(value));
+    this.value = this.processValue(this.getShallowValue(value), this.value);
     for (const changeListener of this.changeListeners) {
       changeListener(this.value);
     }

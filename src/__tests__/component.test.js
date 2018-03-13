@@ -1,6 +1,11 @@
+import GLOBALS from '../consts/GLOBALS';
 import component from '../component';
 import r from '../r';
 import l from '../l';
+
+afterEach(() => {
+  GLOBALS.ACTIVE_COMPONENTS = {};
+});
 
 /** @jsx r **/
 describe('component.js', () => {
