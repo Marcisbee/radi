@@ -2,25 +2,29 @@ import setAttributes from '../setAttributes';
 
 export default class AttributeListener {
   /**
-   * @param {object} obj
-   * @param {string} obj.attributeKey
-   * @param {Listener} obj.listener
-   * @param {Node} obj.element
+   * @param {object} options
+   * @param {string} options.attributeKey
+   * @param {Listener} options.listener
+   * @param {Node} options.element
    */
   constructor({ attributeKey, listener, element }) {
     this.attributeKey = attributeKey;
     this.listener = listener;
     this.element = element;
+    this.attached = false;
     this.handleValueChange = this.handleValueChange.bind(this);
   }
 
   /**
    * Attaches attribute listener to given element and starts listening.
+   * @returns {AttributeListener}
    */
   attach() {
     if (!this.element.attributeListeners) this.element.attributeListeners = [];
     this.element.attributeListeners.push(this);
     this.listener.onValueChange(this.handleValueChange);
+    this.attached = true;
+    return this;
   }
 
   /**
