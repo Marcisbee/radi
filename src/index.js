@@ -1,11 +1,11 @@
+import GLOBALS from './consts/GLOBALS';
 import r from './r';
 import listen from './listen';
 import component from './component';
-import GLOBALS from './consts/GLOBALS';
 import mount from './mount';
 import remountActiveComponents from './utils/remountActiveComponents';
 
-export const _Radi = {
+const Radi = {
   version: GLOBALS.VERSION,
   activeComponents: GLOBALS.ACTIVE_COMPONENTS,
   r,
@@ -22,4 +22,6 @@ export const _Radi = {
   },
 };
 
-if (window) window.$Radi = _Radi;
+if (window) window.$Radi = Radi;
+
+export default Radi;
