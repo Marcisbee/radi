@@ -1,10 +1,10 @@
 /**
- * @param {*} el
+ * @param {Component|Node} element
  */
-const unmountAll = (el) => {
-  if (typeof el.unmount === 'function') el.unmount();
-  if (!el.children || el.children.length === 0) return;
-  for (const child of el.children) {
+const unmountAll = (element) => {
+  if (typeof element.unmount === 'function') element.unmount();
+  if (!element.children || element.children.length === 0) return;
+  for (const child of element.children) {
     unmountAll(child);
   }
 };

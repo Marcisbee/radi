@@ -4,8 +4,8 @@
  */
 const getElementFromQuery = (query) => {
   if (typeof query === 'string') return document.createElement(query);
-  if (query instanceof Node) return query.cloneNode(false);
-  return document.createDocumentFragment();
+  console.warn('[Radi.js] Warn: Creating a JSX element whose query is not of type string, automatically converting to string.');
+  return document.createElement(query.toString());
 };
 
 export default getElementFromQuery;
