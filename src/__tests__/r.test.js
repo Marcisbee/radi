@@ -1,70 +1,42 @@
-import sinon from 'sinon';
-import GLOBALS from '../../consts/GLOBALS';
 import r from '../r';
 
-afterEach(() => {
-  GLOBALS.REGISTERED = {};
-  GLOBALS.HTML_CACHE = {};
-  GLOBALS.R_KEYS = 0;
-});
-
+/** @jsx r **/
 describe('r.js', () => {
-  it('loads query from GLOBALS.REGISTERED if possible and calls it with given props', () => {
-    const constructorSpy = sinon.spy();
-    const propsSpy = sinon.spy();
-
-    class TestDiv {
-      constructor() {
-        constructorSpy();
+  it('works correctly for components', () => {
+    class FakeComponent {
+      constructor(children) {
+        this.children = children;
+        this.props = {};
       }
 
-      props(props) {
-        propsSpy(props);
-        return { a: 'b' };
+      setProps(props) {
+        this.props = props;
+        return this;
+      };
+
+      static isComponent() {
+        return true;
       }
-    }
+    };
 
-    GLOBALS.REGISTERED.div = TestDiv;
-    expect(r('div', { foo: 'bar' })).toEqual({ a: 'b' });
-    expect(constructorSpy.calledOnce).toBe(true);
-    expect(propsSpy.calledOnce).toBe(true);
-    expect(propsSpy.getCall(0).args[0]).toEqual({ foo: 'bar' });
+    const result = <FakeComponent foo="bar">baz</FakeComponent>;
+    expect(result).toBeInstanceOf(FakeComponent);
+    expect(result.children[0]).toEqual('baz');
+    expect(result.props.foo).toBe('bar');
   });
 
-  it('clones and caches query when query\'s not in GLOBALS.REGISTERED', () => {
-    const element = r('span');
-    expect(element).toBeInstanceOf(HTMLSpanElement);
-    expect(GLOBALS.HTML_CACHE.span).toBeInstanceOf(HTMLSpanElement);
-    expect(element === GLOBALS.HTML_CACHE.span).toBe(false);
+  it('works correctly for normal elements', () => {
+    const result = <h1></h1>;
+    expect(result).toBeInstanceOf(HTMLHeadingElement);
   });
 
-  it('clones query when it\'s a node', () => {
-    const query = document.createElement('span');
-    expect(r(query)).toBeInstanceOf(HTMLSpanElement);
-    expect(r(query) === query).toBe(false);
+  it('sets the element attributes correctly', () => {
+    const result = <h1 foo="bar"></h1>;
+    expect(result.getAttribute('foo')).toBe('bar');
   });
 
-  it('creates a document fragment when query is neither a node nor a string', () => {
-    expect(r(7)).toBeInstanceOf(DocumentFragment);
-  });
-
-  it('adds a key to the elemement created from query', () => {
-    expect(GLOBALS.R_KEYS).toBe(0);
-    expect(r(document.createElement('span')).key).toBe(0);
-  });
-
-  it('updates GLOBALS.R_KEYS', () => {
-    expect(GLOBALS.R_KEYS).toBe(0);
-    r(7);
-    expect(GLOBALS.R_KEYS).toBe(1);
-  });
-
-  it('has an extend method', () => {
-    expect(typeof r.extend).toBe('function');
-  });
-
-  test('its extend method gets a cached version of the element from query', () => {
-    r('button');
-    expect(GLOBALS.HTML_CACHE.button).toBeInstanceOf(HTMLButtonElement);
+  it('appends its children correctly', () => {
+    const result = <h1><span /><span /></h1>;
+    expect(result.innerHTML).toBe('<span></span><span></span>');
   });
 });
