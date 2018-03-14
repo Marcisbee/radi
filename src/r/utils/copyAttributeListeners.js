@@ -4,7 +4,7 @@
  * @return {Node}
  */
 const copyAttributeListeners = (oldElement, newElement) => {
-  if (!oldElement.attributeListeners) return;
+  if (!oldElement.attributeListeners) return newElement;
 
   for (const listener of oldElement.attributeListeners) {
     listener.updateElement(newElement);
