@@ -1,23 +1,37 @@
 import setStyles from '../setStyles';
+import Listener from '../../listen/Listener';
 
-// TODO: Update these tests
 describe('setStyles.js', () => {
-  //it('works when arg2 is watchable', () => {
-    // TODO: Not really testable
-  //});
-
-  it('sets the arg1 style property of view to arg2', () => {
-    const element = document.createElement('div');
-    setStyles(element, { color: 'green' });
+  it('when styles is a string, its sets element.style to it', () => {
+    const element = document.createElement('h1');
+    const result = setStyles(element, 'color: green;');
+    expect(result).toBeInstanceOf(CSSStyleDeclaration)
     expect(element.style.color).toBe('green');
   });
 
-  it('sets the style attribute of view to arg1 when arg1 is a string', () => {
-    const element = document.createElement('div');
-    setStyles(element, 'color: green;');
+  it('copies the styles to element when styles is an object', () => {
+    const element = document.createElement('h1');
+    const result = setStyles(element, { color: 'green', width: 400 });
+    expect(result).toBeInstanceOf(CSSStyleDeclaration);
     expect(element.style.color).toBe('green');
+    expect(element.style.width).toBe('400px');
   });
 
-  // TODO: Add test for else block that I can't really test right now because
-  // it's too unclear
+  it('doesn\'t do anything when styles is an invalid type', () => {
+    const element = document.createElement('h1');
+    const result = setStyles(element, ['color', 'green']);
+    expect(result).toBeInstanceOf(CSSStyleDeclaration);
+    expect(element.style.color).not.toBe('green');
+  });
+
+  it('handles Listeners correctly', () => {
+    const element = document.createElement('h1');
+    const listener = new Listener(
+      { foo: { color: 'green' }, addListener: () => {} },
+      'foo'
+    );
+    const result = setStyles(element, listener);
+    expect(result).toBeInstanceOf(CSSStyleDeclaration);
+    expect(element.style.color).toBe('green');
+  });
 });

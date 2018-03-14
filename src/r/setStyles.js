@@ -4,12 +4,17 @@ import setStyle from './utils/setStyle';
 
 /**
  * @param {HTMLElement} element
- * @param {object} styles
- * @returns {string}
+ * @param {string|object|Listener} styles
+ * @returns {CSSStyleDeclaration}
  */
 const setStyles = (element, styles) => {
-  if (typeof styles === 'string') element.style = styles;
-  if (typeof styles !== 'object' || Array.isArray(styles)) return '';
+  if (typeof styles === 'string') {
+    element.style = styles;
+  }
+
+  if (typeof styles !== 'object' || Array.isArray(styles)) {
+    return element.style;
+  }
 
   if (styles instanceof Listener) {
     new AttributeListener({
@@ -17,9 +22,8 @@ const setStyles = (element, styles) => {
       listener: styles,
       element
     }).attach();
+    return element.style;
   }
-
-  if (typeof styles === 'string') return element.style = styles;
 
   for (const property in styles) {
     setStyle(element, property, styles[property]);
