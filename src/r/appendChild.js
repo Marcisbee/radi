@@ -7,7 +7,7 @@ import appendListenerToElement from './utils/appendListenerToElement';
 
 /**
  * @param {HTMLElement} element
- * @returns {function(*): *}
+ * @returns {function(*)}
  */
 const appendChild = element => (child) => {
   if (!child) return;
@@ -24,11 +24,6 @@ const appendChild = element => (child) => {
 
   if (Array.isArray(child)) {
     appendChildren(element, child);
-    return;
-  }
-
-  if (typeof child === 'function') {
-    child(element);
     return;
   }
 
