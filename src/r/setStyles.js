@@ -1,5 +1,6 @@
 import Listener from '../listen/Listener';
 import AttributeListener from './utils/AttributeListener';
+import setStyle from './utils/setStyle';
 
 /**
  * @param {HTMLElement} element
@@ -28,23 +29,3 @@ const setStyles = (element, styles) => {
 };
 
 export default setStyles;
-
-
-/**
- * setStyle
- * @param {HTMLElement} element
- * @param {string} property
- * @param {string} value
- */
-export const setStyle = (element, property, value) => {
-  if (typeof value === 'undefined') return;
-  element.style[property] = parseValue(value);
-};
-
-/**
- * parseValue
- * @param {*} value
- * @return {*}
- */
-const parseValue = value =>
-  (typeof value === 'number' && !isNaN(value) ? `${value}px` : value);
