@@ -38,7 +38,7 @@ export default class ElementListener {
         this.element.appendChild(node);
         continue;
       }
-      this.element.insertBefore(node, this.listenerAsNode[0])
+      this.element.insertBefore(node, this.listenerAsNode[0]);
     }
 
     for (const node of this.listenerAsNode) node.remove();
