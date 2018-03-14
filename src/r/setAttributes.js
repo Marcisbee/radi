@@ -17,11 +17,6 @@ const setAttributes = (element, attributes) => {
       continue;
     }
 
-    if (typeof value === 'function') {
-      element[key] = value(element);
-      continue;
-    }
-
     if (value instanceof Listener) {
       new AttributeListener({
         attributeKey: key,

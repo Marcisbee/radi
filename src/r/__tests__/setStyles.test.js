@@ -24,7 +24,7 @@ describe('setStyles.js', () => {
     expect(element.style.color).not.toBe('green');
   });
 
-  it('handles Listeners correctly', () => {
+  it('handles listeners correctly', () => {
     const element = document.createElement('h1');
     const listener = new Listener(
       { foo: { color: 'green' }, addListener: () => {} },
