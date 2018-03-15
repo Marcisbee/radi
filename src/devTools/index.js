@@ -1,3 +1,4 @@
+/* eslint-disable */
 (function() {
   // eslint-disable-line
   if (typeof $Radi === 'undefined') {

@@ -4,7 +4,7 @@ import Listener from '../Listener';
 beforeEach(() => {
   global.fakeComponent = {
     foo: 'bar',
-    addListener: () => {}
+    addListener: () => {},
   };
 });
 
@@ -17,7 +17,7 @@ describe('Listener.js', () => {
     const addListenerSpy = sinon.spy();
     const fakeComponent = {
       foo: 'bar',
-      addListener: addListenerSpy
+      addListener: addListenerSpy,
     };
     const listener = new Listener(fakeComponent, 'foo');
     expect(listener.component).toBe(fakeComponent);
@@ -32,10 +32,10 @@ describe('Listener.js', () => {
     const fakeComponent = {
       foo: {
         bar: {
-          baz: 'foo'
-        }
+          baz: 'foo',
+        },
       },
-      addListener: () => {}
+      addListener: () => {},
     };
     const listener = new Listener(fakeComponent, 'foo', 'bar', 'baz');
     expect(listener.key).toBe('foo');
@@ -73,10 +73,10 @@ describe('Listener.js', () => {
     const fakeComponent = {
       foo: {
         bar: {
-          baz: 7
-        }
+          baz: 7,
+        },
       },
-      addListener: () => {}
+      addListener: () => {},
     };
     const listener = new Listener(fakeComponent, 'foo', 'bar', 'baz');
     expect(listener.value).toBe(7);

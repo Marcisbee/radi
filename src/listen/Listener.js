@@ -1,5 +1,3 @@
-import clone from '../utils/clone';
-
 export default class Listener {
   /**
    * @param {Component} component
@@ -51,6 +49,7 @@ export default class Listener {
     if (!this.childPath) return value;
     let shallowValue = value;
     for (const pathNestingLevel of this.childPath) {
+      // eslint-disable-line
       shallowValue = shallowValue[pathNestingLevel];
     }
     return shallowValue;
