@@ -6,12 +6,9 @@
 const copyElementListeners = (oldElement, newElement) => {
   if (!oldElement.listeners) return newElement;
 
-  for (const listener of oldElement.listeners) {
-    listener.updateElement(newElement);
-  }
+  oldElement.listeners.forEach(listener => listener.updateElement(newElement));
 
-  newElement.listeners = oldElement.listeners;
-  return newElement;
+  return Object.assign({}, newElement, oldElement.listeners);
 };
 
 export default copyElementListeners;

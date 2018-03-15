@@ -7,14 +7,13 @@ import AttributeListener from './utils/AttributeListener';
  * @param {object} attributes
  */
 const setAttributes = (element, attributes) => {
-  for (const key in attributes) {
+  Object.keys(attributes).forEach(key => {
     const value = attributes[key];
 
-    if (typeof value === 'undefined') continue;
+    if (typeof value !== 'undefined') return;
 
     if (key === 'style') {
       setStyles(element, value);
-      continue;
     }
 
     if (value instanceof Listener) {
@@ -23,11 +22,10 @@ const setAttributes = (element, attributes) => {
         listener: value,
         element
       }).attach();
-      continue;
     }
 
     element.setAttribute(key, value);
-  }
+  });
 };
 
 export default setAttributes;

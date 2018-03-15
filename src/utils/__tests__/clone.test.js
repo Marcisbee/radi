@@ -5,13 +5,13 @@ describe('clone.js', () => {
     expect(clone(null)).toBeNull();
   });
 
-  it('returns its parameter when it\'s not an object', () => {
+  it("returns its parameter when it's not an object", () => {
     expect(clone('foo')).toBe('foo');
     expect(clone(7)).toBe(7);
   });
 
   it('clones arrays correctly', () => {
-    const arr = [1, 2, 3, 4, 5]
+    const arr = [1, 2, 3, 4, 5];
     expect(clone(arr)).toEqual([1, 2, 3, 4, 5]);
     expect(clone(arr) === arr).toBe(false);
   });

@@ -8,28 +8,27 @@ import setStyle from './utils/setStyle';
  * @returns {CSSStyleDeclaration}
  */
 const setStyles = (element, styles) => {
+  const newElement = Object.assign({}, element);
   if (typeof styles === 'string') {
-    element.style = styles;
+    newElement.style = styles;
   }
 
   if (typeof styles !== 'object' || Array.isArray(styles)) {
-    return element.style;
+    return newElement.style;
   }
 
   if (styles instanceof Listener) {
     new AttributeListener({
       attributeKey: 'style',
       listener: styles,
-      element
+      newElement
     }).attach();
-    return element.style;
+    return newElement.style;
   }
 
-  for (const property in styles) {
-    setStyle(element, property, styles[property]);
-  }
+  Object.keys(styles).forEach(property => setStyle(newElement, property, styles[property]));
 
-  return element.style;
+  return newElement.style;
 };
 
 export default setStyles;

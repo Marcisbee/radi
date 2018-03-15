@@ -26,7 +26,7 @@ describe('PrivateStore.js', () => {
     const privateStore = new PrivateStore();
     privateStore.setItem('foo', 'bar');
     const fakeListener = {
-      handleUpdate: sinon.spy(),
+      handleUpdate: sinon.spy()
     };
     privateStore.addListener('foo', fakeListener);
     expect(privateStore.store.foo.listeners[0]).toEqual(fakeListener);
@@ -38,7 +38,7 @@ describe('PrivateStore.js', () => {
     const privateStore = new PrivateStore();
     privateStore.setItem('foo', 'bar');
     const fakeListener = {
-      handleUpdate: sinon.spy(),
+      handleUpdate: sinon.spy()
     };
     privateStore.addListener('foo', fakeListener);
     privateStore.setItem('foo', 'baz');

@@ -1,5 +1,5 @@
 import Component from '../component/Component';
-import Listener from '../listen/Listener.js';
+import Listener from '../listen/Listener';
 import copyElementListeners from './utils/copyElementListeners';
 import copyAttributeListeners from './utils/copyAttributeListeners';
 import appendChildren from './appendChildren';
@@ -9,7 +9,7 @@ import appendListenerToElement from './utils/appendListenerToElement';
  * @param {HTMLElement} element
  * @returns {function(*)}
  */
-const appendChild = element => (child) => {
+const appendChild = element => child => {
   if (!child) return;
 
   if (child instanceof Component) {

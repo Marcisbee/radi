@@ -12,11 +12,7 @@ describe('unmountAll.js', () => {
   it('unmounts the children of the given element if they exist', () => {
     const childMountSpy = sinon.spy();
     const element = {
-      children: [
-        { unmount: childMountSpy },
-        { unmount: childMountSpy },
-        { unmount: childMountSpy }
-      ]
+      children: [{ unmount: childMountSpy }, { unmount: childMountSpy }, { unmount: childMountSpy }]
     };
     unmountAll(element);
     expect(childMountSpy.callCount).toBe(3);

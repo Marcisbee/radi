@@ -1,12 +1,11 @@
 import GLOBALS from '../consts/GLOBALS';
 
 const remountActiveComponents = () => {
-  for (const key in GLOBALS.ACTIVE_COMPONENTS) {
-    const component = GLOBALS.ACTIVE_COMPONENTS[key];
+  Object.keys(GLOBALS.ACTIVE_COMPONENTS).forEach(component => {
     if (typeof component.onMount === 'function') {
       component.onMount(component);
     }
-  }
+  });
 };
 
 export default remountActiveComponents;

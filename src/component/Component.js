@@ -3,7 +3,6 @@ import clone from '../utils/clone';
 import generateId from '../utils/generateId';
 import Renderer from './utils/Renderer';
 import PrivateStore from './utils/PrivateStore';
-import appendChildren from '../r/appendChildren';
 
 export default class Component {
   /**
@@ -27,7 +26,7 @@ export default class Component {
       $actions: o.actions || {},
       // Variables like state and props are actually stored here so that we can
       // have custom setters
-      $privateStore: new PrivateStore(),
+      $privateStore: new PrivateStore()
     });
 
     this.addCustomField('children', []);
@@ -41,7 +40,7 @@ export default class Component {
 
     this.addNonEnumerableProperties({
       $view: o.view(this),
-      $renderer: new Renderer(this),
+      $renderer: new Renderer(this)
     });
 
     this.$view.unmount = this.unmount.bind(this);
@@ -54,12 +53,12 @@ export default class Component {
    * @param {function(*): *} [handleItem=item => item]
    */
   copyObjToInstance(obj, handleItem = item => item) {
-    for (const key in obj) {
+    Object.keys(obj).forEach(key => {
       if (typeof this[key] !== 'undefined') {
-        throw new Error(`[Radi.js] Error: Trying to write for reserved variable \`${i}\``);
+        throw new Error(`[Radi.js] Error: Trying to write for reserved variable \`${key}\``);
       }
       this.addCustomField(key, handleItem(obj[key]));
-    }
+    });
   }
 
   /**
@@ -79,15 +78,15 @@ export default class Component {
    * @returns {Component}
    */
   setProps(props) {
-    for (const key in props) {
+    Object.keys(props).forEach(key => {
       this.$props[key] = props[key];
       if (typeof this.$props[key] === 'undefined') {
-        console.warn(`[Radi.js] Warn: Creating a prop \`${key}\` that is not defined in component`);
+        console.warn(`[Radi.js] Warn: Creating a prop \`${key}\` that is not defined in component`); // eslint-disable-line
         this.addCustomField(key, props[key]);
-        continue;
       }
       this[key] = props[key];
-    }
+    });
+
     return this;
   }
 
@@ -104,12 +103,12 @@ export default class Component {
    * @param {object} obj
    */
   addNonEnumerableProperties(obj) {
-    for (const key in obj) {
-      if (typeof this[key] !== 'undefined') continue;
+    Object.keys(obj).forEach(key => {
+      if (this[key] == null) return;
       Object.defineProperty(this, key, {
-        value: obj[key],
+        value: obj[key]
       });
-    }
+    });
   }
 
   /**
@@ -121,8 +120,8 @@ export default class Component {
   addCustomField(key, value) {
     Object.defineProperty(this, key, {
       get: () => this.$privateStore.getItem(key),
-      set: value => this.$privateStore.setItem(key, value),
-      enumerable: true,
+      set: val => this.$privateStore.setItem(key, val),
+      enumerable: true
     });
     this[key] = value;
   }

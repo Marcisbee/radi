@@ -7,7 +7,7 @@ export default class Listener {
    */
   constructor(component, ...path) {
     this.component = component;
-    this.key = path[0];
+    [this.key] = path;
     this.childPath = path.slice(1, path.length);
     this.value = null;
     this.changeListeners = [];
@@ -22,9 +22,7 @@ export default class Listener {
    */
   handleUpdate(value) {
     this.value = this.processValue(this.getShallowValue(value), this.value);
-    for (const changeListener of this.changeListeners) {
-      changeListener(this.value);
-    }
+    this.changeListeners.forEach(changeListener => changeListener(this.value));
   }
 
   /**

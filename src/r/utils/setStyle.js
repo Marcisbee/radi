@@ -7,8 +7,11 @@ import parseValue from './parseValue';
  * @returns {*}
  */
 const setStyle = (element, property, value) => {
-  if (typeof value === 'undefined') return;
-  return element.style[property] = parseValue(value);
+  if (typeof value === 'undefined') return false;
+  const newElement = Object.assign({}, element);
+  newElement.style[property] = parseValue(value);
+
+  return newElement;
 };
 
 export default setStyle;

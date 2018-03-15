@@ -10,7 +10,7 @@ describe('Renderer.js', () => {
   it('renders correctly', () => {
     const renderer = new Renderer({ $view: document.createElement('h1') });
     const html = renderer.render();
-    expect(html).toEqual(renderer.html)
+    expect(html).toEqual(renderer.html);
     expect(html).toBeInstanceOf(DocumentFragment);
     expect(html.childNodes[0]).toBeInstanceOf(HTMLHeadingElement);
   });

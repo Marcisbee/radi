@@ -4,7 +4,7 @@ import Listener from '../Listener';
 beforeEach(() => {
   global.fakeComponent = {
     foo: 'bar',
-    addListener: () => {},
+    addListener: () => {}
   };
 });
 
@@ -32,10 +32,10 @@ describe('Listener.js', () => {
     const fakeComponent = {
       foo: {
         bar: {
-          baz: 'foo',
-        },
+          baz: 'foo'
+        }
       },
-      addListener: () => {},
+      addListener: () => {}
     };
     const listener = new Listener(fakeComponent, 'foo', 'bar', 'baz');
     expect(listener.key).toBe('foo');
@@ -62,12 +62,10 @@ describe('Listener.js', () => {
   });
 
   it('adds and uses custom value processing functions', () => {
-    const listener = new Listener(fakeComponent, 'foo').process(
-      value => value + value
-    );
+    const listener = new Listener(fakeComponent, 'foo').process(value => value + value);
     expect(listener).toBeInstanceOf(Listener);
     expect(listener.value).toBe('barbar');
-    listener.handleUpdate('baz')
+    listener.handleUpdate('baz');
     expect(listener.value).toBe('bazbaz');
   });
 
@@ -75,10 +73,10 @@ describe('Listener.js', () => {
     const fakeComponent = {
       foo: {
         bar: {
-          baz: 7,
-        },
+          baz: 7
+        }
       },
-      addListener: () => {},
+      addListener: () => {}
     };
     const listener = new Listener(fakeComponent, 'foo', 'bar', 'baz');
     expect(listener.value).toBe(7);

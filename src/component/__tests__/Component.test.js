@@ -1,5 +1,6 @@
+/* eslint-disable no-prototype-builtins */
 import sinon from 'sinon';
-import GLOBALS from '../../CONSTS/GLOBALS';
+import GLOBALS from '../../consts/GLOBALS';
 import Component from '../Component';
 import PrivateStore from '../utils/PrivateStore';
 import Renderer from '../utils/Renderer';
@@ -20,14 +21,20 @@ describe('Component.js', () => {
   it('instantiates correctly', () => {
     const actionSpy = sinon.spy();
     const viewSpy = sinon.spy();
-    const component = new Component({
-      name: 'Foo',
-      mixins: { foo: 'bar' },
-      state: { bar: 'foo' },
-      props: { baz: 7 },
-      actions: { setFoo: actionSpy },
-      view: () => { viewSpy(); return { a: 'b' }; },
-    }, [1, 2, 3]);
+    const component = new Component(
+      {
+        name: 'Foo',
+        mixins: { foo: 'bar' },
+        state: { bar: 'foo' },
+        props: { baz: 7 },
+        actions: { setFoo: actionSpy },
+        view: () => {
+          viewSpy();
+          return { a: 'b' };
+        }
+      },
+      [1, 2, 3]
+    );
 
     expect(component.name).toBe('Foo');
     expect(component.$id).toBeDefined();
@@ -133,7 +140,7 @@ describe('Component.js', () => {
     expect(listener.handleUpdate.calledOnce).toBe(true);
     expect(listener.handleUpdate.getCall(0).args[0]).toBe('bar');
     component.foo = 'baz';
-    expect(listener.handleUpdate.callCount).toBe(2)
+    expect(listener.handleUpdate.callCount).toBe(2);
     expect(listener.handleUpdate.getCall(1).args[0]).toBe('baz');
   });
 
@@ -147,7 +154,7 @@ describe('Component.js', () => {
     const onMountSpy = sinon.spy();
     const component = new Component({
       view: fakeView,
-      actions: { onMount: onMountSpy },
+      actions: { onMount: onMountSpy }
     });
     component.mount();
     expect(onMountSpy.calledOnce).toBe(true);
@@ -158,7 +165,7 @@ describe('Component.js', () => {
     const onDestroySpy = sinon.spy();
     const component = new Component({
       view: fakeView,
-      actions: { onDestroy: onDestroySpy },
+      actions: { onDestroy: onDestroySpy }
     });
     component.mount();
     component.unmount();
@@ -170,7 +177,7 @@ describe('Component.js', () => {
     const onMountSpy = sinon.spy();
     const component = new Component({
       view: () => document.createElement('h1'),
-      actions: { onMount: onMountSpy },
+      actions: { onMount: onMountSpy }
     });
     const rendered = component.render();
     expect(onMountSpy.calledOnce).toBe(true);
@@ -182,7 +189,7 @@ describe('Component.js', () => {
     const onDestroySpy = sinon.spy();
     const component = new Component({
       view: () => document.createElement('h1'),
-      actions: { onDestroy: onDestroySpy },
+      actions: { onDestroy: onDestroySpy }
     });
     component.render();
     const destroyed = component.destroy();

@@ -7,14 +7,14 @@ describe('appendChild.js', () => {
     expect(typeof appendChild(7)).toBe('function');
   });
 
-  it('doesn\'t do anything when child is falsy', () => {
+  it("doesn't do anything when child is falsy", () => {
     expect(appendChild({})(null)).toBeUndefined();
   });
 
   it('renders components before adding them', () => {
     const element = document.createElement('div');
     const component = new Component({
-      view: () => document.createElement('span'),
+      view: () => document.createElement('span')
     });
     appendChild(element)(component);
     expect(element.innerHTML).toBe('<span></span>');
@@ -25,20 +25,17 @@ describe('appendChild.js', () => {
     const listener = new Listener(
       {
         foo: 'bar',
-        addListener: () => {},
+        addListener: () => {}
       },
       'foo'
     );
     appendChild(element)(listener);
-    expect(element.innerHTML).toBe('bar')
+    expect(element.innerHTML).toBe('bar');
   });
 
   it('appends arrays correctly', () => {
     const element = document.createElement('div');
-    appendChild(element)([
-      document.createElement('h1'),
-      document.createElement('span')
-    ]);
+    appendChild(element)([document.createElement('h1'), document.createElement('span')]);
     expect(element.innerHTML).toBe('<h1></h1><span></span>');
   });
 
