@@ -16,13 +16,14 @@ module.exports = {
     CSSStyleDeclaration: true,
     HTMLElement: true,
     $Radi: true,
-    Node: true
+    Node: true,
   },
   rules: {
     'no-underscore-dangle': 'off',
     'no-plusplus': 'off',
     'no-return-assign': 'off',
     'import/no-named-as-default': 'off',
-    'import/no-named-as-default-member': 'off'
-  }
+    'import/no-named-as-default-member': 'off',
+    'arrow-parens': 'off',
+  },
 };

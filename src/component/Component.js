@@ -26,7 +26,7 @@ export default class Component {
       $actions: o.actions || {},
       // Variables like state and props are actually stored here so that we can
       // have custom setters
-      $privateStore: new PrivateStore()
+      $privateStore: new PrivateStore(),
     });
 
     this.addCustomField('children', []);
@@ -40,7 +40,7 @@ export default class Component {
 
     this.addNonEnumerableProperties({
       $view: o.view(this),
-      $renderer: new Renderer(this)
+      $renderer: new Renderer(this),
     });
 
     this.$view.unmount = this.unmount.bind(this);
@@ -106,7 +106,7 @@ export default class Component {
     Object.keys(obj).forEach(key => {
       if (this[key] == null) return;
       Object.defineProperty(this, key, {
-        value: obj[key]
+        value: obj[key],
       });
     });
   }
@@ -121,7 +121,7 @@ export default class Component {
     Object.defineProperty(this, key, {
       get: () => this.$privateStore.getItem(key),
       set: val => this.$privateStore.setItem(key, val),
-      enumerable: true
+      enumerable: true,
     });
     this[key] = value;
   }
