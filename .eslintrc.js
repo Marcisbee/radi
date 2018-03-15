@@ -26,5 +26,6 @@ module.exports = {
     'import/no-named-as-default-member': 'off',
     'arrow-parens': 'off',
     'no-confusing-arrow': 'off',
+    'function-paren-newline': 'off',
   },
 };
