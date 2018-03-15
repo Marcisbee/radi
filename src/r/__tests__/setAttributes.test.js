@@ -6,7 +6,7 @@ describe('setAttributes.js', () => {
     const element = document.createElement('h1');
     setAttributes(element, {
       foo: 'bar',
-      bar: 'foo'
+      bar: 'foo',
     });
     expect(element.getAttribute('foo')).toBe('bar');
     expect(element.getAttribute('bar')).toBe('foo');
@@ -15,7 +15,7 @@ describe('setAttributes.js', () => {
   it('ignores empty attributes', () => {
     const element = document.createElement('h1');
     setAttributes(element, {
-      foo: undefined
+      foo: undefined,
     });
     expect(element.getAttribute('foo')).toBeNull();
   });

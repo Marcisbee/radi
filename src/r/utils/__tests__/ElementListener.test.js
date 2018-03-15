@@ -5,7 +5,7 @@ describe('ElementListener.js', () => {
   it('instantiates correctly', () => {
     const elementListener = new ElementListener({
       listener: { foo: 'bar' },
-      element: { bar: 'foo' }
+      element: { bar: 'foo' },
     });
     expect(elementListener.listener).toEqual({ foo: 'bar' });
     expect(elementListener.element).toEqual({ bar: 'foo' });
@@ -18,11 +18,11 @@ describe('ElementListener.js', () => {
       listener: {
         onValueChange: callback => {
           callback('bar');
-        }
+        },
       },
       element: {
-        appendChild: appendChildSpy
-      }
+        appendChild: appendChildSpy,
+      },
     };
     const elementListener = new ElementListener(options);
     const result = elementListener.attach();
@@ -35,7 +35,7 @@ describe('ElementListener.js', () => {
   it('updates its element correctly', () => {
     const elementListener = new ElementListener({
       listener: {},
-      element: {}
+      element: {},
     });
     elementListener.updateElement({ foo: 'bar' });
     expect(elementListener.element).toEqual({ foo: 'bar' });

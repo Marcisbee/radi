@@ -31,20 +31,21 @@ export default class ElementListener {
    */
   handleValueChange(value) {
     const newNode = listenerToNode(value);
+    /* eslint-disable */
     for (const node of newNode) {
-      // eslint-disable-line
       // If listenerAsNode[0] is undefined we're dealing with a fragment so we
       // can just append
       if (!this.listenerAsNode[0]) {
         this.element.appendChild(node);
-        continue; // eslint-disable-line
+        continue;
       }
       this.element.insertBefore(node, this.listenerAsNode[0]);
     }
 
-    for (const node of this.listenerAsNode) node.remove(); // eslint-disable-line
+    for (const node of this.listenerAsNode) node.remove();
 
     this.listenerAsNode = newNode;
+    /* eslint-enable */
   }
 
   /**

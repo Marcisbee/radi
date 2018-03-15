@@ -8,7 +8,7 @@ import ElementListener from './ElementListener';
 const appendListenerToElement = (listener, element) =>
   new ElementListener({
     listener,
-    element
+    element,
   }).attach();
 
 export default appendListenerToElement;

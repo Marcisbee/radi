@@ -14,7 +14,7 @@ describe('appendChild.js', () => {
   it('renders components before adding them', () => {
     const element = document.createElement('div');
     const component = new Component({
-      view: () => document.createElement('span')
+      view: () => document.createElement('span'),
     });
     appendChild(element)(component);
     expect(element.innerHTML).toBe('<span></span>');
@@ -25,7 +25,7 @@ describe('appendChild.js', () => {
     const listener = new Listener(
       {
         foo: 'bar',
-        addListener: () => {}
+        addListener: () => {},
       },
       'foo'
     );

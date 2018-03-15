@@ -25,5 +25,6 @@ module.exports = {
     'import/no-named-as-default': 'off',
     'import/no-named-as-default-member': 'off',
     'arrow-parens': 'off',
+    'no-confusing-arrow': 'off',
   },
 };
