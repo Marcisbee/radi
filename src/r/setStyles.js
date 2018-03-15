@@ -20,7 +20,7 @@ const setStyles = (element, styles) => {
     new AttributeListener({
       attributeKey: 'style',
       listener: styles,
-      element
+      element,
     }).attach();
     return element.style;
   }

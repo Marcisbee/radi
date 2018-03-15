@@ -21,13 +21,13 @@ const setAttributes = (element, attributes) => {
       new AttributeListener({
         attributeKey: key,
         listener: value,
-        element
+        element,
       }).attach();
       continue;
     }
 
     // Handles events 'on<event>'
-    if (key.substring(0,2).toLowerCase() === 'on') {
+    if (key.substring(0, 2).toLowerCase() === 'on') {
       element[key] = value;
       continue;
     }
