@@ -64,7 +64,6 @@ describe('component.js', () => {
       }
     });
     const c = new TestComponent();
-    console.log(c.render().childNodes[0].innerHTML);
     expect(c.render().childNodes[0].innerHTML).toBe(
       'hey World' +
       '<h1>World</h1>' +
@@ -84,7 +83,6 @@ describe('component.js', () => {
     c.setSample();
     c.setFoo();
     c.setStyles();
-    console.log(c.render().childNodes[0].innerHTML);
     expect(c.render().childNodes[0].innerHTML).toBe(
       'hey New World!' +
       '<h1>New World!</h1>' +
