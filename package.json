@@ -35,7 +35,7 @@
   "jest": {},
   "prettier": {
     "tabWidth": 2,
-    "trailingComma": true,
+    "trailingComma": "es6",
     "printWidth": 100,
     "singleQuote": true,
     "semi": true
