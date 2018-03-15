@@ -1,3 +1,5 @@
+import Listener from '../../listen/Listener';
+import StyleListener from '../utils/StyleListener';
 import parseValue from './parseValue';
 
 /**
@@ -7,11 +9,19 @@ import parseValue from './parseValue';
  * @returns {*}
  */
 const setStyle = (element, property, value) => {
-  if (typeof value === 'undefined') return false;
-  const newElement = { ...element };
-  newElement.style[property] = parseValue(value);
 
-  return newElement;
+  if (typeof value === 'undefined') return;
+
+  if (value instanceof Listener) {
+    new StyleListener({
+      styleKey: property,
+      listener: value,
+      element,
+    }).attach();
+    return element[property];
+  }
+
+  return element.style[property] = parseValue(value);
 };
 
 export default setStyle;

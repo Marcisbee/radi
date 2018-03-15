@@ -25,6 +25,12 @@ const setAttributes = (element, attributes) => {
       }).attach();
     }
 
+    // Handles events 'on<event>'
+    if (key.substring(0, 2).toLowerCase() === 'on') {
+      element[key] = value;
+      continue;
+    }
+
     element.setAttribute(key, value);
   });
 };
