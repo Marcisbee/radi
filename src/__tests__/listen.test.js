@@ -9,7 +9,7 @@ describe('listen.js', () => {
     };
     const listener = listen(fakeComponent, 'foo');
     expect(listener).toBeInstanceOf(Listener);
-    expect(listener.component).toEqual({ foo: 'bar' });
+    expect(listener.component).toBe(fakeComponent);
     expect(listener.key).toBe('foo');
   });
 });
