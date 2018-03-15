@@ -6,14 +6,18 @@
   "license": "MIT",
   "repository": "radi-js/radi",
   "author": "Marcis Bergmanis <marcisbergmanis@gmail.com>",
-  "keywords": ["radi", "radijs", "radi.js", "vdom"],
+  "keywords": [
+    "radi",
+    "radijs",
+    "radi.js",
+    "vdom"
+  ],
   "scripts": {
     "pack": "webpack --config ./.webpack/dev.js",
     "build": "npm run bundle",
     "bundle": "rollup -i src/index.js -o dist/radi.js -m -f umd -n radi",
     "lint": "eslint src/**/*.js",
-    "test": "jest",
-    "precommit": "pretty-quick --staged"
+    "test": "jest"
   },
   "devDependencies": {
     "babel-preset-env": "^1.6.1",
@@ -22,22 +26,13 @@
     "eslint-config-airbnb-base": "^12.1.0",
     "eslint-plugin-import": "^2.9.0",
     "http-server": "^0.11.1",
-    "husky": "^0.14.3",
     "jest": "^22.4.2",
     "jsdom": "^11.5.1",
-    "prettier": "^1.11.1",
-    "pretty-quick": "^1.4.1",
     "sinon": "^4.4.2",
     "webpack": "^4.1.1",
     "webpack-cli": "^2.0.10"
   },
-  "babel": {},
+  "prettier": {},
   "jest": {},
-  "prettier": {
-    "tabWidth": 2,
-    "trailingComma": "none",
-    "printWidth": 100,
-    "singleQuote": true,
-    "semi": true
-  }
+  "babel": {}
 }
