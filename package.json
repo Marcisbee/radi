@@ -11,7 +11,7 @@
     "pack": "webpack --config ./.webpack/dev.js",
     "build": "npm run bundle",
     "bundle": "rollup -i src/index.js -o dist/radi.js -m -f umd -n radi",
-    "lint": "eslint src/**/*.js --fix",
+    "lint": "eslint ./src/**/*.js --fix",
     "test": "jest --watch",
     "precommit": "pretty-quick --staged"
   },
