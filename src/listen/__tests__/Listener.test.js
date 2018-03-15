@@ -83,6 +83,6 @@ describe('Listener.js', () => {
     const listener = new Listener(fakeComponent, 'foo', 'bar', 'baz');
     expect(listener.value).toBe(7);
     listener.handleUpdate({ bar: { baz: 8 } });
-
+    expect(listener.value).toBe(8);
   });
 });
