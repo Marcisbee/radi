@@ -14,6 +14,12 @@ const r = (query, props, ...children) => {
     return new query(children).setProps(props || {});
   }
 
+  if (typeof query === 'function') {
+    const propsWithChildren = props || {};
+    propsWithChildren.children = children;
+    return query(propsWithChildren);
+  }
+
   const element = getElementFromQuery(query);
 
   if (props !== null) setAttributes(element, props);

@@ -18,6 +18,12 @@ describe('component.js', () => {
       }
     });
 
+    const Text = ({ color, children }) => (
+      <p style={{ color }}>
+        {children}
+      </p>
+    );
+
     const TestComponent = component({
       view: (component) => {
         // Test ()
@@ -25,6 +31,9 @@ describe('component.js', () => {
           <h1>
             hey {l(component, 'sample')}
             <Title>{l(component, 'sample')}</Title>
+            <Text color="purple">
+              Foo Bar: {l(component, 'sample')}
+            </Text>
             <div>
               {l(component, 'sample').process(value => value + '!!')}
             </div>
@@ -59,6 +68,7 @@ describe('component.js', () => {
     expect(c.render().childNodes[0].innerHTML).toBe(
       'hey World' +
       '<h1>World</h1>' +
+      '<p style="color: purple;">Foo Bar: World</p>' +
       '<div>World!!</div>' +
       '<div><div>A</div></div>' +
       '<div>' +
@@ -78,6 +88,7 @@ describe('component.js', () => {
     expect(c.render().childNodes[0].innerHTML).toBe(
       'hey New World!' +
       '<h1>New World!</h1>' +
+      '<p style="color: purple;">Foo Bar: New World!</p>' +
       '<div>New World!!!</div>' +
       '<div><div>B</div></div>' +
       '<div>' +

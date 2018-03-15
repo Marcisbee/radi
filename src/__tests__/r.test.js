@@ -25,6 +25,14 @@ describe('r.js', () => {
     expect(result.props.foo).toBe('bar');
   });
 
+  it('works correctly for functional components', () => {
+    const Component = ({ foo, children }) => <h1 foo={foo}>{children}</h1>;
+    const result = <Component foo="bar"><span /><span /></Component>;
+    expect(result).toBeInstanceOf(HTMLHeadingElement);
+    expect(result.getAttribute('foo')).toBe('bar');
+    expect(result.innerHTML).toBe('<span></span><span></span>');
+  });
+
   it('works correctly for normal elements', () => {
     const result = <h1></h1>;
     expect(result).toBeInstanceOf(HTMLHeadingElement);
