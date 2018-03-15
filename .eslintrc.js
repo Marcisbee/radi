@@ -27,5 +27,15 @@ module.exports = {
     'arrow-parens': 'off',
     'no-confusing-arrow': 'off',
     'function-paren-newline': 'off',
+    'comma-dangle': [
+      'error',
+      {
+        arrays: 'always-multiline',
+        objects: 'always-multiline',
+        imports: 'always-multiline',
+        exports: 'always-multiline',
+        functions: 'ignore',
+      },
+    ],
   },
 };
