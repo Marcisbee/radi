@@ -48,8 +48,8 @@ export default class Listener {
   getShallowValue(value) {
     if (!this.childPath) return value;
     let shallowValue = value;
+    /*eslint-disable*/
     for (const pathNestingLevel of this.childPath) {
-      // eslint-disable-line
       shallowValue = shallowValue[pathNestingLevel];
     }
     return shallowValue;
