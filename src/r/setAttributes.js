@@ -20,7 +20,7 @@ const setAttributes = (element, attributes) => {
       new AttributeListener({
         attributeKey: key,
         listener: value,
-        element
+        element,
       }).attach();
     }
 

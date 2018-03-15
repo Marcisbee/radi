@@ -9,7 +9,7 @@ const clone = obj => {
 
   const cloned = Object.keys(obj).reduce((acc, key) => ({
     ...acc,
-    [key]: clone(obj[key])
+    [key]: clone(obj[key]),
   }));
 
   return cloned;

@@ -107,7 +107,7 @@
               onclick() {
                 this.paused = true;
                 $Radi.freeze();
-              }
+              },
             },
             '■ Pause state'
           )
@@ -118,7 +118,7 @@
               onclick() {
                 $Radi.unfreeze();
                 this.paused = false;
-              }
+              },
             },
             '► Resume state'
           )
@@ -127,7 +127,7 @@
     },
     state: {
       _radi_no_debug: true,
-      paused: false
+      paused: false,
     },
     actions: {
       pause() {
@@ -137,8 +137,8 @@
       resume() {
         $Radi.unfreeze();
         this.paused = false;
-      }
-    }
+      },
+    },
   });
 
   window.treeList = component({
@@ -148,13 +148,13 @@
       return r('div', list(l(this.array), () => r('div', 'item')));
     },
     props: {
-      array: Array
+      array: Array,
     },
     actions: {
       onMount() {
         console.log('me mount', this.array);
-      }
-    }
+      },
+    },
   });
 
   const data = component({
@@ -207,11 +207,11 @@
                       'button',
                       {
                         style: {
-                          cursor: 'pointer'
+                          cursor: 'pointer',
                         },
                         onclick: () => {
                           item.value();
-                        }
+                        },
                       },
                       'trigger'
                     )
@@ -226,7 +226,7 @@
     state: {
       _radi_no_debug: true,
       show: null,
-      list: []
+      list: [],
     },
     actions: {
       onMount() {
@@ -245,8 +245,8 @@
               vars: {
                 state: [],
                 props: [],
-                actions: []
-              }
+                actions: [],
+              },
             };
             /* eslint-disable */
             for (var nn in cp[ii].$state) {
@@ -274,8 +274,8 @@
       toggle(id) {
         console.log(id);
         this.show = this.show === id ? null : id;
-      }
-    }
+      },
+    },
   });
 
   mount(
@@ -290,7 +290,7 @@
           { class: 'raddebug-logo' },
           r('img', {
             src: LOGO,
-            width: 107
+            width: 107,
           })
         ),
         r('div', new stateActor()),

@@ -11,7 +11,7 @@
     "pack": "webpack --config ./.webpack/dev.js",
     "build": "npm run bundle",
     "bundle": "rollup -i src/index.js -o dist/radi.js -m -f umd -n radi",
-    "lint": "eslint src/**/*.js",
+    "lint": "eslint src/**/*.js --fix",
     "test": "jest --watch",
     "precommit": "pretty-quick --staged"
   },
@@ -35,7 +35,7 @@
   "jest": {},
   "prettier": {
     "tabWidth": 2,
-    "trailingComma": "es6",
+    "trailingComma": "es5",
     "printWidth": 100,
     "singleQuote": true,
     "semi": true
