@@ -10,7 +10,8 @@ const setAttributes = (element, attributes) => {
   Object.keys(attributes).forEach(key => {
     const value = attributes[key];
 
-    if (typeof value !== 'undefined') return;
+    console.log(key, 'keey');
+    if (typeof value === 'undefined') return;
 
     if (key === 'style') {
       setStyles(element, value);

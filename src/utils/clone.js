@@ -7,10 +7,13 @@ const clone = obj => {
   if (obj === null) return obj;
   if (Array.isArray(obj)) return obj.map(clone);
 
-  const cloned = Object.keys(obj).reduce((acc, key) => ({
-    ...acc,
-    [key]: clone(obj[key]),
-  }));
+  const cloned = Object.keys(obj).reduce(
+    (acc, key) => ({
+      ...acc,
+      [key]: obj[key],
+    }),
+    {}
+  );
 
   return cloned;
 };

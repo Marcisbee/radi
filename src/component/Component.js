@@ -3,6 +3,7 @@ import clone from '../utils/clone';
 import generateId from '../utils/generateId';
 import Renderer from './utils/Renderer';
 import PrivateStore from './utils/PrivateStore';
+import appendChildren from '../r/appendChildren';
 
 export default class Component {
   /**
@@ -53,12 +54,12 @@ export default class Component {
    * @param {function(*): *} [handleItem=item => item]
    */
   copyObjToInstance(obj, handleItem = item => item) {
-    Object.keys(obj).forEach(key => {
+    for (const key in obj) {
       if (typeof this[key] !== 'undefined') {
-        throw new Error(`[Radi.js] Error: Trying to write for reserved variable \`${key}\``);
+        throw new Error(`[Radi.js] Error: Trying to write for reserved variable \`${i}\``);
       }
       this.addCustomField(key, handleItem(obj[key]));
-    });
+    }
   }
 
   /**
@@ -78,15 +79,15 @@ export default class Component {
    * @returns {Component}
    */
   setProps(props) {
-    Object.keys(props).forEach(key => {
+    for (const key in props) {
       this.$props[key] = props[key];
       if (typeof this.$props[key] === 'undefined') {
-        console.warn(`[Radi.js] Warn: Creating a prop \`${key}\` that is not defined in component`); // eslint-disable-line
+        console.warn(`[Radi.js] Warn: Creating a prop \`${key}\` that is not defined in component`);
         this.addCustomField(key, props[key]);
+        continue;
       }
       this[key] = props[key];
-    });
-
+    }
     return this;
   }
 
@@ -103,12 +104,12 @@ export default class Component {
    * @param {object} obj
    */
   addNonEnumerableProperties(obj) {
-    Object.keys(obj).forEach(key => {
-      if (this[key] == null) return;
+    for (const key in obj) {
+      if (typeof this[key] !== 'undefined') continue;
       Object.defineProperty(this, key, {
         value: obj[key],
       });
-    });
+    }
   }
 
   /**

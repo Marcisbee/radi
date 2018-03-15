@@ -30,6 +30,6 @@ describe('setAttributes.js', () => {
     const element = document.createElement('h1');
     const listener = new Listener({ foo: 'bar', addListener: () => {} }, 'foo');
     setAttributes(element, { baz: listener });
-    expect(element.getAttribute('baz')).toBe('bar');
+    expect(element.getAttribute('baz')).toBe({ foo: 'bar' });
   });
 });
