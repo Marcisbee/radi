@@ -1,3 +1,4 @@
+
 import setStyles from './setStyles';
 import Listener from '../listen/Listener';
 import AttributeListener from './utils/AttributeListener';
@@ -7,14 +8,14 @@ import AttributeListener from './utils/AttributeListener';
  * @param {object} attributes
  */
 const setAttributes = (element, attributes) => {
-  Object.keys(attributes).forEach(key => {
+  for (const key in attributes) {
     const value = attributes[key];
 
-    console.log(key, 'keey');
-    if (typeof value === 'undefined') return;
+    if (typeof value === 'undefined') continue;
 
     if (key === 'style') {
       setStyles(element, value);
+      continue;
     }
 
     if (value instanceof Listener) {
@@ -23,6 +24,7 @@ const setAttributes = (element, attributes) => {
         listener: value,
         element,
       }).attach();
+      continue;
     }
 
     // Handles events 'on<event>'
@@ -32,7 +34,7 @@ const setAttributes = (element, attributes) => {
     }
 
     element.setAttribute(key, value);
-  });
+  }
 };
 
 export default setAttributes;

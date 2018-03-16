@@ -9,7 +9,6 @@ import parseValue from './parseValue';
  * @returns {*}
  */
 const setStyle = (element, property, value) => {
-
   if (typeof value === 'undefined') return;
 
   if (value instanceof Listener) {
