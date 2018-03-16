@@ -1,7 +1,5 @@
 import Component from '../component/Component';
 import Listener from '../listen/Listener';
-import copyElementListeners from './utils/copyElementListeners';
-import copyAttributeListeners from './utils/copyAttributeListeners';
 import appendChildren from './appendChildren';
 import appendListenerToElement from './utils/appendListenerToElement';
 
@@ -28,10 +26,7 @@ const appendChild = element => child => {
   }
 
   if (child instanceof Node) {
-    const clone = child;
-    copyElementListeners(child, clone);
-    copyAttributeListeners(child, clone);
-    element.appendChild(clone);
+    element.appendChild(child);
     return;
   }
 
