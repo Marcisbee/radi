@@ -1,7 +1,5 @@
 import Component from '../component/Component';
-import Listener from '../listen/Listener.js';
-import copyElementListeners from './utils/copyElementListeners';
-import copyAttributeListeners from './utils/copyAttributeListeners';
+import Listener from '../listen/Listener';
 import appendChildren from './appendChildren';
 import appendListenerToElement from './utils/appendListenerToElement';
 
@@ -9,7 +7,7 @@ import appendListenerToElement from './utils/appendListenerToElement';
  * @param {HTMLElement} element
  * @returns {function(*)}
  */
-const appendChild = element => (child) => {
+const appendChild = element => child => {
   if (!child) return;
 
   if (child instanceof Component) {
@@ -28,10 +26,7 @@ const appendChild = element => (child) => {
   }
 
   if (child instanceof Node) {
-    const clone = child;
-    copyElementListeners(child, clone);
-    copyAttributeListeners(child, clone);
-    element.appendChild(clone);
+    element.appendChild(child);
     return;
   }
 

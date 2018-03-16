@@ -1,5 +1,6 @@
+/* eslint-disable no-prototype-builtins */
 import sinon from 'sinon';
-import GLOBALS from '../../CONSTS/GLOBALS';
+import GLOBALS from '../../consts/GLOBALS';
 import Component from '../Component';
 import PrivateStore from '../utils/PrivateStore';
 import Renderer from '../utils/Renderer';
@@ -20,26 +21,32 @@ describe('Component.js', () => {
   it('instantiates correctly', () => {
     const actionSpy = sinon.spy();
     const viewSpy = sinon.spy();
-    const component = new Component({
-      name: 'Foo',
-      mixins: { foo: 'bar' },
-      state: { bar: 'foo' },
-      props: { baz: 7 },
-      actions: { setFoo: actionSpy },
-      view: () => { viewSpy(); return { a: 'b' }; },
-    }, [1, 2, 3]);
+    const component = new Component(
+      {
+        name: 'Foo',
+        mixins: { foo: 'bar' },
+        state: { bar: 'foo' },
+        props: { baz: 7 },
+        actions: { setFoo: actionSpy },
+        view: () => {
+          viewSpy();
+          return { a: 'b' };
+        },
+      },
+      [1, 2, 3]
+    );
 
     expect(component.name).toBe('Foo');
     expect(component.$id).toBeDefined();
 
     expect(component.$mixins).toEqual({
-      foo: 'bar'
+      foo: 'bar',
     });
     expect(component.$state).toEqual({
-      bar: 'foo'
+      bar: 'foo',
     });
     expect(component.$props).toEqual({
-      baz: 7
+      baz: 7,
     });
     expect(typeof component.$actions.setFoo).toBe('function');
     expect(component.foo).toBe('bar');
@@ -133,7 +140,7 @@ describe('Component.js', () => {
     expect(listener.handleUpdate.calledOnce).toBe(true);
     expect(listener.handleUpdate.getCall(0).args[0]).toBe('bar');
     component.foo = 'baz';
-    expect(listener.handleUpdate.callCount).toBe(2)
+    expect(listener.handleUpdate.callCount).toBe(2);
     expect(listener.handleUpdate.getCall(1).args[0]).toBe('baz');
   });
 

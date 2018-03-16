@@ -3,6 +3,6 @@
  * @return {*}
  */
 const parseValue = value =>
-  (typeof value === 'number' && !isNaN(value) ? `${value}px` : value);
+  typeof value === 'number' && !Number.isNaN(value) ? `${value}px` : value;
 
 export default parseValue;

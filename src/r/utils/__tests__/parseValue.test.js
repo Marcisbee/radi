@@ -5,8 +5,8 @@ describe('parseValue.js', () => {
     expect(parseValue(100)).toBe('100px');
   });
 
-  it('doesn\'t parse NaN values', () => {
-    expect(isNaN(parseValue(NaN))).toBe(true);
+  it("doesn't parse NaN values", () => {
+    expect(Number.isNaN(parseValue(NaN))).toBe(true);
   });
 
   it('returns its parameter when its not a number', () => {

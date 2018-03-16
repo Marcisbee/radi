@@ -15,14 +15,14 @@ describe('getElementFromQuery.js', () => {
   it('creates an element from given query', () => {
     const element = getElementFromQuery('h1');
     expect(element).toBeInstanceOf(HTMLHeadingElement);
-    const invalidElement = getElementFromQuery('ohno');
+    const invalidElement = getElementFromQuery('ohno'); // eslint-disable-line
     expect(element).toBeInstanceOf(HTMLElement);
-    const invalidQuery = getElementFromQuery(false);
+    const invalidQuery = getElementFromQuery(false); // eslint-disable-line
     expect(element).toBeInstanceOf(HTMLElement);
   });
 
   it('gives a warning when query is not a string', () => {
-    const invalidQuery = getElementFromQuery(true);
+    const invalidQuery = getElementFromQuery(true); // eslint-disable-line
     expect(console.warn.calledOnce).toBe(true);
   });
 });

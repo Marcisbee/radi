@@ -17,7 +17,7 @@ describe('Listener.js', () => {
     const addListenerSpy = sinon.spy();
     const fakeComponent = {
       foo: 'bar',
-      addListener: addListenerSpy
+      addListener: addListenerSpy,
     };
     const listener = new Listener(fakeComponent, 'foo');
     expect(listener.component).toBe(fakeComponent);
@@ -62,12 +62,10 @@ describe('Listener.js', () => {
   });
 
   it('adds and uses custom value processing functions', () => {
-    const listener = new Listener(fakeComponent, 'foo').process(
-      value => value + value
-    );
+    const listener = new Listener(fakeComponent, 'foo').process(value => value + value);
     expect(listener).toBeInstanceOf(Listener);
     expect(listener.value).toBe('barbar');
-    listener.handleUpdate('baz')
+    listener.handleUpdate('baz');
     expect(listener.value).toBe('bazbaz');
   });
 

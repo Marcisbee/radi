@@ -12,7 +12,7 @@ describe('PrivateStore.js', () => {
     privateStore.setItem('foo', 'bar');
     expect(privateStore.store.foo).toEqual({
       listeners: [],
-      value: 'bar'
+      value: 'bar',
     });
   });
 

@@ -1,5 +1,4 @@
 import setAttributes from './setAttributes';
-import GLOBALS from '../consts/GLOBALS';
 import getElementFromQuery from './utils/getElementFromQuery';
 import appendChildren from './appendChildren';
 
@@ -9,18 +8,18 @@ import appendChildren from './appendChildren';
  * @param {...*} children
  * @returns {(HTMLElement|Component)}
  */
-const r = (query, props, ...children) => {
-  if (typeof query.isComponent === 'function' && query.isComponent()) {
-    return new query(children).setProps(props || {});
+const r = (Query, props, ...children) => {
+  if (typeof Query.isComponent === 'function' && Query.isComponent()) {
+    return new Query(children).setProps(props || {});
   }
 
-  if (typeof query === 'function') {
+  if (typeof Query === 'function') {
     const propsWithChildren = props || {};
     propsWithChildren.children = children;
-    return query(propsWithChildren);
+    return Query(propsWithChildren);
   }
 
-  const element = getElementFromQuery(query);
+  const element = getElementFromQuery(Query);
 
   if (props !== null) setAttributes(element, props);
   appendChildren(element, children);

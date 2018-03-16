@@ -16,23 +16,32 @@
     "pack": "webpack --config ./.webpack/dev.js",
     "build": "npm run bundle",
     "bundle": "rollup -i src/index.js -o dist/radi.js -m -f umd -n radi",
-    "lint": "eslint src/**/*.js",
-    "test": "jest"
+    "lint": "eslint ./src/**/*.js --fix",
+    "test": "jest --watch",
+    "precommit": "pretty-quick --staged"
   },
   "devDependencies": {
+    "babel-eslint": "^7.2.3",
     "babel-preset-env": "^1.6.1",
     "babel-preset-react": "^6.24.1",
     "eslint": "^4.18.2",
     "eslint-config-airbnb-base": "^12.1.0",
     "eslint-plugin-import": "^2.9.0",
+    "eslint-plugin-react": "^7.7.0",
     "http-server": "^0.11.1",
     "jest": "^22.4.2",
     "jsdom": "^11.5.1",
+    "pretty-quick": "^1.4.1",
     "sinon": "^4.4.2",
     "webpack": "^4.1.1",
     "webpack-cli": "^2.0.10"
   },
-  "prettier": {},
-  "jest": {},
-  "babel": {}
+  "babel": {},
+  "prettier": {
+    "tabWidth": 2,
+    "trailingComma": "es5",
+    "printWidth": 100,
+    "singleQuote": true,
+    "semi": true
+  }
 }

@@ -7,7 +7,7 @@ describe('appendChild.js', () => {
     expect(typeof appendChild(7)).toBe('function');
   });
 
-  it('doesn\'t do anything when child is falsy', () => {
+  it("doesn't do anything when child is falsy", () => {
     expect(appendChild({})(null)).toBeUndefined();
   });
 
@@ -30,15 +30,12 @@ describe('appendChild.js', () => {
       'foo'
     );
     appendChild(element)(listener);
-    expect(element.innerHTML).toBe('bar')
+    expect(element.innerHTML).toBe('bar');
   });
 
   it('appends arrays correctly', () => {
     const element = document.createElement('div');
-    appendChild(element)([
-      document.createElement('h1'),
-      document.createElement('span')
-    ]);
+    appendChild(element)([document.createElement('h1'), document.createElement('span')]);
     expect(element.innerHTML).toBe('<h1></h1><span></span>');
   });
 

@@ -1,6 +1,5 @@
 import sinon from 'sinon';
 import appendChildren from '../appendChildren';
-import appendChild from '../appendChild';
 
 describe('appendChildren.js', () => {
   it('calls appendChild with each element of its parameter array', () => {

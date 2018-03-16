@@ -5,11 +5,9 @@ import ensureArray from './ensureArray';
  * @param {*} value - Value of the listener
  * @returns {Node[]}
  */
-const listenerToNode = (value) => {
+const listenerToNode = value => {
   if (value instanceof DocumentFragment) {
-    return Array.from(value.childNodes).map(childNode =>
-      childNode.cloneNode(true)
-    );
+    return Array.from(value.childNodes).map(childNode => childNode.cloneNode(true));
   }
 
   const element = document.createDocumentFragment();

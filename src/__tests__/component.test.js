@@ -1,21 +1,19 @@
 import GLOBALS from '../consts/GLOBALS';
 import component from '../component';
 import Component from '../component/Component';
-import r from '../r';
+import r from '../r'; // eslint-disable-line
 import l from '../listen';
 
 afterEach(() => {
   GLOBALS.ACTIVE_COMPONENTS = {};
 });
 
-/** @jsx r **/
+/** @jsx r * */
 describe('component.js', () => {
   // This is more of an integration test really
   test('the full component API works', () => {
     const Title = component({
-      view: (component) => {
-        return <h1>{component.children}</h1>;
-      }
+      view: (comp) => <h1>{comp.children}</h1>,
     });
 
     const Text = ({ color, children }) => (
@@ -25,43 +23,42 @@ describe('component.js', () => {
     );
 
     const TestComponent = component({
-      view: (component) => {
+      view: (comp) =>
         // Test ()
-        return (
+        (
           <h1>
-            hey {l(component, 'sample')}
-            <Title>{l(component, 'sample')}</Title>
+            hey {l(comp, 'sample')}
+            <Title>{l(comp, 'sample')}</Title>
             <Text color="purple">
-              Foo Bar: {l(component, 'sample')}
+              Foo Bar: {l(comp, 'sample')}
             </Text>
             <div>
-              {l(component, 'sample').process(value => value + '!!')}
+              {l(comp, 'sample').process(value => `${value}!!`)}
             </div>
             <div>
-              {l(component, 'sample').process(
+              {l(comp, 'sample').process(
                 value => (value === 'World' ? <div>A</div> : <div>B</div>)
               )}
             </div>
             <div>
-              {l(component, 'sample').process(value =>
+              {l(comp, 'sample').process(value =>
                 value.split('').map(char => <span>{char}</span>)
               )}
             </div>
-            <span foo={l(component, 'bar')} />
-            <div style={l(component, 'style')} />
+            <span foo={l(comp, 'bar')} />
+            <div style={l(comp, 'style')} />
           </h1>
-        );
-      },
+        ),
       state: {
         sample: 'World',
         bar: 'baz',
         style: { color: 'green', width: 200 },
       },
       actions: {
-        setSample() { this.sample = 'New World!' },
-        setFoo() { this.bar = 'foo' },
-        setStyles() { this.style = { color: 'orange', width: 400 } },
-      }
+        setSample() { this.sample = 'New World!'; },
+        setFoo() { this.bar = 'foo'; },
+        setStyles() { this.style = { color: 'orange', width: 400 }; },
+      },
     });
     const c = new TestComponent();
     expect(c.render().childNodes[0].innerHTML).toBe(

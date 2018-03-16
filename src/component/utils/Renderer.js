@@ -22,9 +22,10 @@ export default class Renderer {
   destroyHtml() {
     // Empty document fragment, so nothing to destroy
     if (!this.html.childNodes) return oldRootEl;
-    for (const childNode of this.html.childNodes) {
+    this.html.childNodes.forEach(childNode => {
       this.html.removeChild(childNode);
-    }
+    });
+
     return this.html;
   }
 }

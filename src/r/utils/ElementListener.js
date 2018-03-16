@@ -31,6 +31,7 @@ export default class ElementListener {
    */
   handleValueChange(value) {
     const newNode = listenerToNode(value);
+    /* eslint-disable */
     for (const node of newNode) {
       // If listenerAsNode[0] is undefined we're dealing with a fragment so we
       // can just append
@@ -44,6 +45,7 @@ export default class ElementListener {
     for (const node of this.listenerAsNode) node.remove();
 
     this.listenerAsNode = newNode;
+    /* eslint-enable */
   }
 
   /**
