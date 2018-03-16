@@ -1,3 +1,6 @@
+/* eslint-disable no-param-reassign */
+// -- until this can be rewritten as a pure function, we need to reassign.
+
 import Listener from '../../listen/Listener';
 import StyleListener from '../utils/StyleListener';
 import parseValue from './parseValue';
@@ -9,7 +12,7 @@ import parseValue from './parseValue';
  * @returns {*}
  */
 const setStyle = (element, property, value) => {
-  if (typeof value === 'undefined') return;
+  if (typeof value === 'undefined') return false;
 
   if (value instanceof Listener) {
     new StyleListener({
