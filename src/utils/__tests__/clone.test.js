@@ -29,5 +29,6 @@ describe('clone.js', () => {
     expect(clone(arr)[5]).toEqual(childObj);
     expect(clone(arr)[5] === childObj).toBe(false);
     expect(clone(obj).child).toEqual(childObj);
+    expect(clone(obj).child === childObj).toBe(false);
   });
 });

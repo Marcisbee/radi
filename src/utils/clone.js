@@ -10,7 +10,7 @@ const clone = obj => {
   const cloned = Object.keys(obj).reduce(
     (acc, key) => ({
       ...acc,
-      [key]: obj[key],
+      [key]: clone(obj[key]),
     }),
     {}
   );
