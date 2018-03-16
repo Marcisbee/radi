@@ -32,7 +32,6 @@ const setStyles = (element, styles) => {
     return element.style;
   }
 
-  console.log('styles', styles);
   for (const property in styles) {
     setStyle(element, property, styles[property]);
   }
