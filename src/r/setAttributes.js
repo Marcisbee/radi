@@ -1,3 +1,10 @@
+/* eslint-disable guard-for-in */
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable no-continue */
+// -- we need those for..in loops for now!
+
+/* eslint-disable no-param-reassign */
+// -- until this can be rewritten as a pure function, we need to reassign.
 
 import setStyles from './setStyles';
 import Listener from '../listen/Listener';

@@ -1,4 +1,11 @@
 import Listener from '../listen/Listener';
+/* eslint-disable guard-for-in */
+/* eslint-disable no-restricted-syntax */
+// -- we need those for..in loops for now!
+
+/* eslint-disable no-param-reassign */
+// -- until this can be rewritten as a pure function, we need to reassign.
+
 import AttributeListener from './utils/AttributeListener';
 import setStyle from './utils/setStyle';
 
@@ -25,6 +32,7 @@ const setStyles = (element, styles) => {
     return element.style;
   }
 
+  console.log('styles', styles);
   for (const property in styles) {
     setStyle(element, property, styles[property]);
   }

@@ -1,9 +1,13 @@
+/* eslint-disable guard-for-in */
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable no-continue */
+// -- we need those for..in loops for now!
+
 import GLOBALS from '../consts/GLOBALS';
 import clone from '../utils/clone';
 import generateId from '../utils/generateId';
 import Renderer from './utils/Renderer';
 import PrivateStore from './utils/PrivateStore';
-import appendChildren from '../r/appendChildren';
 
 export default class Component {
   /**
@@ -56,7 +60,7 @@ export default class Component {
   copyObjToInstance(obj, handleItem = item => item) {
     for (const key in obj) {
       if (typeof this[key] !== 'undefined') {
-        throw new Error(`[Radi.js] Error: Trying to write for reserved variable \`${i}\``);
+        throw new Error(`[Radi.js] Error: Trying to write for reserved variable \`${key}\``);
       }
       this.addCustomField(key, handleItem(obj[key]));
     }

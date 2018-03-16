@@ -1,6 +1,6 @@
-import r from '../r';
+import r from '../r'; // eslint-disable-line
 
-/** @jsx r **/
+/** @jsx r * */
 describe('r.js', () => {
   it('works correctly for components', () => {
     class FakeComponent {

@@ -1,5 +1,9 @@
 module.exports = {
   extends: 'airbnb-base',
+  parser: "babel-eslint",
+  "plugins": [
+    "react"
+  ],
   globals: {
     document: true,
     window: true,
@@ -37,5 +41,6 @@ module.exports = {
         functions: 'ignore',
       },
     ],
+    "react/jsx-uses-vars": "error"
   },
 };
