@@ -25,6 +25,16 @@ const appendChild = element => child => {
     return;
   }
 
+  // Handles lazy loading components
+  if (typeof child === 'function') {
+    const placeholder = document.createElement('div');
+    const el = element.appendChild(placeholder);
+    child().then(local => {
+      el.appendChild((new local.default()).render());
+    });
+    return;
+  }
+
   if (child instanceof Node) {
     element.appendChild(child);
     return;
