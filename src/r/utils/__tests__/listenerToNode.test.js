@@ -16,7 +16,7 @@ describe('listenerToNode.js', () => {
     fragment.appendChild(foo);
     fragment.appendChild(bar);
     expect(listenerToNode(fragment)).toEqual([foo, bar]);
-    expect(listenerToNode(fragment)[0]).not.toBe(foo);
-    expect(listenerToNode(fragment)[1]).not.toBe(bar);
+    expect(listenerToNode(fragment)[0]).toBe(foo);
+    expect(listenerToNode(fragment)[1]).toBe(bar);
   });
 });

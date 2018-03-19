@@ -1,5 +1,6 @@
 import appendChildren from '../appendChildren';
 import ensureArray from './ensureArray';
+import swapNode from './swapNode';
 
 /**
  * @param {*} value - Value of the listener
@@ -7,7 +8,7 @@ import ensureArray from './ensureArray';
  */
 const listenerToNode = value => {
   if (value instanceof DocumentFragment) {
-    return Array.from(value.childNodes).map(childNode => childNode.cloneNode(true));
+    return Array.from(value.childNodes).map(childNode => swapNode(childNode));
   }
 
   const element = document.createDocumentFragment();
