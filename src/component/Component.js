@@ -14,6 +14,7 @@ export default class Component {
    * @param {object} o
    * @param {string} [o.name]
    * @param {object} [o.mixins]
+   * @param {object} [o.comms]
    * @param {object} [o.state]
    * @param {object} [o.props]
    * @param {object} [o.actions]
@@ -25,6 +26,7 @@ export default class Component {
 
     this.addNonEnumerableProperties({
       $id: generateId(),
+      $comms: o.comms || null,
       $mixins: o.mixins || {},
       $state: clone(o.state || {}),
       $props: clone(o.props || {}),
@@ -47,6 +49,9 @@ export default class Component {
       $view: o.view(this),
       $renderer: new Renderer(this),
     });
+
+    // Register component for comms
+    if (o.comms) GLOBALS.COMMS[o.comms] = this;
 
     this.$view.unmount = this.unmount.bind(this);
     this.$view.mount = this.mount.bind(this);
@@ -145,6 +150,14 @@ export default class Component {
    */
   isMixin(key) {
     return typeof this.$mixins[key] !== 'undefined';
+  }
+
+  /**
+   * @param {string} key
+   * @returns {Component}
+   */
+  comms(key) {
+    return GLOBALS.COMMS[key] || null;
   }
 
   mount() {
