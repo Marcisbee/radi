@@ -12,6 +12,12 @@ const Radi = {
   listen,
   l: listen,
   component,
+  headless: (key, comp) => {
+    // TODO: Validate component and key
+    const mountedComponent = new comp();
+    mountedComponent.mount();
+    return GLOBALS.HEADLESS_COMPONENTS['$'.concat(key)] = mountedComponent;
+  },
   mount,
   freeze: () => {
     GLOBALS.FROZEN_STATE = true;

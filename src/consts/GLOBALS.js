@@ -1,6 +1,6 @@
 const GLOBALS = {
   MIX: {},
-  COMMS: {},
+  HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
   VERSION: '0.1.8',
   ACTIVE_COMPONENTS: {},

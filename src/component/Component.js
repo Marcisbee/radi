@@ -14,7 +14,6 @@ export default class Component {
    * @param {object} o
    * @param {string} [o.name]
    * @param {object} [o.mixins]
-   * @param {object} [o.comms]
    * @param {object} [o.state]
    * @param {object} [o.props]
    * @param {object} [o.actions]
@@ -24,9 +23,8 @@ export default class Component {
   constructor(o, children) {
     this.name = o.name;
 
-    this.addNonEnumerableProperties({
+    this.addNonEnumerableProperties(Object.assign({
       $id: generateId(),
-      $comms: o.comms || null,
       $mixins: o.mixins || {},
       $state: clone(o.state || {}),
       $props: clone(o.props || {}),
@@ -34,7 +32,7 @@ export default class Component {
       // Variables like state and props are actually stored here so that we can
       // have custom setters
       $privateStore: new PrivateStore(),
-    });
+    }));
 
     this.addCustomField('children', []);
     if (children) this.setChildren(children);
@@ -42,16 +40,15 @@ export default class Component {
     this.copyObjToInstance(this.$mixins);
     this.copyObjToInstance(this.$state);
     this.copyObjToInstance(this.$props);
+    // Appends headless components
+    this.copyObjToInstance(GLOBALS.HEADLESS_COMPONENTS);
     // The bind on this.handleAction is necessary
     this.copyObjToInstance(this.$actions, this.handleAction.bind(this));
 
     this.addNonEnumerableProperties({
-      $view: o.view(this),
+      $view: o.view ? o.view(this) : () => () => null,
       $renderer: new Renderer(this),
     });
-
-    // Register component for comms
-    if (o.comms) GLOBALS.COMMS[o.comms] = this;
 
     this.$view.unmount = this.unmount.bind(this);
     this.$view.mount = this.mount.bind(this);
@@ -150,14 +147,6 @@ export default class Component {
    */
   isMixin(key) {
     return typeof this.$mixins[key] !== 'undefined';
-  }
-
-  /**
-   * @param {string} key
-   * @returns {Component}
-   */
-  comms(key) {
-    return GLOBALS.COMMS[key] || null;
   }
 
   mount() {
