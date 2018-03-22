@@ -7,8 +7,16 @@ describe('appendChild.js', () => {
     expect(typeof appendChild(7)).toBe('function');
   });
 
-  it("doesn't do anything when child is falsy", () => {
-    expect(appendChild({})(null)).toBeUndefined();
+  it("renders 0 when child is 0", () => {
+    const element = document.createElement('div');
+    appendChild(element)(0);
+    expect(element.innerHTML).toBe('0');
+  });
+
+  it("renders empty node when child is falsy", () => {
+    const element = document.createElement('div');
+    appendChild(element)(null);
+    expect(element.innerHTML).toBe('');
   });
 
   it('renders components before adding them', () => {
