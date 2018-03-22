@@ -37,6 +37,8 @@ const appendChild = element => child => {
       } else {
         appendChild(el)(local.default);
       }
+    }).catch(() => {
+      // We don't have to do anything
     });
     return;
   }
