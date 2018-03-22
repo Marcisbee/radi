@@ -8,7 +8,7 @@ import appendListenerToElement from './utils/appendListenerToElement';
  * @returns {function(*)}
  */
 const appendChild = element => child => {
-  if (!child) return;
+  if (!child && typeof child !== 'number') '';
 
   if (child instanceof Component) {
     element.appendChild(child.render());

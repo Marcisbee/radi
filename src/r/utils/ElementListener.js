@@ -39,8 +39,7 @@ export default class ElementListener {
         this.element.appendChild(node);
         continue;
       }
-      // TODO: Find a cheap way of finding right node to replace as there
-      // can be not only listeners in child
+      // TODO: Finish dom transformer and swap it with Node replacement
       this.element.insertBefore(node, this.listenerAsNode[0]);
     }
 
