@@ -30,7 +30,13 @@ const appendChild = element => child => {
     const placeholder = document.createElement('div');
     const el = element.appendChild(placeholder);
     child().then(local => {
-      el.appendChild((new local.default()).render());
+      if (typeof local.default === 'function'
+        && local.default.isComponent
+        && local.default.isComponent()) {
+        appendChild(el)(new local.default());
+      } else {
+        appendChild(el)(local.default);
+      }
     });
     return;
   }
