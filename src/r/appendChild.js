@@ -8,7 +8,10 @@ import appendListenerToElement from './utils/appendListenerToElement';
  * @returns {function(*)}
  */
 const appendChild = element => child => {
-  if (!child && typeof child !== 'number') '';
+  if (!child && typeof child !== 'number') {
+    // Needs to render every child, even empty ones to preserve dom hierarchy
+    child = ''
+  }
 
   if (child instanceof Component) {
     element.appendChild(child.render());
@@ -33,7 +36,9 @@ const appendChild = element => child => {
       if (typeof local.default === 'function'
         && local.default.isComponent
         && local.default.isComponent()) {
+        /*eslint-disable*/
         appendChild(el)(new local.default());
+        /* eslint-enable */
       } else {
         appendChild(el)(local.default);
       }
