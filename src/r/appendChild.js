@@ -1,3 +1,5 @@
+/* eslint-disable no-param-reassign */
+
 import Component from '../component/Component';
 import Listener from '../listen/Listener';
 import appendChildren from './appendChildren';
@@ -10,7 +12,7 @@ import appendListenerToElement from './utils/appendListenerToElement';
 const appendChild = element => child => {
   if (!child && typeof child !== 'number') {
     // Needs to render every child, even empty ones to preserve dom hierarchy
-    child = ''
+    child = '';
   }
 
   if (child instanceof Component) {

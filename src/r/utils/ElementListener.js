@@ -43,7 +43,20 @@ export default class ElementListener {
       this.element.insertBefore(node, this.listenerAsNode[0]);
     }
 
-    for (const node of this.listenerAsNode) node.remove();
+    for (const node of this.listenerAsNode) {
+      var treeWalker = document.createTreeWalker(
+        node,
+        NodeFilter.SHOW_ELEMENT,
+        el => el && typeof el.destroy === 'function',
+        false);
+
+      var el;
+      while((el = treeWalker.nextNode())) {
+        el.destroy();
+      }
+
+      node.remove();
+    }
 
     this.listenerAsNode = newNode;
     /* eslint-enable */

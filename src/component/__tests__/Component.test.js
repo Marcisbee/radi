@@ -193,8 +193,8 @@ describe('Component.js', () => {
     });
     component.render();
     const destroyed = component.destroy();
-    expect(destroyed).toBeInstanceOf(DocumentFragment);
-    expect(destroyed.childNodes[0]).toBeUndefined();
+    expect(onDestroySpy.calledOnce).toBe(true);
+    expect(destroyed.childNodes).toBeUndefined();
   });
 
   test('its static isComponent method returns true', () => {

@@ -5,14 +5,15 @@ export default class Renderer {
   constructor(component) {
     this.component = component;
     this.html = document.createDocumentFragment();
+    this.node = {};
   }
 
   /**
    * @returns {HTMLElement}
    */
   render() {
-    this.html.appendChild(this.component.$view);
-    this.html.destroy = () => this.destroyHtml();
+    this.html.appendChild(this.node = this.component.$view);
+    this.html.destroy = this.node.destroy = () => this.component.destroy();
     return this.html;
   }
 
@@ -20,12 +21,21 @@ export default class Renderer {
    * @returns {HTMLElement}
    */
   destroyHtml() {
-    // Empty document fragment, so nothing to destroy
-    if (!this.html.childNodes) return oldRootEl;
-    this.html.childNodes.forEach(childNode => {
-      this.html.removeChild(childNode);
-    });
+    if (this.node.childNodes) {
+      this.node.childNodes.forEach(childNode => {
+        this.node.removeChild(childNode);
+      });
+    }
 
-    return this.html;
+    if (this.html.childNodes) {
+      this.html.childNodes.forEach(childNode => {
+        this.html.removeChild(childNode);
+      });
+    }
+
+    this.html = document.createDocumentFragment();
+    this.node = {};
+
+    return this.node;
   }
 }
