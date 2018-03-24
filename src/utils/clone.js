@@ -7,13 +7,15 @@ const clone = obj => {
   if (obj === null) return obj;
   if (Array.isArray(obj)) return obj.map(clone);
 
-  const cloned = Object.keys(obj).reduce(
-    (acc, key) => ({
-      ...acc,
-      [key]: clone(obj[key]),
-    }),
-    {}
-  );
+  /*eslint-disable*/
+  // Reverted as currently throws some errors
+  const cloned = {};
+  for (const key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      cloned[key] = clone(obj[key]);
+    }
+  }
+  /* eslint-enable */
 
   return cloned;
 };
