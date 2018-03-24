@@ -24,6 +24,18 @@ export default class AttributeListener {
     this.element.attributeListeners.push(this);
     this.listener.onValueChange(this.handleValueChange);
     this.attached = true;
+
+    if (this.attributeKey === 'model') {
+      if (/(checkbox|radio)/.test(this.element.getAttribute('type'))) {
+        this.element.onchange = (e) => {
+          this.listener.component[this.listener.key] = e.target.checked;
+        };
+      } else {
+        this.element.oninput = (e) => {
+          this.listener.component[this.listener.key] = e.target.value;
+        };
+      }
+    }
     return this;
   }
 
@@ -31,7 +43,15 @@ export default class AttributeListener {
    * @param {*} value
    */
   handleValueChange(value) {
-    setAttributes(this.element, { [this.attributeKey]: value });
+    if (this.attributeKey === 'value' || this.attributeKey === 'model') {
+      if (/(checkbox|radio)/.test(this.element.getAttribute('type'))) {
+        this.element.checked = value;
+      } else {
+        this.element.value = value;
+      }
+    } else {
+      setAttributes(this.element, { [this.attributeKey]: value });
+    }
   }
 
   /**

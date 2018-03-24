@@ -2,7 +2,7 @@ const GLOBALS = {
   MIX: {},
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.2.2',
+  VERSION: '0.2.3',
   ACTIVE_COMPONENTS: {},
   HTML_CACHE: {},
 };
@@ -89,6 +89,18 @@ class AttributeListener {
     this.element.attributeListeners.push(this);
     this.listener.onValueChange(this.handleValueChange);
     this.attached = true;
+
+    if (this.attributeKey === 'model') {
+      if (/(checkbox|radio)/.test(this.element.getAttribute('type'))) {
+        this.element.onchange = (e) => {
+          this.listener.component[this.listener.key] = e.target.checked;
+        };
+      } else {
+        this.element.oninput = (e) => {
+          this.listener.component[this.listener.key] = e.target.value;
+        };
+      }
+    }
     return this;
   }
 
@@ -96,7 +108,15 @@ class AttributeListener {
    * @param {*} value
    */
   handleValueChange(value) {
-    setAttributes(this.element, { [this.attributeKey]: value });
+    if (this.attributeKey === 'value' || this.attributeKey === 'model') {
+      if (/(checkbox|radio)/.test(this.element.getAttribute('type'))) {
+        this.element.checked = value;
+      } else {
+        this.element.value = value;
+      }
+    } else {
+      setAttributes(this.element, { [this.attributeKey]: value });
+    }
   }
 
   /**
@@ -222,6 +242,12 @@ const setAttributes = (element, attributes) => {
     const value = attributes[key];
 
     if (typeof value === 'undefined') continue;
+
+    if (!value && typeof value !== 'number') {
+      // Need to remove falsy attribute
+      element.removeAttribute(key);
+      continue;
+    }
 
     if (key === 'style') {
       setStyles(element, value);

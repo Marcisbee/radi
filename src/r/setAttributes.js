@@ -20,6 +20,12 @@ const setAttributes = (element, attributes) => {
 
     if (typeof value === 'undefined') continue;
 
+    if (!value && typeof value !== 'number') {
+      // Need to remove falsy attribute
+      element.removeAttribute(key);
+      continue;
+    }
+
     if (key === 'style') {
       setStyles(element, value);
       continue;
