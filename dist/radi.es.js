@@ -2,7 +2,7 @@ const GLOBALS = {
   MIX: {},
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.2.0',
+  VERSION: '0.2.1',
   ACTIVE_COMPONENTS: {},
   HTML_CACHE: {},
 };
@@ -849,7 +849,7 @@ const remountActiveComponents = () => {
   });
 };
 
-let _radi = {
+const _radi = {
   version: GLOBALS.VERSION,
   activeComponents: GLOBALS.ACTIVE_COMPONENTS,
   r,
@@ -873,11 +873,12 @@ let _radi = {
 };
 
 // Pass Radi instance to plugins
-_radi.plugin = (fn, ...args) => fn(_radi, ...args);
+_radi.plugin = (fn, ...args) => {
+  console.log(arguments, _radi);
+  return fn(_radi, ...args)
+};
 
 if (window) window.$Radi = _radi;
 
-const Radi = _radi;
-
-export { Radi };
+module.exports = _radi;
 //# sourceMappingURL=radi.es.js.map
