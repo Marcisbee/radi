@@ -5,7 +5,7 @@ import component from './component';
 import mount from './mount';
 import remountActiveComponents from './utils/remountActiveComponents';
 
-const Radi = {
+let _radi = {
   version: GLOBALS.VERSION,
   activeComponents: GLOBALS.ACTIVE_COMPONENTS,
   r,
@@ -28,6 +28,9 @@ const Radi = {
   },
 };
 
-if (window) window.$Radi = Radi;
+// Pass Radi instance to plugins
+_radi.plugin = (fn, ...args) => fn(_radi, ...args)
 
-export default Radi;
+if (window) window.$Radi = _radi;
+
+export const Radi = _radi;

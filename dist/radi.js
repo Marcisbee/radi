@@ -1,14 +1,14 @@
 (function (global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
-  typeof define === 'function' && define.amd ? define(factory) :
-  (global.radi = factory());
-}(this, (function () { 'use strict';
+  typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
+  typeof define === 'function' && define.amd ? define(['exports'], factory) :
+  (factory((global.radi = {})));
+}(this, (function (exports) { 'use strict';
 
   const GLOBALS = {
     MIX: {},
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.1.8',
+    VERSION: '0.2.0',
     ACTIVE_COMPONENTS: {},
     HTML_CACHE: {},
   };
@@ -855,7 +855,7 @@
     });
   };
 
-  const Radi = {
+  let _radi = {
     version: GLOBALS.VERSION,
     activeComponents: GLOBALS.ACTIVE_COMPONENTS,
     r,
@@ -878,9 +878,16 @@
     },
   };
 
-  if (window) window.$Radi = Radi;
+  // Pass Radi instance to plugins
+  _radi.plugin = (fn, ...args) => fn(_radi, ...args);
 
-  return Radi;
+  if (window) window.$Radi = _radi;
+
+  const Radi = _radi;
+
+  exports.Radi = Radi;
+
+  Object.defineProperty(exports, '__esModule', { value: true });
 
 })));
 //# sourceMappingURL=radi.js.map
