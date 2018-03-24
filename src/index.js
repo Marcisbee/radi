@@ -29,10 +29,7 @@ const _radi = {
 };
 
 // Pass Radi instance to plugins
-_radi.plugin = (fn, ...args) => {
-  console.log(arguments, _radi);
-  return fn(_radi, ...args)
-};
+_radi.plugin = (fn, ...args) => fn(_radi, ...args);
 
 if (window) window.$Radi = _radi;
 
