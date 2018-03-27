@@ -1,3 +1,6 @@
+import Component from '../Component'
+import deepProxy from './deepProxy'
+
 export default class PrivateStore {
   constructor() {
     this.store = {};
@@ -12,6 +15,19 @@ export default class PrivateStore {
   setItem(key, value) {
     if (typeof this.store[key] === 'undefined') {
       this.createItemWrapper(key);
+    }
+    if (key !== 'children'
+      && value
+      && typeof value === 'object'
+      && !(value instanceof Component)) {
+      value = deepProxy(value, {
+        set: (target, path, val, receiver) => {
+          this.triggerListeners(key);
+        },
+        deleteProperty: (target, path) => {
+          this.triggerListeners(key);
+        }
+      })
     }
     this.store[key].value = value;
     this.triggerListeners(key);
