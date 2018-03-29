@@ -8,7 +8,7 @@
     MIX: {},
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.2.4',
+    VERSION: '0.2.5',
     ACTIVE_COMPONENTS: {},
     HTML_CACHE: {},
   };
@@ -582,7 +582,7 @@
     handleAction(action) {
       return (...args) => {
         if (GLOBALS.FROZEN_STATE) return null;
-        return action.bind(this)(...args);
+        return action.call(this, ...args);
       };
     }
 
@@ -657,14 +657,14 @@
 
     mount() {
       if (typeof this.$actions.onMount === 'function') {
-        this.$actions.onMount(this);
+        this.$actions.onMount.call(this, this);
       }
       GLOBALS.ACTIVE_COMPONENTS[this.$id] = this;
     }
 
     unmount() {
       if (typeof this.$actions.onDestroy === 'function') {
-        this.$actions.onDestroy(this);
+        this.$actions.onDestroy.call(this, this);
       }
       delete GLOBALS.ACTIVE_COMPONENTS[this.$id];
     }

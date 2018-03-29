@@ -76,7 +76,7 @@ export default class Component {
   handleAction(action) {
     return (...args) => {
       if (GLOBALS.FROZEN_STATE) return null;
-      return action.bind(this)(...args);
+      return action.call(this, ...args);
     };
   }
 
@@ -151,14 +151,14 @@ export default class Component {
 
   mount() {
     if (typeof this.$actions.onMount === 'function') {
-      this.$actions.onMount(this);
+      this.$actions.onMount.call(this, this);
     }
     GLOBALS.ACTIVE_COMPONENTS[this.$id] = this;
   }
 
   unmount() {
     if (typeof this.$actions.onDestroy === 'function') {
-      this.$actions.onDestroy(this);
+      this.$actions.onDestroy.call(this, this);
     }
     delete GLOBALS.ACTIVE_COMPONENTS[this.$id];
   }
