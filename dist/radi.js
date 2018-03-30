@@ -8,7 +8,7 @@
     MIX: {},
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.2.6',
+    VERSION: '0.2.8',
     ACTIVE_COMPONENTS: {},
     HTML_CACHE: {},
   };
@@ -61,11 +61,11 @@
      * @param {*} value
      */
     getShallowValue(value) {
-      if (!this.childPath) return value;
+      if (typeof value !== 'object' || !this.childPath) return value;
       let shallowValue = value;
       /*eslint-disable*/
       for (const pathNestingLevel of this.childPath) {
-        shallowValue = shallowValue[pathNestingLevel];
+        shallowValue = shallowValue === null ? null : shallowValue[pathNestingLevel] || null;
       }
       return shallowValue;
     }
@@ -275,7 +275,6 @@
           element[key] = (e) => {
             let data = [];
             let inputs = e.target.elements || [];
-
             for (var i = 0, input; input = inputs[i++];) {
               if (input.name !== '') {
                 let item = {
@@ -881,15 +880,15 @@
         if (typeof local.default === 'function'
           && local.default.isComponent
           && local.default.isComponent()) {
+          // console.warn('1', el, new local.default())
           /*eslint-disable*/
-          appendChild(el)(new local.default());
+          console.warn(appendChild(el)(new local.default()));
           /* eslint-enable */
         } else {
+          console.warn('2');
           appendChild(el)(local.default);
         }
-      }).catch(() => {
-        // We don't have to do anything
-      });
+      }).catch(console.warn);
       return;
     }
 

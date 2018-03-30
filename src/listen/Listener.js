@@ -46,11 +46,11 @@ export default class Listener {
    * @param {*} value
    */
   getShallowValue(value) {
-    if (!this.childPath) return value;
+    if (typeof value !== 'object' || !this.childPath) return value;
     let shallowValue = value;
     /*eslint-disable*/
     for (const pathNestingLevel of this.childPath) {
-      shallowValue = shallowValue[pathNestingLevel];
+      shallowValue = shallowValue === null ? null : shallowValue[pathNestingLevel] || null;
     }
     return shallowValue;
   }
