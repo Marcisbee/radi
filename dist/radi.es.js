@@ -278,10 +278,17 @@ const setAttributes = (element, attributes) => {
                 type: input.type,
                 default: input.defaultValue,
                 value: input.value,
+                set(val) {
+                  this.el.value = val;
+                },
+                reset(val) {
+                  this.el.value = val;
+                  this.el.defaultValue = val;
+                },
               };
               data.push(item);
               Object.defineProperty(data, item.name, {
-                value: item.value,
+                value: item,
               });
             }
           }

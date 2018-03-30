@@ -46,7 +46,6 @@ const setAttributes = (element, attributes) => {
         element[key] = (e) => {
           let data = [];
           let inputs = e.target.elements || [];
-
           for (var i = 0, input; input = inputs[i++];) {
             if (input.name !== '') {
               let item = {
@@ -55,10 +54,17 @@ const setAttributes = (element, attributes) => {
                 type: input.type,
                 default: input.defaultValue,
                 value: input.value,
+                set(val) {
+                  this.el.value = val;
+                },
+                reset(val) {
+                  this.el.value = val;
+                  this.el.defaultValue = val;
+                },
               };
               data.push(item);
               Object.defineProperty(data, item.name, {
-                value: item.value,
+                value: item,
               });
             }
           }
