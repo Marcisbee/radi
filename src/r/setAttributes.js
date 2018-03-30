@@ -42,7 +42,32 @@ const setAttributes = (element, attributes) => {
 
     // Handles events 'on<event>'
     if (key.substring(0, 2).toLowerCase() === 'on') {
-      element[key] = value;
+      if (key.substring(0, 8).toLowerCase() === 'onsubmit') {
+        element[key] = (e) => {
+          let data = [];
+          let inputs = e.target.elements || [];
+
+          for (var i = 0, input; input = inputs[i++];) {
+            if (input.name !== '') {
+              let item = {
+                name: input.name,
+                el: input,
+                type: input.type,
+                default: input.defaultValue,
+                value: input.value,
+              };
+              data.push(item);
+              Object.defineProperty(data, item.name, {
+                value: item.value,
+              });
+            }
+          }
+
+          return value(e, data);
+        };
+      } else {
+        element[key] = value;
+      }
       continue;
     }
 
