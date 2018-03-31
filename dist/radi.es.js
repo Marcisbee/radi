@@ -2,7 +2,7 @@ const GLOBALS = {
   MIX: {},
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.2.8',
+  VERSION: '0.2.9',
   ACTIVE_COMPONENTS: {},
   HTML_CACHE: {},
 };
@@ -59,7 +59,13 @@ class Listener {
     let shallowValue = value;
     /*eslint-disable*/
     for (const pathNestingLevel of this.childPath) {
-      shallowValue = shallowValue === null ? null : shallowValue[pathNestingLevel] || null;
+      if (shallowValue === null
+        || !shallowValue[pathNestingLevel]
+        && typeof shallowValue[pathNestingLevel] !== 'number') {
+        shallowValue = null;
+      } else {
+        shallowValue = shallowValue[pathNestingLevel];
+      }
     }
     return shallowValue;
   }
@@ -267,11 +273,11 @@ const setAttributes = (element, attributes) => {
     if (key.substring(0, 2).toLowerCase() === 'on') {
       if (key.substring(0, 8).toLowerCase() === 'onsubmit') {
         element[key] = (e) => {
-          let data = [];
-          let inputs = e.target.elements || [];
-          for (var i = 0, input; input = inputs[i++];) {
+          const data = [];
+          const inputs = e.target.elements || [];
+          for (const input of inputs) {
             if (input.name !== '') {
-              let item = {
+              const item = {
                 name: input.name,
                 el: input,
                 type: input.type,
@@ -404,7 +410,7 @@ function deepProxy(target, handler) {
   function makeHandler(path) {
     return {
       set(target, key, value, receiver) {
-        if(typeof value === 'object') {
+        if(typeof value === 'object' && value !== null) {
           value = proxify(value, [...path, key]);
         }
         target[key] = value;
@@ -431,13 +437,12 @@ function deepProxy(target, handler) {
 
   function unproxy(obj, key) {
     if(preproxy.has(obj[key])) {
-      // console.log('unproxy',key);
       obj[key] = preproxy.get(obj[key]);
       preproxy.delete(obj[key]);
     }
 
     for(let k of Object.keys(obj[key])) {
-      if(typeof obj[key][k] === 'object') {
+      if(typeof obj[key][k] === 'object' && obj[key] !== null) {
         unproxy(obj[key], k);
       }
     }
@@ -445,7 +450,7 @@ function deepProxy(target, handler) {
 
   function proxify(obj, path) {
     for(let key of Object.keys(obj)) {
-      if(typeof obj[key] === 'object') {
+      if(typeof obj[key] === 'object' && obj[key] !== null) {
         obj[key] = proxify(obj[key], [...path, key]);
       }
     }
@@ -874,12 +879,10 @@ const appendChild = element => child => {
       if (typeof local.default === 'function'
         && local.default.isComponent
         && local.default.isComponent()) {
-        // console.warn('1', el, new local.default())
         /*eslint-disable*/
-        console.warn(appendChild(el)(new local.default()));
+        appendChild(el)(new local.default());
         /* eslint-enable */
       } else {
-        console.warn('2');
         appendChild(el)(local.default);
       }
     }).catch(console.warn);

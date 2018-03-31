@@ -44,11 +44,11 @@ const setAttributes = (element, attributes) => {
     if (key.substring(0, 2).toLowerCase() === 'on') {
       if (key.substring(0, 8).toLowerCase() === 'onsubmit') {
         element[key] = (e) => {
-          let data = [];
-          let inputs = e.target.elements || [];
-          for (var i = 0, input; input = inputs[i++];) {
+          const data = [];
+          const inputs = e.target.elements || [];
+          for (const input of inputs) {
             if (input.name !== '') {
-              let item = {
+              const item = {
                 name: input.name,
                 el: input,
                 type: input.type,

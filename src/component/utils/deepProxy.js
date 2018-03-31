@@ -4,7 +4,7 @@ export default function deepProxy(target, handler) {
   function makeHandler(path) {
     return {
       set(target, key, value, receiver) {
-        if(typeof value === 'object') {
+        if(typeof value === 'object' && value !== null) {
           value = proxify(value, [...path, key]);
         }
         target[key] = value;
@@ -31,13 +31,12 @@ export default function deepProxy(target, handler) {
 
   function unproxy(obj, key) {
     if(preproxy.has(obj[key])) {
-      // console.log('unproxy',key);
       obj[key] = preproxy.get(obj[key]);
       preproxy.delete(obj[key]);
     }
 
     for(let k of Object.keys(obj[key])) {
-      if(typeof obj[key][k] === 'object') {
+      if(typeof obj[key][k] === 'object' && obj[key] !== null) {
         unproxy(obj[key], k);
       }
     }
@@ -45,7 +44,7 @@ export default function deepProxy(target, handler) {
 
   function proxify(obj, path) {
     for(let key of Object.keys(obj)) {
-      if(typeof obj[key] === 'object') {
+      if(typeof obj[key] === 'object' && obj[key] !== null) {
         obj[key] = proxify(obj[key], [...path, key]);
       }
     }

@@ -50,7 +50,13 @@ export default class Listener {
     let shallowValue = value;
     /*eslint-disable*/
     for (const pathNestingLevel of this.childPath) {
-      shallowValue = shallowValue === null ? null : shallowValue[pathNestingLevel] || null;
+      if (shallowValue === null
+        || !shallowValue[pathNestingLevel]
+        && typeof shallowValue[pathNestingLevel] !== 'number') {
+        shallowValue = null
+      } else {
+        shallowValue = shallowValue[pathNestingLevel]
+      }
     }
     return shallowValue;
   }
