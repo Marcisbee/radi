@@ -8,6 +8,7 @@
 
 import setStyles from './setStyles';
 import Listener from '../listen/Listener';
+import parseClass from './utils/parseClass';
 import AttributeListener from './utils/AttributeListener';
 
 /**
@@ -26,7 +27,7 @@ const setAttributes = (element, attributes) => {
       continue;
     }
 
-    if (key === 'style') {
+    if (key.toLowerCase() === 'style') {
       setStyles(element, value);
       continue;
     }
@@ -37,6 +38,11 @@ const setAttributes = (element, attributes) => {
         listener: value,
         element,
       }).attach();
+      continue;
+    }
+
+    if (key.toLowerCase() === 'class' || key.toLowerCase() === 'classname') {
+      element.setAttribute('class', parseClass(value));
       continue;
     }
 

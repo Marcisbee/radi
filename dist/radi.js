@@ -8,7 +8,7 @@
     MIX: {},
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.2.9',
+    VERSION: '0.2.10',
     ACTIVE_COMPONENTS: {},
     HTML_CACHE: {},
   };
@@ -243,6 +243,17 @@
     return element.style;
   };
 
+  /**
+   * @param {*} value
+   * @return {*}
+   */
+  const parseClass = value => {
+    if (Array.isArray(value)) {
+      return value.filter(item => item).join(' ')
+    }
+    return value;
+  };
+
   /* eslint-disable guard-for-in */
 
   /**
@@ -261,7 +272,7 @@
         continue;
       }
 
-      if (key === 'style') {
+      if (key.toLowerCase() === 'style') {
         setStyles(element, value);
         continue;
       }
@@ -272,6 +283,11 @@
           listener: value,
           element,
         }).attach();
+        continue;
+      }
+
+      if (key.toLowerCase() === 'class' || key.toLowerCase() === 'classname') {
+        element.setAttribute('class', parseClass(value));
         continue;
       }
 
