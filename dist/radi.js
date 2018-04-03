@@ -8,7 +8,7 @@
     MIX: {},
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.2.10',
+    VERSION: '0.2.11',
     ACTIVE_COMPONENTS: {},
     HTML_CACHE: {},
   };
@@ -755,28 +755,12 @@
   };
 
   /**
-   * @param {*} oldNode - Node to be swapped
-   * @returns {Node}
-   */
-  const swapNode = oldNode => {
-
-    const newNode = oldNode;
-
-    oldNode = newNode.cloneNode(true);
-
-    // TODO: Need to destroy all childs of oldNode with smth like .destroy();
-    oldNode.remove();
-
-    return newNode;
-  };
-
-  /**
    * @param {*} value - Value of the listener
    * @returns {Node[]}
    */
   const listenerToNode = value => {
     if (value instanceof DocumentFragment) {
-      return Array.from(value.childNodes).map(childNode => swapNode(childNode));
+      return Array.from(value.childNodes);
     }
 
     const element = document.createDocumentFragment();
