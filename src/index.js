@@ -1,7 +1,7 @@
 import GLOBALS from './consts/GLOBALS';
 import r from './r';
 import listen from './listen';
-import component from './component';
+import component, { Component } from './component';
 import mount from './mount';
 import remountActiveComponents from './utils/remountActiveComponents';
 
@@ -12,11 +12,12 @@ const _radi = {
   listen,
   l: listen,
   component,
+  Component,
   headless: (key, comp) => {
     // TODO: Validate component and key
     const mountedComponent = new comp();
     mountedComponent.mount();
-    return GLOBALS.HEADLESS_COMPONENTS['$'.concat(key)] = mountedComponent;
+    return (GLOBALS.HEADLESS_COMPONENTS['$'.concat(key)] = mountedComponent);
   },
   mount,
   freeze: () => {
@@ -33,4 +34,4 @@ _radi.plugin = (fn, ...args) => fn(_radi, ...args);
 
 if (window) window.$Radi = _radi;
 
-module.exports = _radi;
+export const radi = _radi;

@@ -9,7 +9,7 @@ import generateId from '../utils/generateId';
 import Renderer from './utils/Renderer';
 import PrivateStore from './utils/PrivateStore';
 
-export default class Component {
+export default class ComponentClazz {
   /**
    * @param {object} o
    * @param {string} [o.name]
@@ -17,7 +17,7 @@ export default class Component {
    * @param {object} [o.state]
    * @param {object} [o.props]
    * @param {object} [o.actions]
-   * @param {function(Component): (HTMLElement|Component)} view
+   * @param {function(ComponentClazz): (HTMLElement|ComponentClazz)} view
    * @param {Node[]|*[]} [children]
    */
   constructor(o, children) {
@@ -46,7 +46,7 @@ export default class Component {
     this.copyObjToInstance(this.$actions, this.handleAction.bind(this));
 
     this.addNonEnumerableProperties({
-      $view: o.view ? o.view(this) : () => () => null,
+      $view: o.view ? o.view.bind(this)(this) : () => () => null,
       $renderer: new Renderer(this),
     });
 
@@ -82,7 +82,7 @@ export default class Component {
 
   /**
    * @param {object} props
-   * @returns {Component}
+   * @returns {ComponentClazz}
    */
   setProps(props) {
     for (const key in props) {

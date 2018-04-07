@@ -1,7 +1,7 @@
 /* eslint-disable no-prototype-builtins */
 import sinon from 'sinon';
 import GLOBALS from '../../consts/GLOBALS';
-import Component from '../Component';
+import ComponentClazz from '../Component';
 import PrivateStore from '../utils/PrivateStore';
 import Renderer from '../utils/Renderer';
 
@@ -21,7 +21,7 @@ describe('Component.js', () => {
   it('instantiates correctly', () => {
     const actionSpy = sinon.spy();
     const viewSpy = sinon.spy();
-    const component = new Component(
+    const component = new ComponentClazz(
       {
         name: 'Foo',
         mixins: { foo: 'bar' },
@@ -78,7 +78,7 @@ describe('Component.js', () => {
   });
 
   test('its copyObjToInstance method works correctly', () => {
-    const component = new Component({ view: fakeView });
+    const component = new ComponentClazz({ view: fakeView });
     component.copyObjToInstance({ foo: 'bar' });
     expect(component.foo).toBe('bar');
     component.copyObjToInstance({ bar: 'foo' }, item => item + item);
@@ -86,7 +86,7 @@ describe('Component.js', () => {
   });
 
   test('its handleAction method works correctly', () => {
-    const component = new Component({ view: fakeView });
+    const component = new ComponentClazz({ view: fakeView });
     expect(typeof component.handleAction(a => a)).toBe('function');
 
     const actionSpy = sinon.spy();
@@ -96,7 +96,7 @@ describe('Component.js', () => {
   });
 
   test('its setProps method works correctly', () => {
-    const component = new Component({ props: { foo: null }, view: fakeView });
+    const component = new ComponentClazz({ props: { foo: null }, view: fakeView });
     component.setProps({ foo: 'bar' });
     expect(component.foo).toBe('bar');
     component.setProps({ bar: 'foo' });
@@ -106,7 +106,7 @@ describe('Component.js', () => {
   });
 
   test('its setChildren method works correctly', () => {
-    const component = new Component({ view: fakeView });
+    const component = new ComponentClazz({ view: fakeView });
     expect(component.children).toEqual([]);
     const result = component.setChildren([3, 2, 1]);
     expect(component.children).toEqual([3, 2, 1]);
@@ -114,7 +114,7 @@ describe('Component.js', () => {
   });
 
   test('its addNonEnumerableProperties method works correctly', () => {
-    const component = new Component({ props: { foo: 'bar' }, view: fakeView });
+    const component = new ComponentClazz({ props: { foo: 'bar' }, view: fakeView });
     component.addNonEnumerableProperties({ foo: 7, bar: 'baz' });
     expect(component.foo).toBe('bar');
     expect(component.bar).toBe('baz');
@@ -123,7 +123,7 @@ describe('Component.js', () => {
   });
 
   test('its addCustomField method works correctly', () => {
-    const component = new Component({ view: fakeView });
+    const component = new ComponentClazz({ view: fakeView });
     component.addCustomField('foo', 'bar');
     expect(component.foo).toBe('bar');
     expect(component.$privateStore.getItem('foo')).toBe('bar');
@@ -133,7 +133,7 @@ describe('Component.js', () => {
   });
 
   test('its addListener method works correctly', () => {
-    const component = new Component({ props: { foo: 'bar' }, view: fakeView });
+    const component = new ComponentClazz({ props: { foo: 'bar' }, view: fakeView });
     const listener = { handleUpdate: sinon.spy() };
     component.addListener('foo', listener);
     expect(component.$privateStore.store.foo.listeners[0]).toBe(listener);
@@ -145,14 +145,14 @@ describe('Component.js', () => {
   });
 
   test('its isMixins method works correctly', () => {
-    const component = new Component({ mixins: { foo: 'bar' }, view: fakeView });
+    const component = new ComponentClazz({ mixins: { foo: 'bar' }, view: fakeView });
     expect(component.isMixin('foo')).toBe(true);
     expect(component.isMixin('bar')).toBe(false);
   });
 
   test('its mount method works correctly', () => {
     const onMountSpy = sinon.spy();
-    const component = new Component({
+    const component = new ComponentClazz({
       view: fakeView,
       actions: { onMount: onMountSpy },
     });
@@ -163,7 +163,7 @@ describe('Component.js', () => {
 
   test('its unmount method works correctly', () => {
     const onDestroySpy = sinon.spy();
-    const component = new Component({
+    const component = new ComponentClazz({
       view: fakeView,
       actions: { onDestroy: onDestroySpy },
     });
@@ -175,7 +175,7 @@ describe('Component.js', () => {
 
   test('its render method works correctly', () => {
     const onMountSpy = sinon.spy();
-    const component = new Component({
+    const component = new ComponentClazz({
       view: () => document.createElement('h1'),
       actions: { onMount: onMountSpy },
     });
@@ -187,7 +187,7 @@ describe('Component.js', () => {
 
   test('its destroy method works correctly', () => {
     const onDestroySpy = sinon.spy();
-    const component = new Component({
+    const component = new ComponentClazz({
       view: () => document.createElement('h1'),
       actions: { onDestroy: onDestroySpy },
     });
@@ -197,7 +197,7 @@ describe('Component.js', () => {
     expect(destroyed.childNodes).toBeUndefined();
   });
 
-  test('its static isComponent method returns true', () => {
-    expect(Component.isComponent()).toBe(true);
+  test('its static isComponent method returns true', () => {f
+    expect(ComponentClazz.isComponent()).toBe(true);
   });
 });
