@@ -34,4 +34,5 @@ _radi.plugin = (fn, ...args) => fn(_radi, ...args);
 
 if (window) window.$Radi = _radi;
 
-export const radi = _radi;
+const radi = _radi;
+export default radi;
