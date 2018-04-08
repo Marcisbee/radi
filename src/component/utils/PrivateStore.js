@@ -1,4 +1,4 @@
-import Component from '../Component'
+import ComponentClazz from '../Component'
 import deepProxy from './deepProxy'
 
 export default class PrivateStore {
@@ -19,7 +19,7 @@ export default class PrivateStore {
     if (key !== 'children'
       && value
       && typeof value === 'object'
-      && !(value instanceof Component)) {
+      && !(value instanceof ComponentClazz)) {
       value = deepProxy(value, {
         set: (target, path, val, receiver) => {
           this.triggerListeners(key);
