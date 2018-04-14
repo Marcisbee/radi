@@ -3,7 +3,9 @@ import Listener from '../Listener';
 
 beforeEach(() => {
   global.fakeComponent = {
-    foo: 'bar',
+    state: {
+      foo: 'bar',
+    },
     addListener: () => {},
   };
 });
@@ -16,7 +18,9 @@ describe('Listener.js', () => {
   it('instantiates correctly', () => {
     const addListenerSpy = sinon.spy();
     const fakeComponent = {
-      foo: 'bar',
+      state: {
+        foo: 'bar',
+      },
       addListener: addListenerSpy,
     };
     const listener = new Listener(fakeComponent, 'foo');
@@ -71,9 +75,11 @@ describe('Listener.js', () => {
 
   it('handles child paths correctly through shallow value retrieval', () => {
     const fakeComponent = {
-      foo: {
-        bar: {
-          baz: 7,
+      state: {
+        foo: {
+          bar: {
+            baz: 7,
+          },
         },
       },
       addListener: () => {},

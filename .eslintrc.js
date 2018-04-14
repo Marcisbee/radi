@@ -16,6 +16,7 @@ module.exports = {
     beforeEach: true,
     afterEach: true,
     DocumentFragment: true,
+    HTMLSpanElement: true,
     HTMLHeadingElement: true,
     CSSStyleDeclaration: true,
     HTMLElement: true,
@@ -23,6 +24,7 @@ module.exports = {
     Node: true,
   },
   rules: {
+    'class-methods-use-this': 'off',
     'no-underscore-dangle': 'off',
     'no-plusplus': 'off',
     'no-return-assign': 'off',

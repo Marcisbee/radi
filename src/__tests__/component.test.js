@@ -1,5 +1,4 @@
 import GLOBALS from '../consts/GLOBALS';
-import component from '../component';
 import Component from '../component/Component';
 import r from '../r'; // eslint-disable-line
 import l from '../listen';
@@ -12,9 +11,11 @@ afterEach(() => {
 describe('component.js', () => {
   // This is more of an integration test really
   test('the full component API works', () => {
-    const Title = component({
-      view: (comp) => <h1>{comp.children}</h1>,
-    });
+    class Title extends Component {
+      view() {
+        return <h1>{this.children}</h1>;
+      }
+    }
 
     const Text = ({ color, children }) => (
       <p style={{ color }}>
@@ -22,46 +23,66 @@ describe('component.js', () => {
       </p>
     );
 
-    const TestComponent = component({
-      view: (comp) =>
-        // Test ()
-        (
+    class TestComponent extends Component {
+      state() {
+        return {
+          sample: 'World',
+          bar: 'baz',
+          style: { color: 'green', width: 200 },
+        };
+      }
+
+      setSample() {
+        return {
+          sample: 'New World!',
+        };
+      }
+
+      setFoo() {
+        return {
+          bar: 'foo',
+        };
+      }
+
+      setStyles() {
+        return {
+          style: {
+            color: 'orange',
+            width: 400,
+          },
+        };
+      }
+
+      view() {
+        return (
           <h1>
-            hey {l(comp, 'sample')}
-            <Title>{l(comp, 'sample')}</Title>
+            hey {l(this, 'sample')}
+            <Title>{l(this, 'sample')}</Title>
             <Text color="purple">
-              Foo Bar: {l(comp, 'sample')}
+              Foo Bar: {l(this, 'sample')}
             </Text>
             <div>
-              {l(comp, 'sample').process(value => `${value}!!`)}
+              {l(this, 'sample').process(value => `${value}!!`)}
             </div>
             <div>
-              {l(comp, 'sample').process(
+              {l(this, 'sample').process(
                 value => (value === 'World' ? <div>A</div> : <div>B</div>)
               )}
             </div>
             <div>
-              {l(comp, 'sample').process(value =>
+              {l(this, 'sample').process(value =>
                 value.split('').map(char => <span>{char}</span>)
               )}
             </div>
-            <span foo={l(comp, 'bar')} />
-            <div style={l(comp, 'style')} />
+            <span foo={l(this, 'bar')} />
+            <div style={l(this, 'style')} />
           </h1>
-        ),
-      state: {
-        sample: 'World',
-        bar: 'baz',
-        style: { color: 'green', width: 200 },
-      },
-      actions: {
-        setSample() { this.sample = 'New World!'; },
-        setFoo() { this.bar = 'foo'; },
-        setStyles() { this.style = { color: 'orange', width: 400 }; },
-      },
-    });
+        );
+      }
+    }
+
     const c = new TestComponent();
-    expect(c.render().childNodes[0].innerHTML).toBe(
+    expect(c.render().innerHTML).toBe(
       'hey World' +
       '<h1>World</h1>' +
       '<p style="color: purple;">Foo Bar: World</p>' +
@@ -77,10 +98,10 @@ describe('component.js', () => {
       '<span foo="baz"></span>' +
       '<div style="color: green; width: 200px;"></div>'
     );
-    c.setSample();
-    c.setFoo();
-    c.setStyles();
-    expect(c.render().childNodes[0].innerHTML).toBe(
+    c.setState(c.setSample());
+    c.setState(c.setFoo());
+    c.setState(c.setStyles());
+    expect(c.render().innerHTML).toBe(
       'hey New World!' +
       '<h1>New World!</h1>' +
       '<p style="color: purple;">Foo Bar: New World!</p>' +
@@ -104,11 +125,15 @@ describe('component.js', () => {
   });
 
   it('prepares the component class for instantiating', () => {
-    const TestComponent = component({ view: () => document.createElement('h1') });
+    class TestComponent extends Component {
+      view() {
+        return document.createElement('h1');
+      }
+    }
     expect(TestComponent.isComponent()).toBe(true);
     const instance = new TestComponent([1, 2, 3]);
     expect(instance).toBeInstanceOf(Component);
-    expect(instance.$view).toBeInstanceOf(HTMLHeadingElement);
+    expect(instance.view()).toBeInstanceOf(HTMLHeadingElement);
     expect(instance.children).toEqual([1, 2, 3]);
   });
 });

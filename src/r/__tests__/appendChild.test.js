@@ -21,10 +21,12 @@ describe('appendChild.js', () => {
 
   it('renders components before adding them', () => {
     const element = document.createElement('div');
-    const component = new Component({
-      view: () => document.createElement('span'),
-    });
-    appendChild(element)(component);
+    class component extends Component {
+      view() {
+        return document.createElement('span');
+      };
+    }
+    appendChild(element)(new component());
     expect(element.innerHTML).toBe('<span></span>');
   });
 
@@ -32,7 +34,7 @@ describe('appendChild.js', () => {
     const element = document.createElement('div');
     const listener = new Listener(
       {
-        foo: 'bar',
+        state: { foo: 'bar' },
         addListener: () => {},
       },
       'foo'

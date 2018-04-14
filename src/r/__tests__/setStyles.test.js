@@ -26,7 +26,7 @@ describe('setStyles.js', () => {
 
   it('handles listeners correctly', () => {
     const element = document.createElement('h1');
-    const listener = new Listener({ foo: { color: 'green' }, addListener: () => {} }, 'foo');
+    const listener = new Listener({ state: { foo: { color: 'green' } }, addListener: () => {} }, 'foo');
     const result = setStyles(element, listener);
     expect(result).toBeInstanceOf(window.CSSStyleDeclaration);
     expect(element.style.color).toBe('green');

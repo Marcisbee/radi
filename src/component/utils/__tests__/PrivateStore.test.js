@@ -9,22 +9,16 @@ describe('PrivateStore.js', () => {
 
   it('sets items correctly', () => {
     const privateStore = new PrivateStore();
-    privateStore.setItem('foo', 'bar');
+    privateStore.setState({foo: 'bar'});
     expect(privateStore.store.foo).toEqual({
       listeners: [],
       value: 'bar',
     });
   });
 
-  it('gets items correctly', () => {
-    const privateStore = new PrivateStore();
-    privateStore.setItem('foo', 'bar');
-    expect(privateStore.getItem('foo')).toBe('bar');
-  });
-
   it('adds listeners correctly', () => {
     const privateStore = new PrivateStore();
-    privateStore.setItem('foo', 'bar');
+    privateStore.setState({foo: 'bar'});
     const fakeListener = {
       handleUpdate: sinon.spy(),
     };
@@ -36,12 +30,12 @@ describe('PrivateStore.js', () => {
 
   it('triggers the attached listeners for an item when that item is updated', () => {
     const privateStore = new PrivateStore();
-    privateStore.setItem('foo', 'bar');
+    privateStore.setState({foo: 'bar'});
     const fakeListener = {
       handleUpdate: sinon.spy(),
     };
     privateStore.addListener('foo', fakeListener);
-    privateStore.setItem('foo', 'baz');
+    privateStore.setState({foo: 'baz'});
     expect(fakeListener.handleUpdate.callCount).toBe(2);
     expect(fakeListener.handleUpdate.getCall(1).args[0]).toBe('baz');
   });

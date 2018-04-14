@@ -1,5 +1,5 @@
 import mount from '../mount';
-import component from '../component';
+import Component from '../component/Component';
 
 describe('mount.js', () => {
   it('appends the rendered element to given container', () => {
@@ -15,15 +15,23 @@ describe('mount.js', () => {
     expect(result).toBe(element);
 
     const span = document.createElement('span');
-    const TestComponent = component({ view: () => span });
+    class TestComponent extends Component {
+      view() {
+        return span;
+      }
+    }
     const result2 = mount(new TestComponent(), document.createElement('div'));
-    expect(result2).toBeInstanceOf(DocumentFragment);
+    expect(result2).toBeInstanceOf(HTMLSpanElement);
   });
 
   it('mounts components and normal elements', () => {
     const container = document.createElement('div');
     const span = document.createElement('span');
-    const TestComponent = component({ view: () => span });
+    class TestComponent extends Component {
+      view() {
+        return span;
+      }
+    }
     mount(new TestComponent(), container);
     expect(container.innerHTML).toBe('<span></span>');
   });

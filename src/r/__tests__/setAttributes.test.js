@@ -28,7 +28,7 @@ describe('setAttributes.js', () => {
 
   it('handles listeners correctly', () => {
     const element = document.createElement('h1');
-    const listener = new Listener({ foo: 'bar', addListener: () => {} }, 'foo');
+    const listener = new Listener({ state: { foo: 'bar' }, addListener: () => {} }, 'foo');
     setAttributes(element, { baz: listener });
     expect(element.getAttribute('baz')).toBe('bar');
   });
