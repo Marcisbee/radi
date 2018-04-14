@@ -50,67 +50,53 @@ Lets create component using JSX, tho it's not mandatory
 we can just use hyperscript `r('h1', 'Hello', this.sample, '!')`. I'm using JSX for html familiarity and to showcase compatibility.
 
 ```jsx
-/** @jsx r **/
-const { r, mount, component } = radi;
+/** @jsx Radi.r **/
 
-const main = component({
+class Hello extends Radi.component {
+  state() {
+    return { sample: 'World' };
+  }
   view: function() {
     return (
-      <h1>Hello { this.sample } !</h1>
+      <h1>Hello { this.state.sample } !</h1>
     )
-  },
-  state: {
-    sample: 'World'
   }
-});
+}
 
 mount(new main(), document.body);
 ```
 
 This example will mount h1 to body like so `<body><h1>Hello World</h1></body>`
 
-[View this example on codepen](https://codepen.io/Marcisbee/pen/MQmOWG?editors=0010)
+#### Counter example (With Single File Component syntax)
 
-#### Counter example
+This will be different as we'll need to update state and use actions. Only actions can change state and trigger changes in DOM.
+Also we'll be using our SFC syntax for `*.radi` files
 
-This will be different as we'll need to update state and use actions. We'll need to use binder function `l(..)`. It binds any value to real DOM. When something in this function updates, DOM will change too.
-
+`Counter.radi`
 ```jsx
-/** @jsx r **/
-const { r, l, mount, component } = radi;
+state: {
+  count: 0
+}
 
-const counter = component({
-  view: function() {
-    return (
-      <div id="app">
-        <div class="counter">
-          { l(this.counter) }
-        </div>
-        <div class="buttons">
-          <button onclick={ this.down }
-            disabled={ l(this.counter <= 0) }>-</button>
-          <button onclick={ this.up }>+</button>
-        </div>
-      </div>
-    )
-  },
-  state: {
-    counter: 0
-  },
-  actions: {
-    up() {
-      this.counter += 1;
-    },
-    down() {
-      this.counter -= 1;
-    }
+@action up() {
+  return {
+    count: this.state.count +1
   }
-});
+}
 
-mount(new counter(), document.body);
+@action down() {
+  return {
+    count: this.state.count -1
+  }
+}
+
+<h1>{ this.state.count }</h1>
+
+<button disabled={ this.state.count <= 0 } onclick={ () => this.up() }>-</button>
+
+<button onclick={ () => this.up() }>+</button>
 ```
-
-[View this example on codepen](https://codepen.io/Marcisbee/pen/PQmObp?editors=0010). In codepen I use hyperscript instead jsx for more diverse example purpose.
 
 ## Architecture
 
