@@ -5,13 +5,15 @@
 }(this, (function () { 'use strict';
 
   const GLOBALS = {
-    MIX: {},
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.2.11',
+    VERSION: '0.3.0',
     ACTIVE_COMPONENTS: {},
     HTML_CACHE: {},
   };
+
+  /* eslint-disable no-param-reassign */
+  /* eslint-disable no-shadow */
 
   class Listener {
     /**
@@ -22,20 +24,51 @@
       this.component = component;
       [this.key] = path;
       this.childPath = path.slice(1, path.length);
+      this.path = path;
       this.value = null;
       this.changeListeners = [];
       this.processValue = value => value;
+      this.disabled = false;
 
       this.component.addListener(this.key, this);
-      this.handleUpdate(this.component[this.key]);
+      if (this.component.state) {
+        this.handleUpdate(this.component.state[this.key]);
+      }
+    }
+
+    /**
+     * @param {*} value
+     * @return {*}
+     */
+    extract(value) {
+      if (value.value instanceof Listener) {
+        value.value.disabled = true;
+        return this.extract(value.value);
+      }
+      return value;
     }
 
     /**
      * @param {*} value
      */
     handleUpdate(value) {
+      // TODO: Destroy unnecessary listeners
       this.value = this.processValue(this.getShallowValue(value), this.value);
+
+      if (this.disabled) {
+        if (typeof this.disabled === 'function') this.disabled(this.value);
+        return this.value;
+      }
+      if (this.value instanceof Listener) {
+        if (this.value.disabled) return this.value;
+        this.value = this.extract(this.value);
+        this.value.disabled = (value) => {
+          this.changeListeners.forEach(changeListener => changeListener(value));
+        };
+      }
+
       this.changeListeners.forEach(changeListener => changeListener(this.value));
+      return this.value;
     }
 
     /**
@@ -337,11 +370,235 @@
    * @returns {Node}
    */
   const getElementFromQuery = query => {
-    if (typeof query === 'string') return document.createElement(query);
+    if (typeof query === 'string') return query !== 'template'
+      ? document.createElement(query)
+      : document.createDocumentFragment();
     console.warn(
       '[Radi.js] Warn: Creating a JSX element whose query is not of type string, automatically converting query to string.'
     );
     return document.createElement(query.toString());
+  };
+
+  /**
+   * UUID v4 generator
+   * https://gist.github.com/jcxplorer/823878
+   * @returns {string}
+   */
+  const generateId = () => {
+    let uuid = '';
+    for (let i = 0; i < 32; i++) {
+      const random = (Math.random() * 16) | 0; // eslint-disable-line
+
+      if (i === 8 || i === 12 || i === 16 || i === 20) {
+        uuid += '-';
+      }
+      uuid += (i === 12 ? 4 : i === 16 ? (random & 3) | 8 : random).toString(16); // eslint-disable-line
+    }
+    return uuid;
+  };
+
+  class PrivateStore {
+    constructor() {
+      this.store = {};
+    }
+
+    /**
+     * @param {string} key
+     * @param {Listener} listener
+     */
+    addListener(key, listener) {
+      if (typeof this.store[key] === 'undefined') {
+        this.createItemWrapper(key);
+      }
+      this.store[key].listeners.push(listener);
+      listener.handleUpdate(this.store[key].value);
+
+      return listener;
+    }
+
+    /**
+     * setState
+     * @param {*} newState
+     * @returns {*}
+     */
+    setState(newState) {
+      // Find and trigger changes for listeners
+      for (const key of Object.keys(newState)) {
+        if (typeof this.store[key] === 'undefined') {
+          this.createItemWrapper(key);
+        }
+        this.store[key].value = newState[key];
+
+        this.triggerListeners(key);
+      }
+      return newState;
+    }
+
+    /**
+     * createItemWrapper
+     * @private
+     * @param {string} key
+     * @returns {object}
+     */
+    createItemWrapper(key) {
+      return this.store[key] = {
+        listeners: [],
+        value: null,
+      };
+    }
+
+    /**
+     * triggerListeners
+     * @private
+     * @param {string} key
+     */
+    triggerListeners(key) {
+      const item = this.store[key];
+      if (item) {
+        item.listeners.forEach(listener => listener.handleUpdate(item.value));
+      }
+    }
+  }
+
+  const copyAttrs = (newNode, oldNode) => {
+    var oldAttrs = oldNode.attributes;
+    var newAttrs = newNode.attributes;
+    var attrNamespaceURI = null;
+    var attrValue = null;
+    var fromValue = null;
+    var attrName = null;
+    var attr = null;
+
+    for (var i = newAttrs.length - 1; i >= 0; --i) {
+      attr = newAttrs[i];
+      attrName = attr.name;
+      attrNamespaceURI = attr.namespaceURI;
+      attrValue = attr.value;
+      // TODO: Change only specific parts of style
+      // if (attr.name === 'style') {
+      //   for (var item of newNode.style) {
+      //     if (oldNode.style[item] !== newNode.style[item]) oldNode.style[item] = newNode.style[item]
+      //   }
+      //   continue;
+      // }
+      if (attrNamespaceURI) {
+        attrName = attr.localName || attrName;
+        fromValue = oldNode.getAttributeNS(attrNamespaceURI, attrName);
+        if (fromValue !== attrValue) {
+          oldNode.setAttributeNS(attrNamespaceURI, attrName, attrValue);
+        }
+      } else {
+        if (!oldNode.hasAttribute(attrName)) {
+          oldNode.setAttribute(attrName, attrValue);
+        } else {
+          fromValue = oldNode.getAttribute(attrName);
+          if (fromValue !== attrValue) {
+            // apparently values are always cast to strings, ah well
+            if (attrValue === 'null' || attrValue === 'undefined') {
+              oldNode.removeAttribute(attrName);
+            } else {
+              oldNode.setAttribute(attrName, attrValue);
+            }
+          }
+        }
+      }
+    }
+
+    // Remove any extra attributes found on the original DOM element that
+    // weren't found on the target element.
+    for (var j = oldAttrs.length - 1; j >= 0; --j) {
+      attr = oldAttrs[j];
+      if (attr.specified !== false) {
+        attrName = attr.name;
+        attrNamespaceURI = attr.namespaceURI;
+
+        if (attrNamespaceURI) {
+          attrName = attr.localName || attrName;
+          if (!newNode.hasAttributeNS(attrNamespaceURI, attrName)) {
+            oldNode.removeAttributeNS(attrNamespaceURI, attrName);
+          }
+        } else {
+          if (!newNode.hasAttributeNS(null, attrName)) {
+            oldNode.removeAttribute(attrName);
+          }
+        }
+      }
+    }
+  };
+
+  const destroyNode = node => {
+    var treeWalker = document.createTreeWalker(
+      node,
+      NodeFilter.SHOW_ELEMENT,
+      el => el && (typeof el.destroy === 'function'
+        || el.listeners),
+      false
+    );
+
+    var el;
+    while((el = treeWalker.nextNode())) {
+      // Unlink listeners for garbage collection
+      el.listeners = null;
+      el.destroy();
+      el.parentNode.removeChild(el);
+    }
+
+    node.parentNode.removeChild(node);
+  };
+
+  /**
+   * @param {HTMLElement} newNode
+   * @param {HTMLElement} oldNode
+   * @returns {ElementListener}
+   */
+  const fuseDom = (toNode, fromNode, childOnly) => {
+    if (Array.isArray(fromNode) || Array.isArray(toNode)) childOnly = true;
+
+    if (!childOnly) {
+      const nt1 = toNode.nodeType;
+      const nt2 = fromNode.nodeType;
+
+      if (nt1 === nt2 && (nt1 === 3 || nt2 === 8)) {
+        if (!toNode.isEqualNode(fromNode)) {
+          // toNode.textContent = fromNode.textContent
+          toNode.nodeValue = fromNode.nodeValue;
+          // toNode.replaceWith(fromNode)
+          destroyNode(fromNode);
+        }
+        return toNode;
+      }
+
+      if (toNode.listeners || fromNode.listeners || nt1 === 3 || nt2 === 3) {
+        if (!toNode.isEqualNode(fromNode)) {
+          toNode.parentNode.insertBefore(fromNode, toNode);
+          destroyNode(toNode);
+        }
+        return fromNode;
+      }
+
+      copyAttrs(fromNode, toNode);
+    }
+
+    let a1 = [ ...toNode.childNodes || toNode ];
+    let a2 = [ ...fromNode.childNodes || fromNode ];
+    let max = Math.max(a1.length, a2.length);
+
+    for (var i = 0; i < max; i++) {
+      if (a1[i] && a2[i]) {
+        // Fuse
+        fuseDom(a1[i], a2[i]);
+      } else
+      if (a1[i] && !a2[i]) {
+        // Remove
+        destroyNode(a1[i]);
+      } else
+      if (!a1[i] && a2[i]) {
+        // Add
+        toNode.appendChild(a2[i]);
+      }
+    }
+
+    return toNode;
   };
 
   /**
@@ -366,276 +623,50 @@
     return cloned;
   };
 
-  /**
-   * UUID v4 generator
-   * https://gist.github.com/jcxplorer/823878
-   * @returns {string}
-   */
-  const generateId = () => {
-    let uuid = '';
-    for (let i = 0; i < 32; i++) {
-      const random = (Math.random() * 16) | 0; // eslint-disable-line
+  /* eslint-disable guard-for-in */
 
-      if (i === 8 || i === 12 || i === 16 || i === 20) {
-        uuid += '-';
-      }
-      uuid += (i === 12 ? 4 : i === 16 ? (random & 3) | 8 : random).toString(16); // eslint-disable-line
-    }
-    return uuid;
-  };
-
-  class Renderer {
+  class Component {
     /**
-     * @param {Component} component
+     * @param {Node[]|*[]} [children]
+     * @param {object} [o.props]
      */
-    constructor(component) {
-      this.component = component;
-      this.html = document.createDocumentFragment();
-      this.node = {};
+    constructor(children, props) {
+      this.addNonEnumerableProperties({
+        $id: generateId(),
+        $name: this.constructor.name,
+        $config: (typeof this.config === 'function') ? this.config() : {
+          listen: true,
+        },
+        $store: {},
+        $events: {},
+        $privateStore: new PrivateStore(),
+      });
+
+      this.on = (typeof this.on === 'function') ? this.on() : {};
+      this.children = [];
+
+      // Appends headless components
+      this.copyObjToInstance(GLOBALS.HEADLESS_COMPONENTS, 'head');
+
+      this.state = Object.assign(
+        (typeof this.state === 'function') ? this.state() : {},
+        props || {}
+      );
+      // TODO: Enable Object.freeze only in development
+      // disable for production
+      // Object.freeze(this.state)
+
+      if (children) this.setChildren(children);
     }
 
     /**
      * @returns {HTMLElement}
      */
     render() {
-      this.html.appendChild(this.node = this.component.$view);
-      this.html.destroy = this.node.destroy = () => this.component.destroy();
-      return this.html;
-    }
-
-    /**
-     * @returns {HTMLElement}
-     */
-    destroyHtml() {
-      if (this.node.childNodes) {
-        this.node.childNodes.forEach(childNode => {
-          this.node.removeChild(childNode);
-        });
-      }
-
-      if (this.html.childNodes) {
-        this.html.childNodes.forEach(childNode => {
-          this.html.removeChild(childNode);
-        });
-      }
-
-      this.html = document.createDocumentFragment();
-      this.node = {};
-
-      return this.node;
-    }
-  }
-
-  function deepProxy(target, handler) {
-    const preproxy = new WeakMap();
-
-    function makeHandler(path) {
-      return {
-        set(target, key, value, receiver) {
-          if(typeof value === 'object' && value !== null) {
-            value = proxify(value, [...path, key]);
-          }
-          target[key] = value;
-
-          if(handler.set) {
-            handler.set(target, [...path, key], value, receiver);
-          }
-          return true;
-        },
-
-        deleteProperty(target, key) {
-          if(Reflect.has(target, key)) {
-            unproxy(target, key);
-            let deleted = Reflect.deleteProperty(target, key);
-            if(deleted && handler.deleteProperty) {
-              handler.deleteProperty(target, [...path, key]);
-            }
-            return deleted;
-          }
-          return false;
-        }
-      }
-    }
-
-    function unproxy(obj, key) {
-      if(preproxy.has(obj[key])) {
-        obj[key] = preproxy.get(obj[key]);
-        preproxy.delete(obj[key]);
-      }
-
-      for(let k of Object.keys(obj[key])) {
-        if(typeof obj[key][k] === 'object' && obj[key] !== null) {
-          unproxy(obj[key], k);
-        }
-      }
-    }
-
-    function proxify(obj, path) {
-      for(let key of Object.keys(obj)) {
-        if(typeof obj[key] === 'object' && obj[key] !== null) {
-          obj[key] = proxify(obj[key], [...path, key]);
-        }
-      }
-      let p = new Proxy(obj, makeHandler(path));
-      preproxy.set(p, obj);
-      return p;
-    }
-
-    return proxify(target, []);
-  }
-
-  class PrivateStore {
-    constructor() {
-      this.store = {};
-    }
-
-    /**
-     * setItem
-     * @param {string} key
-     * @param {*} value
-     * @returns {*}
-     */
-    setItem(key, value) {
-      if (typeof this.store[key] === 'undefined') {
-        this.createItemWrapper(key);
-      }
-      if (key !== 'children'
-        && value
-        && typeof value === 'object'
-        && !(value instanceof Component)) {
-        value = deepProxy(value, {
-          set: (target, path, val, receiver) => {
-            this.triggerListeners(key);
-          },
-          deleteProperty: (target, path) => {
-            this.triggerListeners(key);
-          }
-        });
-      }
-      this.store[key].value = value;
-      this.triggerListeners(key);
-      return value;
-    }
-
-    /**
-     * getItem
-     * @param {string} key
-     * @returns {*}
-     */
-    getItem(key) {
-      return this.store[key].value;
-    }
-
-    /**
-     * addListener
-     * @param {string} key
-     * @param {Listener} listener
-     * @returns {Listener}
-     */
-    addListener(key, listener) {
-      if (typeof this.store[key] === 'undefined') {
-        this.createItemWrapper(key);
-      }
-      this.store[key].listeners.push(listener);
-      listener.handleUpdate(this.store[key].value);
-      return listener;
-    }
-
-    /**
-     * createItemWrapper
-     * @private
-     * @param {string} key
-     * @returns {object}
-     */
-    createItemWrapper(key) {
-      return this.store[key] = {
-        listeners: [],
-        value: null,
-      };
-    }
-
-    /**
-     * triggerListeners
-     * @private
-     * @param {string} key
-     */
-    triggerListeners(key) {
-      const item = this.store[key];
-      item.listeners.forEach(listener => listener.handleUpdate(item.value));
-    }
-  }
-
-  /* eslint-disable guard-for-in */
-
-  class Component {
-    /**
-     * @param {object} o
-     * @param {string} [o.name]
-     * @param {object} [o.mixins]
-     * @param {object} [o.state]
-     * @param {object} [o.props]
-     * @param {object} [o.actions]
-     * @param {function(Component): (HTMLElement|Component)} view
-     * @param {Node[]|*[]} [children]
-     */
-    constructor(o, children) {
-      this.name = o.name;
-
-      this.addNonEnumerableProperties(Object.assign({
-        $id: generateId(),
-        $mixins: o.mixins || {},
-        $state: clone(o.state || {}),
-        $props: clone(o.props || {}),
-        $actions: o.actions || {},
-        // Variables like state and props are actually stored here so that we can
-        // have custom setters
-        $privateStore: new PrivateStore(),
-      }));
-
-      this.addCustomField('children', []);
-      if (children) this.setChildren(children);
-
-      this.copyObjToInstance(this.$mixins);
-      this.copyObjToInstance(this.$state);
-      this.copyObjToInstance(this.$props);
-      // Appends headless components
-      this.copyObjToInstance(GLOBALS.HEADLESS_COMPONENTS);
-      // The bind on this.handleAction is necessary
-      this.copyObjToInstance(this.$actions, this.handleAction.bind(this));
-
-      this.addNonEnumerableProperties({
-        $view: o.view ? o.view(this) : () => () => null,
-        $renderer: new Renderer(this),
-      });
-
-      this.$view.unmount = this.unmount.bind(this);
-      this.$view.mount = this.mount.bind(this);
-    }
-
-    /**
-     * @private
-     * @param {object} obj
-     * @param {function(*): *} [handleItem=item => item]
-     */
-    copyObjToInstance(obj, handleItem = item => item) {
-      for (const key in obj) {
-        if (typeof this[key] !== 'undefined') {
-          throw new Error(`[Radi.js] Error: Trying to write for reserved variable \`${key}\``);
-        }
-        this.addCustomField(key, handleItem(obj[key]));
-      }
-    }
-
-    /**
-     * @private
-     * @param {function(*): *} action
-     * @returns {function(...*): *}
-     */
-    handleAction(action) {
-      return (...args) => {
-        if (GLOBALS.FROZEN_STATE) return null;
-        return action.call(this, ...args);
-      };
+      if (typeof this.view !== 'function') return '';
+      const rendered = this.view();
+      this.html = rendered;
+      return rendered;
     }
 
     /**
@@ -643,15 +674,7 @@
      * @returns {Component}
      */
     setProps(props) {
-      for (const key in props) {
-        this.$props[key] = props[key];
-        if (typeof this.$props[key] === 'undefined') {
-          console.warn(`[Radi.js] Warn: Creating a prop \`${key}\` that is not defined in component`);
-          this.addCustomField(key, props[key]);
-          continue;
-        }
-        this[key] = props[key];
-      }
+      this.setState(props);
       return this;
     }
 
@@ -660,7 +683,28 @@
      */
     setChildren(children) {
       this.children = children;
+      this.setState();
+      for (let i = 0; i < this.children.length; i++) {
+        if (typeof this.children[i].when === 'function') {
+          this.children[i].when('update', () => this.setState());
+        }
+      }
       return this;
+    }
+
+    /**
+     * @private
+     * @param {object} obj
+     * @param {string} type
+     */
+    copyObjToInstance(obj, type) {
+      for (const key in obj) {
+        if (typeof this[key] !== 'undefined') {
+          throw new Error(`[Radi.js] Error: Trying to write for reserved variable \`${key}\``);
+        }
+        this[key] = obj[key];
+        if (type === 'head') this[key].when('update', () => this.setState());
+      }
     }
 
     /**
@@ -677,21 +721,6 @@
     }
 
     /**
-     * @private
-     * @param {string} key
-     * @param {*} value
-     * @returns {*}
-     */
-    addCustomField(key, value) {
-      Object.defineProperty(this, key, {
-        get: () => this.$privateStore.getItem(key),
-        set: val => this.$privateStore.setItem(key, val),
-        enumerable: true,
-      });
-      this[key] = value;
-    }
-
-    /**
      * @param {string} key
      * @param {Listener} listener
      */
@@ -699,42 +728,64 @@
       this.$privateStore.addListener(key, listener);
     }
 
+    mount() {
+      this.trigger('mount');
+    }
+
+    destroy() {
+      this.trigger('destroy');
+      if (this.html && this.html !== '') this.html.remove();
+    }
+
     /**
      * @param {string} key
-     * @returns {boolean}
+     * @param {function} fn
      */
-    isMixin(key) {
-      return typeof this.$mixins[key] !== 'undefined';
-    }
-
-    mount() {
-      if (typeof this.$actions.onMount === 'function') {
-        this.$actions.onMount.call(this, this);
-      }
-      GLOBALS.ACTIVE_COMPONENTS[this.$id] = this;
-    }
-
-    unmount() {
-      if (typeof this.$actions.onDestroy === 'function') {
-        this.$actions.onDestroy.call(this, this);
-      }
-      delete GLOBALS.ACTIVE_COMPONENTS[this.$id];
+    when(key, fn) {
+      if (typeof this.$events[key] === 'undefined') this.$events[key] = [];
+      this.$events[key].push(fn);
     }
 
     /**
-     * @returns {HTMLElement}
+     * @param {string} key
+     * @param {*} value
      */
-    render() {
-      this.mount();
-      return this.$renderer.render();
+    trigger(key, value) {
+      if (typeof this.on[key] === 'function') {
+        this.on[key].call(this, value);
+      }
+
+      if (typeof this.$events[key] !== 'undefined') {
+        for (const i in this.$events[key]) {
+          this.$events[key][i].call(this, value);
+        }
+      }
     }
 
     /**
-     * @returns {HTMLElement}
+     * @param {object} newState
      */
-    destroy() {
-      this.unmount();
-      return this.$renderer.destroyHtml();
+    setState(newState) {
+      if (typeof newState === 'object') {
+        const oldstate = clone(this.state);
+        this.state = Object.assign(oldstate, newState);
+
+        // TODO: Enable Object.freeze only in development
+        // disable for production
+        // Object.freeze(this.state)
+
+        if (this.$config.listen) {
+          this.$privateStore.setState(newState);
+        }
+      } else {
+        // console.error('[Radi.js] ERROR: Action did not return object to merge with state');
+      }
+
+      if (!this.$config.listen && typeof this.view === 'function' && this.html) {
+        fuseDom(this.html, this.view());
+      }
+      this.trigger('update');
+      return this.state;
     }
 
     /**
@@ -755,12 +806,28 @@
   };
 
   /**
+   * @param {*} oldNode - Node to be swapped
+   * @returns {Node}
+   */
+  const swapNode = oldNode => {
+
+    const newNode = oldNode;
+
+    oldNode = newNode.cloneNode(true);
+
+    // TODO: Need to destroy all childs of oldNode with smth like .destroy();
+    oldNode.remove();
+
+    return newNode;
+  };
+
+  /**
    * @param {*} value - Value of the listener
    * @returns {Node[]}
    */
   const listenerToNode = value => {
     if (value instanceof DocumentFragment) {
-      return Array.from(value.childNodes);
+      return Array.from(value.childNodes).map(childNode => swapNode(childNode));
     }
 
     const element = document.createDocumentFragment();
@@ -799,35 +866,23 @@
      */
     handleValueChange(value) {
       const newNode = listenerToNode(value);
-      /* eslint-disable */
+
+      var i = 0;
       for (const node of newNode) {
-        // If listenerAsNode[0] is undefined we're dealing with a fragment so we
-        // can just append
-        if (!this.listenerAsNode[0]) {
-          this.element.appendChild(node);
-          continue;
+        if (!this.listenerAsNode[i]) {
+          this.listenerAsNode.push(this.element.appendChild(node));
+        } else {
+          this.listenerAsNode[i] = fuseDom(this.listenerAsNode[i], node);
         }
-        // TODO: Finish dom transformer and swap it with Node replacement
-        this.element.insertBefore(node, this.listenerAsNode[0]);
+        i+=1;
       }
 
-      for (const node of this.listenerAsNode) {
-        var treeWalker = document.createTreeWalker(
-          node,
-          NodeFilter.SHOW_ELEMENT,
-          el => el && typeof el.destroy === 'function',
-          false);
-
-        var el;
-        while((el = treeWalker.nextNode())) {
-          el.destroy();
+      if (i < this.listenerAsNode.length) {
+        var nodesLeft = this.listenerAsNode.splice(i-this.listenerAsNode.length);
+        for (const node of nodesLeft) {
+          node.remove();
         }
-
-        node.remove();
       }
-
-      this.listenerAsNode = newNode;
-      /* eslint-enable */
     }
 
     /**
@@ -864,6 +919,7 @@
 
     if (child instanceof Component) {
       element.appendChild(child.render());
+      child.mount();
       return;
     }
 
@@ -881,15 +937,18 @@
     if (typeof child === 'function') {
       const placeholder = document.createElement('div');
       const el = element.appendChild(placeholder);
+      el.__async = true;
       child().then(local => {
         if (typeof local.default === 'function'
           && local.default.isComponent
           && local.default.isComponent()) {
           /*eslint-disable*/
           appendChild(el)(new local.default());
+          el.__async = false;
           /* eslint-enable */
         } else {
           appendChild(el)(local.default);
+          el.__async = false;
         }
       }).catch(console.warn);
       return;
@@ -918,7 +977,7 @@
    * @returns {(HTMLElement|Component)}
    */
   const r = (Query, props, ...children) => {
-    if (typeof Query.isComponent === 'function' && Query.isComponent()) {
+    if (typeof Query === 'function' && Query.isComponent) {
       return new Query(children).setProps(props || {});
     }
 
@@ -947,35 +1006,30 @@
     new Listener(component, ...path);
 
   /**
-   * @param {object} o
-   * @returns {function}
-   */
-  const component = o => class {
-    /**
-     * @returns {Component}
-     */
-    constructor(children) {
-      return new Component(o, children);
-    }
-
-    /**
-     * @returns {boolean}
-     */
-    static isComponent() {
-      return true;
-    }
-  };
-
-  /**
    * @param {Component} component
    * @param {string} id
    * @returns {HTMLElement|Node}
    */
   const mount = (component, id) => {
-    const container = typeof id === 'string' ? document.getElementById(id) : id;
+    const container = document.createDocumentFragment();
+    const slot = typeof id === 'string' ? document.getElementById(id) : id;
     const rendered =
-      component instanceof Component ? component.render() : component;
-    container.appendChild(rendered);
+      (component instanceof Component || component.render) ? component.render() : component;
+
+    if (Array.isArray(rendered)) {
+      for (var i = 0; i < rendered.length; i++) {
+        mount(rendered[i], container);
+      }
+    } else {
+      // Mount to container
+      container.appendChild(rendered);
+    }
+
+    // Mount to element
+    slot.appendChild(container);
+
+    if (typeof component.mount === 'function') component.mount();
+
     return rendered;
   };
 
@@ -987,13 +1041,24 @@
     });
   };
 
-  const _radi = {
+  // Descriptor for actions
+  function action(target, key, descriptor) {
+    const act = descriptor.value;
+    descriptor.value = function (...args) {
+      this.setState.call(this, act.call(this, ...args));
+    };
+    return descriptor;
+  }
+
+  const Radi = {
     version: GLOBALS.VERSION,
     activeComponents: GLOBALS.ACTIVE_COMPONENTS,
     r,
     listen,
     l: listen,
-    component,
+    component: Component,
+    Component,
+    action,
     headless: (key, comp) => {
       // TODO: Validate component and key
       const mountedComponent = new comp();
@@ -1011,11 +1076,11 @@
   };
 
   // Pass Radi instance to plugins
-  _radi.plugin = (fn, ...args) => fn(_radi, ...args);
+  Radi.plugin = (fn, ...args) => fn(Radi, ...args);
 
-  if (window) window.$Radi = _radi;
+  if (window) window.$Radi = Radi;
 
-  module.exports = _radi;
+  module.exports = Radi;
 
 })));
 //# sourceMappingURL=radi.js.map
