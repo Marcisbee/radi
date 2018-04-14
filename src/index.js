@@ -2,16 +2,28 @@ import GLOBALS from './consts/GLOBALS';
 import r from './r';
 import listen from './listen';
 import component from './component';
+import Component from './component';
 import mount from './mount';
 import remountActiveComponents from './utils/remountActiveComponents';
 
-const _radi = {
+// Descriptor for actions
+function action(target, key, descriptor) {
+  const act = descriptor.value;
+  descriptor.value = function (...args) {
+    this.setState.call(this, act.call(this, ...args))
+  }
+  return descriptor;
+}
+
+const Radi = {
   version: GLOBALS.VERSION,
   activeComponents: GLOBALS.ACTIVE_COMPONENTS,
   r,
   listen,
   l: listen,
   component,
+  Component,
+  action,
   headless: (key, comp) => {
     // TODO: Validate component and key
     const mountedComponent = new comp();
@@ -29,8 +41,8 @@ const _radi = {
 };
 
 // Pass Radi instance to plugins
-_radi.plugin = (fn, ...args) => fn(_radi, ...args);
+Radi.plugin = (fn, ...args) => fn(Radi, ...args);
 
-if (window) window.$Radi = _radi;
+if (window) window.$Radi = Radi;
 
-module.exports = _radi;
+module.exports = Radi;
