@@ -1,40 +1,5 @@
 
-// const fuseAttrs = (newNode, oldNode) => {
-//   let newAttrs = [ ...newNode.attributes ];
-//   let oldAttrs = [ ...oldNode.attributes ];
-//   let max = Math.max(a1.length, a2.length);
-
-//   for (var i = 0; i < max; i++) {
-//     let attr = newAttrs[i] || oldAttrs[i]
-//     name = attr.name
-
-//     if (attr oldNode.hasAttribute())
-//     if (a1[i] && a2[i]) {
-//       if (a1[i].isEqualNode(a2[i])) continue;
-//       // Replace
-//       fuse(a1[i], a2[i])
-//     } else
-//     if (a1[i] && !a2[i]) {
-//       // Remove
-//       a1[i].remove()
-//     } else
-//     if (!a1[i] && a2[i]) {
-//       // Add
-//       a1[i].appendChild(a2[i])
-//     }
-//   }
-
-//   Array.from(oldNode.attributes).forEach(attr => {
-//     if (newNode[attributes].name)
-//     if (attr.name === 'style') {
-//       return;
-//     }
-//     newNode[attributes].name
-//     el.removeAttributeNode(attr);
-//   });
-// }
-
-function copyAttrs (newNode, oldNode) {
+const copyAttrs = (newNode, oldNode) => {
   var oldAttrs = oldNode.attributes;
   var newAttrs = newNode.attributes;
   var attrNamespaceURI = null;
@@ -48,6 +13,13 @@ function copyAttrs (newNode, oldNode) {
     attrName = attr.name;
     attrNamespaceURI = attr.namespaceURI;
     attrValue = attr.value;
+    // TODO: Change only specific parts of style
+    // if (attr.name === 'style') {
+    //   for (var item of newNode.style) {
+    //     if (oldNode.style[item] !== newNode.style[item]) oldNode.style[item] = newNode.style[item]
+    //   }
+    //   continue;
+    // }
     if (attrNamespaceURI) {
       attrName = attr.localName || attrName;
       fromValue = oldNode.getAttributeNS(attrNamespaceURI, attrName);
@@ -93,51 +65,79 @@ function copyAttrs (newNode, oldNode) {
   }
 }
 
+const destroyNode = node => {
+  var treeWalker = document.createTreeWalker(
+    node,
+    NodeFilter.SHOW_ELEMENT,
+    el => el && (typeof el.destroy === 'function'
+      || el.listeners),
+    false
+  );
+
+  var el;
+  while((el = treeWalker.nextNode())) {
+    // Unlink listeners for garbage collection
+    el.listeners = null;
+    el.destroy();
+    el.parentNode.removeChild(el);
+  }
+
+  node.parentNode.removeChild(node);
+}
 
 /**
  * @param {HTMLElement} newNode
  * @param {HTMLElement} oldNode
  * @returns {ElementListener}
  */
-const fuseDom = (newNode, oldNode) => {
-  const nt1 = newNode.nodeType;
-  const nt2 = oldNode.nodeType;
+const fuseDom = (toNode, fromNode, childOnly) => {
+  if (Array.isArray(fromNode) || Array.isArray(toNode)) childOnly = true;
 
-  if (nt1 === nt2 && (nt1 === 3 || nt2 === 8)) {
-    if (!newNode.isEqualNode(oldNode)) {
-      newNode.nodeValue = oldNode.nodeValue;
+  if (!childOnly) {
+    const nt1 = toNode.nodeType;
+    const nt2 = fromNode.nodeType;
+
+    if (nt1 === nt2 && (nt1 === 3 || nt2 === 8)) {
+      if (!toNode.isEqualNode(fromNode)) {
+        // toNode.textContent = fromNode.textContent
+        toNode.nodeValue = fromNode.nodeValue;
+        // toNode.replaceWith(fromNode)
+        destroyNode(fromNode);
+      }
+      return toNode;
     }
-    return newNode;
+
+    if (toNode.listeners || fromNode.listeners || nt1 === 3 || nt2 === 3) {
+      if (!toNode.isEqualNode(fromNode)) {
+        toNode.parentNode.insertBefore(fromNode, toNode);
+        destroyNode(toNode);
+      }
+      return fromNode;
+    }
+
+    copyAttrs(fromNode, toNode);
   }
 
-  if (nt1 === 3 || nt2 === 3) {
-    newNode.replaceWith(oldNode);
-    return newNode;
-  }
-
-  copyAttrs(oldNode, newNode);
-  // fuseAttrs(newNode, oldNode);
-
-  let a1 = [ ...newNode.childNodes ];
-  let a2 = [ ...oldNode.childNodes ];
+  let a1 = [ ...toNode.childNodes || toNode ];
+  let a2 = [ ...fromNode.childNodes || fromNode ];
   let max = Math.max(a1.length, a2.length);
 
   for (var i = 0; i < max; i++) {
     if (a1[i] && a2[i]) {
-      if (a1[i].isEqualNode(a2[i])) continue;
-      // Replace
-      // fuse(a1[i], a2[i]);
-      a1[i].replaceWith(a2[i])
+      // Fuse
+      fuseDom(a1[i], a2[i]);
     } else
     if (a1[i] && !a2[i]) {
       // Remove
-      a1[i].remove();
+      destroyNode(a1[i]);
     } else
     if (!a1[i] && a2[i]) {
       // Add
-      newNode.appendChild(a2[i]);
+      toNode.appendChild(a2[i]);
     }
   }
 
-  return newNode;
+  return toNode;
 }
+
+export default fuseDom;

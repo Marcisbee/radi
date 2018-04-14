@@ -1,4 +1,5 @@
 import listenerToNode from './listenerToNode';
+import fuseDom from './fuseDom';
 
 export default class ElementListener {
   /**
@@ -31,35 +32,23 @@ export default class ElementListener {
    */
   handleValueChange(value) {
     const newNode = listenerToNode(value);
-    /* eslint-disable */
+
+    var i = 0
     for (const node of newNode) {
-      // If listenerAsNode[0] is undefined we're dealing with a fragment so we
-      // can just append
-      if (!this.listenerAsNode[0]) {
-        this.element.appendChild(node);
-        continue;
+      if (!this.listenerAsNode[i]) {
+        this.listenerAsNode.push(this.element.appendChild(node));
+      } else {
+        this.listenerAsNode[i] = fuseDom(this.listenerAsNode[i], node);
       }
-      // TODO: Finish dom transformer and swap it with Node replacement
-      this.element.insertBefore(node, this.listenerAsNode[0]);
+      i+=1
     }
 
-    for (const node of this.listenerAsNode) {
-      var treeWalker = document.createTreeWalker(
-        node,
-        NodeFilter.SHOW_ELEMENT,
-        el => el && typeof el.destroy === 'function',
-        false);
-
-      var el;
-      while((el = treeWalker.nextNode())) {
-        el.destroy();
+    if (i < this.listenerAsNode.length) {
+      var nodesLeft = this.listenerAsNode.splice(i-this.listenerAsNode.length);
+      for (const node of nodesLeft) {
+        node.remove();
       }
-
-      node.remove();
     }
-
-    this.listenerAsNode = newNode;
-    /* eslint-enable */
   }
 
   /**
