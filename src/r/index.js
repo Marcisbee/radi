@@ -9,7 +9,7 @@ import appendChildren from './appendChildren';
  * @returns {(HTMLElement|Component)}
  */
 const r = (Query, props, ...children) => {
-  if (typeof Query.isComponent === 'function' && Query.isComponent()) {
+  if (typeof Query === 'function' && Query.isComponent) {
     return new Query(children).setProps(props || {});
   }
 
