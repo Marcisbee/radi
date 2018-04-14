@@ -1,4 +1,5 @@
 /* eslint-disable no-param-reassign */
+/* eslint-disable no-console */
 
 import Component from '../component/Component';
 import Listener from '../listen/Listener';
@@ -17,6 +18,7 @@ const appendChild = element => child => {
 
   if (child instanceof Component) {
     element.appendChild(child.render());
+    child.mount();
     return;
   }
 
@@ -34,15 +36,18 @@ const appendChild = element => child => {
   if (typeof child === 'function') {
     const placeholder = document.createElement('div');
     const el = element.appendChild(placeholder);
+    el.__async = true;
     child().then(local => {
       if (typeof local.default === 'function'
         && local.default.isComponent
         && local.default.isComponent()) {
         /*eslint-disable*/
         appendChild(el)(new local.default());
+        el.__async = false;
         /* eslint-enable */
       } else {
         appendChild(el)(local.default);
+        el.__async = false;
       }
     }).catch(console.warn);
     return;
