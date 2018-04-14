@@ -8,7 +8,6 @@ const swapNode = oldNode => {
 
   oldNode = newNode.cloneNode(true);
 
-  // TODO: Need to destroy all childs of oldNode with smth like .destroy();
   oldNode.remove();
 
   return newNode;
