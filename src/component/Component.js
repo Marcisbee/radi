@@ -4,80 +4,53 @@
 // -- we need those for..in loops for now!
 
 import GLOBALS from '../consts/GLOBALS';
-import clone from '../utils/clone';
 import generateId from '../utils/generateId';
-import Renderer from './utils/Renderer';
 import PrivateStore from './utils/PrivateStore';
+import fuseDom from '../r/utils/fuseDom';
+import clone from '../utils/clone';
 
 export default class Component {
   /**
-   * @param {object} o
-   * @param {string} [o.name]
-   * @param {object} [o.mixins]
-   * @param {object} [o.state]
-   * @param {object} [o.props]
-   * @param {object} [o.actions]
-   * @param {function(Component): (HTMLElement|Component)} view
    * @param {Node[]|*[]} [children]
+   * @param {object} [o.props]
    */
-  constructor(o, children) {
-    this.name = o.name;
-
-    this.addNonEnumerableProperties(Object.assign({
-      $id: generateId(),
-      $mixins: o.mixins || {},
-      $state: clone(o.state || {}),
-      $props: clone(o.props || {}),
-      $actions: o.actions || {},
-      // Variables like state and props are actually stored here so that we can
-      // have custom setters
-      $privateStore: new PrivateStore(),
-    }));
-
-    this.addCustomField('children', []);
-    if (children) this.setChildren(children);
-
-    this.copyObjToInstance(this.$mixins);
-    this.copyObjToInstance(this.$state);
-    this.copyObjToInstance(this.$props);
-    // Appends headless components
-    this.copyObjToInstance(GLOBALS.HEADLESS_COMPONENTS);
-    // The bind on this.handleAction is necessary
-    this.copyObjToInstance(this.$actions, this.handleAction.bind(this));
-
+  constructor(children, props) {
     this.addNonEnumerableProperties({
-      $view: o.view ? o.view(this) : () => () => null,
-      $renderer: new Renderer(this),
+      $id: generateId(),
+      $name: this.constructor.name,
+      $config: (typeof this.config === 'function') ? this.config() : {
+        listen: true,
+      },
+      $store: {},
+      $events: {},
+      $privateStore: new PrivateStore(),
     });
 
-    this.$view.unmount = this.unmount.bind(this);
-    this.$view.mount = this.mount.bind(this);
+    this.on = (typeof this.on === 'function') ? this.on() : {};
+    this.children = [];
+
+    // Appends headless components
+    this.copyObjToInstance(GLOBALS.HEADLESS_COMPONENTS, 'head');
+
+    this.state = Object.assign(
+      (typeof this.state === 'function') ? this.state() : {},
+      props || {}
+    );
+    // TODO: Enable Object.freeze only in development
+    // disable for production
+    // Object.freeze(this.state)
+
+    if (children) this.setChildren(children);
   }
 
   /**
-   * @private
-   * @param {object} obj
-   * @param {function(*): *} [handleItem=item => item]
+   * @returns {HTMLElement}
    */
-  copyObjToInstance(obj, handleItem = item => item) {
-    for (const key in obj) {
-      if (typeof this[key] !== 'undefined') {
-        throw new Error(`[Radi.js] Error: Trying to write for reserved variable \`${key}\``);
-      }
-      this.addCustomField(key, handleItem(obj[key]));
-    }
-  }
-
-  /**
-   * @private
-   * @param {function(*): *} action
-   * @returns {function(...*): *}
-   */
-  handleAction(action) {
-    return (...args) => {
-      if (GLOBALS.FROZEN_STATE) return null;
-      return action.call(this, ...args);
-    };
+  render() {
+    if (typeof this.view !== 'function') return '';
+    const rendered = this.view();
+    this.html = rendered;
+    return rendered;
   }
 
   /**
@@ -85,15 +58,7 @@ export default class Component {
    * @returns {Component}
    */
   setProps(props) {
-    for (const key in props) {
-      this.$props[key] = props[key];
-      if (typeof this.$props[key] === 'undefined') {
-        console.warn(`[Radi.js] Warn: Creating a prop \`${key}\` that is not defined in component`);
-        this.addCustomField(key, props[key]);
-        continue;
-      }
-      this[key] = props[key];
-    }
+    this.setState(props);
     return this;
   }
 
@@ -102,7 +67,28 @@ export default class Component {
    */
   setChildren(children) {
     this.children = children;
+    this.setState();
+    for (let i = 0; i < this.children.length; i++) {
+      if (typeof this.children[i].when === 'function') {
+        this.children[i].when('update', () => this.setState());
+      }
+    }
     return this;
+  }
+
+  /**
+   * @private
+   * @param {object} obj
+   * @param {string} type
+   */
+  copyObjToInstance(obj, type) {
+    for (const key in obj) {
+      if (typeof this[key] !== 'undefined') {
+        throw new Error(`[Radi.js] Error: Trying to write for reserved variable \`${key}\``);
+      }
+      this[key] = obj[key];
+      if (type === 'head') this[key].when('update', () => this.setState());
+    }
   }
 
   /**
@@ -119,21 +105,6 @@ export default class Component {
   }
 
   /**
-   * @private
-   * @param {string} key
-   * @param {*} value
-   * @returns {*}
-   */
-  addCustomField(key, value) {
-    Object.defineProperty(this, key, {
-      get: () => this.$privateStore.getItem(key),
-      set: val => this.$privateStore.setItem(key, val),
-      enumerable: true,
-    });
-    this[key] = value;
-  }
-
-  /**
    * @param {string} key
    * @param {Listener} listener
    */
@@ -141,42 +112,64 @@ export default class Component {
     this.$privateStore.addListener(key, listener);
   }
 
+  mount() {
+    this.trigger('mount');
+  }
+
+  destroy() {
+    this.trigger('destroy');
+    if (this.html && this.html !== '') this.html.remove();
+  }
+
   /**
    * @param {string} key
-   * @returns {boolean}
+   * @param {function} fn
    */
-  isMixin(key) {
-    return typeof this.$mixins[key] !== 'undefined';
-  }
-
-  mount() {
-    if (typeof this.$actions.onMount === 'function') {
-      this.$actions.onMount.call(this, this);
-    }
-    GLOBALS.ACTIVE_COMPONENTS[this.$id] = this;
-  }
-
-  unmount() {
-    if (typeof this.$actions.onDestroy === 'function') {
-      this.$actions.onDestroy.call(this, this);
-    }
-    delete GLOBALS.ACTIVE_COMPONENTS[this.$id];
+  when(key, fn) {
+    if (typeof this.$events[key] === 'undefined') this.$events[key] = [];
+    this.$events[key].push(fn);
   }
 
   /**
-   * @returns {HTMLElement}
+   * @param {string} key
+   * @param {*} value
    */
-  render() {
-    this.mount();
-    return this.$renderer.render();
+  trigger(key, value) {
+    if (typeof this.on[key] === 'function') {
+      this.on[key].call(this, value);
+    }
+
+    if (typeof this.$events[key] !== 'undefined') {
+      for (const i in this.$events[key]) {
+        this.$events[key][i].call(this, value);
+      }
+    }
   }
 
   /**
-   * @returns {HTMLElement}
+   * @param {object} newState
    */
-  destroy() {
-    this.unmount();
-    return this.$renderer.destroyHtml();
+  setState(newState) {
+    if (typeof newState === 'object') {
+      const oldstate = clone(this.state);
+      this.state = Object.assign(oldstate, newState);
+
+      // TODO: Enable Object.freeze only in development
+      // disable for production
+      // Object.freeze(this.state)
+
+      if (this.$config.listen) {
+        this.$privateStore.setState(newState);
+      }
+    } else {
+      // console.error('[Radi.js] ERROR: Action did not return object to merge with state');
+    }
+
+    if (!this.$config.listen && typeof this.view === 'function' && this.html) {
+      fuseDom(this.html, this.view());
+    }
+    this.trigger('update');
+    return this.state;
   }
 
   /**

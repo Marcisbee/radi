@@ -1,5 +1,4 @@
 import Component from '../Component'
-import deepProxy from './deepProxy'
 
 export default class PrivateStore {
   constructor() {
@@ -7,47 +6,8 @@ export default class PrivateStore {
   }
 
   /**
-   * setItem
-   * @param {string} key
-   * @param {*} value
-   * @returns {*}
-   */
-  setItem(key, value) {
-    if (typeof this.store[key] === 'undefined') {
-      this.createItemWrapper(key);
-    }
-    if (key !== 'children'
-      && value
-      && typeof value === 'object'
-      && !(value instanceof Component)) {
-      value = deepProxy(value, {
-        set: (target, path, val, receiver) => {
-          this.triggerListeners(key);
-        },
-        deleteProperty: (target, path) => {
-          this.triggerListeners(key);
-        }
-      })
-    }
-    this.store[key].value = value;
-    this.triggerListeners(key);
-    return value;
-  }
-
-  /**
-   * getItem
-   * @param {string} key
-   * @returns {*}
-   */
-  getItem(key) {
-    return this.store[key].value;
-  }
-
-  /**
-   * addListener
    * @param {string} key
    * @param {Listener} listener
-   * @returns {Listener}
    */
   addListener(key, listener) {
     if (typeof this.store[key] === 'undefined') {
@@ -55,7 +15,26 @@ export default class PrivateStore {
     }
     this.store[key].listeners.push(listener);
     listener.handleUpdate(this.store[key].value);
+
     return listener;
+  }
+
+  /**
+   * setState
+   * @param {*} newState
+   * @returns {*}
+   */
+  setState(newState) {
+    // Find and trigger changes for listeners
+    for (const key of Object.keys(newState)) {
+      if (typeof this.store[key] === 'undefined') {
+        this.createItemWrapper(key);
+      }
+      this.store[key].value = newState[key];
+
+      this.triggerListeners(key);
+    }
+    return newState;
   }
 
   /**
@@ -78,6 +57,8 @@ export default class PrivateStore {
    */
   triggerListeners(key) {
     const item = this.store[key];
-    item.listeners.forEach(listener => listener.handleUpdate(item.value));
+    if (item) {
+      item.listeners.forEach(listener => listener.handleUpdate(item.value));
+    }
   }
 }
