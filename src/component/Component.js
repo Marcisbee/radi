@@ -154,8 +154,6 @@ export default class Component {
       const oldstate = clone(this.state);
       this.state = Object.assign(oldstate, newState);
 
-      // TODO: Enable Object.freeze only in development
-      // disable for production
       skipInProductionAndTest(() => Object.freeze(this.state));
 
       if (this.$config.listen) {
