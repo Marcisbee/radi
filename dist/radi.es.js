@@ -1,7 +1,7 @@
 const GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.0',
+  VERSION: '0.3.1',
   ACTIVE_COMPONENTS: {},
   HTML_CACHE: {},
 };
@@ -562,7 +562,9 @@ const fuseDom = (toNode, fromNode, childOnly) => {
       return toNode;
     }
 
-    if (toNode.listeners || fromNode.listeners || nt1 === 3 || nt2 === 3) {
+    if (toNode.__async || fromNode.__async
+      || toNode.listeners || fromNode.listeners
+      || nt1 === 3 || nt2 === 3) {
       if (!toNode.isEqualNode(fromNode)) {
         toNode.parentNode.insertBefore(fromNode, toNode);
         destroyNode(toNode);
@@ -728,7 +730,9 @@ class Component {
 
   destroy() {
     this.trigger('destroy');
-    if (this.html && this.html !== '') this.html.remove();
+    if (this.html && this.html !== ''
+      && typeof this.html.remove === 'function') this.html.remove();
+    this.html = null;
   }
 
   /**
@@ -789,6 +793,44 @@ class Component {
     return true;
   }
 }
+
+/**
+ * @param {Component} component
+ * @param {string} id
+ * @returns {HTMLElement|Node}
+ */
+const mount = (component, id) => {
+  const container = document.createDocumentFragment();
+  const slot = typeof id === 'string' ? document.getElementById(id) : id;
+  const rendered =
+    (component instanceof Component || component.render) ? component.render() : component;
+
+  if (Array.isArray(rendered)) {
+    for (var i = 0; i < rendered.length; i++) {
+      mount(rendered[i], container);
+    }
+  } else {
+    // Mount to container
+    appendChild(container)(rendered);
+  }
+
+  // Mount to element
+  slot.appendChild(container);
+
+  if (typeof slot.destroy !== 'function') {
+    slot.destroy = () => {
+      for (var i = 0; i < rendered.length; i++) {
+        if (typeof rendered[i].destroy === 'function') {
+          rendered[i].destroy();
+        }
+      }
+    };
+  }
+
+  if (typeof component.mount === 'function') component.mount();
+
+  return slot;
+};
 
 /**
  * @param {*} value
@@ -911,8 +953,7 @@ const appendChild = element => child => {
   }
 
   if (child instanceof Component) {
-    element.appendChild(child.render());
-    child.mount();
+    mount(child, element);
     return;
   }
 
@@ -997,34 +1038,6 @@ const r = (Query, props, ...children) => {
  */
 const listen = (component, ...path) =>
   new Listener(component, ...path);
-
-/**
- * @param {Component} component
- * @param {string} id
- * @returns {HTMLElement|Node}
- */
-const mount = (component, id) => {
-  const container = document.createDocumentFragment();
-  const slot = typeof id === 'string' ? document.getElementById(id) : id;
-  const rendered =
-    (component instanceof Component || component.render) ? component.render() : component;
-
-  if (Array.isArray(rendered)) {
-    for (var i = 0; i < rendered.length; i++) {
-      mount(rendered[i], container);
-    }
-  } else {
-    // Mount to container
-    container.appendChild(rendered);
-  }
-
-  // Mount to element
-  slot.appendChild(container);
-
-  if (typeof component.mount === 'function') component.mount();
-
-  return rendered;
-};
 
 const remountActiveComponents = () => {
   Object.values(GLOBALS.ACTIVE_COMPONENTS).forEach(component => {

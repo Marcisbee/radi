@@ -1,6 +1,7 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-console */
 
+import mount from '../mount';
 import Component from '../component/Component';
 import Listener from '../listen/Listener';
 import appendChildren from './appendChildren';
@@ -17,8 +18,7 @@ const appendChild = element => child => {
   }
 
   if (child instanceof Component) {
-    element.appendChild(child.render());
-    child.mount();
+    mount(child, element);
     return;
   }
 

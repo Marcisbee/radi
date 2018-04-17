@@ -10,9 +10,10 @@ describe('mount.js', () => {
   });
 
   it('returns the rendered element', () => {
+    const parent = document.createElement('div');
     const element = document.createElement('h1');
-    const result = mount(element, document.createElement('div'));
-    expect(result).toBe(element);
+    const result = mount(element, parent);
+    expect(result).toBe(parent);
 
     const span = document.createElement('span');
     class TestComponent extends Component {
@@ -21,7 +22,7 @@ describe('mount.js', () => {
       }
     }
     const result2 = mount(new TestComponent(), document.createElement('div'));
-    expect(result2).toBeInstanceOf(HTMLSpanElement);
+    expect(result2).toBeInstanceOf(HTMLDivElement);
   });
 
   it('mounts components and normal elements', () => {

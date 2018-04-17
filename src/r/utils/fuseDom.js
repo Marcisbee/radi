@@ -107,7 +107,9 @@ const fuseDom = (toNode, fromNode, childOnly) => {
       return toNode;
     }
 
-    if (toNode.listeners || fromNode.listeners || nt1 === 3 || nt2 === 3) {
+    if (toNode.__async || fromNode.__async
+      || toNode.listeners || fromNode.listeners
+      || nt1 === 3 || nt2 === 3) {
       if (!toNode.isEqualNode(fromNode)) {
         toNode.parentNode.insertBefore(fromNode, toNode);
         destroyNode(toNode);

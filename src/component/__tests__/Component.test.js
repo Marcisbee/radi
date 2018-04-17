@@ -137,7 +137,7 @@ describe('Component.js', () => {
     component.render();
     const destroyed = component.destroy();
     expect(onDestroySpy.calledOnce).toBe(true);
-    expect(component.html).toBeUndefined();
+    expect(component.html).toBe(null);
   });
 
   test('its render method works correctly', () => {

@@ -16,6 +16,7 @@ module.exports = {
     beforeEach: true,
     afterEach: true,
     DocumentFragment: true,
+    HTMLDivElement: true,
     HTMLSpanElement: true,
     HTMLHeadingElement: true,
     CSSStyleDeclaration: true,

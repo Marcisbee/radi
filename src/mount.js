@@ -1,4 +1,5 @@
 import Component from './component/Component';
+import appendChild from './r/appendChild';
 
 /**
  * @param {Component} component
@@ -13,19 +14,29 @@ const mount = (component, id) => {
 
   if (Array.isArray(rendered)) {
     for (var i = 0; i < rendered.length; i++) {
-      mount(rendered[i], container)
+      mount(rendered[i], container);
     }
   } else {
     // Mount to container
-    container.appendChild(rendered);
+    appendChild(container)(rendered);
   }
 
   // Mount to element
   slot.appendChild(container);
 
+  if (typeof slot.destroy !== 'function') {
+    slot.destroy = () => {
+      for (var i = 0; i < rendered.length; i++) {
+        if (typeof rendered[i].destroy === 'function') {
+          rendered[i].destroy();
+        }
+      }
+    }
+  }
+
   if (typeof component.mount === 'function') component.mount();
 
-  return rendered;
+  return slot;
 }
 
 export default mount;

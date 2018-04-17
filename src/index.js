@@ -10,7 +10,7 @@ import remountActiveComponents from './utils/remountActiveComponents';
 function action(target, key, descriptor) {
   const act = descriptor.value;
   descriptor.value = function (...args) {
-    this.setState.call(this, act.call(this, ...args))
+    this.setState.call(this, act.call(this, ...args));
   }
   return descriptor;
 }
