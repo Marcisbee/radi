@@ -526,7 +526,8 @@
     }
   };
 
-  const destroyNode = node => {
+  const destroy = node => {
+    if (!(node instanceof Node)) return;
     var treeWalker = document.createTreeWalker(
       node,
       NodeFilter.SHOW_ELEMENT,
@@ -540,10 +541,12 @@
       // Unlink listeners for garbage collection
       el.listeners = null;
       el.destroy();
-      el.parentNode.removeChild(el);
+      if (el.parentNode) el.parentNode.removeChild(el);
     }
 
-    node.parentNode.removeChild(node);
+    if (node.destroy) node.destroy();
+
+    if (node.parentNode) node.parentNode.removeChild(node);
   };
 
   /**
@@ -551,7 +554,7 @@
    * @param {HTMLElement} oldNode
    * @returns {ElementListener}
    */
-  const fuseDom = (toNode, fromNode, childOnly) => {
+  const fuse = (toNode, fromNode, childOnly) => {
     if (Array.isArray(fromNode) || Array.isArray(toNode)) childOnly = true;
 
     if (!childOnly) {
@@ -563,17 +566,17 @@
           // toNode.textContent = fromNode.textContent
           toNode.nodeValue = fromNode.nodeValue;
           // toNode.replaceWith(fromNode)
-          destroyNode(fromNode);
+          destroy(fromNode);
         }
         return toNode;
       }
 
-      if (toNode.__async || fromNode.__async
+      if (fromNode.destroy || toNode.destroy || fromNode.__async || fromNode.__async
         || toNode.listeners || fromNode.listeners
         || nt1 === 3 || nt2 === 3) {
         if (!toNode.isEqualNode(fromNode)) {
           toNode.parentNode.insertBefore(fromNode, toNode);
-          destroyNode(toNode);
+          destroy(toNode);
         }
         return fromNode;
       }
@@ -588,11 +591,11 @@
     for (var i = 0; i < max; i++) {
       if (a1[i] && a2[i]) {
         // Fuse
-        fuseDom(a1[i], a2[i]);
+        fuse(a1[i], a2[i]);
       } else
       if (a1[i] && !a2[i]) {
         // Remove
-        destroyNode(a1[i]);
+        destroy(a1[i]);
       } else
       if (!a1[i] && a2[i]) {
         // Add
@@ -600,8 +603,20 @@
       }
     }
 
+    destroy(fromNode);
     return toNode;
   };
+
+  class FuseDom {
+    fuse(...args) {
+      return fuse(...args);
+    }
+    destroy(...args) {
+      return destroy(...args);
+    }
+  }
+
+  var fuseDom = new FuseDom();
 
   /**
    * @param {*} obj
@@ -623,6 +638,13 @@
     /* eslint-enable */
 
     return cloned;
+  };
+
+  const skipInProductionAndTest = fn => {
+    if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
+      return false;
+    }
+    return fn && fn();
   };
 
   /* eslint-disable guard-for-in */
@@ -654,9 +676,8 @@
         (typeof this.state === 'function') ? this.state() : {},
         props || {}
       );
-      // TODO: Enable Object.freeze only in development
-      // disable for production
-      // Object.freeze(this.state)
+
+      skipInProductionAndTest(() => Object.freeze(this.state));
 
       if (children) this.setChildren(children);
     }
@@ -667,6 +688,13 @@
     render() {
       if (typeof this.view !== 'function') return '';
       const rendered = this.view();
+      if (Array.isArray(rendered)) {
+        for (let i = 0; i < rendered.length; i++) {
+          rendered[i].destroy = this.destroy.bind(this);
+        }
+      } else {
+        rendered.destroy = this.destroy.bind(this);
+      }
       this.html = rendered;
       return rendered;
     }
@@ -738,7 +766,6 @@
       this.trigger('destroy');
       if (this.html && this.html !== ''
         && typeof this.html.remove === 'function') this.html.remove();
-      this.html = null;
     }
 
     /**
@@ -774,9 +801,7 @@
         const oldstate = clone(this.state);
         this.state = Object.assign(oldstate, newState);
 
-        // TODO: Enable Object.freeze only in development
-        // disable for production
-        // Object.freeze(this.state)
+        skipInProductionAndTest(() => Object.freeze(this.state));
 
         if (this.$config.listen) {
           this.$privateStore.setState(newState);
@@ -786,7 +811,7 @@
       }
 
       if (!this.$config.listen && typeof this.view === 'function' && this.html) {
-        fuseDom(this.html, this.view());
+        fuseDom.fuse(this.html, this.view());
       }
       this.trigger('update');
       return this.state;
@@ -826,9 +851,7 @@
     if (typeof slot.destroy !== 'function') {
       slot.destroy = () => {
         for (var i = 0; i < rendered.length; i++) {
-          if (typeof rendered[i].destroy === 'function') {
-            rendered[i].destroy();
-          }
+          fuseDom.destroy(rendered[i]);
         }
       };
     }
@@ -848,27 +871,12 @@
   };
 
   /**
-   * @param {*} oldNode - Node to be swapped
-   * @returns {Node}
-   */
-  const swapNode = oldNode => {
-
-    const newNode = oldNode;
-
-    oldNode = newNode.cloneNode(true);
-
-    oldNode.remove();
-
-    return newNode;
-  };
-
-  /**
    * @param {*} value - Value of the listener
    * @returns {Node[]}
    */
   const listenerToNode = value => {
     if (value instanceof DocumentFragment) {
-      return Array.from(value.childNodes).map(childNode => swapNode(childNode));
+      return Array.from(value.childNodes);
     }
 
     const element = document.createDocumentFragment();
@@ -913,7 +921,7 @@
         if (!this.listenerAsNode[i]) {
           this.listenerAsNode.push(this.element.appendChild(node));
         } else {
-          this.listenerAsNode[i] = fuseDom(this.listenerAsNode[i], node);
+          this.listenerAsNode[i] = fuseDom.fuse(this.listenerAsNode[i], node);
         }
         i+=1;
       }
@@ -921,7 +929,8 @@
       if (i < this.listenerAsNode.length) {
         var nodesLeft = this.listenerAsNode.splice(i-this.listenerAsNode.length);
         for (const node of nodesLeft) {
-          node.remove();
+          fuseDom.destroy(node);
+          // node.remove();
         }
       }
     }
@@ -984,11 +993,11 @@
           && local.default.isComponent()) {
           /*eslint-disable*/
           appendChild(el)(new local.default());
-          el.__async = false;
+          // el.__async = false;
           /* eslint-enable */
         } else {
           appendChild(el)(local.default);
-          el.__async = false;
+          // el.__async = false;
         }
       }).catch(console.warn);
       return;

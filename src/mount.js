@@ -1,5 +1,6 @@
 import Component from './component/Component';
 import appendChild from './r/appendChild';
+import fuseDom from './r/utils/fuseDom';
 
 /**
  * @param {Component} component
@@ -27,9 +28,7 @@ const mount = (component, id) => {
   if (typeof slot.destroy !== 'function') {
     slot.destroy = () => {
       for (var i = 0; i < rendered.length; i++) {
-        if (typeof rendered[i].destroy === 'function') {
-          rendered[i].destroy();
-        }
+        fuseDom.destroy(rendered[i]);
       }
     }
   }

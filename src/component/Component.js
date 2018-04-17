@@ -49,6 +49,13 @@ export default class Component {
   render() {
     if (typeof this.view !== 'function') return '';
     const rendered = this.view();
+    if (Array.isArray(rendered)) {
+      for (let i = 0; i < rendered.length; i++) {
+        rendered[i].destroy = this.destroy.bind(this);
+      }
+    } else {
+      rendered.destroy = this.destroy.bind(this);
+    }
     this.html = rendered;
     return rendered;
   }
@@ -120,7 +127,6 @@ export default class Component {
     this.trigger('destroy');
     if (this.html && this.html !== ''
       && typeof this.html.remove === 'function') this.html.remove();
-    this.html = null;
   }
 
   /**
@@ -166,7 +172,7 @@ export default class Component {
     }
 
     if (!this.$config.listen && typeof this.view === 'function' && this.html) {
-      fuseDom(this.html, this.view());
+      fuseDom.fuse(this.html, this.view());
     }
     this.trigger('update');
     return this.state;

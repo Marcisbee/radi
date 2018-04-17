@@ -38,7 +38,7 @@ export default class ElementListener {
       if (!this.listenerAsNode[i]) {
         this.listenerAsNode.push(this.element.appendChild(node));
       } else {
-        this.listenerAsNode[i] = fuseDom(this.listenerAsNode[i], node);
+        this.listenerAsNode[i] = fuseDom.fuse(this.listenerAsNode[i], node);
       }
       i+=1
     }
@@ -46,7 +46,8 @@ export default class ElementListener {
     if (i < this.listenerAsNode.length) {
       var nodesLeft = this.listenerAsNode.splice(i-this.listenerAsNode.length);
       for (const node of nodesLeft) {
-        node.remove();
+        fuseDom.destroy(node);
+        // node.remove();
       }
     }
   }

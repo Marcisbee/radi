@@ -43,11 +43,11 @@ const appendChild = element => child => {
         && local.default.isComponent()) {
         /*eslint-disable*/
         appendChild(el)(new local.default());
-        el.__async = false;
+        // el.__async = false;
         /* eslint-enable */
       } else {
         appendChild(el)(local.default);
-        el.__async = false;
+        // el.__async = false;
       }
     }).catch(console.warn);
     return;

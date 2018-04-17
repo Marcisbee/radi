@@ -65,7 +65,8 @@ const copyAttrs = (newNode, oldNode) => {
   }
 }
 
-const destroyNode = node => {
+const destroy = node => {
+  if (!(node instanceof Node)) return;
   var treeWalker = document.createTreeWalker(
     node,
     NodeFilter.SHOW_ELEMENT,
@@ -79,10 +80,12 @@ const destroyNode = node => {
     // Unlink listeners for garbage collection
     el.listeners = null;
     el.destroy();
-    el.parentNode.removeChild(el);
+    if (el.parentNode) el.parentNode.removeChild(el);
   }
 
-  node.parentNode.removeChild(node);
+  if (node.destroy) node.destroy();
+
+  if (node.parentNode) node.parentNode.removeChild(node);
 }
 
 /**
@@ -90,7 +93,7 @@ const destroyNode = node => {
  * @param {HTMLElement} oldNode
  * @returns {ElementListener}
  */
-const fuseDom = (toNode, fromNode, childOnly) => {
+const fuse = (toNode, fromNode, childOnly) => {
   if (Array.isArray(fromNode) || Array.isArray(toNode)) childOnly = true;
 
   if (!childOnly) {
@@ -102,17 +105,17 @@ const fuseDom = (toNode, fromNode, childOnly) => {
         // toNode.textContent = fromNode.textContent
         toNode.nodeValue = fromNode.nodeValue;
         // toNode.replaceWith(fromNode)
-        destroyNode(fromNode);
+        destroy(fromNode);
       }
       return toNode;
     }
 
-    if (toNode.__async || fromNode.__async
+    if (fromNode.destroy || toNode.destroy || fromNode.__async || fromNode.__async
       || toNode.listeners || fromNode.listeners
       || nt1 === 3 || nt2 === 3) {
       if (!toNode.isEqualNode(fromNode)) {
         toNode.parentNode.insertBefore(fromNode, toNode);
-        destroyNode(toNode);
+        destroy(toNode);
       }
       return fromNode;
     }
@@ -127,11 +130,11 @@ const fuseDom = (toNode, fromNode, childOnly) => {
   for (var i = 0; i < max; i++) {
     if (a1[i] && a2[i]) {
       // Fuse
-      fuseDom(a1[i], a2[i]);
+      fuse(a1[i], a2[i]);
     } else
     if (a1[i] && !a2[i]) {
       // Remove
-      destroyNode(a1[i]);
+      destroy(a1[i]);
     } else
     if (!a1[i] && a2[i]) {
       // Add
@@ -139,7 +142,17 @@ const fuseDom = (toNode, fromNode, childOnly) => {
     }
   }
 
+  destroy(fromNode);
   return toNode;
 }
 
-export default fuseDom;
+class FuseDom {
+  fuse(...args) {
+    return fuse(...args);
+  }
+  destroy(...args) {
+    return destroy(...args);
+  }
+}
+
+export default new FuseDom();
