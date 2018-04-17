@@ -8,6 +8,7 @@ import generateId from '../utils/generateId';
 import PrivateStore from './utils/PrivateStore';
 import fuseDom from '../r/utils/fuseDom';
 import clone from '../utils/clone';
+import skipInProductionAndTest from '../utils/skipInProductionAndTest';
 
 export default class Component {
   /**
@@ -36,9 +37,8 @@ export default class Component {
       (typeof this.state === 'function') ? this.state() : {},
       props || {}
     );
-    // TODO: Enable Object.freeze only in development
-    // disable for production
-    // Object.freeze(this.state)
+
+    skipInProductionAndTest(() => Object.freeze(this.state));
 
     if (children) this.setChildren(children);
   }
@@ -154,9 +154,7 @@ export default class Component {
       const oldstate = clone(this.state);
       this.state = Object.assign(oldstate, newState);
 
-      // TODO: Enable Object.freeze only in development
-      // disable for production
-      // Object.freeze(this.state)
+      skipInProductionAndTest(() => Object.freeze(this.state));
 
       if (this.$config.listen) {
         this.$privateStore.setState(newState);

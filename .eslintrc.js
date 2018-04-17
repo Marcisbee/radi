@@ -22,6 +22,7 @@ module.exports = {
     HTMLElement: true,
     $Radi: true,
     Node: true,
+    jest: true
   },
   rules: {
     'class-methods-use-this': 'off',
