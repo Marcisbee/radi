@@ -22,7 +22,6 @@ export default class Component {
       $config: (typeof this.config === 'function') ? this.config() : {
         listen: true,
       },
-      $store: {},
       $events: {},
       $privateStore: new PrivateStore(),
     });
@@ -127,6 +126,7 @@ export default class Component {
     this.trigger('destroy');
     if (this.html && this.html !== ''
       && typeof this.html.remove === 'function') this.html.remove();
+    this.$privateStore.removeListeners();
   }
 
   /**
@@ -142,14 +142,14 @@ export default class Component {
    * @param {string} key
    * @param {*} value
    */
-  trigger(key, value) {
+  trigger(key, ...args) {
     if (typeof this.on[key] === 'function') {
-      this.on[key].call(this, value);
+      this.on[key].call(this, ...args);
     }
 
     if (typeof this.$events[key] !== 'undefined') {
       for (const i in this.$events[key]) {
-        this.$events[key][i].call(this, value);
+        this.$events[key][i].call(this, ...args);
       }
     }
   }

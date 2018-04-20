@@ -1,4 +1,3 @@
-import Component from '../Component'
 
 export default class PrivateStore {
   constructor() {
@@ -13,10 +12,21 @@ export default class PrivateStore {
     if (typeof this.store[key] === 'undefined') {
       this.createItemWrapper(key);
     }
+    this.store[key].listeners = this.store[key].listeners.filter(item => (
+      item.attatched
+    ));
     this.store[key].listeners.push(listener);
     listener.handleUpdate(this.store[key].value);
 
     return listener;
+  }
+
+  removeListeners() {
+    let o = Object.keys(this.store);
+    for (var i = 0; i < o.length; i++) {
+      this.store[o[i]].listeners = [];
+      this.store[o[i]].null = [];
+    }
   }
 
   /**

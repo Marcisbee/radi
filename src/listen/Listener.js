@@ -1,5 +1,6 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-shadow */
+import fuseDom from '../r/utils/fuseDom';
 
 export default class Listener {
   /**
@@ -14,7 +15,7 @@ export default class Listener {
     this.value = null;
     this.changeListeners = [];
     this.processValue = value => value;
-    this.disabled = false;
+    this.attatched = true;
 
     this.component.addListener(this.key, this);
     if (this.component.state) {
@@ -22,39 +23,27 @@ export default class Listener {
     }
   }
 
-  /**
-   * @param {*} value
-   * @return {*}
-   */
-  extract(value) {
-    if (value.value instanceof Listener) {
-      value.value.disabled = true;
-      return this.extract(value.value);
-    }
-    return value;
+  deattach() {
+    this.component = null;
+    this.attatched = false;
+    this.key = null;
+    this.childPath = null;
+    this.path = null;
+    this.value = null;
+    this.changeListeners = [];
+    this.processValue = () => {};
   }
 
   /**
    * @param {*} value
    */
   handleUpdate(value) {
-    // TODO: Destroy unnecessary listeners
+    if (this.value instanceof Node) {
+      fuseDom.destroy(this.value);
+      this.value = null;
+    }
     this.value = this.processValue(this.getShallowValue(value), this.value);
-
-    if (this.disabled) {
-      if (typeof this.disabled === 'function') this.disabled(this.value);
-      return this.value;
-    }
-    if (this.value instanceof Listener) {
-      if (this.value.disabled) return this.value;
-      this.value = this.extract(this.value);
-      this.value.disabled = (value) => {
-        this.changeListeners.forEach(changeListener => changeListener(value));
-      };
-    }
-
     this.changeListeners.forEach(changeListener => changeListener(this.value));
-    return this.value;
   }
 
   /**

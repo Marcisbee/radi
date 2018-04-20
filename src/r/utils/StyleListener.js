@@ -41,4 +41,13 @@ export default class StyleListener {
     this.element = newElement;
     return this.element;
   }
+
+  deattach() {
+    this.listener.deattach();
+    this.styleKey = null;
+    this.listener = null;
+    this.element = null;
+    this.attached = false;
+    this.handleValueChange = null;
+  }
 }

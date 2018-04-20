@@ -1,13 +1,197 @@
 const GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.1',
+  VERSION: '0.3.2',
   ACTIVE_COMPONENTS: {},
   HTML_CACHE: {},
 };
 
+const copyAttrs = (newNode, oldNode) => {
+  var oldAttrs = oldNode.attributes;
+  var newAttrs = newNode.attributes;
+  var attrNamespaceURI = null;
+  var attrValue = null;
+  var fromValue = null;
+  var attrName = null;
+  var attr = null;
+
+  for (var i = newAttrs.length - 1; i >= 0; --i) {
+    attr = newAttrs[i];
+    attrName = attr.name;
+    attrNamespaceURI = attr.namespaceURI;
+    attrValue = attr.value;
+    // TODO: Change only specific parts of style
+    // if (attr.name === 'style') {
+    //   for (var item of newNode.style) {
+    //     if (oldNode.style[item] !== newNode.style[item]) oldNode.style[item] = newNode.style[item]
+    //   }
+    //   continue;
+    // }
+    if (attrNamespaceURI) {
+      attrName = attr.localName || attrName;
+      fromValue = oldNode.getAttributeNS(attrNamespaceURI, attrName);
+      if (fromValue !== attrValue) {
+        oldNode.setAttributeNS(attrNamespaceURI, attrName, attrValue);
+      }
+    } else {
+      if (!oldNode.hasAttribute(attrName)) {
+        oldNode.setAttribute(attrName, attrValue);
+      } else {
+        fromValue = oldNode.getAttribute(attrName);
+        if (fromValue !== attrValue) {
+          // apparently values are always cast to strings, ah well
+          if (attrValue === 'null' || attrValue === 'undefined') {
+            oldNode.removeAttribute(attrName);
+          } else {
+            oldNode.setAttribute(attrName, attrValue);
+          }
+        }
+      }
+    }
+  }
+
+  // Remove any extra attributes found on the original DOM element that
+  // weren't found on the target element.
+  for (var j = oldAttrs.length - 1; j >= 0; --j) {
+    attr = oldAttrs[j];
+    if (attr.specified !== false) {
+      attrName = attr.name;
+      attrNamespaceURI = attr.namespaceURI;
+
+      if (attrNamespaceURI) {
+        attrName = attr.localName || attrName;
+        if (!newNode.hasAttributeNS(attrNamespaceURI, attrName)) {
+          oldNode.removeAttributeNS(attrNamespaceURI, attrName);
+        }
+      } else {
+        if (!newNode.hasAttributeNS(null, attrName)) {
+          oldNode.removeAttribute(attrName);
+        }
+      }
+    }
+  }
+};
+
+const destroy = node => {
+  if (!(node instanceof Node)) return;
+  let treeWalker = document.createTreeWalker(
+    node,
+    NodeFilter.SHOW_ALL,
+    el => true,
+    false
+  );
+
+  let el;
+  while((el = treeWalker.nextNode())) {
+    if (el.listeners) {
+      for (var i = 0; i < el.listeners.length; i++) {
+        el.listeners[i].deattach();
+      }
+    }
+    el.listeners = null;
+    if (el.attributeListeners) {
+      for (var i = 0; i < el.styleListeners.length; i++) {
+        el.styleListeners[i].deattach();
+      }
+    }
+    el.attributeListeners = null;
+    if (el.styleListeners) {
+      for (var i = 0; i < el.styleListeners.length; i++) {
+        el.styleListeners[i].deattach();
+      }
+    }
+    el.styleListeners = null;
+    if (el.destroy) el.destroy();
+    el.remove();
+  }
+  if (node.listeners) {
+    for (var i = 0; i < node.listeners.length; i++) {
+      node.listeners[i].deattach();
+    }
+  }
+  node.listeners = null;
+  if (node.attributeListeners) {
+    for (var i = 0; i < node.styleListeners.length; i++) {
+      node.styleListeners[i].deattach();
+    }
+  }
+  node.attributeListeners = null;
+  if (node.styleListeners) {
+    for (var i = 0; i < node.styleListeners.length; i++) {
+      node.styleListeners[i].deattach();
+    }
+  }
+  node.remove();
+};
+
+/**
+ * @param {HTMLElement} newNode
+ * @param {HTMLElement} oldNode
+ * @returns {ElementListener}
+ */
+const fuse = (toNode, fromNode, childOnly) => {
+  if (Array.isArray(fromNode) || Array.isArray(toNode)) childOnly = true;
+
+  if (!childOnly) {
+    const nt1 = toNode.nodeType;
+    const nt2 = fromNode.nodeType;
+
+    if (nt1 === nt2 && (nt1 === 3 || nt2 === 8)) {
+      if (!toNode.isEqualNode(fromNode)) {
+        toNode.nodeValue = fromNode.nodeValue;
+        destroy(fromNode);
+      }
+      return toNode;
+    }
+
+    if (fromNode.destroy || toNode.destroy || fromNode.__async || fromNode.__async
+      || toNode.listeners || fromNode.listeners
+      || nt1 === 3 || nt2 === 3) {
+      if (!toNode.isEqualNode(fromNode)) {
+        toNode.parentNode.insertBefore(fromNode, toNode);
+        destroy(toNode);
+      }
+      return fromNode;
+    }
+
+    copyAttrs(fromNode, toNode);
+  }
+
+  let a1 = [ ...toNode.childNodes || toNode ];
+  let a2 = [ ...fromNode.childNodes || fromNode ];
+  let max = Math.max(a1.length, a2.length);
+
+  for (var i = 0; i < max; i++) {
+    if (a1[i] && a2[i]) {
+      // Fuse
+      fuse(a1[i], a2[i]);
+    } else
+    if (a1[i] && !a2[i]) {
+      // Remove
+      destroy(a1[i]);
+    } else
+    if (!a1[i] && a2[i]) {
+      // Add
+      toNode.appendChild(a2[i]);
+    }
+  }
+
+  destroy(fromNode);
+  return toNode;
+};
+
+class FuseDom {
+  fuse(...args) {
+    return fuse(...args);
+  }
+  destroy(...args) {
+    return destroy(...args);
+  }
+}
+
+var fuseDom = new FuseDom();
+
 /* eslint-disable no-param-reassign */
-/* eslint-disable no-shadow */
 
 class Listener {
   /**
@@ -22,7 +206,7 @@ class Listener {
     this.value = null;
     this.changeListeners = [];
     this.processValue = value => value;
-    this.disabled = false;
+    this.attatched = true;
 
     this.component.addListener(this.key, this);
     if (this.component.state) {
@@ -30,39 +214,27 @@ class Listener {
     }
   }
 
-  /**
-   * @param {*} value
-   * @return {*}
-   */
-  extract(value) {
-    if (value.value instanceof Listener) {
-      value.value.disabled = true;
-      return this.extract(value.value);
-    }
-    return value;
+  deattach() {
+    this.component = null;
+    this.attatched = false;
+    this.key = null;
+    this.childPath = null;
+    this.path = null;
+    this.value = null;
+    this.changeListeners = [];
+    this.processValue = () => {};
   }
 
   /**
    * @param {*} value
    */
   handleUpdate(value) {
-    // TODO: Destroy unnecessary listeners
+    if (this.value instanceof Node) {
+      fuseDom.destroy(this.value);
+      this.value = null;
+    }
     this.value = this.processValue(this.getShallowValue(value), this.value);
-
-    if (this.disabled) {
-      if (typeof this.disabled === 'function') this.disabled(this.value);
-      return this.value;
-    }
-    if (this.value instanceof Listener) {
-      if (this.value.disabled) return this.value;
-      this.value = this.extract(this.value);
-      this.value.disabled = (value) => {
-        this.changeListeners.forEach(changeListener => changeListener(value));
-      };
-    }
-
     this.changeListeners.forEach(changeListener => changeListener(this.value));
-    return this.value;
   }
 
   /**
@@ -165,6 +337,16 @@ class AttributeListener {
     this.element = newElement;
     return this.element;
   }
+
+  deattach() {
+    this.attributeKey = null;
+    this.listener.deattach();
+    this.listener = null;
+    this.element = null;
+    this.listenerAsNode = null;
+    this.attached = false;
+    this.handleValueChange = () => {};
+  }
 }
 
 class StyleListener {
@@ -207,6 +389,15 @@ class StyleListener {
   updateElement(newElement) {
     this.element = newElement;
     return this.element;
+  }
+
+  deattach() {
+    this.listener.deattach();
+    this.styleKey = null;
+    this.listener = null;
+    this.element = null;
+    this.attached = false;
+    this.handleValueChange = null;
   }
 }
 
@@ -404,10 +595,21 @@ class PrivateStore {
     if (typeof this.store[key] === 'undefined') {
       this.createItemWrapper(key);
     }
+    this.store[key].listeners = this.store[key].listeners.filter(item => (
+      item.attatched
+    ));
     this.store[key].listeners.push(listener);
     listener.handleUpdate(this.store[key].value);
 
     return listener;
+  }
+
+  removeListeners() {
+    let o = Object.keys(this.store);
+    for (var i = 0; i < o.length; i++) {
+      this.store[o[i]].listeners = [];
+      this.store[o[i]].null = [];
+    }
   }
 
   /**
@@ -454,164 +656,6 @@ class PrivateStore {
   }
 }
 
-const copyAttrs = (newNode, oldNode) => {
-  var oldAttrs = oldNode.attributes;
-  var newAttrs = newNode.attributes;
-  var attrNamespaceURI = null;
-  var attrValue = null;
-  var fromValue = null;
-  var attrName = null;
-  var attr = null;
-
-  for (var i = newAttrs.length - 1; i >= 0; --i) {
-    attr = newAttrs[i];
-    attrName = attr.name;
-    attrNamespaceURI = attr.namespaceURI;
-    attrValue = attr.value;
-    // TODO: Change only specific parts of style
-    // if (attr.name === 'style') {
-    //   for (var item of newNode.style) {
-    //     if (oldNode.style[item] !== newNode.style[item]) oldNode.style[item] = newNode.style[item]
-    //   }
-    //   continue;
-    // }
-    if (attrNamespaceURI) {
-      attrName = attr.localName || attrName;
-      fromValue = oldNode.getAttributeNS(attrNamespaceURI, attrName);
-      if (fromValue !== attrValue) {
-        oldNode.setAttributeNS(attrNamespaceURI, attrName, attrValue);
-      }
-    } else {
-      if (!oldNode.hasAttribute(attrName)) {
-        oldNode.setAttribute(attrName, attrValue);
-      } else {
-        fromValue = oldNode.getAttribute(attrName);
-        if (fromValue !== attrValue) {
-          // apparently values are always cast to strings, ah well
-          if (attrValue === 'null' || attrValue === 'undefined') {
-            oldNode.removeAttribute(attrName);
-          } else {
-            oldNode.setAttribute(attrName, attrValue);
-          }
-        }
-      }
-    }
-  }
-
-  // Remove any extra attributes found on the original DOM element that
-  // weren't found on the target element.
-  for (var j = oldAttrs.length - 1; j >= 0; --j) {
-    attr = oldAttrs[j];
-    if (attr.specified !== false) {
-      attrName = attr.name;
-      attrNamespaceURI = attr.namespaceURI;
-
-      if (attrNamespaceURI) {
-        attrName = attr.localName || attrName;
-        if (!newNode.hasAttributeNS(attrNamespaceURI, attrName)) {
-          oldNode.removeAttributeNS(attrNamespaceURI, attrName);
-        }
-      } else {
-        if (!newNode.hasAttributeNS(null, attrName)) {
-          oldNode.removeAttribute(attrName);
-        }
-      }
-    }
-  }
-};
-
-const destroy = node => {
-  if (!(node instanceof Node)) return;
-  var treeWalker = document.createTreeWalker(
-    node,
-    NodeFilter.SHOW_ELEMENT,
-    el => el && (typeof el.destroy === 'function'
-      || el.listeners),
-    false
-  );
-
-  var el;
-  while((el = treeWalker.nextNode())) {
-    // Unlink listeners for garbage collection
-    el.listeners = null;
-    el.destroy();
-    if (el.parentNode) el.parentNode.removeChild(el);
-  }
-
-  if (node.destroy) node.destroy();
-
-  if (node.parentNode) node.parentNode.removeChild(node);
-};
-
-/**
- * @param {HTMLElement} newNode
- * @param {HTMLElement} oldNode
- * @returns {ElementListener}
- */
-const fuse = (toNode, fromNode, childOnly) => {
-  if (Array.isArray(fromNode) || Array.isArray(toNode)) childOnly = true;
-
-  if (!childOnly) {
-    const nt1 = toNode.nodeType;
-    const nt2 = fromNode.nodeType;
-
-    if (nt1 === nt2 && (nt1 === 3 || nt2 === 8)) {
-      if (!toNode.isEqualNode(fromNode)) {
-        // toNode.textContent = fromNode.textContent
-        toNode.nodeValue = fromNode.nodeValue;
-        // toNode.replaceWith(fromNode)
-        destroy(fromNode);
-      }
-      return toNode;
-    }
-
-    if (fromNode.destroy || toNode.destroy || fromNode.__async || fromNode.__async
-      || toNode.listeners || fromNode.listeners
-      || nt1 === 3 || nt2 === 3) {
-      if (!toNode.isEqualNode(fromNode)) {
-        toNode.parentNode.insertBefore(fromNode, toNode);
-        destroy(toNode);
-      }
-      return fromNode;
-    }
-
-    copyAttrs(fromNode, toNode);
-  }
-
-  let a1 = [ ...toNode.childNodes || toNode ];
-  let a2 = [ ...fromNode.childNodes || fromNode ];
-  let max = Math.max(a1.length, a2.length);
-
-  for (var i = 0; i < max; i++) {
-    if (a1[i] && a2[i]) {
-      // Fuse
-      fuse(a1[i], a2[i]);
-    } else
-    if (a1[i] && !a2[i]) {
-      // Remove
-      destroy(a1[i]);
-    } else
-    if (!a1[i] && a2[i]) {
-      // Add
-      toNode.appendChild(a2[i]);
-    }
-  }
-
-  destroy(fromNode);
-  return toNode;
-};
-
-class FuseDom {
-  fuse(...args) {
-    return fuse(...args);
-  }
-  destroy(...args) {
-    return destroy(...args);
-  }
-}
-
-var fuseDom = new FuseDom();
-
 /**
  * @param {*} obj
  * @returns {*}
@@ -655,7 +699,6 @@ class Component {
       $config: (typeof this.config === 'function') ? this.config() : {
         listen: true,
       },
-      $store: {},
       $events: {},
       $privateStore: new PrivateStore(),
     });
@@ -760,6 +803,7 @@ class Component {
     this.trigger('destroy');
     if (this.html && this.html !== ''
       && typeof this.html.remove === 'function') this.html.remove();
+    this.$privateStore.removeListeners();
   }
 
   /**
@@ -775,14 +819,14 @@ class Component {
    * @param {string} key
    * @param {*} value
    */
-  trigger(key, value) {
+  trigger(key, ...args) {
     if (typeof this.on[key] === 'function') {
-      this.on[key].call(this, value);
+      this.on[key].call(this, ...args);
     }
 
     if (typeof this.$events[key] !== 'undefined') {
       for (const i in this.$events[key]) {
-        this.$events[key][i].call(this, value);
+        this.$events[key][i].call(this, ...args);
       }
     }
   }
@@ -935,6 +979,15 @@ class ElementListener {
   updateElement(newElement) {
     this.element = newElement;
     return this.element;
+  }
+
+  deattach() {
+    this.listener.deattach();
+    this.listener = null;
+    this.element = null;
+    this.listenerAsNode = null;
+    this.attached = false;
+    this.handleValueChange = () => {};
   }
 }
 

@@ -67,25 +67,54 @@ const copyAttrs = (newNode, oldNode) => {
 
 const destroy = node => {
   if (!(node instanceof Node)) return;
-  var treeWalker = document.createTreeWalker(
+  let treeWalker = document.createTreeWalker(
     node,
-    NodeFilter.SHOW_ELEMENT,
-    el => el && (typeof el.destroy === 'function'
-      || el.listeners),
+    NodeFilter.SHOW_ALL,
+    el => true,
     false
   );
 
-  var el;
+  let el;
   while((el = treeWalker.nextNode())) {
-    // Unlink listeners for garbage collection
+    if (el.listeners) {
+      for (var i = 0; i < el.listeners.length; i++) {
+        el.listeners[i].deattach();
+      }
+    }
     el.listeners = null;
-    el.destroy();
-    if (el.parentNode) el.parentNode.removeChild(el);
+    if (el.attributeListeners) {
+      for (var i = 0; i < el.styleListeners.length; i++) {
+        el.styleListeners[i].deattach();
+      }
+    }
+    el.attributeListeners = null;
+    if (el.styleListeners) {
+      for (var i = 0; i < el.styleListeners.length; i++) {
+        el.styleListeners[i].deattach();
+      }
+    }
+    el.styleListeners = null;
+    if (el.destroy) el.destroy();
+    el.remove();
   }
-
-  if (node.destroy) node.destroy();
-
-  if (node.parentNode) node.parentNode.removeChild(node);
+  if (node.listeners) {
+    for (var i = 0; i < node.listeners.length; i++) {
+      node.listeners[i].deattach();
+    }
+  }
+  node.listeners = null;
+  if (node.attributeListeners) {
+    for (var i = 0; i < node.styleListeners.length; i++) {
+      node.styleListeners[i].deattach();
+    }
+  }
+  node.attributeListeners = null;
+  if (node.styleListeners) {
+    for (var i = 0; i < node.styleListeners.length; i++) {
+      node.styleListeners[i].deattach();
+    }
+  }
+  node.remove();
 }
 
 /**
@@ -102,9 +131,7 @@ const fuse = (toNode, fromNode, childOnly) => {
 
     if (nt1 === nt2 && (nt1 === 3 || nt2 === 8)) {
       if (!toNode.isEqualNode(fromNode)) {
-        // toNode.textContent = fromNode.textContent
         toNode.nodeValue = fromNode.nodeValue;
-        // toNode.replaceWith(fromNode)
         destroy(fromNode);
       }
       return toNode;

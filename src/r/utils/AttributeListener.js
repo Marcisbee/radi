@@ -61,4 +61,14 @@ export default class AttributeListener {
     this.element = newElement;
     return this.element;
   }
+
+  deattach() {
+    this.attributeKey = null;
+    this.listener.deattach();
+    this.listener = null;
+    this.element = null;
+    this.listenerAsNode = null;
+    this.attached = false;
+    this.handleValueChange = () => {};
+  }
 }
