@@ -56,14 +56,14 @@ class Hello extends Radi.component {
   state() {
     return { sample: 'World' };
   }
-  view: function() {
+  view() {
     return (
       <h1>Hello { this.state.sample } !</h1>
     )
   }
 }
 
-mount(new main(), document.body);
+mount(<Hello />, document.body);
 ```
 
 This example will mount h1 to body like so `<body><h1>Hello World</h1></body>`
