@@ -44,6 +44,6 @@ describe('index.js', () => {
   });
 
   it('adds the Radi namespace to the window', () => {
-    expect(window.$Radi).toBe(Radi);
+    expect(window.Radi).toBe(Radi);
   });
 });

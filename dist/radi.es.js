@@ -1,12 +1,12 @@
-const GLOBALS = {
+var GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.2',
+  VERSION: '0.3.3',
   ACTIVE_COMPONENTS: {},
   HTML_CACHE: {},
 };
 
-const copyAttrs = (newNode, oldNode) => {
+var copyAttrs = function (newNode, oldNode) {
   var oldAttrs = oldNode.attributes;
   var newAttrs = newNode.attributes;
   var attrNamespaceURI = null;
@@ -72,16 +72,16 @@ const copyAttrs = (newNode, oldNode) => {
   }
 };
 
-const destroy = node => {
-  if (!(node instanceof Node)) return;
-  let treeWalker = document.createTreeWalker(
+var destroy = function (node) {
+  if (!(node instanceof Node)) { return; }
+  var treeWalker = document.createTreeWalker(
     node,
     NodeFilter.SHOW_ALL,
-    el => true,
+    function (el) { return true; },
     false
   );
 
-  let el;
+  var el;
   while((el = treeWalker.nextNode())) {
     if (el.listeners) {
       for (var i = 0; i < el.listeners.length; i++) {
@@ -101,7 +101,7 @@ const destroy = node => {
       }
     }
     el.styleListeners = null;
-    if (el.destroy) el.destroy();
+    if (el.destroy) { el.destroy(); }
     el.remove();
   }
   if (node.listeners) {
@@ -129,12 +129,12 @@ const destroy = node => {
  * @param {HTMLElement} oldNode
  * @returns {ElementListener}
  */
-const fuse = (toNode, fromNode, childOnly) => {
-  if (Array.isArray(fromNode) || Array.isArray(toNode)) childOnly = true;
+var fuse = function (toNode, fromNode, childOnly) {
+  if (Array.isArray(fromNode) || Array.isArray(toNode)) { childOnly = true; }
 
   if (!childOnly) {
-    const nt1 = toNode.nodeType;
-    const nt2 = fromNode.nodeType;
+    var nt1 = toNode.nodeType;
+    var nt2 = fromNode.nodeType;
 
     if (nt1 === nt2 && (nt1 === 3 || nt2 === 8)) {
       if (!toNode.isEqualNode(fromNode)) {
@@ -157,9 +157,9 @@ const fuse = (toNode, fromNode, childOnly) => {
     copyAttrs(fromNode, toNode);
   }
 
-  let a1 = [ ...toNode.childNodes || toNode ];
-  let a2 = [ ...fromNode.childNodes || fromNode ];
-  let max = Math.max(a1.length, a2.length);
+  var a1 = [].concat( toNode.childNodes || toNode );
+  var a2 = [].concat( fromNode.childNodes || fromNode );
+  var max = Math.max(a1.length, a2.length);
 
   for (var i = 0; i < max; i++) {
     if (a1[i] && a2[i]) {
@@ -180,233 +180,236 @@ const fuse = (toNode, fromNode, childOnly) => {
   return toNode;
 };
 
-class FuseDom {
-  fuse(...args) {
-    return fuse(...args);
-  }
-  destroy(...args) {
-    return destroy(...args);
-  }
-}
+var FuseDom = function FuseDom () {};
+
+FuseDom.prototype.fuse = function fuse$1 () {
+    var args = [], len = arguments.length;
+    while ( len-- ) args[ len ] = arguments[ len ];
+
+  return fuse.apply(void 0, args);
+};
+FuseDom.prototype.destroy = function destroy$1 () {
+    var args = [], len = arguments.length;
+    while ( len-- ) args[ len ] = arguments[ len ];
+
+  return destroy.apply(void 0, args);
+};
 
 var fuseDom = new FuseDom();
 
 /* eslint-disable no-param-reassign */
 
-class Listener {
-  /**
-   * @param {Component} component
-   * @param {...string} path
-   */
-  constructor(component, ...path) {
-    this.component = component;
-    [this.key] = path;
-    this.childPath = path.slice(1, path.length);
-    this.path = path;
+var Listener = function Listener(component) {
+  var assign;
+
+  var path = [], len = arguments.length - 1;
+  while ( len-- > 0 ) path[ len ] = arguments[ len + 1 ];
+  this.component = component;
+  (assign = path, this.key = assign[0]);
+  this.childPath = path.slice(1, path.length);
+  this.path = path;
+  this.value = null;
+  this.changeListeners = [];
+  this.processValue = function (value) { return value; };
+  this.attatched = true;
+
+  this.component.addListener(this.key, this);
+  if (this.component.state) {
+    this.handleUpdate(this.component.state[this.key]);
+  }
+};
+
+Listener.prototype.deattach = function deattach () {
+  this.component = null;
+  this.attatched = false;
+  this.key = null;
+  this.childPath = null;
+  this.path = null;
+  this.value = null;
+  this.changeListeners = [];
+  this.processValue = function () {};
+};
+
+/**
+ * @param {*} value
+ */
+Listener.prototype.handleUpdate = function handleUpdate (value) {
+    var this$1 = this;
+
+  if (this.value instanceof Node) {
+    fuseDom.destroy(this.value);
     this.value = null;
-    this.changeListeners = [];
-    this.processValue = value => value;
-    this.attatched = true;
-
-    this.component.addListener(this.key, this);
-    if (this.component.state) {
-      this.handleUpdate(this.component.state[this.key]);
-    }
   }
+  this.value = this.processValue(this.getShallowValue(value), this.value);
+  this.changeListeners.forEach(function (changeListener) { return changeListener(this$1.value); });
+};
 
-  deattach() {
-    this.component = null;
-    this.attatched = false;
-    this.key = null;
-    this.childPath = null;
-    this.path = null;
-    this.value = null;
-    this.changeListeners = [];
-    this.processValue = () => {};
-  }
+/**
+ * @param {function(*)} changeListener
+ */
+Listener.prototype.onValueChange = function onValueChange (changeListener) {
+  this.changeListeners.push(changeListener);
+  changeListener(this.value);
+};
 
-  /**
-   * @param {*} value
-   */
-  handleUpdate(value) {
-    if (this.value instanceof Node) {
-      fuseDom.destroy(this.value);
-      this.value = null;
-    }
-    this.value = this.processValue(this.getShallowValue(value), this.value);
-    this.changeListeners.forEach(changeListener => changeListener(this.value));
-  }
+/**
+ * @param {function(*): *} processValue
+ * @returns {function(*): *}
+ */
+Listener.prototype.process = function process (processValue) {
+  this.processValue = processValue;
+  this.handleUpdate(this.value);
+  return this;
+};
 
-  /**
-   * @param {function(*)} changeListener
-   */
-  onValueChange(changeListener) {
-    this.changeListeners.push(changeListener);
-    changeListener(this.value);
-  }
+/**
+ * @private
+ * @param {*} value
+ */
+Listener.prototype.getShallowValue = function getShallowValue (value) {
+    var this$1 = this;
 
-  /**
-   * @param {function(*): *} processValue
-   * @returns {function(*): *}
-   */
-  process(processValue) {
-    this.processValue = processValue;
-    this.handleUpdate(this.value);
-    return this;
-  }
-
-  /**
-   * @private
-   * @param {*} value
-   */
-  getShallowValue(value) {
-    if (typeof value !== 'object' || !this.childPath) return value;
-    let shallowValue = value;
-    /*eslint-disable*/
-    for (const pathNestingLevel of this.childPath) {
-      if (shallowValue === null
-        || !shallowValue[pathNestingLevel]
-        && typeof shallowValue[pathNestingLevel] !== 'number') {
-        shallowValue = null;
-      } else {
-        shallowValue = shallowValue[pathNestingLevel];
-      }
-    }
-    return shallowValue;
-  }
-}
-
-class AttributeListener {
-  /**
-   * @param {object} options
-   * @param {string} options.attributeKey
-   * @param {Listener} options.listener
-   * @param {Node} options.element
-   */
-  constructor({ attributeKey, listener, element }) {
-    this.attributeKey = attributeKey;
-    this.listener = listener;
-    this.element = element;
-    this.attached = false;
-    this.handleValueChange = this.handleValueChange.bind(this);
-  }
-
-  /**
-   * Attaches attribute listener to given element and starts listening.
-   * @returns {AttributeListener}
-   */
-  attach() {
-    if (!this.element.attributeListeners) this.element.attributeListeners = [];
-    this.element.attributeListeners.push(this);
-    this.listener.onValueChange(this.handleValueChange);
-    this.attached = true;
-
-    if (this.attributeKey === 'model') {
-      if (/(checkbox|radio)/.test(this.element.getAttribute('type'))) {
-        this.element.onchange = (e) => {
-          this.listener.component[this.listener.key] = e.target.checked;
-        };
-      } else {
-        this.element.oninput = (e) => {
-          this.listener.component[this.listener.key] = e.target.value;
-        };
-      }
-    }
-    return this;
-  }
-
-  /**
-   * @param {*} value
-   */
-  handleValueChange(value) {
-    if (this.attributeKey === 'value' || this.attributeKey === 'model') {
-      if (/(checkbox|radio)/.test(this.element.getAttribute('type'))) {
-        this.element.checked = value;
-      } else {
-        this.element.value = value;
-      }
+  if (typeof value !== 'object' || !this.childPath) { return value; }
+  var shallowValue = value;
+  /*eslint-disable*/
+  for (var pathNestingLevel of this$1.childPath) {
+    if (shallowValue === null
+      || !shallowValue[pathNestingLevel]
+      && typeof shallowValue[pathNestingLevel] !== 'number') {
+      shallowValue = null;
     } else {
-      setAttributes(this.element, { [this.attributeKey]: value });
+      shallowValue = shallowValue[pathNestingLevel];
     }
   }
+  return shallowValue;
+};
 
-  /**
-   * @param {Node} newElement
-   */
-  updateElement(newElement) {
-    this.element = newElement;
-    return this.element;
-  }
+var AttributeListener = function AttributeListener(ref) {
+  var attributeKey = ref.attributeKey;
+  var listener = ref.listener;
+  var element = ref.element;
 
-  deattach() {
-    this.attributeKey = null;
-    this.listener.deattach();
-    this.listener = null;
-    this.element = null;
-    this.listenerAsNode = null;
-    this.attached = false;
-    this.handleValueChange = () => {};
-  }
-}
+  this.attributeKey = attributeKey;
+  this.listener = listener;
+  this.element = element;
+  this.attached = false;
+  this.handleValueChange = this.handleValueChange.bind(this);
+};
 
-class StyleListener {
-  /**
-   * @param {object} options
-   * @param {string} options.styleKey
-   * @param {Listener} options.listener
-   * @param {Node} options.element
-   */
-  constructor({ styleKey, listener, element }) {
-    this.styleKey = styleKey;
-    this.listener = listener;
-    this.element = element;
-    this.attached = false;
-    this.handleValueChange = this.handleValueChange.bind(this);
-  }
+/**
+ * Attaches attribute listener to given element and starts listening.
+ * @returns {AttributeListener}
+ */
+AttributeListener.prototype.attach = function attach () {
+    var this$1 = this;
 
-  /**
-   * Attaches style listener to given element and starts listening.
-   * @returns {StyleListener}
-   */
-  attach() {
-    if (!this.element.styleListeners) this.element.styleListeners = [];
-    this.element.styleListeners.push(this);
-    this.listener.onValueChange(this.handleValueChange);
-    this.attached = true;
-    return this;
-  }
+  if (!this.element.attributeListeners) { this.element.attributeListeners = []; }
+  this.element.attributeListeners.push(this);
+  this.listener.onValueChange(this.handleValueChange);
+  this.attached = true;
 
-  /**
-   * @param {*} value
-   */
-  handleValueChange(value) {
-    setStyle(this.element, this.styleKey, value);
+  if (this.attributeKey === 'model') {
+    if (/(checkbox|radio)/.test(this.element.getAttribute('type'))) {
+      this.element.onchange = function (e) {
+        this$1.listener.component[this$1.listener.key] = e.target.checked;
+      };
+    } else {
+      this.element.oninput = function (e) {
+        this$1.listener.component[this$1.listener.key] = e.target.value;
+      };
+    }
   }
+  return this;
+};
 
-  /**
-   * @param {Node} newElement
-   */
-  updateElement(newElement) {
-    this.element = newElement;
-    return this.element;
-  }
+/**
+ * @param {*} value
+ */
+AttributeListener.prototype.handleValueChange = function handleValueChange (value) {
+    var obj;
 
-  deattach() {
-    this.listener.deattach();
-    this.styleKey = null;
-    this.listener = null;
-    this.element = null;
-    this.attached = false;
-    this.handleValueChange = null;
+  if (this.attributeKey === 'value' || this.attributeKey === 'model') {
+    if (/(checkbox|radio)/.test(this.element.getAttribute('type'))) {
+      this.element.checked = value;
+    } else {
+      this.element.value = value;
+    }
+  } else {
+    setAttributes(this.element, ( obj = {}, obj[this.attributeKey] = value, obj));
   }
-}
+};
+
+/**
+ * @param {Node} newElement
+ */
+AttributeListener.prototype.updateElement = function updateElement (newElement) {
+  this.element = newElement;
+  return this.element;
+};
+
+AttributeListener.prototype.deattach = function deattach () {
+  this.attributeKey = null;
+  this.listener.deattach();
+  this.listener = null;
+  this.element = null;
+  this.listenerAsNode = null;
+  this.attached = false;
+  this.handleValueChange = function () {};
+};
+
+var StyleListener = function StyleListener(ref) {
+  var styleKey = ref.styleKey;
+  var listener = ref.listener;
+  var element = ref.element;
+
+  this.styleKey = styleKey;
+  this.listener = listener;
+  this.element = element;
+  this.attached = false;
+  this.handleValueChange = this.handleValueChange.bind(this);
+};
+
+/**
+ * Attaches style listener to given element and starts listening.
+ * @returns {StyleListener}
+ */
+StyleListener.prototype.attach = function attach () {
+  if (!this.element.styleListeners) { this.element.styleListeners = []; }
+  this.element.styleListeners.push(this);
+  this.listener.onValueChange(this.handleValueChange);
+  this.attached = true;
+  return this;
+};
+
+/**
+ * @param {*} value
+ */
+StyleListener.prototype.handleValueChange = function handleValueChange (value) {
+  setStyle(this.element, this.styleKey, value);
+};
+
+/**
+ * @param {Node} newElement
+ */
+StyleListener.prototype.updateElement = function updateElement (newElement) {
+  this.element = newElement;
+  return this.element;
+};
+
+StyleListener.prototype.deattach = function deattach () {
+  this.listener.deattach();
+  this.styleKey = null;
+  this.listener = null;
+  this.element = null;
+  this.attached = false;
+  this.handleValueChange = null;
+};
 
 /**
  * @param {*} value
  * @return {*}
  */
-const parseValue = value =>
-  typeof value === 'number' && !Number.isNaN(value) ? `${value}px` : value;
+var parseValue = function (value) { return typeof value === 'number' && !Number.isNaN(value) ? (value + "px") : value; };
 
 /* eslint-disable no-param-reassign */
 
@@ -416,14 +419,14 @@ const parseValue = value =>
  * @param {string} value
  * @returns {*}
  */
-const setStyle = (element, property, value) => {
-  if (typeof value === 'undefined') return undefined;
+var setStyle = function (element, property, value) {
+  if (typeof value === 'undefined') { return undefined; }
 
   if (value instanceof Listener) {
     new StyleListener({
       styleKey: property,
       listener: value,
-      element,
+      element: element,
     }).attach();
     return element[property];
   }
@@ -436,7 +439,7 @@ const setStyle = (element, property, value) => {
  * @param {string|object|Listener} styles
  * @returns {CSSStyleDeclaration}
  */
-const setStyles = (element, styles) => {
+var setStyles = function (element, styles) {
   if (typeof styles === 'string') {
     element.style = styles;
   }
@@ -449,12 +452,12 @@ const setStyles = (element, styles) => {
     new AttributeListener({
       attributeKey: 'style',
       listener: styles,
-      element,
+      element: element,
     }).attach();
     return element.style;
   }
 
-  for (const property in styles) {
+  for (var property in styles) {
     setStyle(element, property, styles[property]);
   }
 
@@ -465,9 +468,9 @@ const setStyles = (element, styles) => {
  * @param {*} value
  * @return {*}
  */
-const parseClass = value => {
+var parseClass = function (value) {
   if (Array.isArray(value)) {
-    return value.filter(item => item).join(' ')
+    return value.filter(function (item) { return item; }).join(' ')
   }
   return value;
 };
@@ -478,55 +481,55 @@ const parseClass = value => {
  * @param {HTMLElement} element
  * @param {object} attributes
  */
-const setAttributes = (element, attributes) => {
-  for (const key in attributes) {
-    const value = attributes[key];
+var setAttributes = function (element, attributes) {
+  var loop = function ( key ) {
+    var value = attributes[key];
 
-    if (typeof value === 'undefined') continue;
+    if (typeof value === 'undefined') { return; }
 
     if (!value && typeof value !== 'number') {
       // Need to remove falsy attribute
       element.removeAttribute(key);
-      continue;
+      return;
     }
 
     if (key.toLowerCase() === 'style') {
       setStyles(element, value);
-      continue;
+      return;
     }
 
     if (value instanceof Listener) {
       new AttributeListener({
         attributeKey: key,
         listener: value,
-        element,
+        element: element,
       }).attach();
-      continue;
+      return;
     }
 
     if (key.toLowerCase() === 'class' || key.toLowerCase() === 'classname') {
       element.setAttribute('class', parseClass(value));
-      continue;
+      return;
     }
 
     // Handles events 'on<event>'
     if (key.substring(0, 2).toLowerCase() === 'on') {
       if (key.substring(0, 8).toLowerCase() === 'onsubmit') {
-        element[key] = (e) => {
-          const data = [];
-          const inputs = e.target.elements || [];
-          for (const input of inputs) {
+        element[key] = function (e) {
+          var data = [];
+          var inputs = e.target.elements || [];
+          for (var input of inputs) {
             if (input.name !== '') {
-              const item = {
+              var item = {
                 name: input.name,
                 el: input,
                 type: input.type,
                 default: input.defaultValue,
                 value: input.value,
-                set(val) {
+                set: function set(val) {
                   this.el.value = val;
                 },
-                reset(val) {
+                reset: function reset(val) {
                   this.el.value = val;
                   this.el.defaultValue = val;
                 },
@@ -543,21 +546,23 @@ const setAttributes = (element, attributes) => {
       } else {
         element[key] = value;
       }
-      continue;
+      return;
     }
 
     element.setAttribute(key, value);
-  }
+  };
+
+  for (var key in attributes) loop( key );
 };
 
 /**
  * @param {*} query
  * @returns {Node}
  */
-const getElementFromQuery = query => {
-  if (typeof query === 'string') return query !== 'template'
+var getElementFromQuery = function (query) {
+  if (typeof query === 'string') { return query !== 'template'
     ? document.createElement(query)
-    : document.createDocumentFragment();
+    : document.createDocumentFragment(); }
   console.warn(
     '[Radi.js] Warn: Creating a JSX element whose query is not of type string, automatically converting query to string.'
   );
@@ -569,10 +574,10 @@ const getElementFromQuery = query => {
  * https://gist.github.com/jcxplorer/823878
  * @returns {string}
  */
-const generateId = () => {
-  let uuid = '';
-  for (let i = 0; i < 32; i++) {
-    const random = (Math.random() * 16) | 0; // eslint-disable-line
+var generateId = function () {
+  var uuid = '';
+  for (var i = 0; i < 32; i++) {
+    var random = (Math.random() * 16) | 0; // eslint-disable-line
 
     if (i === 8 || i === 12 || i === 16 || i === 20) {
       uuid += '-';
@@ -582,93 +587,95 @@ const generateId = () => {
   return uuid;
 };
 
-class PrivateStore {
-  constructor() {
-    this.store = {};
-  }
+var PrivateStore = function PrivateStore() {
+  this.store = {};
+};
 
-  /**
-   * @param {string} key
-   * @param {Listener} listener
-   */
-  addListener(key, listener) {
-    if (typeof this.store[key] === 'undefined') {
-      this.createItemWrapper(key);
+/**
+ * @param {string} key
+ * @param {Listener} listener
+ */
+PrivateStore.prototype.addListener = function addListener (key, listener) {
+  if (typeof this.store[key] === 'undefined') {
+    this.createItemWrapper(key);
+  }
+  this.store[key].listeners = this.store[key].listeners.filter(function (item) { return (
+    item.attatched
+  ); });
+  this.store[key].listeners.push(listener);
+  listener.handleUpdate(this.store[key].value);
+
+  return listener;
+};
+
+PrivateStore.prototype.removeListeners = function removeListeners () {
+    var this$1 = this;
+
+  var o = Object.keys(this.store);
+  for (var i = 0; i < o.length; i++) {
+    this$1.store[o[i]].listeners = [];
+    this$1.store[o[i]].null = [];
+  }
+};
+
+/**
+ * setState
+ * @param {*} newState
+ * @returns {*}
+ */
+PrivateStore.prototype.setState = function setState (newState) {
+    var this$1 = this;
+
+  // Find and trigger changes for listeners
+  for (var key of Object.keys(newState)) {
+    if (typeof this$1.store[key] === 'undefined') {
+      this$1.createItemWrapper(key);
     }
-    this.store[key].listeners = this.store[key].listeners.filter(item => (
-      item.attatched
-    ));
-    this.store[key].listeners.push(listener);
-    listener.handleUpdate(this.store[key].value);
+    this$1.store[key].value = newState[key];
 
-    return listener;
+    this$1.triggerListeners(key);
   }
+  return newState;
+};
 
-  removeListeners() {
-    let o = Object.keys(this.store);
-    for (var i = 0; i < o.length; i++) {
-      this.store[o[i]].listeners = [];
-      this.store[o[i]].null = [];
-    }
+/**
+ * createItemWrapper
+ * @private
+ * @param {string} key
+ * @returns {object}
+ */
+PrivateStore.prototype.createItemWrapper = function createItemWrapper (key) {
+  return this.store[key] = {
+    listeners: [],
+    value: null,
+  };
+};
+
+/**
+ * triggerListeners
+ * @private
+ * @param {string} key
+ */
+PrivateStore.prototype.triggerListeners = function triggerListeners (key) {
+  var item = this.store[key];
+  if (item) {
+    item.listeners.forEach(function (listener) { return listener.handleUpdate(item.value); });
   }
-
-  /**
-   * setState
-   * @param {*} newState
-   * @returns {*}
-   */
-  setState(newState) {
-    // Find and trigger changes for listeners
-    for (const key of Object.keys(newState)) {
-      if (typeof this.store[key] === 'undefined') {
-        this.createItemWrapper(key);
-      }
-      this.store[key].value = newState[key];
-
-      this.triggerListeners(key);
-    }
-    return newState;
-  }
-
-  /**
-   * createItemWrapper
-   * @private
-   * @param {string} key
-   * @returns {object}
-   */
-  createItemWrapper(key) {
-    return this.store[key] = {
-      listeners: [],
-      value: null,
-    };
-  }
-
-  /**
-   * triggerListeners
-   * @private
-   * @param {string} key
-   */
-  triggerListeners(key) {
-    const item = this.store[key];
-    if (item) {
-      item.listeners.forEach(listener => listener.handleUpdate(item.value));
-    }
-  }
-}
+};
 
 /**
  * @param {*} obj
  * @returns {*}
  */
-const clone = obj => {
-  if (typeof obj !== 'object') return obj;
-  if (obj === null) return obj;
-  if (Array.isArray(obj)) return obj.map(clone);
+var clone = function (obj) {
+  if (typeof obj !== 'object') { return obj; }
+  if (obj === null) { return obj; }
+  if (Array.isArray(obj)) { return obj.map(clone); }
 
   /*eslint-disable*/
   // Reverted as currently throws some errors
-  const cloned = {};
-  for (const key in obj) {
+  var cloned = {};
+  for (var key in obj) {
     if (obj.hasOwnProperty(key)) {
       cloned[key] = clone(obj[key]);
     }
@@ -678,7 +685,7 @@ const clone = obj => {
   return cloned;
 };
 
-const skipInProductionAndTest = fn => {
+var skipInProductionAndTest = function (fn) {
   if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
     return false;
   }
@@ -687,191 +694,202 @@ const skipInProductionAndTest = fn => {
 
 /* eslint-disable guard-for-in */
 
-class Component {
-  /**
-   * @param {Node[]|*[]} [children]
-   * @param {object} [o.props]
-   */
-  constructor(children, props) {
-    this.addNonEnumerableProperties({
-      $id: generateId(),
-      $name: this.constructor.name,
-      $config: (typeof this.config === 'function') ? this.config() : {
-        listen: true,
-      },
-      $events: {},
-      $privateStore: new PrivateStore(),
+var Component = function Component(children, props) {
+  var this$1 = this;
+
+  this.addNonEnumerableProperties({
+    $id: generateId(),
+    $name: this.constructor.name,
+    $config: (typeof this.config === 'function') ? this.config() : {
+      listen: true,
+    },
+    $events: {},
+    $privateStore: new PrivateStore(),
+  });
+
+  this.on = (typeof this.on === 'function') ? this.on() : {};
+  this.children = [];
+
+  // Appends headless components
+  this.copyObjToInstance(GLOBALS.HEADLESS_COMPONENTS, 'head');
+
+  this.state = Object.assign(
+    (typeof this.state === 'function') ? this.state() : {},
+    props || {}
+  );
+
+  skipInProductionAndTest(function () { return Object.freeze(this$1.state); });
+
+  if (children) { this.setChildren(children); }
+};
+
+/**
+ * @returns {HTMLElement}
+ */
+Component.prototype.render = function render () {
+    var this$1 = this;
+
+  if (typeof this.view !== 'function') { return ''; }
+  var rendered = this.view();
+  if (Array.isArray(rendered)) {
+    for (var i = 0; i < rendered.length; i++) {
+      rendered[i].destroy = this$1.destroy.bind(this$1);
+    }
+  } else {
+    rendered.destroy = this.destroy.bind(this);
+  }
+  this.html = rendered;
+  return rendered;
+};
+
+/**
+ * @param {object} props
+ * @returns {Component}
+ */
+Component.prototype.setProps = function setProps (props) {
+  this.setState(props);
+  return this;
+};
+
+/**
+ * @param {Node[]|*[]} children
+ */
+Component.prototype.setChildren = function setChildren (children) {
+    var this$1 = this;
+
+  this.children = children;
+  this.setState();
+  for (var i = 0; i < this.children.length; i++) {
+    if (typeof this$1.children[i].when === 'function') {
+      this$1.children[i].when('update', function () { return this$1.setState(); });
+    }
+  }
+  return this;
+};
+
+/**
+ * @private
+ * @param {object} obj
+ * @param {string} type
+ */
+Component.prototype.copyObjToInstance = function copyObjToInstance (obj, type) {
+    var this$1 = this;
+
+  for (var key in obj) {
+    if (typeof this$1[key] !== 'undefined') {
+      throw new Error(("[Radi.js] Error: Trying to write for reserved variable `" + key + "`"));
+    }
+    this$1[key] = obj[key];
+    if (type === 'head') { this$1[key].when('update', function () { return this$1.setState(); }); }
+  }
+};
+
+/**
+ * @private
+ * @param {object} obj
+ */
+Component.prototype.addNonEnumerableProperties = function addNonEnumerableProperties (obj) {
+    var this$1 = this;
+
+  for (var key in obj) {
+    if (typeof this$1[key] !== 'undefined') { continue; }
+    Object.defineProperty(this$1, key, {
+      value: obj[key],
     });
+  }
+};
 
-    this.on = (typeof this.on === 'function') ? this.on() : {};
-    this.children = [];
+/**
+ * @param {string} key
+ * @param {Listener} listener
+ */
+Component.prototype.addListener = function addListener (key, listener) {
+  this.$privateStore.addListener(key, listener);
+};
 
-    // Appends headless components
-    this.copyObjToInstance(GLOBALS.HEADLESS_COMPONENTS, 'head');
+Component.prototype.mount = function mount () {
+  this.trigger('mount');
+};
 
-    this.state = Object.assign(
-      (typeof this.state === 'function') ? this.state() : {},
-      props || {}
-    );
+Component.prototype.destroy = function destroy () {
+  this.trigger('destroy');
+  if (this.html && this.html !== ''
+    && typeof this.html.remove === 'function') { this.html.remove(); }
+  this.$privateStore.removeListeners();
+};
 
-    skipInProductionAndTest(() => Object.freeze(this.state));
+/**
+ * @param {string} key
+ * @param {function} fn
+ */
+Component.prototype.when = function when (key, fn) {
+  if (typeof this.$events[key] === 'undefined') { this.$events[key] = []; }
+  this.$events[key].push(fn);
+};
 
-    if (children) this.setChildren(children);
+/**
+ * @param {string} key
+ * @param {*} value
+ */
+Component.prototype.trigger = function trigger (key) {
+    var this$1 = this;
+    var ref, ref$1;
+
+    var args = [], len = arguments.length - 1;
+    while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+  if (typeof this.on[key] === 'function') {
+    (ref = this.on[key]).call.apply(ref, [ this ].concat( args ));
   }
 
-  /**
-   * @returns {HTMLElement}
-   */
-  render() {
-    if (typeof this.view !== 'function') return '';
-    const rendered = this.view();
-    if (Array.isArray(rendered)) {
-      for (let i = 0; i < rendered.length; i++) {
-        rendered[i].destroy = this.destroy.bind(this);
-      }
-    } else {
-      rendered.destroy = this.destroy.bind(this);
-    }
-    this.html = rendered;
-    return rendered;
-  }
-
-  /**
-   * @param {object} props
-   * @returns {Component}
-   */
-  setProps(props) {
-    this.setState(props);
-    return this;
-  }
-
-  /**
-   * @param {Node[]|*[]} children
-   */
-  setChildren(children) {
-    this.children = children;
-    this.setState();
-    for (let i = 0; i < this.children.length; i++) {
-      if (typeof this.children[i].when === 'function') {
-        this.children[i].when('update', () => this.setState());
-      }
-    }
-    return this;
-  }
-
-  /**
-   * @private
-   * @param {object} obj
-   * @param {string} type
-   */
-  copyObjToInstance(obj, type) {
-    for (const key in obj) {
-      if (typeof this[key] !== 'undefined') {
-        throw new Error(`[Radi.js] Error: Trying to write for reserved variable \`${key}\``);
-      }
-      this[key] = obj[key];
-      if (type === 'head') this[key].when('update', () => this.setState());
+  if (typeof this.$events[key] !== 'undefined') {
+    for (var i in this$1.$events[key]) {
+      (ref$1 = this$1.$events[key][i]).call.apply(ref$1, [ this$1 ].concat( args ));
     }
   }
+};
 
-  /**
-   * @private
-   * @param {object} obj
-   */
-  addNonEnumerableProperties(obj) {
-    for (const key in obj) {
-      if (typeof this[key] !== 'undefined') continue;
-      Object.defineProperty(this, key, {
-        value: obj[key],
-      });
+/**
+ * @param {object} newState
+ */
+Component.prototype.setState = function setState (newState) {
+    var this$1 = this;
+
+  if (typeof newState === 'object') {
+    var oldstate = clone(this.state);
+    this.state = Object.assign(oldstate, newState);
+
+    skipInProductionAndTest(function () { return Object.freeze(this$1.state); });
+
+    if (this.$config.listen) {
+      this.$privateStore.setState(newState);
     }
+  } else {
+    // console.error('[Radi.js] ERROR: Action did not return object to merge with state');
   }
 
-  /**
-   * @param {string} key
-   * @param {Listener} listener
-   */
-  addListener(key, listener) {
-    this.$privateStore.addListener(key, listener);
+  if (!this.$config.listen && typeof this.view === 'function' && this.html) {
+    fuseDom.fuse(this.html, this.view());
   }
+  this.trigger('update');
+  return this.state;
+};
 
-  mount() {
-    this.trigger('mount');
-  }
-
-  destroy() {
-    this.trigger('destroy');
-    if (this.html && this.html !== ''
-      && typeof this.html.remove === 'function') this.html.remove();
-    this.$privateStore.removeListeners();
-  }
-
-  /**
-   * @param {string} key
-   * @param {function} fn
-   */
-  when(key, fn) {
-    if (typeof this.$events[key] === 'undefined') this.$events[key] = [];
-    this.$events[key].push(fn);
-  }
-
-  /**
-   * @param {string} key
-   * @param {*} value
-   */
-  trigger(key, ...args) {
-    if (typeof this.on[key] === 'function') {
-      this.on[key].call(this, ...args);
-    }
-
-    if (typeof this.$events[key] !== 'undefined') {
-      for (const i in this.$events[key]) {
-        this.$events[key][i].call(this, ...args);
-      }
-    }
-  }
-
-  /**
-   * @param {object} newState
-   */
-  setState(newState) {
-    if (typeof newState === 'object') {
-      const oldstate = clone(this.state);
-      this.state = Object.assign(oldstate, newState);
-
-      skipInProductionAndTest(() => Object.freeze(this.state));
-
-      if (this.$config.listen) {
-        this.$privateStore.setState(newState);
-      }
-    } else {
-      // console.error('[Radi.js] ERROR: Action did not return object to merge with state');
-    }
-
-    if (!this.$config.listen && typeof this.view === 'function' && this.html) {
-      fuseDom.fuse(this.html, this.view());
-    }
-    this.trigger('update');
-    return this.state;
-  }
-
-  /**
-   * @returns {boolean}
-   */
-  static isComponent() {
-    return true;
-  }
-}
+/**
+ * @returns {boolean}
+ */
+Component.isComponent = function isComponent () {
+  return true;
+};
 
 /**
  * @param {Component} component
  * @param {string} id
  * @returns {HTMLElement|Node}
  */
-const mount = (component, id) => {
-  const container = document.createDocumentFragment();
-  const slot = typeof id === 'string' ? document.getElementById(id) : id;
-  const rendered =
+var mount = function (component, id) {
+  var container = document.createDocumentFragment();
+  var slot = typeof id === 'string' ? document.getElementById(id) : id;
+  var rendered =
     (component instanceof Component || component.render) ? component.render() : component;
 
   if (Array.isArray(rendered)) {
@@ -887,14 +905,14 @@ const mount = (component, id) => {
   slot.appendChild(container);
 
   if (typeof slot.destroy !== 'function') {
-    slot.destroy = () => {
+    slot.destroy = function () {
       for (var i = 0; i < rendered.length; i++) {
         fuseDom.destroy(rendered[i]);
       }
     };
   }
 
-  if (typeof component.mount === 'function') component.mount();
+  if (typeof component.mount === 'function') { component.mount(); }
 
   return slot;
 };
@@ -903,8 +921,8 @@ const mount = (component, id) => {
  * @param {*} value
  * @returns {*[]}
  */
-const ensureArray = value => {
-  if (Array.isArray(value)) return value;
+var ensureArray = function (value) {
+  if (Array.isArray(value)) { return value; }
   return [value];
 };
 
@@ -912,95 +930,92 @@ const ensureArray = value => {
  * @param {*} value - Value of the listener
  * @returns {Node[]}
  */
-const listenerToNode = value => {
+var listenerToNode = function (value) {
   if (value instanceof DocumentFragment) {
     return Array.from(value.childNodes);
   }
 
-  const element = document.createDocumentFragment();
+  var element = document.createDocumentFragment();
   appendChildren(element, ensureArray(value));
   return listenerToNode(element);
 };
 
-class ElementListener {
-  /**
-   * @param {object} options
-   * @param {Listener} options.listener
-   * @param {Node} options.element
-   */
-  constructor({ listener, element }) {
-    this.listener = listener;
-    this.element = element;
-    this.listenerAsNode = [];
-    this.attached = false;
-    this.handleValueChange = this.handleValueChange.bind(this);
-  }
+var ElementListener = function ElementListener(ref) {
+  var listener = ref.listener;
+  var element = ref.element;
 
-  /**
-   * Attaches listener to given element and starts listening.
-   * @returns {ElementListener}
-   */
-  attach() {
-    if (!this.element.listeners) this.element.listeners = [];
-    this.element.listeners.push(this);
-    this.listener.onValueChange(this.handleValueChange);
-    this.attached = true;
-    return this;
-  }
+  this.listener = listener;
+  this.element = element;
+  this.listenerAsNode = [];
+  this.attached = false;
+  this.handleValueChange = this.handleValueChange.bind(this);
+};
 
-  /**
-   * @param {*} value
-   */
-  handleValueChange(value) {
-    const newNode = listenerToNode(value);
+/**
+ * Attaches listener to given element and starts listening.
+ * @returns {ElementListener}
+ */
+ElementListener.prototype.attach = function attach () {
+  if (!this.element.listeners) { this.element.listeners = []; }
+  this.element.listeners.push(this);
+  this.listener.onValueChange(this.handleValueChange);
+  this.attached = true;
+  return this;
+};
 
-    var i = 0;
-    for (const node of newNode) {
-      if (!this.listenerAsNode[i]) {
-        this.listenerAsNode.push(this.element.appendChild(node));
-      } else {
-        this.listenerAsNode[i] = fuseDom.fuse(this.listenerAsNode[i], node);
-      }
-      i+=1;
+/**
+ * @param {*} value
+ */
+ElementListener.prototype.handleValueChange = function handleValueChange (value) {
+    var this$1 = this;
+
+  var newNode = listenerToNode(value);
+
+  var i = 0;
+  for (var node of newNode) {
+    if (!this$1.listenerAsNode[i]) {
+      this$1.listenerAsNode.push(this$1.element.appendChild(node));
+    } else {
+      this$1.listenerAsNode[i] = fuseDom.fuse(this$1.listenerAsNode[i], node);
     }
+    i+=1;
+  }
 
-    if (i < this.listenerAsNode.length) {
-      var nodesLeft = this.listenerAsNode.splice(i-this.listenerAsNode.length);
-      for (const node of nodesLeft) {
-        fuseDom.destroy(node);
-        // node.remove();
-      }
+  if (i < this.listenerAsNode.length) {
+    var nodesLeft = this.listenerAsNode.splice(i-this.listenerAsNode.length);
+    for (var node$1 of nodesLeft) {
+      fuseDom.destroy(node$1);
+      // node.remove();
     }
   }
+};
 
-  /**
-   * @param {Node} newElement
-   */
-  updateElement(newElement) {
-    this.element = newElement;
-    return this.element;
-  }
+/**
+ * @param {Node} newElement
+ */
+ElementListener.prototype.updateElement = function updateElement (newElement) {
+  this.element = newElement;
+  return this.element;
+};
 
-  deattach() {
-    this.listener.deattach();
-    this.listener = null;
-    this.element = null;
-    this.listenerAsNode = null;
-    this.attached = false;
-    this.handleValueChange = () => {};
-  }
-}
+ElementListener.prototype.deattach = function deattach () {
+  this.listener.deattach();
+  this.listener = null;
+  this.element = null;
+  this.listenerAsNode = null;
+  this.attached = false;
+  this.handleValueChange = function () {};
+};
 
 /**
  * @param {Listener} listener
  * @param {HTMLElement} element
  * @returns {ElementListener}
  */
-const appendListenerToElement = (listener, element) =>
-  new ElementListener({
-    listener,
-    element,
-  }).attach();
+var appendListenerToElement = function (listener, element) { return new ElementListener({
+    listener: listener,
+    element: element,
+  }).attach(); };
 
 /* eslint-disable no-param-reassign */
 
@@ -1008,7 +1023,7 @@ const appendListenerToElement = (listener, element) =>
  * @param {HTMLElement} element
  * @returns {function(*)}
  */
-const appendChild = element => child => {
+var appendChild = function (element) { return function (child) {
   if (!child && typeof child !== 'number') {
     // Needs to render every child, even empty ones to preserve dom hierarchy
     child = '';
@@ -1031,10 +1046,10 @@ const appendChild = element => child => {
 
   // Handles lazy loading components
   if (typeof child === 'function') {
-    const placeholder = document.createElement('div');
-    const el = element.appendChild(placeholder);
+    var placeholder = document.createElement('div');
+    var el = element.appendChild(placeholder);
     el.__async = true;
-    child().then(local => {
+    child().then(function (local) {
       if (typeof local.default === 'function'
         && local.default.isComponent
         && local.default.isComponent()) {
@@ -1056,13 +1071,13 @@ const appendChild = element => child => {
   }
 
   element.appendChild(document.createTextNode(child));
-};
+}; };
 
 /**
  * @param {HTMLElement} element
  * @param {*[]} children
  */
-const appendChildren = (element, children) => {
+var appendChildren = function (element, children) {
   children.forEach(appendChild(element));
 };
 
@@ -1072,20 +1087,23 @@ const appendChildren = (element, children) => {
  * @param {...*} children
  * @returns {(HTMLElement|Component)}
  */
-const r = (Query, props, ...children) => {
+var r = function (Query, props) {
+  var children = [], len = arguments.length - 2;
+  while ( len-- > 0 ) children[ len ] = arguments[ len + 2 ];
+
   if (typeof Query === 'function' && Query.isComponent) {
     return new Query(children).setProps(props || {});
   }
 
   if (typeof Query === 'function') {
-    const propsWithChildren = props || {};
+    var propsWithChildren = props || {};
     propsWithChildren.children = children;
     return Query(propsWithChildren);
   }
 
-  const element = getElementFromQuery(Query);
+  var element = getElementFromQuery(Query);
 
-  if (props !== null) setAttributes(element, props);
+  if (props !== null) { setAttributes(element, props); }
   appendChildren(element, children);
 
   return element;
@@ -1098,11 +1116,15 @@ const r = (Query, props, ...children) => {
  * @param {...string} path
  * @returns {Listener}
  */
-const listen = (component, ...path) =>
-  new Listener(component, ...path);
+var listen = function (component) {
+    var path = [], len = arguments.length - 1;
+    while ( len-- > 0 ) path[ len ] = arguments[ len + 1 ];
 
-const remountActiveComponents = () => {
-  Object.values(GLOBALS.ACTIVE_COMPONENTS).forEach(component => {
+    return new (Function.prototype.bind.apply( Listener, [ null ].concat( [component], path) ));
+};
+
+var remountActiveComponents = function () {
+  Object.values(GLOBALS.ACTIVE_COMPONENTS).forEach(function (component) {
     if (typeof component.onMount === 'function') {
       component.onMount(component);
     }
@@ -1111,42 +1133,50 @@ const remountActiveComponents = () => {
 
 // Descriptor for actions
 function action(target, key, descriptor) {
-  const act = descriptor.value;
-  descriptor.value = function (...args) {
-    this.setState.call(this, act.call(this, ...args));
+  var act = descriptor.value;
+  descriptor.value = function () {
+    var args = [], len = arguments.length;
+    while ( len-- ) args[ len ] = arguments[ len ];
+
+    this.setState.call(this, act.call.apply(act, [ this ].concat( args )));
   };
   return descriptor;
 }
 
-const Radi = {
+var Radi = {
   version: GLOBALS.VERSION,
   activeComponents: GLOBALS.ACTIVE_COMPONENTS,
-  r,
-  listen,
+  r: r,
+  listen: listen,
   l: listen,
   component: Component,
-  Component,
-  action,
-  headless: (key, comp) => {
+  Component: Component,
+  action: action,
+  headless: function (key, comp) {
     // TODO: Validate component and key
-    const mountedComponent = new comp();
+    var mountedComponent = new comp();
     mountedComponent.mount();
     return GLOBALS.HEADLESS_COMPONENTS['$'.concat(key)] = mountedComponent;
   },
-  mount,
-  freeze: () => {
+  mount: mount,
+  freeze: function () {
     GLOBALS.FROZEN_STATE = true;
   },
-  unfreeze: () => {
+  unfreeze: function () {
     GLOBALS.FROZEN_STATE = false;
     remountActiveComponents();
   },
 };
 
 // Pass Radi instance to plugins
-Radi.plugin = (fn, ...args) => fn(Radi, ...args);
+Radi.plugin = function (fn) {
+  var args = [], len = arguments.length - 1;
+  while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
 
-if (window) window.$Radi = Radi;
+  return fn.apply(void 0, [ Radi ].concat( args ));
+};
 
-module.exports = Radi;
+if (window) { window.Radi = Radi; }
+
+export default Radi;
 //# sourceMappingURL=radi.es.js.map

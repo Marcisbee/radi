@@ -43,6 +43,5 @@ const Radi = {
 // Pass Radi instance to plugins
 Radi.plugin = (fn, ...args) => fn(Radi, ...args);
 
-if (window) window.$Radi = Radi;
-
-module.exports = Radi;
+if (window) window.Radi = Radi;
+export default Radi;
