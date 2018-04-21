@@ -1,6 +1,6 @@
 const skipInProductionAndTest = fn => {
-  if (process
-    && (process.env.NODE_ENV === 'production'
+  if (typeof process === 'undefined'
+    || (process.env.NODE_ENV === 'production'
     || process.env.NODE_ENV === 'test')) {
     return false;
   }

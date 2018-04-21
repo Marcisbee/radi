@@ -7,7 +7,7 @@
   var GLOBALS = {
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.3.4',
+    VERSION: '0.3.5',
     ACTIVE_COMPONENTS: {},
     HTML_CACHE: {},
   };
@@ -692,8 +692,8 @@
   };
 
   var skipInProductionAndTest = function (fn) {
-    if (process
-      && (process.env.NODE_ENV === 'production'
+    if (typeof process === 'undefined'
+      || (process.env.NODE_ENV === 'production'
       || process.env.NODE_ENV === 'test')) {
       return false;
     }
