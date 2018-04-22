@@ -124,8 +124,8 @@ export default class Component {
 
   destroy() {
     this.trigger('destroy');
-    if (this.html && this.html !== ''
-      && typeof this.html.remove === 'function') this.html.remove();
+    // if (this.html && this.html !== ''
+    //   && typeof this.html.remove === 'function') this.html.remove();
     this.$privateStore.removeListeners();
   }
 

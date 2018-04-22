@@ -8,35 +8,37 @@ const copyAttrs = (newNode, oldNode) => {
   var attrName = null;
   var attr = null;
 
-  for (var i = newAttrs.length - 1; i >= 0; --i) {
-    attr = newAttrs[i];
-    attrName = attr.name;
-    attrNamespaceURI = attr.namespaceURI;
-    attrValue = attr.value;
-    // TODO: Change only specific parts of style
-    // if (attr.name === 'style') {
-    //   for (var item of newNode.style) {
-    //     if (oldNode.style[item] !== newNode.style[item]) oldNode.style[item] = newNode.style[item]
-    //   }
-    //   continue;
-    // }
-    if (attrNamespaceURI) {
-      attrName = attr.localName || attrName;
-      fromValue = oldNode.getAttributeNS(attrNamespaceURI, attrName);
-      if (fromValue !== attrValue) {
-        oldNode.setAttributeNS(attrNamespaceURI, attrName, attrValue);
-      }
-    } else {
-      if (!oldNode.hasAttribute(attrName)) {
-        oldNode.setAttribute(attrName, attrValue);
-      } else {
-        fromValue = oldNode.getAttribute(attrName);
+  if (newAttrs) {
+    for (var i = newAttrs.length - 1; i >= 0; --i) {
+      attr = newAttrs[i];
+      attrName = attr.name;
+      attrNamespaceURI = attr.namespaceURI;
+      attrValue = attr.value;
+      // TODO: Change only specific parts of style
+      // if (attr.name === 'style') {
+      //   for (var item of newNode.style) {
+      //     if (oldNode.style[item] !== newNode.style[item]) oldNode.style[item] = newNode.style[item]
+      //   }
+      //   continue;
+      // }
+      if (attrNamespaceURI) {
+        attrName = attr.localName || attrName;
+        fromValue = oldNode.getAttributeNS(attrNamespaceURI, attrName);
         if (fromValue !== attrValue) {
-          // apparently values are always cast to strings, ah well
-          if (attrValue === 'null' || attrValue === 'undefined') {
-            oldNode.removeAttribute(attrName);
-          } else {
-            oldNode.setAttribute(attrName, attrValue);
+          oldNode.setAttributeNS(attrNamespaceURI, attrName, attrValue);
+        }
+      } else {
+        if (!oldNode.hasAttribute(attrName)) {
+          oldNode.setAttribute(attrName, attrValue);
+        } else {
+          fromValue = oldNode.getAttribute(attrName);
+          if (fromValue !== attrValue) {
+            // apparently values are always cast to strings, ah well
+            if (attrValue === 'null' || attrValue === 'undefined') {
+              oldNode.removeAttribute(attrName);
+            } else {
+              oldNode.setAttribute(attrName, attrValue);
+            }
           }
         }
       }
@@ -45,20 +47,22 @@ const copyAttrs = (newNode, oldNode) => {
 
   // Remove any extra attributes found on the original DOM element that
   // weren't found on the target element.
-  for (var j = oldAttrs.length - 1; j >= 0; --j) {
-    attr = oldAttrs[j];
-    if (attr.specified !== false) {
-      attrName = attr.name;
-      attrNamespaceURI = attr.namespaceURI;
+  if (oldAttrs) {
+    for (var j = oldAttrs.length - 1; j >= 0; --j) {
+      attr = oldAttrs[j];
+      if (attr.specified !== false) {
+        attrName = attr.name;
+        attrNamespaceURI = attr.namespaceURI;
 
-      if (attrNamespaceURI) {
-        attrName = attr.localName || attrName;
-        if (!newNode.hasAttributeNS(attrNamespaceURI, attrName)) {
-          oldNode.removeAttributeNS(attrNamespaceURI, attrName);
-        }
-      } else {
-        if (!newNode.hasAttributeNS(null, attrName)) {
-          oldNode.removeAttribute(attrName);
+        if (attrNamespaceURI) {
+          attrName = attr.localName || attrName;
+          if (!newNode.hasAttributeNS(attrNamespaceURI, attrName)) {
+            oldNode.removeAttributeNS(attrNamespaceURI, attrName);
+          }
+        } else {
+          if (!newNode.hasAttributeNS(null, attrName)) {
+            oldNode.removeAttribute(attrName);
+          }
         }
       }
     }
@@ -95,7 +99,9 @@ const destroy = node => {
     }
     el.styleListeners = null;
     if (el.destroy) el.destroy();
-    el.remove();
+    if (el.parentNode) {
+      el.parentNode.removeChild(el);
+    }
   }
   if (node.listeners) {
     for (var i = 0; i < node.listeners.length; i++) {
@@ -114,7 +120,9 @@ const destroy = node => {
       node.styleListeners[i].deattach();
     }
   }
-  node.remove();
+  if (node.parentNode) {
+    node.parentNode.removeChild(node);
+  }
 }
 
 /**

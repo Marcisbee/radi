@@ -34,22 +34,33 @@ const appendChild = element => child => {
 
   // Handles lazy loading components
   if (typeof child === 'function') {
-    const placeholder = document.createElement('div');
-    const el = element.appendChild(placeholder);
-    el.__async = true;
-    child().then(local => {
-      if (typeof local.default === 'function'
-        && local.default.isComponent
-        && local.default.isComponent()) {
-        /*eslint-disable*/
-        appendChild(el)(new local.default());
-        // el.__async = false;
-        /* eslint-enable */
-      } else {
-        appendChild(el)(local.default);
-        // el.__async = false;
-      }
-    }).catch(console.warn);
+    const executed = child();
+    if (executed instanceof Promise) {
+      const placeholder = document.createElement('selection');
+      const el = element.appendChild(placeholder);
+      el.__async = true;
+      executed.then(local => {
+        if (local.default && local.default.isComponent) {
+          /* eslint-disable */
+          appendChild(el)(new local.default());
+          /* eslint-enable */
+        } else
+        if (typeof local.default === 'function') {
+          const lazy = local.default();
+          lazy.then(item => {
+            if (item.default && item.default.isComponent) {
+              /* eslint-disable */
+              appendChild(el)(new item.default());
+              /* eslint-enable */
+            }
+          });
+        } else {
+          appendChild(el)(local.default);
+        }
+      }).catch(console.warn);
+    } else {
+      appendChild(element)(executed);
+    }
     return;
   }
 

@@ -1,6 +1,6 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-shadow */
-import fuseDom from '../r/utils/fuseDom';
+// import fuseDom from '../r/utils/fuseDom';
 
 export default class Listener {
   /**
@@ -38,10 +38,11 @@ export default class Listener {
    * @param {*} value
    */
   handleUpdate(value) {
-    if (this.value instanceof Node) {
-      fuseDom.destroy(this.value);
-      this.value = null;
-    }
+    // Removed for the time beeing, let's see if this works correctly
+    // if (this.value instanceof Node) {
+    //   fuseDom.destroy(this.value);
+    //   this.value = null;
+    // }
     this.value = this.processValue(this.getShallowValue(value), this.value);
     this.changeListeners.forEach(changeListener => changeListener(this.value));
   }
