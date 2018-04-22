@@ -5,7 +5,7 @@
 Install with npm or Yarn.
 
 ```
-npm i [radi](https://www.npmjs.com/package/radi)
+npm i radi
 ```
 
 Then with a module bundler like [Rollup](https://rollupjs.org/) or [Webpack](https://webpack.js.org/), use as you would anything else.
