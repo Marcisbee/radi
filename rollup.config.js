@@ -4,9 +4,11 @@ import buble from 'rollup-plugin-buble';
 export default {
   plugins: [
     nodeResolve(),
-    // TODO: Figure out why errors happen when buble is enabled
-    // buble({
-    //   transforms: { forOf: false }
-    // })
+    buble({
+      target: { chrome: 48, firefox: 43 },
+      transforms: {
+        forOf: false,
+      }
+    })
   ]
 };
