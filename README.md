@@ -1,6 +1,6 @@
 # <a href='http://radi.js.org'><img src='https://rawgit.com/radi-js/radi/gh-pages/logo/radijs-github.png' height='60' alt='Radi' aria-label='Redux.js.org' /></a>
 
-**Radi** is a tiny (3kB minified & gzipped) javascript framework.
+**Radi** is a tiny (4kB minified & gzipped) javascript framework.
 
 It's built quite differently from any other framework. It doesn't use any kind of diffing algorithm nor virtual dom which makes it really fast.
 
