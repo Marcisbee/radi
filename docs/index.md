@@ -244,7 +244,7 @@ class GlobalComponent extends Component {
     return {
       mount() {
         setInterval(() => {
-          tick()
+          this.tick()
         })
       }
     }
