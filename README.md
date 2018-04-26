@@ -42,7 +42,9 @@ Radi.js currently is compatible with browsers that support ES6. In stable releas
 
 ## Documentation
 
-Documentation is currently being written. For now just a few examples to work our appetite.
+[Getting started guide](/docs)
+
+Here are just a few examples to work our appetite.
 
 #### Hello World example
 
