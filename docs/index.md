@@ -175,7 +175,7 @@ this.on = {
 ```
 
 ```js
-import { r, l, action, Component } from 'radi';
+import { action, Component } from 'radi';
 
 class Grandma extends Component {
   state() {
@@ -185,8 +185,10 @@ class Grandma extends Component {
   }
   
   on() {
-    callGrandma(whatToSay) {
-      console.log('Grandma is ', this.state.status, 'try to say', whatToSay, 'again later')
+    return {
+      callGrandma(whatToSay) {
+        console.log('Grandma is ', this.state.status, 'try to say', whatToSay, 'again later')
+      }
     }
   }
   
@@ -214,9 +216,51 @@ this.on = {
 }
 ```
 
+### Global event handling
+
+Coming Soon
+
 ## Headless Components
 
-TODO
+Components can also be registered as headless (without view). These are components that live in other components as contained mixins and handles logic, events and rendering. This is useful for plugins that handles global data and some logic.
+
+```js
+import { action, headless, Component } from 'radi';
+
+class GlobalComponent extends Component {
+  state() {
+    return {
+      count: 0
+    }
+  }
+  
+  @action tick() {
+    return {
+      count: this.state.count + 1
+    }
+  }
+  
+  on() {
+    return {
+      mount() {
+        setInterval(() => {
+          tick()
+        })
+      }
+    }
+  }
+}
+
+headless('myGlobalComponent', GlobalComponent)
+```
+
+No we registered headless component. It can be accessed by every component with dollar sign + handle name `this.$myGlobalComponent`.
+
+```jsx
+<h1>{ listen(this.$myGlobalComponent, 'count') }</h1>
+```
+
+This will output `GlobalComponent` state.count output.
 
 ## Plugin
 
