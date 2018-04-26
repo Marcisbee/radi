@@ -93,7 +93,7 @@ state: {
 
 <h1>{ this.state.count }</h1>
 
-<button onclick={ () => this.up() } disabled={ this.state.count <= 0 }>-</button>
+<button onclick={ () => this.down() } disabled={ this.state.count <= 0 }>-</button>
 
 <button onclick={ () => this.up() }>+</button>
 ```
