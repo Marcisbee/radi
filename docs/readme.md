@@ -130,7 +130,7 @@ So if you write logic inside `view` method before return statement, it will NOT 
 
 ## Listener
 
-**NOTE:**  Radi has a [babel transformer plugin](https://github.com/radi-js/transform-radi-listen) for listeners to be handled automatically (just like transformation from JSX to [hyperscript](#hyperscript)).
+**NOTE:**  Radi has a [babel transformer plugin](https://github.com/radi-js/babel-plugin-transform-radi-listen) for listeners to be handled automatically (just like transformation from JSX to [hyperscript](#hyperscript)).
 
 Listeners watch for changes in the state of the assigned component and if changes happen it is responsible for re-rendering that part of view and updating it in DOM.
 Listener expects to receive component that it should listen to and path of state to listen to.
