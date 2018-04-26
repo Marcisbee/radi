@@ -76,7 +76,7 @@ class Counter extends Component {
 
 ## State
 
-State is plain JS object that describes your entire program. Data in it cannot be changed once created, it can only be updated with actions or `setState` method that is part of Component.
+State is a plain JS object that describes your entire program. Data in it cannot be changed once created, it can only be updated with actions or `setState` method that is part of Component.
 
 ```js
 this.state = {
@@ -132,7 +132,7 @@ So if you write logic inside `view` method before return statement, it will NOT 
 
 **NOTE:**  Radi has a [babel transformer plugin](https://github.com/radi-js/transform-radi-listen) for listeners to be handled automatically (just like transformation from JSX to [hyperscript](#hyperscript)).
 
-Listeners watch for changes in state for assigned component and if changes happen, it is responsible for re-rendering that part of view and updating it in DOM.
+Listeners watch for changes in the state of the assigned component and if changes happen it is responsible for re-rendering that part of view and updating it in DOM.
 Listener expects to receive component that it should listen to and path of state to listen to.
 
 ```jsx
@@ -153,7 +153,7 @@ Listeners can also do some processing with that state value.
 
 ## Events
 
-Events are part of `on` method in every Component. It can also be defined inside `constructor` as simple object. Every method that is part of it is event handler. Every event can also be [action](#actions).
+Events are part of `on` method in every Component. It can also be defined inside `constructor` as simple object. Every method that is part of it is event handler. Every event can also be an [action](#actions).
 
 ```js
 this.on = {
@@ -222,7 +222,7 @@ Coming Soon
 
 ## Headless Components
 
-Components can also be registered as headless (without view). These are components that live in other components as contained mixins and handles logic, events and rendering. This is useful for plugins that handles global data and some logic.
+Components can also be registered as headless (without view). These are components that live in other components as contained mixins and handle logic, events and rendering. This is useful for plugins that handle global data and some logic.
 
 ```js
 import { action, headless, Component } from 'radi';
@@ -254,7 +254,7 @@ class GlobalComponent extends Component {
 headless('myGlobalComponent', GlobalComponent)
 ```
 
-Now we registered headless component. It can be accessed by every component with dollar sign + handle name `this.$myGlobalComponent`.
+Now that we registered headless component it can be accessed by every component with dollar sign + handle name `this.$myGlobalComponent`.
 
 ```jsx
 <h1>{ listen(this.$myGlobalComponent, 'count') }</h1>
@@ -264,7 +264,7 @@ This will output `GlobalComponent` state.count output.
 
 ## Plugin
 
-Plugin is a function that expects callback function that passes current Radi scope as a first argument to it. This way we can register plugins easily to current scope of Radi.
+Plugin is a function that expects a callback function that takes current Radi scope as first argument. This way we can register plugins easily to the current scope of Radi.
 
 ```js
 import plugin from 'radi'
