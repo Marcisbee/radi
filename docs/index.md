@@ -264,7 +264,23 @@ This will output `GlobalComponent` state.count output.
 
 ## Plugin
 
-TODO
+Plugin is a function that expects callback function that passes current Radi scope as a first argument to it. This way we can register plugins easily to current scope of Radi.
+
+```js
+import plugin from 'radi'
+
+const myCoolPlugin = _radi => {
+  // Your plugins logic here
+  // create _radi.Component, make it headless, sky is the limit
+  // can also return anyhing
+  return {
+    mom: 'hi'
+  }
+}
+
+const { mom } = plugin(myCoolPlugin)
+// mom = 'hi'
+```
 
 ## Mount
 
