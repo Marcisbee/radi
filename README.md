@@ -63,7 +63,7 @@ class Hello extends Radi.component {
   }
 }
 
-mount(<Hello />, document.body);
+Radi.mount(<Hello />, document.body);
 ```
 
 This example will mount h1 to body like so `<body><h1>Hello World</h1></body>`
