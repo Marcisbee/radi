@@ -254,7 +254,7 @@ class GlobalComponent extends Component {
 headless('myGlobalComponent', GlobalComponent)
 ```
 
-No we registered headless component. It can be accessed by every component with dollar sign + handle name `this.$myGlobalComponent`.
+Now we registered headless component. It can be accessed by every component with dollar sign + handle name `this.$myGlobalComponent`.
 
 ```jsx
 <h1>{ listen(this.$myGlobalComponent, 'count') }</h1>
@@ -268,4 +268,14 @@ TODO
 
 ## Mount
 
-TODO
+Mount is a function that will mount anything that [view](#view) returns ([Hyperscript](#hyperscript)/JSX nodes, DOM Nodes, Component or Array of these three) to any DOM node. Usually this is how we mount our Apps root component to DOM.
+
+```jsx
+import { r, mount, Component } from 'radi';
+
+class MyComponent extends Component {
+  ...
+}
+
+mount(<MyComponent />, document.body)
+```
