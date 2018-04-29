@@ -1,7 +1,7 @@
 var GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.7',
+  VERSION: '0.3.8',
   ACTIVE_COMPONENTS: {},
   HTML_CACHE: {},
 };
@@ -462,75 +462,53 @@ PrivateStore.prototype.triggerListeners = function triggerListeners (key) {
   }
 };
 
-var copyAttrs = (newNode, oldNode) => {
-  var oldAttrs = oldNode.attributes;
-  var newAttrs = newNode.attributes;
-  var attrNamespaceURI = null;
-  var attrValue = null;
-  var fromValue = null;
-  var attrName = null;
-  var attr = null;
+function getElementAttributes(el) {
+	return el.attributes;
+}
 
-  if (newAttrs) {
-    for (var i = newAttrs.length - 1; i >= 0; --i) {
-      attr = newAttrs[i];
-      attrName = attr.name;
-      attrNamespaceURI = attr.namespaceURI;
-      attrValue = attr.value;
-      // TODO: Change only specific parts of style
-      // if (attr.name === 'style') {
-      //   for (var item of newNode.style) {
-      //     if (oldNode.style[item] !== newNode.style[item]) oldNode.style[item] = newNode.style[item]
-      //   }
-      //   continue;
-      // }
-      if (attrNamespaceURI) {
-        attrName = attr.localName || attrName;
-        fromValue = oldNode.getAttributeNS(attrNamespaceURI, attrName);
-        if (fromValue !== attrValue) {
-          oldNode.setAttributeNS(attrNamespaceURI, attrName, attrValue);
-        }
-      } else {
-        if (!oldNode.hasAttribute(attrName)) {
-          oldNode.setAttribute(attrName, attrValue);
-        } else {
-          fromValue = oldNode.getAttribute(attrName);
-          if (fromValue !== attrValue) {
-            // apparently values are always cast to strings, ah well
-            if (attrValue === 'null' || attrValue === 'undefined') {
-              oldNode.removeAttribute(attrName);
-            } else {
-              oldNode.setAttribute(attrName, attrValue);
-            }
-          }
+function fuseAttributes(el, toEl, elAttributes) {
+	var toElAttributes = toEl.attributes;
+
+	for (var i = 0, l = toElAttributes.length; i < l; i++) {
+		var toElAttr = toElAttributes.item(i);
+		var toElAttrNamespaceURI = toElAttr.namespaceURI;
+		var elAttr = toElAttrNamespaceURI ?
+			elAttributes.getNamedItemNS(toElAttrNamespaceURI, toElAttr.name) :
+			elAttributes.getNamedItem(toElAttr.name);
+
+    if (elAttr.name === 'style') {
+      for (var style of toEl.style) {
+        if (el.style[style] !== toEl.style[style]) {
+          el.style[style] = toEl.style[style];
         }
       }
+      continue;
     }
-  }
 
-  // Remove any extra attributes found on the original DOM element that
-  // weren't found on the target element.
-  if (oldAttrs) {
-    for (var j = oldAttrs.length - 1; j >= 0; --j) {
-      attr = oldAttrs[j];
-      if (attr.specified !== false) {
-        attrName = attr.name;
-        attrNamespaceURI = attr.namespaceURI;
+		if (!elAttr || elAttr.value != toElAttr.value) {
+			if (toElAttrNamespaceURI) {
+				el.setAttributeNS(toElAttrNamespaceURI, toElAttr.name, toElAttr.value);
+			} else {
+				el.setAttribute(toElAttr.name, toElAttr.value);
+			}
+		}
+	}
 
-        if (attrNamespaceURI) {
-          attrName = attr.localName || attrName;
-          if (!newNode.hasAttributeNS(attrNamespaceURI, attrName)) {
-            oldNode.removeAttributeNS(attrNamespaceURI, attrName);
-          }
-        } else {
-          if (!newNode.hasAttributeNS(null, attrName)) {
-            oldNode.removeAttribute(attrName);
-          }
-        }
-      }
-    }
-  }
-};
+	for (var i$1 = elAttributes.length; i$1;) {
+		var elAttr$1 = elAttributes.item(--i$1);
+		var elAttrNamespaceURI = elAttr$1.namespaceURI;
+
+		if (elAttrNamespaceURI) {
+			if (!toElAttributes.getNamedItemNS(elAttrNamespaceURI, elAttr$1.name)) {
+				el.removeAttributeNS(elAttrNamespaceURI, elAttr$1.name);
+			}
+		} else {
+			if (!toElAttributes.getNamedItem(elAttr$1.name)) {
+				el.removeAttribute(elAttr$1.name);
+			}
+		}
+	}
+}
 
 var destroy = node => {
   if (!(node instanceof Node)) { return; }
@@ -618,7 +596,7 @@ var fuse = (toNode, fromNode, childOnly) => {
       return fromNode;
     }
 
-    copyAttrs(fromNode, toNode);
+    fuseAttributes(toNode, fromNode, getElementAttributes(toNode));
   }
 
   var a1 = [ ...toNode.childNodes || toNode ];
@@ -702,8 +680,10 @@ var Component = function Component(children, props) {
   this.on = (typeof this.on === 'function') ? this.on() : {};
   this.children = [];
 
-  // Appends headless components
-  this.copyObjToInstance(GLOBALS.HEADLESS_COMPONENTS, 'head');
+  // Links headless components
+  for (var key in GLOBALS.HEADLESS_COMPONENTS) {
+    this[key].when('update', () => this.setState());
+  }
 
   this.state = Object.assign(
     (typeof this.state === 'function') ? this.state() : {},
@@ -758,21 +738,6 @@ Component.prototype.setChildren = function setChildren (children) {
 /**
  * @private
  * @param {object} obj
- * @param {string} type
- */
-Component.prototype.copyObjToInstance = function copyObjToInstance (obj, type) {
-  for (var key in obj) {
-    if (typeof this[key] !== 'undefined') {
-      throw new Error(`[Radi.js] Error: Trying to write for reserved variable \`${key}\``);
-    }
-    this[key] = obj[key];
-    if (type === 'head') { this[key].when('update', () => this.setState()); }
-  }
-};
-
-/**
- * @private
- * @param {object} obj
  */
 Component.prototype.addNonEnumerableProperties = function addNonEnumerableProperties (obj) {
   for (var key in obj) {
@@ -797,8 +762,6 @@ Component.prototype.mount = function mount () {
 
 Component.prototype.destroy = function destroy () {
   this.trigger('destroy');
-  // if (this.html && this.html !== ''
-  // && typeof this.html.remove === 'function') this.html.remove();
   this.$privateStore.removeListeners();
 };
 
@@ -840,8 +803,6 @@ Component.prototype.setState = function setState (newState) {
     if (this.$config.listen) {
       this.$privateStore.setState(newState);
     }
-  } else {
-    // console.error('[Radi.js] ERROR: Action did not return object to merge with state');
   }
 
   if (!this.$config.listen && typeof this.view === 'function' && this.html) {
@@ -1068,6 +1029,10 @@ var appendChildren = (element, children) => {
   children.forEach(appendChild(element));
 };
 
+var htmlCache = {};
+
+var memoizeHTML = query => htmlCache[query] || (htmlCache[query] = getElementFromQuery(query));
+
 /**
  * @param {*} query
  * @param {object} props
@@ -1085,7 +1050,7 @@ var r = (Query, props, ...children) => {
     return Query(propsWithChildren);
   }
 
-  var element = getElementFromQuery(Query);
+  var element = memoizeHTML(Query).cloneNode(false);
 
   if (props !== null) { setAttributes(element, props); }
   appendChildren(element, children);
@@ -1120,6 +1085,29 @@ function action(target, key, descriptor) {
   return descriptor;
 }
 
+// Descriptor for subscriptions
+function subscribe(container, eventName, triggerMount) {
+  // TODO: Remove event after no longer needed / Currently overrides existing
+  // TODO: Do not override existing event - use EventListener
+  // TODO: triggerMount should trigger this event on mount too
+  return function (target, key, descriptor) {
+    var name = 'on' + (eventName || key);
+    var fn = function (...args) {
+      descriptor.value.call(this, ...args);
+    };
+
+    container[name] = fn;
+    // if (container && container.addEventListener) {
+    //   container.addEventListener(name, fn);
+    //   self.when('destroy', () => {
+    //     container.removeEventListener(name, fn);
+    //   });
+    // }
+    // console.log(target, key, descriptor, container[name], name, fn, fn.radiGlobalEvent);
+    return descriptor;
+  }
+}
+
 var Radi = {
   version: GLOBALS.VERSION,
   activeComponents: GLOBALS.ACTIVE_COMPONENTS,
@@ -1129,11 +1117,14 @@ var Radi = {
   component: Component,
   Component,
   action,
+  subscribe,
   headless: (key, comp) => {
     // TODO: Validate component and key
+    var name = '$'.concat(key);
     var mountedComponent = new comp();
     mountedComponent.mount();
-    return GLOBALS.HEADLESS_COMPONENTS['$'.concat(key)] = mountedComponent;
+    Component.prototype[name] = mountedComponent;
+    return GLOBALS.HEADLESS_COMPONENTS[name] = mountedComponent;
   },
   mount,
   freeze: () => {
