@@ -50,9 +50,11 @@ const Radi = {
   subscribe,
   headless: (key, comp) => {
     // TODO: Validate component and key
+    let name = '$'.concat(key);
     const mountedComponent = new comp();
     mountedComponent.mount();
-    return GLOBALS.HEADLESS_COMPONENTS['$'.concat(key)] = mountedComponent;
+    Component.prototype[name] = mountedComponent;
+    return GLOBALS.HEADLESS_COMPONENTS[name] = mountedComponent;
   },
   mount,
   freeze: () => {

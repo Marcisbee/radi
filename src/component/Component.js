@@ -29,8 +29,10 @@ export default class Component {
     this.on = (typeof this.on === 'function') ? this.on() : {};
     this.children = [];
 
-    // Appends headless components
-    this.copyObjToInstance(GLOBALS.HEADLESS_COMPONENTS, 'head');
+    // Links headless components
+    for (const key in GLOBALS.HEADLESS_COMPONENTS) {
+      this[key].when('update', () => this.setState());
+    }
 
     this.state = Object.assign(
       (typeof this.state === 'function') ? this.state() : {},
@@ -85,21 +87,6 @@ export default class Component {
   /**
    * @private
    * @param {object} obj
-   * @param {string} type
-   */
-  copyObjToInstance(obj, type) {
-    for (const key in obj) {
-      if (typeof this[key] !== 'undefined') {
-        throw new Error(`[Radi.js] Error: Trying to write for reserved variable \`${key}\``);
-      }
-      this[key] = obj[key];
-      if (type === 'head') this[key].when('update', () => this.setState());
-    }
-  }
-
-  /**
-   * @private
-   * @param {object} obj
    */
   addNonEnumerableProperties(obj) {
     for (const key in obj) {
@@ -124,8 +111,6 @@ export default class Component {
 
   destroy() {
     this.trigger('destroy');
-    // if (this.html && this.html !== ''
-    //   && typeof this.html.remove === 'function') this.html.remove();
     this.$privateStore.removeListeners();
   }
 
@@ -167,8 +152,6 @@ export default class Component {
       if (this.$config.listen) {
         this.$privateStore.setState(newState);
       }
-    } else {
-      // console.error('[Radi.js] ERROR: Action did not return object to merge with state');
     }
 
     if (!this.$config.listen && typeof this.view === 'function' && this.html) {
