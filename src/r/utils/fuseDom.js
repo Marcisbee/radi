@@ -1,72 +1,50 @@
 
-const copyAttrs = (newNode, oldNode) => {
-  var oldAttrs = oldNode.attributes;
-  var newAttrs = newNode.attributes;
-  var attrNamespaceURI = null;
-  var attrValue = null;
-  var fromValue = null;
-  var attrName = null;
-  var attr = null;
+function getElementAttributes(el) {
+	return el.attributes;
+}
 
-  if (newAttrs) {
-    for (var i = newAttrs.length - 1; i >= 0; --i) {
-      attr = newAttrs[i];
-      attrName = attr.name;
-      attrNamespaceURI = attr.namespaceURI;
-      attrValue = attr.value;
-      // TODO: Change only specific parts of style
-      // if (attr.name === 'style') {
-      //   for (var item of newNode.style) {
-      //     if (oldNode.style[item] !== newNode.style[item]) oldNode.style[item] = newNode.style[item]
-      //   }
-      //   continue;
-      // }
-      if (attrNamespaceURI) {
-        attrName = attr.localName || attrName;
-        fromValue = oldNode.getAttributeNS(attrNamespaceURI, attrName);
-        if (fromValue !== attrValue) {
-          oldNode.setAttributeNS(attrNamespaceURI, attrName, attrValue);
-        }
-      } else {
-        if (!oldNode.hasAttribute(attrName)) {
-          oldNode.setAttribute(attrName, attrValue);
-        } else {
-          fromValue = oldNode.getAttribute(attrName);
-          if (fromValue !== attrValue) {
-            // apparently values are always cast to strings, ah well
-            if (attrValue === 'null' || attrValue === 'undefined') {
-              oldNode.removeAttribute(attrName);
-            } else {
-              oldNode.setAttribute(attrName, attrValue);
-            }
-          }
+function fuseAttributes(el, toEl, elAttributes) {
+	let toElAttributes = toEl.attributes;
+
+	for (let i = 0, l = toElAttributes.length; i < l; i++) {
+		let toElAttr = toElAttributes.item(i);
+		let toElAttrNamespaceURI = toElAttr.namespaceURI;
+		let elAttr = toElAttrNamespaceURI ?
+			elAttributes.getNamedItemNS(toElAttrNamespaceURI, toElAttr.name) :
+			elAttributes.getNamedItem(toElAttr.name);
+
+    if (elAttr.name === 'style') {
+      for (let style of toEl.style) {
+        if (el.style[style] !== toEl.style[style]) {
+          el.style[style] = toEl.style[style];
         }
       }
+      continue;
     }
-  }
 
-  // Remove any extra attributes found on the original DOM element that
-  // weren't found on the target element.
-  if (oldAttrs) {
-    for (var j = oldAttrs.length - 1; j >= 0; --j) {
-      attr = oldAttrs[j];
-      if (attr.specified !== false) {
-        attrName = attr.name;
-        attrNamespaceURI = attr.namespaceURI;
+		if (!elAttr || elAttr.value != toElAttr.value) {
+			if (toElAttrNamespaceURI) {
+				el.setAttributeNS(toElAttrNamespaceURI, toElAttr.name, toElAttr.value);
+			} else {
+				el.setAttribute(toElAttr.name, toElAttr.value);
+			}
+		}
+	}
 
-        if (attrNamespaceURI) {
-          attrName = attr.localName || attrName;
-          if (!newNode.hasAttributeNS(attrNamespaceURI, attrName)) {
-            oldNode.removeAttributeNS(attrNamespaceURI, attrName);
-          }
-        } else {
-          if (!newNode.hasAttributeNS(null, attrName)) {
-            oldNode.removeAttribute(attrName);
-          }
-        }
-      }
-    }
-  }
+	for (let i = elAttributes.length; i;) {
+		let elAttr = elAttributes.item(--i);
+		let elAttrNamespaceURI = elAttr.namespaceURI;
+
+		if (elAttrNamespaceURI) {
+			if (!toElAttributes.getNamedItemNS(elAttrNamespaceURI, elAttr.name)) {
+				el.removeAttributeNS(elAttrNamespaceURI, elAttr.name);
+			}
+		} else {
+			if (!toElAttributes.getNamedItem(elAttr.name)) {
+				el.removeAttribute(elAttr.name);
+			}
+		}
+	}
 }
 
 const destroy = node => {
@@ -155,7 +133,7 @@ const fuse = (toNode, fromNode, childOnly) => {
       return fromNode;
     }
 
-    copyAttrs(fromNode, toNode);
+    fuseAttributes(toNode, fromNode, getElementAttributes(toNode));
   }
 
   let a1 = [ ...toNode.childNodes || toNode ];
