@@ -2,6 +2,10 @@ import setAttributes from './setAttributes';
 import getElementFromQuery from './utils/getElementFromQuery';
 import appendChildren from './appendChildren';
 
+const htmlCache = {};
+
+const memoizeHTML = query => htmlCache[query] || (htmlCache[query] = getElementFromQuery(query));
+
 /**
  * @param {*} query
  * @param {object} props
@@ -19,7 +23,7 @@ const r = (Query, props, ...children) => {
     return Query(propsWithChildren);
   }
 
-  const element = getElementFromQuery(Query);
+  const element = memoizeHTML(Query).cloneNode(false);
 
   if (props !== null) setAttributes(element, props);
   appendChildren(element, children);
