@@ -15,6 +15,29 @@ function action(target, key, descriptor) {
   return descriptor;
 }
 
+// Descriptor for subscriptions
+function subscribe(container, eventName, triggerMount) {
+  // TODO: Remove event after no longer needed / Currently overrides existing
+  // TODO: Do not override existing event - use EventListener
+  // TODO: triggerMount should trigger this event on mount too
+  return function (target, key, descriptor) {
+    let name = 'on' + (eventName || key);
+    let fn = function (...args) {
+      descriptor.value.call(this, ...args);
+    }
+
+    container[name] = fn;
+    // if (container && container.addEventListener) {
+    //   container.addEventListener(name, fn);
+    //   self.when('destroy', () => {
+    //     container.removeEventListener(name, fn);
+    //   });
+    // }
+    // console.log(target, key, descriptor, container[name], name, fn, fn.radiGlobalEvent);
+    return descriptor;
+  }
+}
+
 const Radi = {
   version: GLOBALS.VERSION,
   activeComponents: GLOBALS.ACTIVE_COMPONENTS,
@@ -24,11 +47,14 @@ const Radi = {
   component,
   Component,
   action,
+  subscribe,
   headless: (key, comp) => {
     // TODO: Validate component and key
+    let name = '$'.concat(key);
     const mountedComponent = new comp();
     mountedComponent.mount();
-    return GLOBALS.HEADLESS_COMPONENTS['$'.concat(key)] = mountedComponent;
+    Component.prototype[name] = mountedComponent;
+    return GLOBALS.HEADLESS_COMPONENTS[name] = mountedComponent;
   },
   mount,
   freeze: () => {

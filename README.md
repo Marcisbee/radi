@@ -1,6 +1,6 @@
 # <a href='http://radi.js.org'><img src='https://rawgit.com/radi-js/radi/gh-pages/logo/radijs-github.png' height='60' alt='Radi' aria-label='Redux.js.org' /></a>
 
-**Radi** is a tiny (3kB minified & gzipped) javascript framework.
+**Radi** is a tiny (4kB minified & gzipped) javascript framework.
 
 It's built quite differently from any other framework. It doesn't use any kind of diffing algorithm nor virtual dom which makes it really fast.
 
@@ -42,7 +42,9 @@ Radi.js currently is compatible with browsers that support ES6. In stable releas
 
 ## Documentation
 
-Documentation is currently being written. For now just a few examples to work our appetite.
+[Getting started guide](/docs)
+
+Here are just a few examples to work our appetite.
 
 #### Hello World example
 
@@ -63,7 +65,7 @@ class Hello extends Radi.component {
   }
 }
 
-mount(<Hello />, document.body);
+Radi.mount(<Hello />, document.body);
 ```
 
 This example will mount h1 to body like so `<body><h1>Hello World</h1></body>`
@@ -93,7 +95,7 @@ state: {
 
 <h1>{ this.state.count }</h1>
 
-<button disabled={ this.state.count <= 0 } onclick={ () => this.up() }>-</button>
+<button onclick={ () => this.down() } disabled={ this.state.count <= 0 }>-</button>
 
 <button onclick={ () => this.up() }>+</button>
 ```

@@ -5,7 +5,10 @@ export default {
   plugins: [
     nodeResolve(),
     buble({
-      transforms: { forOf: false }
+      target: { chrome: 48, firefox: 43 },
+      transforms: {
+        forOf: false,
+      }
     })
   ]
 };
