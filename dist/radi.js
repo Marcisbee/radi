@@ -7,216 +7,25 @@
   var GLOBALS = {
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.3.5',
+    VERSION: '0.3.8',
     ACTIVE_COMPONENTS: {},
     HTML_CACHE: {},
   };
 
-  var copyAttrs = function (newNode, oldNode) {
-    var oldAttrs = oldNode.attributes;
-    var newAttrs = newNode.attributes;
-    var attrNamespaceURI = null;
-    var attrValue = null;
-    var fromValue = null;
-    var attrName = null;
-    var attr = null;
-
-    for (var i = newAttrs.length - 1; i >= 0; --i) {
-      attr = newAttrs[i];
-      attrName = attr.name;
-      attrNamespaceURI = attr.namespaceURI;
-      attrValue = attr.value;
-      // TODO: Change only specific parts of style
-      // if (attr.name === 'style') {
-      //   for (var item of newNode.style) {
-      //     if (oldNode.style[item] !== newNode.style[item]) oldNode.style[item] = newNode.style[item]
-      //   }
-      //   continue;
-      // }
-      if (attrNamespaceURI) {
-        attrName = attr.localName || attrName;
-        fromValue = oldNode.getAttributeNS(attrNamespaceURI, attrName);
-        if (fromValue !== attrValue) {
-          oldNode.setAttributeNS(attrNamespaceURI, attrName, attrValue);
-        }
-      } else {
-        if (!oldNode.hasAttribute(attrName)) {
-          oldNode.setAttribute(attrName, attrValue);
-        } else {
-          fromValue = oldNode.getAttribute(attrName);
-          if (fromValue !== attrValue) {
-            // apparently values are always cast to strings, ah well
-            if (attrValue === 'null' || attrValue === 'undefined') {
-              oldNode.removeAttribute(attrName);
-            } else {
-              oldNode.setAttribute(attrName, attrValue);
-            }
-          }
-        }
-      }
-    }
-
-    // Remove any extra attributes found on the original DOM element that
-    // weren't found on the target element.
-    for (var j = oldAttrs.length - 1; j >= 0; --j) {
-      attr = oldAttrs[j];
-      if (attr.specified !== false) {
-        attrName = attr.name;
-        attrNamespaceURI = attr.namespaceURI;
-
-        if (attrNamespaceURI) {
-          attrName = attr.localName || attrName;
-          if (!newNode.hasAttributeNS(attrNamespaceURI, attrName)) {
-            oldNode.removeAttributeNS(attrNamespaceURI, attrName);
-          }
-        } else {
-          if (!newNode.hasAttributeNS(null, attrName)) {
-            oldNode.removeAttribute(attrName);
-          }
-        }
-      }
-    }
-  };
-
-  var destroy = function (node) {
-    if (!(node instanceof Node)) { return; }
-    var treeWalker = document.createTreeWalker(
-      node,
-      NodeFilter.SHOW_ALL,
-      function (el) { return true; },
-      false
-    );
-
-    var el;
-    while((el = treeWalker.nextNode())) {
-      if (el.listeners) {
-        for (var i = 0; i < el.listeners.length; i++) {
-          el.listeners[i].deattach();
-        }
-      }
-      el.listeners = null;
-      if (el.attributeListeners) {
-        for (var i = 0; i < el.styleListeners.length; i++) {
-          el.styleListeners[i].deattach();
-        }
-      }
-      el.attributeListeners = null;
-      if (el.styleListeners) {
-        for (var i = 0; i < el.styleListeners.length; i++) {
-          el.styleListeners[i].deattach();
-        }
-      }
-      el.styleListeners = null;
-      if (el.destroy) { el.destroy(); }
-      el.remove();
-    }
-    if (node.listeners) {
-      for (var i = 0; i < node.listeners.length; i++) {
-        node.listeners[i].deattach();
-      }
-    }
-    node.listeners = null;
-    if (node.attributeListeners) {
-      for (var i = 0; i < node.styleListeners.length; i++) {
-        node.styleListeners[i].deattach();
-      }
-    }
-    node.attributeListeners = null;
-    if (node.styleListeners) {
-      for (var i = 0; i < node.styleListeners.length; i++) {
-        node.styleListeners[i].deattach();
-      }
-    }
-    node.remove();
-  };
-
-  /**
-   * @param {HTMLElement} newNode
-   * @param {HTMLElement} oldNode
-   * @returns {ElementListener}
-   */
-  var fuse = function (toNode, fromNode, childOnly) {
-    if (Array.isArray(fromNode) || Array.isArray(toNode)) { childOnly = true; }
-
-    if (!childOnly) {
-      var nt1 = toNode.nodeType;
-      var nt2 = fromNode.nodeType;
-
-      if (nt1 === nt2 && (nt1 === 3 || nt2 === 8)) {
-        if (!toNode.isEqualNode(fromNode)) {
-          toNode.nodeValue = fromNode.nodeValue;
-          destroy(fromNode);
-        }
-        return toNode;
-      }
-
-      if (fromNode.destroy || toNode.destroy || fromNode.__async || fromNode.__async
-        || toNode.listeners || fromNode.listeners
-        || nt1 === 3 || nt2 === 3) {
-        if (!toNode.isEqualNode(fromNode)) {
-          toNode.parentNode.insertBefore(fromNode, toNode);
-          destroy(toNode);
-        }
-        return fromNode;
-      }
-
-      copyAttrs(fromNode, toNode);
-    }
-
-    var a1 = [].concat( toNode.childNodes || toNode );
-    var a2 = [].concat( fromNode.childNodes || fromNode );
-    var max = Math.max(a1.length, a2.length);
-
-    for (var i = 0; i < max; i++) {
-      if (a1[i] && a2[i]) {
-        // Fuse
-        fuse(a1[i], a2[i]);
-      } else
-      if (a1[i] && !a2[i]) {
-        // Remove
-        destroy(a1[i]);
-      } else
-      if (!a1[i] && a2[i]) {
-        // Add
-        toNode.appendChild(a2[i]);
-      }
-    }
-
-    destroy(fromNode);
-    return toNode;
-  };
-
-  var FuseDom = function FuseDom () {};
-
-  FuseDom.prototype.fuse = function fuse$1 () {
-      var args = [], len = arguments.length;
-      while ( len-- ) args[ len ] = arguments[ len ];
-
-    return fuse.apply(void 0, args);
-  };
-  FuseDom.prototype.destroy = function destroy$1 () {
-      var args = [], len = arguments.length;
-      while ( len-- ) args[ len ] = arguments[ len ];
-
-    return destroy.apply(void 0, args);
-  };
-
-  var fuseDom = new FuseDom();
-
   /* eslint-disable no-param-reassign */
+  /* eslint-disable no-shadow */
+  // import fuseDom from '../r/utils/fuseDom';
 
-  var Listener = function Listener(component) {
+  var Listener = function Listener(component, ...path) {
     var assign;
 
-    var path = [], len = arguments.length - 1;
-    while ( len-- > 0 ) path[ len ] = arguments[ len + 1 ];
     this.component = component;
     (assign = path, this.key = assign[0]);
     this.childPath = path.slice(1, path.length);
     this.path = path;
     this.value = null;
     this.changeListeners = [];
-    this.processValue = function (value) { return value; };
+    this.processValue = value => value;
     this.attatched = true;
 
     this.component.addListener(this.key, this);
@@ -233,21 +42,20 @@
     this.path = null;
     this.value = null;
     this.changeListeners = [];
-    this.processValue = function () {};
+    this.processValue = () => {};
   };
 
   /**
    * @param {*} value
    */
   Listener.prototype.handleUpdate = function handleUpdate (value) {
-      var this$1 = this;
-
-    if (this.value instanceof Node) {
-      fuseDom.destroy(this.value);
-      this.value = null;
-    }
+    // Removed for the time beeing, let's see if this works correctly
+    // if (this.value instanceof Node) {
+    // fuseDom.destroy(this.value);
+    // this.value = null;
+    // }
     this.value = this.processValue(this.getShallowValue(value), this.value);
-    this.changeListeners.forEach(function (changeListener) { return changeListener(this$1.value); });
+    this.changeListeners.forEach(changeListener => changeListener(this.value));
   };
 
   /**
@@ -273,12 +81,10 @@
    * @param {*} value
    */
   Listener.prototype.getShallowValue = function getShallowValue (value) {
-      var this$1 = this;
-
     if (typeof value !== 'object' || !this.childPath) { return value; }
     var shallowValue = value;
     /*eslint-disable*/
-    for (var pathNestingLevel of this$1.childPath) {
+    for (var pathNestingLevel of this.childPath) {
       if (shallowValue === null
         || !shallowValue[pathNestingLevel]
         && typeof shallowValue[pathNestingLevel] !== 'number') {
@@ -307,8 +113,6 @@
    * @returns {AttributeListener}
    */
   AttributeListener.prototype.attach = function attach () {
-      var this$1 = this;
-
     if (!this.element.attributeListeners) { this.element.attributeListeners = []; }
     this.element.attributeListeners.push(this);
     this.listener.onValueChange(this.handleValueChange);
@@ -316,12 +120,12 @@
 
     if (this.attributeKey === 'model') {
       if (/(checkbox|radio)/.test(this.element.getAttribute('type'))) {
-        this.element.onchange = function (e) {
-          this$1.listener.component[this$1.listener.key] = e.target.checked;
+        this.element.onchange = (e) => {
+          this.listener.component[this.listener.key] = e.target.checked;
         };
       } else {
-        this.element.oninput = function (e) {
-          this$1.listener.component[this$1.listener.key] = e.target.value;
+        this.element.oninput = (e) => {
+          this.listener.component[this.listener.key] = e.target.value;
         };
       }
     }
@@ -332,8 +136,6 @@
    * @param {*} value
    */
   AttributeListener.prototype.handleValueChange = function handleValueChange (value) {
-      var obj;
-
     if (this.attributeKey === 'value' || this.attributeKey === 'model') {
       if (/(checkbox|radio)/.test(this.element.getAttribute('type'))) {
         this.element.checked = value;
@@ -341,7 +143,7 @@
         this.element.value = value;
       }
     } else {
-      setAttributes(this.element, ( obj = {}, obj[this.attributeKey] = value, obj));
+      setAttributes(this.element, { [this.attributeKey]: value });
     }
   };
 
@@ -360,7 +162,7 @@
     this.element = null;
     this.listenerAsNode = null;
     this.attached = false;
-    this.handleValueChange = function () {};
+    this.handleValueChange = () => {};
   };
 
   var StyleListener = function StyleListener(ref) {
@@ -415,7 +217,8 @@
    * @param {*} value
    * @return {*}
    */
-  var parseValue = function (value) { return typeof value === 'number' && !Number.isNaN(value) ? (value + "px") : value; };
+  var parseValue = value =>
+    typeof value === 'number' && !Number.isNaN(value) ? `${value}px` : value;
 
   /* eslint-disable no-param-reassign */
 
@@ -425,14 +228,14 @@
    * @param {string} value
    * @returns {*}
    */
-  var setStyle = function (element, property, value) {
+  var setStyle = (element, property, value) => {
     if (typeof value === 'undefined') { return undefined; }
 
     if (value instanceof Listener) {
       new StyleListener({
         styleKey: property,
         listener: value,
-        element: element,
+        element,
       }).attach();
       return element[property];
     }
@@ -445,7 +248,7 @@
    * @param {string|object|Listener} styles
    * @returns {CSSStyleDeclaration}
    */
-  var setStyles = function (element, styles) {
+  var setStyles = (element, styles) => {
     if (typeof styles === 'string') {
       element.style = styles;
     }
@@ -458,7 +261,7 @@
       new AttributeListener({
         attributeKey: 'style',
         listener: styles,
-        element: element,
+        element,
       }).attach();
       return element.style;
     }
@@ -474,9 +277,9 @@
    * @param {*} value
    * @return {*}
    */
-  var parseClass = function (value) {
+  var parseClass = value => {
     if (Array.isArray(value)) {
-      return value.filter(function (item) { return item; }).join(' ')
+      return value.filter(item => item).join(' ')
     }
     return value;
   };
@@ -487,7 +290,7 @@
    * @param {HTMLElement} element
    * @param {object} attributes
    */
-  var setAttributes = function (element, attributes) {
+  var setAttributes = (element, attributes) => {
     var loop = function ( key ) {
       var value = attributes[key];
 
@@ -508,7 +311,7 @@
         new AttributeListener({
           attributeKey: key,
           listener: value,
-          element: element,
+          element,
         }).attach();
         return;
       }
@@ -521,7 +324,7 @@
       // Handles events 'on<event>'
       if (key.substring(0, 2).toLowerCase() === 'on') {
         if (key.substring(0, 8).toLowerCase() === 'onsubmit') {
-          element[key] = function (e) {
+          element[key] = (e) => {
             var data = [];
             var inputs = e.target.elements || [];
             for (var input of inputs) {
@@ -532,10 +335,10 @@
                   type: input.type,
                   default: input.defaultValue,
                   value: input.value,
-                  set: function set(val) {
+                  set(val) {
                     this.el.value = val;
                   },
-                  reset: function reset(val) {
+                  reset(val) {
                     this.el.value = val;
                     this.el.defaultValue = val;
                   },
@@ -565,7 +368,7 @@
    * @param {*} query
    * @returns {Node}
    */
-  var getElementFromQuery = function (query) {
+  var getElementFromQuery = query => {
     if (typeof query === 'string') { return query !== 'template'
       ? document.createElement(query)
       : document.createDocumentFragment(); }
@@ -580,7 +383,7 @@
    * https://gist.github.com/jcxplorer/823878
    * @returns {string}
    */
-  var generateId = function () {
+  var generateId = () => {
     var uuid = '';
     for (var i = 0; i < 32; i++) {
       var random = (Math.random() * 16) | 0; // eslint-disable-line
@@ -605,9 +408,9 @@
     if (typeof this.store[key] === 'undefined') {
       this.createItemWrapper(key);
     }
-    this.store[key].listeners = this.store[key].listeners.filter(function (item) { return (
+    this.store[key].listeners = this.store[key].listeners.filter(item => (
       item.attatched
-    ); });
+    ));
     this.store[key].listeners.push(listener);
     listener.handleUpdate(this.store[key].value);
 
@@ -615,12 +418,10 @@
   };
 
   PrivateStore.prototype.removeListeners = function removeListeners () {
-      var this$1 = this;
-
     var o = Object.keys(this.store);
     for (var i = 0; i < o.length; i++) {
-      this$1.store[o[i]].listeners = [];
-      this$1.store[o[i]].null = [];
+      this.store[o[i]].listeners = [];
+      this.store[o[i]].null = [];
     }
   };
 
@@ -630,16 +431,14 @@
    * @returns {*}
    */
   PrivateStore.prototype.setState = function setState (newState) {
-      var this$1 = this;
-
     // Find and trigger changes for listeners
     for (var key of Object.keys(newState)) {
-      if (typeof this$1.store[key] === 'undefined') {
-        this$1.createItemWrapper(key);
+      if (typeof this.store[key] === 'undefined') {
+        this.createItemWrapper(key);
       }
-      this$1.store[key].value = newState[key];
+      this.store[key].value = newState[key];
 
-      this$1.triggerListeners(key);
+      this.triggerListeners(key);
     }
     return newState;
   };
@@ -665,15 +464,186 @@
   PrivateStore.prototype.triggerListeners = function triggerListeners (key) {
     var item = this.store[key];
     if (item) {
-      item.listeners.forEach(function (listener) { return listener.handleUpdate(item.value); });
+      item.listeners.forEach(listener => listener.handleUpdate(item.value));
     }
   };
+
+  function getElementAttributes(el) {
+  	return el.attributes;
+  }
+
+  function fuseAttributes(el, toEl, elAttributes) {
+  	var toElAttributes = toEl.attributes;
+
+  	for (var i = 0, l = toElAttributes.length; i < l; i++) {
+  		var toElAttr = toElAttributes.item(i);
+  		var toElAttrNamespaceURI = toElAttr.namespaceURI;
+  		var elAttr = toElAttrNamespaceURI ?
+  			elAttributes.getNamedItemNS(toElAttrNamespaceURI, toElAttr.name) :
+  			elAttributes.getNamedItem(toElAttr.name);
+
+      if (elAttr.name === 'style') {
+        for (var style of toEl.style) {
+          if (el.style[style] !== toEl.style[style]) {
+            el.style[style] = toEl.style[style];
+          }
+        }
+        continue;
+      }
+
+  		if (!elAttr || elAttr.value != toElAttr.value) {
+  			if (toElAttrNamespaceURI) {
+  				el.setAttributeNS(toElAttrNamespaceURI, toElAttr.name, toElAttr.value);
+  			} else {
+  				el.setAttribute(toElAttr.name, toElAttr.value);
+  			}
+  		}
+  	}
+
+  	for (var i$1 = elAttributes.length; i$1;) {
+  		var elAttr$1 = elAttributes.item(--i$1);
+  		var elAttrNamespaceURI = elAttr$1.namespaceURI;
+
+  		if (elAttrNamespaceURI) {
+  			if (!toElAttributes.getNamedItemNS(elAttrNamespaceURI, elAttr$1.name)) {
+  				el.removeAttributeNS(elAttrNamespaceURI, elAttr$1.name);
+  			}
+  		} else {
+  			if (!toElAttributes.getNamedItem(elAttr$1.name)) {
+  				el.removeAttribute(elAttr$1.name);
+  			}
+  		}
+  	}
+  }
+
+  var destroy = node => {
+    if (!(node instanceof Node)) { return; }
+    var treeWalker = document.createTreeWalker(
+      node,
+      NodeFilter.SHOW_ALL,
+      el => true,
+      false
+    );
+
+    var el;
+    while((el = treeWalker.nextNode())) {
+      if (el.listeners) {
+        for (var i = 0; i < el.listeners.length; i++) {
+          el.listeners[i].deattach();
+        }
+      }
+      el.listeners = null;
+      if (el.attributeListeners) {
+        for (var i = 0; i < el.styleListeners.length; i++) {
+          el.styleListeners[i].deattach();
+        }
+      }
+      el.attributeListeners = null;
+      if (el.styleListeners) {
+        for (var i = 0; i < el.styleListeners.length; i++) {
+          el.styleListeners[i].deattach();
+        }
+      }
+      el.styleListeners = null;
+      if (el.destroy) { el.destroy(); }
+      if (el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
+    }
+    if (node.listeners) {
+      for (var i = 0; i < node.listeners.length; i++) {
+        node.listeners[i].deattach();
+      }
+    }
+    node.listeners = null;
+    if (node.attributeListeners) {
+      for (var i = 0; i < node.styleListeners.length; i++) {
+        node.styleListeners[i].deattach();
+      }
+    }
+    node.attributeListeners = null;
+    if (node.styleListeners) {
+      for (var i = 0; i < node.styleListeners.length; i++) {
+        node.styleListeners[i].deattach();
+      }
+    }
+    if (node.parentNode) {
+      node.parentNode.removeChild(node);
+    }
+  };
+
+  /**
+   * @param {HTMLElement} newNode
+   * @param {HTMLElement} oldNode
+   * @returns {ElementListener}
+   */
+  var fuse = (toNode, fromNode, childOnly) => {
+    if (Array.isArray(fromNode) || Array.isArray(toNode)) { childOnly = true; }
+
+    if (!childOnly) {
+      var nt1 = toNode.nodeType;
+      var nt2 = fromNode.nodeType;
+
+      if (nt1 === nt2 && (nt1 === 3 || nt2 === 8)) {
+        if (!toNode.isEqualNode(fromNode)) {
+          toNode.nodeValue = fromNode.nodeValue;
+          destroy(fromNode);
+        }
+        return toNode;
+      }
+
+      if (fromNode.destroy || toNode.destroy || fromNode.__async || fromNode.__async
+        || toNode.listeners || fromNode.listeners
+        || nt1 === 3 || nt2 === 3) {
+        if (!toNode.isEqualNode(fromNode)) {
+          toNode.parentNode.insertBefore(fromNode, toNode);
+          destroy(toNode);
+        }
+        return fromNode;
+      }
+
+      fuseAttributes(toNode, fromNode, getElementAttributes(toNode));
+    }
+
+    var a1 = [ ...toNode.childNodes || toNode ];
+    var a2 = [ ...fromNode.childNodes || fromNode ];
+    var max = Math.max(a1.length, a2.length);
+
+    for (var i = 0; i < max; i++) {
+      if (a1[i] && a2[i]) {
+        // Fuse
+        fuse(a1[i], a2[i]);
+      } else
+      if (a1[i] && !a2[i]) {
+        // Remove
+        destroy(a1[i]);
+      } else
+      if (!a1[i] && a2[i]) {
+        // Add
+        toNode.appendChild(a2[i]);
+      }
+    }
+
+    destroy(fromNode);
+    return toNode;
+  };
+
+  var FuseDom = function FuseDom () {};
+
+  FuseDom.prototype.fuse = function fuse$1 (...args) {
+    return fuse(...args);
+  };
+  FuseDom.prototype.destroy = function destroy$1 (...args) {
+    return destroy(...args);
+  };
+
+  var fuseDom = new FuseDom();
 
   /**
    * @param {*} obj
    * @returns {*}
    */
-  var clone = function (obj) {
+  var clone = obj => {
     if (typeof obj !== 'object') { return obj; }
     if (obj === null) { return obj; }
     if (Array.isArray(obj)) { return obj.map(clone); }
@@ -691,7 +661,7 @@
     return cloned;
   };
 
-  var skipInProductionAndTest = function (fn) {
+  var skipInProductionAndTest = fn => {
     if (typeof process === 'undefined'
       || (process.env.NODE_ENV === 'production'
       || process.env.NODE_ENV === 'test')) {
@@ -703,8 +673,6 @@
   /* eslint-disable guard-for-in */
 
   var Component = function Component(children, props) {
-    var this$1 = this;
-
     this.addNonEnumerableProperties({
       $id: generateId(),
       $name: this.constructor.name,
@@ -718,15 +686,17 @@
     this.on = (typeof this.on === 'function') ? this.on() : {};
     this.children = [];
 
-    // Appends headless components
-    this.copyObjToInstance(GLOBALS.HEADLESS_COMPONENTS, 'head');
+    // Links headless components
+    for (var key in GLOBALS.HEADLESS_COMPONENTS) {
+      this[key].when('update', () => this.setState());
+    }
 
     this.state = Object.assign(
       (typeof this.state === 'function') ? this.state() : {},
       props || {}
     );
 
-    skipInProductionAndTest(function () { return Object.freeze(this$1.state); });
+    skipInProductionAndTest(() => Object.freeze(this.state));
 
     if (children) { this.setChildren(children); }
   };
@@ -735,13 +705,11 @@
    * @returns {HTMLElement}
    */
   Component.prototype.render = function render () {
-      var this$1 = this;
-
     if (typeof this.view !== 'function') { return ''; }
     var rendered = this.view();
     if (Array.isArray(rendered)) {
       for (var i = 0; i < rendered.length; i++) {
-        rendered[i].destroy = this$1.destroy.bind(this$1);
+        rendered[i].destroy = this.destroy.bind(this);
       }
     } else {
       rendered.destroy = this.destroy.bind(this);
@@ -763,13 +731,11 @@
    * @param {Node[]|*[]} children
    */
   Component.prototype.setChildren = function setChildren (children) {
-      var this$1 = this;
-
     this.children = children;
     this.setState();
     for (var i = 0; i < this.children.length; i++) {
-      if (typeof this$1.children[i].when === 'function') {
-        this$1.children[i].when('update', function () { return this$1.setState(); });
+      if (typeof this.children[i].when === 'function') {
+        this.children[i].when('update', () => this.setState());
       }
     }
     return this;
@@ -778,30 +744,11 @@
   /**
    * @private
    * @param {object} obj
-   * @param {string} type
-   */
-  Component.prototype.copyObjToInstance = function copyObjToInstance (obj, type) {
-      var this$1 = this;
-
-    for (var key in obj) {
-      if (typeof this$1[key] !== 'undefined') {
-        throw new Error(("[Radi.js] Error: Trying to write for reserved variable `" + key + "`"));
-      }
-      this$1[key] = obj[key];
-      if (type === 'head') { this$1[key].when('update', function () { return this$1.setState(); }); }
-    }
-  };
-
-  /**
-   * @private
-   * @param {object} obj
    */
   Component.prototype.addNonEnumerableProperties = function addNonEnumerableProperties (obj) {
-      var this$1 = this;
-
     for (var key in obj) {
-      if (typeof this$1[key] !== 'undefined') { continue; }
-      Object.defineProperty(this$1, key, {
+      if (typeof this[key] !== 'undefined') { continue; }
+      Object.defineProperty(this, key, {
         value: obj[key],
       });
     }
@@ -821,8 +768,6 @@
 
   Component.prototype.destroy = function destroy () {
     this.trigger('destroy');
-    if (this.html && this.html !== ''
-      && typeof this.html.remove === 'function') { this.html.remove(); }
     this.$privateStore.removeListeners();
   };
 
@@ -839,19 +784,14 @@
    * @param {string} key
    * @param {*} value
    */
-  Component.prototype.trigger = function trigger (key) {
-      var this$1 = this;
-      var ref, ref$1;
-
-      var args = [], len = arguments.length - 1;
-      while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+  Component.prototype.trigger = function trigger (key, ...args) {
     if (typeof this.on[key] === 'function') {
-      (ref = this.on[key]).call.apply(ref, [ this ].concat( args ));
+      this.on[key].call(this, ...args);
     }
 
     if (typeof this.$events[key] !== 'undefined') {
-      for (var i in this$1.$events[key]) {
-        (ref$1 = this$1.$events[key][i]).call.apply(ref$1, [ this$1 ].concat( args ));
+      for (var i in this.$events[key]) {
+        this.$events[key][i].call(this, ...args);
       }
     }
   };
@@ -860,19 +800,15 @@
    * @param {object} newState
    */
   Component.prototype.setState = function setState (newState) {
-      var this$1 = this;
-
     if (typeof newState === 'object') {
       var oldstate = clone(this.state);
       this.state = Object.assign(oldstate, newState);
 
-      skipInProductionAndTest(function () { return Object.freeze(this$1.state); });
+      skipInProductionAndTest(() => Object.freeze(this.state));
 
       if (this.$config.listen) {
         this.$privateStore.setState(newState);
       }
-    } else {
-      // console.error('[Radi.js] ERROR: Action did not return object to merge with state');
     }
 
     if (!this.$config.listen && typeof this.view === 'function' && this.html) {
@@ -894,7 +830,7 @@
    * @param {string} id
    * @returns {HTMLElement|Node}
    */
-  var mount = function (component, id) {
+  var mount = (component, id) => {
     var container = document.createDocumentFragment();
     var slot = typeof id === 'string' ? document.getElementById(id) : id;
     var rendered =
@@ -913,7 +849,7 @@
     slot.appendChild(container);
 
     if (typeof slot.destroy !== 'function') {
-      slot.destroy = function () {
+      slot.destroy = () => {
         for (var i = 0; i < rendered.length; i++) {
           fuseDom.destroy(rendered[i]);
         }
@@ -929,7 +865,7 @@
    * @param {*} value
    * @returns {*[]}
    */
-  var ensureArray = function (value) {
+  var ensureArray = value => {
     if (Array.isArray(value)) { return value; }
     return [value];
   };
@@ -938,7 +874,7 @@
    * @param {*} value - Value of the listener
    * @returns {Node[]}
    */
-  var listenerToNode = function (value) {
+  var listenerToNode = value => {
     if (value instanceof DocumentFragment) {
       return Array.from(value.childNodes);
     }
@@ -975,16 +911,14 @@
    * @param {*} value
    */
   ElementListener.prototype.handleValueChange = function handleValueChange (value) {
-      var this$1 = this;
-
     var newNode = listenerToNode(value);
 
     var i = 0;
     for (var node of newNode) {
-      if (!this$1.listenerAsNode[i]) {
-        this$1.listenerAsNode.push(this$1.element.appendChild(node));
+      if (!this.listenerAsNode[i]) {
+        this.listenerAsNode.push(this.element.appendChild(node));
       } else {
-        this$1.listenerAsNode[i] = fuseDom.fuse(this$1.listenerAsNode[i], node);
+        this.listenerAsNode[i] = fuseDom.fuse(this.listenerAsNode[i], node);
       }
       i+=1;
     }
@@ -1012,7 +946,7 @@
     this.element = null;
     this.listenerAsNode = null;
     this.attached = false;
-    this.handleValueChange = function () {};
+    this.handleValueChange = () => {};
   };
 
   /**
@@ -1020,10 +954,11 @@
    * @param {HTMLElement} element
    * @returns {ElementListener}
    */
-  var appendListenerToElement = function (listener, element) { return new ElementListener({
-      listener: listener,
-      element: element,
-    }).attach(); };
+  var appendListenerToElement = (listener, element) =>
+    new ElementListener({
+      listener,
+      element,
+    }).attach();
 
   /* eslint-disable no-param-reassign */
 
@@ -1031,7 +966,7 @@
    * @param {HTMLElement} element
    * @returns {function(*)}
    */
-  var appendChild = function (element) { return function (child) {
+  var appendChild = element => child => {
     if (!child && typeof child !== 'number') {
       // Needs to render every child, even empty ones to preserve dom hierarchy
       child = '';
@@ -1054,22 +989,33 @@
 
     // Handles lazy loading components
     if (typeof child === 'function') {
-      var placeholder = document.createElement('div');
-      var el = element.appendChild(placeholder);
-      el.__async = true;
-      child().then(function (local) {
-        if (typeof local.default === 'function'
-          && local.default.isComponent
-          && local.default.isComponent()) {
-          /*eslint-disable*/
-          appendChild(el)(new local.default());
-          // el.__async = false;
-          /* eslint-enable */
-        } else {
-          appendChild(el)(local.default);
-          // el.__async = false;
-        }
-      }).catch(console.warn);
+      var executed = child();
+      if (executed instanceof Promise) {
+        var placeholder = document.createElement('selection');
+        var el = element.appendChild(placeholder);
+        el.__async = true;
+        executed.then(local => {
+          if (local.default && local.default.isComponent) {
+            /* eslint-disable */
+            appendChild(el)(new local.default());
+            /* eslint-enable */
+          } else
+          if (typeof local.default === 'function') {
+            var lazy = local.default();
+            lazy.then(item => {
+              if (item.default && item.default.isComponent) {
+                /* eslint-disable */
+                appendChild(el)(new item.default());
+                /* eslint-enable */
+              }
+            });
+          } else {
+            appendChild(el)(local.default);
+          }
+        }).catch(console.warn);
+      } else {
+        appendChild(element)(executed);
+      }
       return;
     }
 
@@ -1079,15 +1025,19 @@
     }
 
     element.appendChild(document.createTextNode(child));
-  }; };
+  };
 
   /**
    * @param {HTMLElement} element
    * @param {*[]} children
    */
-  var appendChildren = function (element, children) {
+  var appendChildren = (element, children) => {
     children.forEach(appendChild(element));
   };
+
+  var htmlCache = {};
+
+  var memoizeHTML = query => htmlCache[query] || (htmlCache[query] = getElementFromQuery(query));
 
   /**
    * @param {*} query
@@ -1095,10 +1045,7 @@
    * @param {...*} children
    * @returns {(HTMLElement|Component)}
    */
-  var r = function (Query, props) {
-    var children = [], len = arguments.length - 2;
-    while ( len-- > 0 ) children[ len ] = arguments[ len + 2 ];
-
+  var r = (Query, props, ...children) => {
     if (typeof Query === 'function' && Query.isComponent) {
       return new Query(children).setProps(props || {});
     }
@@ -1109,7 +1056,7 @@
       return Query(propsWithChildren);
     }
 
-    var element = getElementFromQuery(Query);
+    var element = memoizeHTML(Query).cloneNode(false);
 
     if (props !== null) { setAttributes(element, props); }
     appendChildren(element, children);
@@ -1124,15 +1071,11 @@
    * @param {...string} path
    * @returns {Listener}
    */
-  var listen = function (component) {
-      var path = [], len = arguments.length - 1;
-      while ( len-- > 0 ) path[ len ] = arguments[ len + 1 ];
+  var listen = (component, ...path) =>
+    new Listener(component, ...path);
 
-      return new (Function.prototype.bind.apply( Listener, [ null ].concat( [component], path) ));
-  };
-
-  var remountActiveComponents = function () {
-    Object.values(GLOBALS.ACTIVE_COMPONENTS).forEach(function (component) {
+  var remountActiveComponents = () => {
+    Object.values(GLOBALS.ACTIVE_COMPONENTS).forEach(component => {
       if (typeof component.onMount === 'function') {
         component.onMount(component);
       }
@@ -1142,47 +1085,65 @@
   // Descriptor for actions
   function action(target, key, descriptor) {
     var act = descriptor.value;
-    descriptor.value = function () {
-      var args = [], len = arguments.length;
-      while ( len-- ) args[ len ] = arguments[ len ];
-
-      this.setState.call(this, act.call.apply(act, [ this ].concat( args )));
+    descriptor.value = function (...args) {
+      this.setState.call(this, act.call(this, ...args));
     };
     return descriptor;
+  }
+
+  // Descriptor for subscriptions
+  function subscribe(container, eventName, triggerMount) {
+    // TODO: Remove event after no longer needed / Currently overrides existing
+    // TODO: Do not override existing event - use EventListener
+    // TODO: triggerMount should trigger this event on mount too
+    return function (target, key, descriptor) {
+      var name = 'on' + (eventName || key);
+      var fn = function (...args) {
+        descriptor.value.call(this, ...args);
+      };
+
+      container[name] = fn;
+      // if (container && container.addEventListener) {
+      //   container.addEventListener(name, fn);
+      //   self.when('destroy', () => {
+      //     container.removeEventListener(name, fn);
+      //   });
+      // }
+      // console.log(target, key, descriptor, container[name], name, fn, fn.radiGlobalEvent);
+      return descriptor;
+    }
   }
 
   var Radi = {
     version: GLOBALS.VERSION,
     activeComponents: GLOBALS.ACTIVE_COMPONENTS,
-    r: r,
-    listen: listen,
+    r,
+    listen,
     l: listen,
     component: Component,
-    Component: Component,
-    action: action,
-    headless: function (key, comp) {
+    Component,
+    action,
+    subscribe,
+    headless: (key, comp) => {
       // TODO: Validate component and key
+      var name = '$'.concat(key);
       var mountedComponent = new comp();
       mountedComponent.mount();
-      return GLOBALS.HEADLESS_COMPONENTS['$'.concat(key)] = mountedComponent;
+      Component.prototype[name] = mountedComponent;
+      return GLOBALS.HEADLESS_COMPONENTS[name] = mountedComponent;
     },
-    mount: mount,
-    freeze: function () {
+    mount,
+    freeze: () => {
       GLOBALS.FROZEN_STATE = true;
     },
-    unfreeze: function () {
+    unfreeze: () => {
       GLOBALS.FROZEN_STATE = false;
       remountActiveComponents();
     },
   };
 
   // Pass Radi instance to plugins
-  Radi.plugin = function (fn) {
-    var args = [], len = arguments.length - 1;
-    while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
-
-    return fn.apply(void 0, [ Radi ].concat( args ));
-  };
+  Radi.plugin = (fn, ...args) => fn(Radi, ...args);
 
   if (window) { window.Radi = Radi; }
 

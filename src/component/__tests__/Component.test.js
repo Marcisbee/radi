@@ -59,13 +59,6 @@ describe('Component.js', () => {
     expect(component.view.propertyIsEnumerable()).toBe(false);
   });
 
-  test('its copyObjToInstance method works correctly', () => {
-    class Fake extends Component {};
-    const component = new Fake();
-    component.copyObjToInstance({ foo: 'bar' });
-    expect(component.foo).toBe('bar');
-  });
-
   test('its setProps method works correctly', () => {
     class Fake extends Component {};
     const component = new Fake([], { foo: null });
