@@ -1,5 +1,5 @@
 {
-  "name": "radi",
+  "name": "radi-ci",
   "version": "0.3.5",
   "main": "dist/radi.js",
   "module": "dist/radi.js",
@@ -24,7 +24,8 @@
     "min-js": "google-closure-compiler-js dist/radi.js > dist/radi.min.js",
     "min-es": "squash dist/radi.es.js -o dist/radi.es.min.js",
     "lint": "eslint ./src/**/*.js --fix",
-    "test": "jest --watch",
+    "test:watch": "jest --watch",
+    "test": "jest",
     "precommit": "pretty-quick --staged"
   },
   "devDependencies": {
