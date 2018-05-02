@@ -1,11 +1,14 @@
 languaje: node_js
 node_js:
 - '6'
+cache:
+  bundler: true
+  directories:
+    - "node_modules"
 install:
 - npm install
 script:
-- npm run test
-- npm run build
+- npm run ci
 deploy:
   provider: npm
   email: j.pichardo@tuta.io
