@@ -26,6 +26,8 @@
     "lint": "eslint ./src/**/*.js --fix",
     "test:watch": "jest --watch",
     "test": "jest",
+    "test:ci": "npm run test -- --ci",
+    "ci": "npm run test:ci  && npm run build",
     "precommit": "pretty-quick --staged"
   },
   "devDependencies": {
