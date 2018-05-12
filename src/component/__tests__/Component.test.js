@@ -92,7 +92,10 @@ describe('Component.js', () => {
   test('its addListener method works correctly', () => {
     class Fake extends Component {};
     const component = new Fake([], { foo: 'bar' });
-    const listener = { handleUpdate: sinon.spy() };
+    const listener = {
+      attached: true,
+      handleUpdate: sinon.spy(),
+    };
     component.addListener('foo', listener);
     expect(component.$privateStore.store.foo.listeners[0]).toBe(listener);
     expect(listener.handleUpdate.calledOnce).toBe(true);

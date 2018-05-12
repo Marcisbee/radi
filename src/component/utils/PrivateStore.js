@@ -1,4 +1,3 @@
-
 export default class PrivateStore {
   constructor() {
     this.store = {};
@@ -13,7 +12,7 @@ export default class PrivateStore {
       this.createItemWrapper(key);
     }
     this.store[key].listeners = this.store[key].listeners.filter(item => (
-      item.attatched
+      item.attached
     ));
     this.store[key].listeners.push(listener);
     listener.handleUpdate(this.store[key].value);
@@ -68,7 +67,9 @@ export default class PrivateStore {
   triggerListeners(key) {
     const item = this.store[key];
     if (item) {
-      item.listeners.forEach(listener => listener.handleUpdate(item.value));
+      item.listeners.forEach(listener => {
+        if (listener.attached) listener.handleUpdate(item.value)
+      });
     }
   }
 }

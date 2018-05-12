@@ -32,6 +32,7 @@ describe('PrivateStore.js', () => {
     const privateStore = new PrivateStore();
     privateStore.setState({foo: 'bar'});
     const fakeListener = {
+      attached: true,
       handleUpdate: sinon.spy(),
     };
     privateStore.addListener('foo', fakeListener);

@@ -15,7 +15,7 @@ export default class Listener {
     this.value = null;
     this.changeListeners = [];
     this.processValue = value => value;
-    this.attatched = true;
+    this.attached = true;
 
     this.component.addListener(this.key, this);
     if (this.component.state) {
@@ -25,7 +25,7 @@ export default class Listener {
 
   deattach() {
     this.component = null;
-    this.attatched = false;
+    this.attached = false;
     this.key = null;
     this.childPath = null;
     this.path = null;
