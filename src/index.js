@@ -6,11 +6,44 @@ import Component from './component';
 import mount from './mount';
 import remountActiveComponents from './utils/remountActiveComponents';
 
+function createWorker(fn) {
+  let fire = () => {}
+
+  var blob = new Blob([`self.onmessage = function(e) {
+    self.postMessage((${fn.toString()})(e.data));
+  }`], { type: 'text/javascript' })
+
+  var url = window.URL.createObjectURL(blob)
+  let myWorker = new Worker(url)
+
+  myWorker.onmessage = e => { fire(e.data, null) }
+  myWorker.onerror = e => { fire(null, e.data) }
+
+  return arg => new Promise((resolve, reject) => {
+    fire = (data, err) => !err ? resolve(data) : reject(data)
+    myWorker.postMessage(arg)
+  })
+}
+
+// Descriptor for worker
+function worker(target, key, descriptor) {
+  const act = descriptor.value;
+
+  const promisedWorker = createWorker(act);
+
+  descriptor.value = function (...args) {
+    promisedWorker(...args).then(newState => {
+      this.setState.call(this, newState);
+    })
+  }
+  return descriptor;
+}
+
 // Descriptor for actions
 function action(target, key, descriptor) {
   const act = descriptor.value;
   descriptor.value = function (...args) {
-    this.setState.call(this, act.call(this, ...args));
+    return this.setState.call(this, act.call(this, ...args));
   }
   return descriptor;
 }
@@ -23,7 +56,7 @@ function subscribe(container, eventName, triggerMount) {
   return function (target, key, descriptor) {
     let name = 'on' + (eventName || key);
     let fn = function (...args) {
-      descriptor.value.call(this, ...args);
+      return descriptor.value.call(this, ...args);
     }
 
     container[name] = fn;
@@ -44,6 +77,7 @@ const Radi = {
   r,
   listen,
   l: listen,
+  worker,
   component,
   Component,
   action,
@@ -70,4 +104,4 @@ const Radi = {
 Radi.plugin = (fn, ...args) => fn(Radi, ...args);
 
 if (window) window.Radi = Radi;
-export default Radi;
+module.exports = Radi;
