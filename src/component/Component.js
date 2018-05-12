@@ -158,7 +158,7 @@ export default class Component {
       fuseDom.fuse(this.html, this.view());
     }
     this.trigger('update');
-    return this.state;
+    return newState;
   }
 
   /**

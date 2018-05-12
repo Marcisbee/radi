@@ -27,13 +27,17 @@ export default class AttributeListener {
 
     if (this.attributeKey === 'model') {
       if (/(checkbox|radio)/.test(this.element.getAttribute('type'))) {
-        this.element.onchange = (e) => {
-          this.listener.component[this.listener.key] = e.target.checked;
-        };
+        this.element.addEventListener('change', (e) => {
+          this.listener.component.setState({
+            [this.listener.key]: e.target.checked
+          });
+        });
       } else {
-        this.element.oninput = (e) => {
-          this.listener.component[this.listener.key] = e.target.value;
-        };
+        this.element.addEventListener('input', (e) => {
+          this.listener.component.setState({
+            [this.listener.key]: e.target.value
+          });
+        });
       }
     }
     return this;

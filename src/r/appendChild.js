@@ -36,7 +36,8 @@ const appendChild = element => child => {
   if (typeof child === 'function') {
     const executed = child();
     if (executed instanceof Promise) {
-      const placeholder = document.createElement('selection');
+      const placeholder = document.createElement('section');
+      placeholder.__async = true;
       const el = element.appendChild(placeholder);
       el.__async = true;
       executed.then(local => {

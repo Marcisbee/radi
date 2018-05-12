@@ -1,7 +1,7 @@
 var GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.8',
+  VERSION: '0.3.9',
   ACTIVE_COMPONENTS: {},
   HTML_CACHE: {},
 };
@@ -20,7 +20,7 @@ var Listener = function Listener(component, ...path) {
   this.value = null;
   this.changeListeners = [];
   this.processValue = value => value;
-  this.attatched = true;
+  this.attached = true;
 
   this.component.addListener(this.key, this);
   if (this.component.state) {
@@ -30,7 +30,7 @@ var Listener = function Listener(component, ...path) {
 
 Listener.prototype.deattach = function deattach () {
   this.component = null;
-  this.attatched = false;
+  this.attached = false;
   this.key = null;
   this.childPath = null;
   this.path = null;
@@ -114,13 +114,17 @@ AttributeListener.prototype.attach = function attach () {
 
   if (this.attributeKey === 'model') {
     if (/(checkbox|radio)/.test(this.element.getAttribute('type'))) {
-      this.element.onchange = (e) => {
-        this.listener.component[this.listener.key] = e.target.checked;
-      };
+      this.element.addEventListener('change', (e) => {
+        this.listener.component.setState({
+          [this.listener.key]: e.target.checked
+        });
+      });
     } else {
-      this.element.oninput = (e) => {
-        this.listener.component[this.listener.key] = e.target.value;
-      };
+      this.element.addEventListener('input', (e) => {
+        this.listener.component.setState({
+          [this.listener.key]: e.target.value
+        });
+      });
     }
   }
   return this;
@@ -315,6 +319,26 @@ var setAttributes = (element, attributes) => {
       return;
     }
 
+    if (key.toLowerCase() === 'html') {
+      element.innerHTML = value;
+      return;
+    }
+
+    // TODO: FuseDom pass event listeners to new element
+    if (key.toLowerCase() === 'model') {
+      if (/(checkbox|radio)/.test(element.getAttribute('type'))) {
+        element.onchange = (e) => {
+          value.component[value.key] = e.target.checked;
+        };
+      } else {
+        element.oninput = (e) => {
+          value.component[value.key] = e.target.value;
+        };
+        element.value = value.value;
+      }
+      return;
+    }
+
     // Handles events 'on<event>'
     if (key.substring(0, 2).toLowerCase() === 'on') {
       if (key.substring(0, 8).toLowerCase() === 'onsubmit') {
@@ -403,7 +427,7 @@ PrivateStore.prototype.addListener = function addListener (key, listener) {
     this.createItemWrapper(key);
   }
   this.store[key].listeners = this.store[key].listeners.filter(item => (
-    item.attatched
+    item.attached
   ));
   this.store[key].listeners.push(listener);
   listener.handleUpdate(this.store[key].value);
@@ -458,7 +482,9 @@ PrivateStore.prototype.createItemWrapper = function createItemWrapper (key) {
 PrivateStore.prototype.triggerListeners = function triggerListeners (key) {
   var item = this.store[key];
   if (item) {
-    item.listeners.forEach(listener => listener.handleUpdate(item.value));
+    item.listeners.forEach(listener => {
+      if (listener.attached) { listener.handleUpdate(item.value); }
+    });
   }
 };
 
@@ -476,14 +502,14 @@ function fuseAttributes(el, toEl, elAttributes) {
 			elAttributes.getNamedItemNS(toElAttrNamespaceURI, toElAttr.name) :
 			elAttributes.getNamedItem(toElAttr.name);
 
-    if (elAttr.name === 'style') {
-      for (var style of toEl.style) {
-        if (el.style[style] !== toEl.style[style]) {
-          el.style[style] = toEl.style[style];
-        }
-      }
-      continue;
-    }
+		if (elAttr.name === 'style') {
+			for (var style of toEl.style) {
+				if (el.style[style] !== toEl.style[style]) {
+					el.style[style] = toEl.style[style];
+				}
+			}
+			continue;
+		}
 
 		if (!elAttr || elAttr.value != toElAttr.value) {
 			if (toElAttrNamespaceURI) {
@@ -511,60 +537,82 @@ function fuseAttributes(el, toEl, elAttributes) {
 }
 
 var destroy = node => {
-  if (!(node instanceof Node)) { return; }
-  var treeWalker = document.createTreeWalker(
-    node,
-    NodeFilter.SHOW_ALL,
-    el => true,
-    false
-  );
+	if (!(node instanceof Node)) { return; }
+	var treeWalker = document.createTreeWalker(
+		node,
+		NodeFilter.SHOW_ALL,
+		el => true,
+		false
+	);
 
-  var el;
-  while((el = treeWalker.nextNode())) {
-    if (el.listeners) {
-      for (var i = 0; i < el.listeners.length; i++) {
-        el.listeners[i].deattach();
-      }
-    }
-    el.listeners = null;
-    if (el.attributeListeners) {
-      for (var i = 0; i < el.styleListeners.length; i++) {
-        el.styleListeners[i].deattach();
-      }
-    }
-    el.attributeListeners = null;
-    if (el.styleListeners) {
-      for (var i = 0; i < el.styleListeners.length; i++) {
-        el.styleListeners[i].deattach();
-      }
-    }
-    el.styleListeners = null;
-    if (el.destroy) { el.destroy(); }
-    if (el.parentNode) {
-      el.parentNode.removeChild(el);
-    }
-  }
-  if (node.listeners) {
-    for (var i = 0; i < node.listeners.length; i++) {
-      node.listeners[i].deattach();
-    }
-  }
-  node.listeners = null;
-  if (node.attributeListeners) {
-    for (var i = 0; i < node.styleListeners.length; i++) {
-      node.styleListeners[i].deattach();
-    }
-  }
-  node.attributeListeners = null;
-  if (node.styleListeners) {
-    for (var i = 0; i < node.styleListeners.length; i++) {
-      node.styleListeners[i].deattach();
-    }
-  }
-  if (node.parentNode) {
-    node.parentNode.removeChild(node);
-  }
+	var el;
+	var bulk = [];
+	while((el = treeWalker.nextNode())) {
+		if (el.listeners) {
+			for (var i = 0; i < el.listeners.length; i++) {
+				el.listeners[i].deattach();
+			}
+		}
+		el.listeners = null;
+		if (el.attributeListeners) {
+			for (var i = 0; i < el.attributeListeners.length; i++) {
+				el.attributeListeners[i].deattach();
+			}
+		}
+		el.attributeListeners = null;
+		if (el.styleListeners) {
+			for (var i = 0; i < el.styleListeners.length; i++) {
+				el.styleListeners[i].deattach();
+			}
+		}
+		el.styleListeners = null;
+		if (el.destroy) { el.destroy(); }
+		bulk.push(function() {
+			if (el && el.parentNode) {
+				el.parentNode.removeChild(el);
+			}
+		});
+	}
+	if (node.listeners) {
+		for (var i = 0; i < node.listeners.length; i++) {
+			node.listeners[i].deattach();
+		}
+	}
+	node.listeners = null;
+	if (node.attributeListeners) {
+		for (var i = 0; i < node.attributeListeners.length; i++) {
+			node.attributeListeners[i].deattach();
+		}
+	}
+	node.attributeListeners = null;
+	if (node.styleListeners) {
+		for (var i = 0; i < node.styleListeners.length; i++) {
+			node.styleListeners[i].deattach();
+		}
+	}
+	node.styleListeners = null;
+
+	node.styleListeners = null;
+	if (node.destroy) { node.destroy(); }
+	if (node.parentNode) {
+		node.parentNode.removeChild(node);
+		// node.remove()
+	}
+
+	// Removes all dom elements
+	for (var i = 0; i < bulk.length; i++) {
+		bulk[i]();
+	}
+	bulk = null;
 };
+
+function same (a, b) {
+  if (a.id) { return a.id === b.id }
+  if (a.isSameNode) { return a.isSameNode(b) }
+  if (a.tagName !== b.tagName) { return false }
+  if (a.type === 3) { return a.nodeValue === b.nodeValue }
+  return false
+}
 
 /**
  * @param {HTMLElement} newNode
@@ -572,63 +620,69 @@ var destroy = node => {
  * @returns {ElementListener}
  */
 var fuse = (toNode, fromNode, childOnly) => {
-  if (Array.isArray(fromNode) || Array.isArray(toNode)) { childOnly = true; }
+	if (Array.isArray(fromNode) || Array.isArray(toNode)) { childOnly = true; }
 
-  if (!childOnly) {
-    var nt1 = toNode.nodeType;
-    var nt2 = fromNode.nodeType;
+	if (!childOnly) {
+		var nt1 = toNode.nodeType;
+		var nt2 = fromNode.nodeType;
 
-    if (nt1 === nt2 && (nt1 === 3 || nt2 === 8)) {
-      if (!toNode.isEqualNode(fromNode)) {
-        toNode.nodeValue = fromNode.nodeValue;
-        destroy(fromNode);
-      }
-      return toNode;
-    }
+		if (nt1 === nt2 && (nt1 === 3 || nt2 === 8)) {
+			if (!same(toNode, fromNode)) {
+			// if (!toNode.isEqualNode(fromNode)) {
+				toNode.nodeValue = fromNode.nodeValue;
+				destroy(fromNode);
+			}
+			return toNode;
+		}
 
-    if (fromNode.destroy || toNode.destroy || fromNode.__async || fromNode.__async
-      || toNode.listeners || fromNode.listeners
-      || nt1 === 3 || nt2 === 3) {
-      if (!toNode.isEqualNode(fromNode)) {
-        toNode.parentNode.insertBefore(fromNode, toNode);
-        destroy(toNode);
-      }
-      return fromNode;
-    }
+		if (fromNode.destroy || toNode.destroy
+			|| fromNode.__async || toNode.__async
+			|| toNode.listeners || fromNode.listeners
+			|| nt1 === 3 || nt2 === 3) {
+			if (!same(toNode, fromNode)) {
+			// if (!toNode.isEqualNode(fromNode)) {
+				toNode.parentNode.insertBefore(fromNode, toNode);
+				destroy(toNode);
+			}
+			return fromNode;
+		}
 
-    fuseAttributes(toNode, fromNode, getElementAttributes(toNode));
-  }
+		// console.dir(fromNode)
+		// if (fromNode.listeners) {
+			fuseAttributes(toNode, fromNode, getElementAttributes(toNode));
+		// }
+	}
 
-  var a1 = [ ...toNode.childNodes || toNode ];
-  var a2 = [ ...fromNode.childNodes || fromNode ];
-  var max = Math.max(a1.length, a2.length);
+	var a1 = [ ...toNode.childNodes || toNode ];
+	var a2 = [ ...fromNode.childNodes || fromNode ];
+	var max = Math.max(a1.length, a2.length);
 
-  for (var i = 0; i < max; i++) {
-    if (a1[i] && a2[i]) {
-      // Fuse
-      fuse(a1[i], a2[i]);
-    } else
-    if (a1[i] && !a2[i]) {
-      // Remove
-      destroy(a1[i]);
-    } else
-    if (!a1[i] && a2[i]) {
-      // Add
-      toNode.appendChild(a2[i]);
-    }
-  }
+	for (var i = 0; i < max; i++) {
+		if (a1[i] && a2[i]) {
+			// Fuse
+			fuse(a1[i], a2[i]);
+		} else
+		if (a1[i] && !a2[i]) {
+			// Remove
+			destroy(a1[i]);
+		} else
+		if (!a1[i] && a2[i]) {
+			// Add
+			toNode.appendChild(a2[i]);
+		}
+	}
 
-  destroy(fromNode);
-  return toNode;
+	destroy(fromNode);
+	return toNode;
 };
 
 var FuseDom = function FuseDom () {};
 
 FuseDom.prototype.fuse = function fuse$1 (...args) {
-  return fuse(...args);
+	return fuse(...args);
 };
 FuseDom.prototype.destroy = function destroy$1 (...args) {
-  return destroy(...args);
+	return destroy(...args);
 };
 
 var fuseDom = new FuseDom();
@@ -809,7 +863,7 @@ Component.prototype.setState = function setState (newState) {
     fuseDom.fuse(this.html, this.view());
   }
   this.trigger('update');
-  return this.state;
+  return newState;
 };
 
 /**
@@ -985,7 +1039,8 @@ var appendChild = element => child => {
   if (typeof child === 'function') {
     var executed = child();
     if (executed instanceof Promise) {
-      var placeholder = document.createElement('selection');
+      var placeholder = document.createElement('section');
+      placeholder.__async = true;
       var el = element.appendChild(placeholder);
       el.__async = true;
       executed.then(local => {
@@ -1076,11 +1131,44 @@ var remountActiveComponents = () => {
   });
 };
 
+function createWorker(fn) {
+  var fire = () => {};
+
+  var blob = new Blob([`self.onmessage = function(e) {
+    self.postMessage((${fn.toString()})(e.data));
+  }`], { type: 'text/javascript' });
+
+  var url = window.URL.createObjectURL(blob);
+  var myWorker = new Worker(url);
+
+  myWorker.onmessage = e => { fire(e.data, null); };
+  myWorker.onerror = e => { fire(null, e.data); };
+
+  return arg => new Promise((resolve, reject) => {
+    fire = (data, err) => !err ? resolve(data) : reject(data);
+    myWorker.postMessage(arg);
+  })
+}
+
+// Descriptor for worker
+function worker(target, key, descriptor) {
+  var act = descriptor.value;
+
+  var promisedWorker = createWorker(act);
+
+  descriptor.value = function (...args) {
+    promisedWorker(...args).then(newState => {
+      this.setState.call(this, newState);
+    });
+  };
+  return descriptor;
+}
+
 // Descriptor for actions
 function action(target, key, descriptor) {
   var act = descriptor.value;
   descriptor.value = function (...args) {
-    this.setState.call(this, act.call(this, ...args));
+    return this.setState.call(this, act.call(this, ...args));
   };
   return descriptor;
 }
@@ -1093,7 +1181,7 @@ function subscribe(container, eventName, triggerMount) {
   return function (target, key, descriptor) {
     var name = 'on' + (eventName || key);
     var fn = function (...args) {
-      descriptor.value.call(this, ...args);
+      return descriptor.value.call(this, ...args);
     };
 
     container[name] = fn;
@@ -1114,6 +1202,7 @@ var Radi = {
   r,
   listen,
   l: listen,
+  worker,
   component: Component,
   Component,
   action,
@@ -1140,6 +1229,5 @@ var Radi = {
 Radi.plugin = (fn, ...args) => fn(Radi, ...args);
 
 if (window) { window.Radi = Radi; }
-
-export default Radi;
+module.exports = Radi;
 //# sourceMappingURL=radi.es.js.map

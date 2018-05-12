@@ -46,6 +46,26 @@ const setAttributes = (element, attributes) => {
       continue;
     }
 
+    if (key.toLowerCase() === 'html') {
+      element.innerHTML = value;
+      continue;
+    }
+
+    // TODO: FuseDom pass event listeners to new element
+    if (key.toLowerCase() === 'model') {
+      if (/(checkbox|radio)/.test(element.getAttribute('type'))) {
+        element.onchange = (e) => {
+          value.component[value.key] = e.target.checked;
+        };
+      } else {
+        element.oninput = (e) => {
+          value.component[value.key] = e.target.value;
+        };
+        element.value = value.value;
+      }
+      continue;
+    }
+
     // Handles events 'on<event>'
     if (key.substring(0, 2).toLowerCase() === 'on') {
       if (key.substring(0, 8).toLowerCase() === 'onsubmit') {
