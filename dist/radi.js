@@ -1,13 +1,13 @@
 (function (global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ? factory() :
+  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
   typeof define === 'function' && define.amd ? define(factory) :
-  (factory());
+  (global.Radi = factory());
 }(this, (function () { 'use strict';
 
   var GLOBALS = {
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.3.9',
+    VERSION: '0.3.10',
     ACTIVE_COMPONENTS: {},
     HTML_CACHE: {},
   };
@@ -54,7 +54,11 @@
     // fuseDom.destroy(this.value);
     // this.value = null;
     // }
-    this.value = this.processValue(this.getShallowValue(value), this.value);
+    var newValue = this.processValue(this.getShallowValue(value), this.value);
+    if (newValue instanceof Listener && this.value instanceof Listener) {
+      this.value.deattach();
+    }
+    this.value = newValue;
     this.changeListeners.forEach(changeListener => changeListener(this.value));
   };
 
@@ -855,7 +859,10 @@
    */
   Component.prototype.setState = function setState (newState) {
     if (typeof newState === 'object') {
-      var oldstate = clone(this.state);
+      var oldstate = this.state;
+
+      skipInProductionAndTest(() => oldstate = clone(this.state));
+
       this.state = Object.assign(oldstate, newState);
 
       skipInProductionAndTest(() => Object.freeze(this.state));
@@ -1035,6 +1042,27 @@
       appendListenerToElement(child, element);
       return;
     }
+
+    // if (typeof child === 'function') {
+    //   appendChild(element)(child());
+    //   return;
+    // }
+
+    // if (child instanceof Promise) {
+    //   console.log('OMG', child)
+    //   const placeholder = document.createElement('section');
+    //   const el = element.appendChild(placeholder);
+    //   child.then(data => {
+    //     // el.replaceWith(data);
+    //     if (data.default) {
+    //       appendChild(el)(new data.default());
+    //     } else {
+    //       appendChild(el)(data);
+    //     }
+    //   });
+    //   // appendListenerToElement(child, element);
+    //   return;
+    // }
 
     if (Array.isArray(child)) {
       appendChildren(element, child);
@@ -1235,7 +1263,8 @@
   Radi.plugin = (fn, ...args) => fn(Radi, ...args);
 
   if (window) { window.Radi = Radi; }
-  module.exports = Radi;
+
+  return Radi;
 
 })));
 //# sourceMappingURL=radi.js.map

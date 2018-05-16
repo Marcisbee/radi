@@ -43,7 +43,11 @@ export default class Listener {
     //   fuseDom.destroy(this.value);
     //   this.value = null;
     // }
-    this.value = this.processValue(this.getShallowValue(value), this.value);
+    const newValue = this.processValue(this.getShallowValue(value), this.value);
+    if (newValue instanceof Listener && this.value instanceof Listener) {
+      this.value.deattach();
+    }
+    this.value = newValue;
     this.changeListeners.forEach(changeListener => changeListener(this.value));
   }
 

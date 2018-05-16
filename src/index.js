@@ -104,4 +104,4 @@ const Radi = {
 Radi.plugin = (fn, ...args) => fn(Radi, ...args);
 
 if (window) window.Radi = Radi;
-module.exports = Radi;
+export default Radi;
