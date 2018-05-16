@@ -144,7 +144,10 @@ export default class Component {
    */
   setState(newState) {
     if (typeof newState === 'object') {
-      const oldstate = clone(this.state);
+      let oldstate = this.state;
+
+      skipInProductionAndTest(() => oldstate = clone(this.state));
+
       this.state = Object.assign(oldstate, newState);
 
       skipInProductionAndTest(() => Object.freeze(this.state));
