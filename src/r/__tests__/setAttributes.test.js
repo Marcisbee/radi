@@ -7,17 +7,23 @@ describe('setAttributes.js', () => {
     setAttributes(element, {
       foo: 'bar',
       bar: 'foo',
+      fooBar: 'caseSensitive',
     });
     expect(element.getAttribute('foo')).toBe('bar');
     expect(element.getAttribute('bar')).toBe('foo');
+    expect(element.getAttribute('fooBar')).toBe('caseSensitive');
   });
 
   it('ignores empty attributes', () => {
     const element = document.createElement('h1');
     setAttributes(element, {
       foo: undefined,
+      bar: null,
+      baz: 0,
     });
     expect(element.getAttribute('foo')).toBeNull();
+    expect(element.getAttribute('bar')).toBeNull();
+    expect(element.getAttribute('baz')).toBe("0");
   });
 
   it('calls setStyles to set styles', () => {
