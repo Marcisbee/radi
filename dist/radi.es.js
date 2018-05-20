@@ -1,7 +1,7 @@
 var GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.11',
+  VERSION: '0.3.12',
   ACTIVE_COMPONENTS: {},
   HTML_CACHE: {},
 };
@@ -390,15 +390,16 @@ var setAttributes = (element, attributes) => {
  * @param {*} query
  * @returns {Node}
  */
-var getElementFromQuery = query => {
-  if (typeof query === 'string') { return query !== 'template'
-    ? query === 'svg'
-      ? document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          query
-        )
-      : document.createElement(query)
-    : document.createDocumentFragment(); }
+var getElementFromQuery = (query, isSvg) => {
+  if (typeof query === 'string' || typeof query === 'number')
+    { return query !== 'template'
+      ? isSvg || query === 'svg'
+        ? document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            query
+          )
+        : document.createElement(query)
+      : document.createDocumentFragment(); }
   console.warn(
     '[Radi.js] Warn: Creating a JSX element whose query is not of type string, automatically converting query to string.'
   );
@@ -761,16 +762,23 @@ var Component = function Component(children, props) {
 /**
  * @returns {HTMLElement}
  */
-Component.prototype.render = function render () {
+Component.prototype.render = function render (isSvg) {
   if (typeof this.view !== 'function') { return ''; }
   var rendered = this.view();
   if (Array.isArray(rendered)) {
     for (var i = 0; i < rendered.length; i++) {
+      if (typeof rendered[i].buildNode === 'function') {
+        rendered[i] = rendered[i].buildNode(isSvg);
+      }
       rendered[i].destroy = this.destroy.bind(this);
     }
   } else {
+    if (typeof rendered.buildNode === 'function') {
+      rendered = rendered.buildNode(isSvg);
+    }
     rendered.destroy = this.destroy.bind(this);
   }
+
   this.html = rendered;
   return rendered;
 };
@@ -888,21 +896,23 @@ Component.isComponent = function isComponent () {
 /**
  * @param {Component} component
  * @param {string} id
+ * @param {boolean} isSvg
  * @returns {HTMLElement|Node}
  */
-var mount = (component, id) => {
+var mount = (component, id, isSvg) => {
   var container = document.createDocumentFragment();
   var slot = typeof id === 'string' ? document.getElementById(id) : id;
+  isSvg = isSvg || slot instanceof SVGElement;
   var rendered =
-    (component instanceof Component || component.render) ? component.render() : component;
+    (component instanceof Component || component.render) ? component.render(isSvg) : component;
 
   if (Array.isArray(rendered)) {
     for (var i = 0; i < rendered.length; i++) {
-      mount(rendered[i], container);
+      mount(rendered[i], container, isSvg);
     }
   } else {
     // Mount to container
-    appendChild(container)(rendered);
+    appendChild(container, isSvg)(rendered);
   }
 
   // Mount to element
@@ -1024,16 +1034,22 @@ var appendListenerToElement = (listener, element) =>
 
 /**
  * @param {HTMLElement} element
+ * @param {boolean} isSvg
  * @returns {function(*)}
  */
-var appendChild = element => child => {
+var appendChild = (element, isSvg) => child => {
   if (!child && typeof child !== 'number') {
     // Needs to render every child, even empty ones to preserve dom hierarchy
     child = '';
   }
 
+  if (typeof child.buildNode === 'function') {
+    appendChild(element, isSvg)(child.buildNode(isSvg));
+    return;
+  }
+
   if (child instanceof Component) {
-    mount(child, element);
+    mount(child, element, isSvg);
     return;
   }
 
@@ -1064,7 +1080,7 @@ var appendChild = element => child => {
   // }
 
   if (Array.isArray(child)) {
-    appendChildren(element, child);
+    appendChildren(element, child, isSvg);
     return;
   }
 
@@ -1079,7 +1095,7 @@ var appendChild = element => child => {
       executed.then(local => {
         if (local.default && local.default.isComponent) {
           /* eslint-disable */
-          appendChild(el)(new local.default());
+          appendChild(el, isSvg)(new local.default());
           /* eslint-enable */
         } else
         if (typeof local.default === 'function') {
@@ -1087,16 +1103,16 @@ var appendChild = element => child => {
           lazy.then(item => {
             if (item.default && item.default.isComponent) {
               /* eslint-disable */
-              appendChild(el)(new item.default());
+              appendChild(el, isSvg)(new item.default());
               /* eslint-enable */
             }
           });
         } else {
-          appendChild(el)(local.default);
+          appendChild(el, isSvg)(local.default);
         }
       }).catch(console.warn);
     } else {
-      appendChild(element)(executed);
+      appendChild(element, isSvg)(executed);
     }
     return;
   }
@@ -1112,22 +1128,28 @@ var appendChild = element => child => {
 /**
  * @param {HTMLElement} element
  * @param {*[]} children
+ * @param {boolean} isSvg
  */
-var appendChildren = (element, children) => {
-  children.forEach(appendChild(element));
+var appendChildren = (element, children, isSvg) => {
+  children.forEach(appendChild(element, isSvg));
 };
 
 var htmlCache = {};
+var svgCache = {};
 
-var memoizeHTML = query => htmlCache[query] || (htmlCache[query] = getElementFromQuery(query));
+var memoizeHTML = query => htmlCache[query]
+  || (htmlCache[query] = getElementFromQuery(query, false));
+var memoizeSVG = query => svgCache[query]
+  || (svgCache[query] = getElementFromQuery(query, true));
 
 /**
+ * @param {boolean} isSvg
  * @param {*} query
  * @param {object} props
  * @param {...*} children
  * @returns {(HTMLElement|Component)}
  */
-var r = (Query, props, ...children) => {
+var buildNode = (isSvg, Query, props, ...children) => {
   if (typeof Query === 'function' && Query.isComponent) {
     return new Query(children).setProps(props || {});
   }
@@ -1138,13 +1160,32 @@ var r = (Query, props, ...children) => {
     return Query(propsWithChildren);
   }
 
-  var element = memoizeHTML(Query).cloneNode(false);
+  var copyIsSvg = isSvg || Query === 'svg';
+
+  var element = (copyIsSvg ? memoizeSVG(Query) : memoizeHTML(Query))
+    .cloneNode(false);
 
   if (props !== null) { setAttributes(element, props); }
-  appendChildren(element, children);
+  appendChildren(element, children, copyIsSvg);
 
   return element;
 };
+
+var buildNode$1 = {
+  html: (...args) => buildNode(false, ...args),
+  svg: (...args) => buildNode(true, ...args),
+};
+
+/**
+ * @param {*} query
+ * @param {object} props
+ * @param {...*} children
+ * @returns {(HTMLElement|Component)}
+ */
+var r = (Query, props, ...children) => ({
+  buildNode: isSvg =>
+    buildNode$1[isSvg ? 'svg' : 'html'](Query, props, ...children),
+});
 
 /**
  * The listen function is used for dynamically binding a component property

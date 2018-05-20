@@ -19,32 +19,32 @@ describe('r.js', () => {
       }
     }
 
-    const result = <FakeComponent foo="bar">baz</FakeComponent>;
+    const result = (<FakeComponent foo="bar">baz</FakeComponent>).buildNode();
     expect(result).toBeInstanceOf(FakeComponent);
     expect(result.children[0]).toEqual('baz');
     expect(result.props.foo).toBe('bar');
   });
 
   it('works correctly for functional components', () => {
-    const Component = ({ foo, children }) => <h1 foo={foo}>{children}</h1>;
+    const Component = ({ foo, children }) => (<h1 foo={foo}>{children}</h1>).buildNode();
     const result = (
       <Component foo="bar">
         <span />
         <span />
       </Component>
-    );
+    ).buildNode();
     expect(result).toBeInstanceOf(HTMLHeadingElement);
     expect(result.getAttribute('foo')).toBe('bar');
     expect(result.innerHTML).toBe('<span></span><span></span>');
   });
 
   it('works correctly for normal elements', () => {
-    const result = <h1 />;
+    const result = (<h1 />).buildNode();
     expect(result).toBeInstanceOf(HTMLHeadingElement);
   });
 
   it('sets the element attributes correctly', () => {
-    const result = <h1 foo="bar" />;
+    const result = (<h1 foo="bar" />).buildNode();
     expect(result.getAttribute('foo')).toBe('bar');
   });
 
@@ -54,7 +54,7 @@ describe('r.js', () => {
         <span />
         <span />
       </h1>
-    );
+    ).buildNode();
     expect(result.innerHTML).toBe('<span></span><span></span>');
   });
 });

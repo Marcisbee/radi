@@ -5,21 +5,23 @@ import fuseDom from './r/utils/fuseDom';
 /**
  * @param {Component} component
  * @param {string} id
+ * @param {boolean} isSvg
  * @returns {HTMLElement|Node}
  */
-const mount = (component, id) => {
+const mount = (component, id, isSvg) => {
   const container = document.createDocumentFragment()
   const slot = typeof id === 'string' ? document.getElementById(id) : id;
+  isSvg = isSvg || slot instanceof SVGElement;
   const rendered =
-    (component instanceof Component || component.render) ? component.render() : component;
+    (component instanceof Component || component.render) ? component.render(isSvg) : component;
 
   if (Array.isArray(rendered)) {
     for (var i = 0; i < rendered.length; i++) {
-      mount(rendered[i], container);
+      mount(rendered[i], container, isSvg);
     }
   } else {
     // Mount to container
-    appendChild(container)(rendered);
+    appendChild(container, isSvg)(rendered);
   }
 
   // Mount to element

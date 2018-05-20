@@ -47,16 +47,23 @@ export default class Component {
   /**
    * @returns {HTMLElement}
    */
-  render() {
+  render(isSvg) {
     if (typeof this.view !== 'function') return '';
-    const rendered = this.view();
+    let rendered = this.view();
     if (Array.isArray(rendered)) {
       for (let i = 0; i < rendered.length; i++) {
+        if (typeof rendered[i].buildNode === 'function') {
+          rendered[i] = rendered[i].buildNode(isSvg);
+        }
         rendered[i].destroy = this.destroy.bind(this);
       }
     } else {
+      if (typeof rendered.buildNode === 'function') {
+        rendered = rendered.buildNode(isSvg);
+      }
       rendered.destroy = this.destroy.bind(this);
     }
+
     this.html = rendered;
     return rendered;
   }

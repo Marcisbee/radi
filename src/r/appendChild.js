@@ -9,16 +9,22 @@ import appendListenerToElement from './utils/appendListenerToElement';
 
 /**
  * @param {HTMLElement} element
+ * @param {boolean} isSvg
  * @returns {function(*)}
  */
-const appendChild = element => child => {
+const appendChild = (element, isSvg) => child => {
   if (!child && typeof child !== 'number') {
     // Needs to render every child, even empty ones to preserve dom hierarchy
     child = '';
   }
 
+  if (typeof child.buildNode === 'function') {
+    appendChild(element, isSvg)(child.buildNode(isSvg));
+    return;
+  }
+
   if (child instanceof Component) {
-    mount(child, element);
+    mount(child, element, isSvg);
     return;
   }
 
@@ -28,7 +34,7 @@ const appendChild = element => child => {
   }
 
   if (Array.isArray(child)) {
-    appendChildren(element, child);
+    appendChildren(element, child, isSvg);
     return;
   }
 
@@ -43,7 +49,7 @@ const appendChild = element => child => {
       executed.then(local => {
         if (local.default && local.default.isComponent) {
           /* eslint-disable */
-          appendChild(el)(new local.default());
+          appendChild(el, isSvg)(new local.default());
           /* eslint-enable */
         } else
         if (typeof local.default === 'function') {
@@ -51,16 +57,16 @@ const appendChild = element => child => {
           lazy.then(item => {
             if (item.default && item.default.isComponent) {
               /* eslint-disable */
-              appendChild(el)(new item.default());
+              appendChild(el, isSvg)(new item.default());
               /* eslint-enable */
             }
           });
         } else {
-          appendChild(el)(local.default);
+          appendChild(el, isSvg)(local.default);
         }
       }).catch(console.warn);
     } else {
-      appendChild(element)(executed);
+      appendChild(element, isSvg)(executed);
     }
     return;
   }
