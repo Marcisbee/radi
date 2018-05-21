@@ -512,7 +512,7 @@ function fuseAttributes(el, toEl, elAttributes) {
 			elAttributes.getNamedItemNS(toElAttrNamespaceURI, toElAttr.name) :
 			elAttributes.getNamedItem(toElAttr.name);
 
-		if (elAttr.name === 'style') {
+		if (elAttr && elAttr.name === 'style') {
 			for (var style of toEl.style) {
 				if (el.style[style] !== toEl.style[style]) {
 					el.style[style] = toEl.style[style];
@@ -648,7 +648,8 @@ var fuse = (toNode, fromNode, childOnly) => {
 		if (fromNode.destroy || toNode.destroy
 			|| fromNode.__async || toNode.__async
 			|| toNode.listeners || fromNode.listeners
-			|| nt1 === 3 || nt2 === 3) {
+			|| nt1 === 3 || nt2 === 3
+			|| nt1 === 1 || nt2 === 1) {
 			if (!same(toNode, fromNode)) {
 			// if (!toNode.isEqualNode(fromNode)) {
 				toNode.parentNode.insertBefore(fromNode, toNode);
@@ -1057,27 +1058,6 @@ var appendChild = (element, isSvg) => child => {
     appendListenerToElement(child, element);
     return;
   }
-
-  // if (typeof child === 'function') {
-  //   appendChild(element)(child());
-  //   return;
-  // }
-
-  // if (child instanceof Promise) {
-  //   console.log('OMG', child)
-  //   const placeholder = document.createElement('section');
-  //   const el = element.appendChild(placeholder);
-  //   child.then(data => {
-  //     // el.replaceWith(data);
-  //     if (data.default) {
-  //       appendChild(el)(new data.default());
-  //     } else {
-  //       appendChild(el)(data);
-  //     }
-  //   });
-  //   // appendListenerToElement(child, element);
-  //   return;
-  // }
 
   if (Array.isArray(child)) {
     appendChildren(element, child, isSvg);

@@ -13,7 +13,7 @@ function fuseAttributes(el, toEl, elAttributes) {
 			elAttributes.getNamedItemNS(toElAttrNamespaceURI, toElAttr.name) :
 			elAttributes.getNamedItem(toElAttr.name);
 
-		if (elAttr.name === 'style') {
+		if (elAttr && elAttr.name === 'style') {
 			for (let style of toEl.style) {
 				if (el.style[style] !== toEl.style[style]) {
 					el.style[style] = toEl.style[style];
@@ -149,7 +149,8 @@ const fuse = (toNode, fromNode, childOnly) => {
 		if (fromNode.destroy || toNode.destroy
 			|| fromNode.__async || toNode.__async
 			|| toNode.listeners || fromNode.listeners
-			|| nt1 === 3 || nt2 === 3) {
+			|| nt1 === 3 || nt2 === 3
+			|| nt1 === 1 || nt2 === 1) {
 			if (!same(toNode, fromNode)) {
 			// if (!toNode.isEqualNode(fromNode)) {
 				toNode.parentNode.insertBefore(fromNode, toNode);
