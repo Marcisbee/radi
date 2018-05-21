@@ -1,14 +1,14 @@
 # <a href='http://radi.js.org'><img src='https://rawgit.com/radi-js/radi/gh-pages/logo/radijs-github.png' height='60' alt='Radi' aria-label='Redux.js.org' /></a>
 
-**Radi** is a tiny (4kB minified & gzipped) javascript framework.
+**Radi** is a tiny javascript framework.
 
 It's built quite differently from any other framework. It doesn't use any kind of diffing algorithm nor virtual dom which makes it really fast.
 
-With Radi you can create any kind of single-page applications or more complex applications with **no dependencies required!** Oh did I mention that Radi.js is faster than any popular framework? And yes it is.
+With Radi you can create any kind of single-page applications or more complex applications.
 
 [![npm version](https://img.shields.io/npm/v/radi.svg?style=flat-square)](https://www.npmjs.com/package/radi)
 [![npm downloads](https://img.shields.io/npm/dm/radi.svg?style=flat-square)](https://www.npmjs.com/package/radi)
-[![gzip bundle size](http://img.badgesize.io/https://unpkg.com/radi@0.1.1/dist/radi.min.js?compression=gzip&style=flat-square)](https://unpkg.com/radi@0.1.1/dist/radi.js)
+[![gzip bundle size](http://img.badgesize.io/https://unpkg.com/radi?compression=gzip&style=flat-square)](https://unpkg.com/radi)
 [![radi workspace on slack](https://img.shields.io/badge/slack-radijs-3eb891.svg?style=flat-square)](https://join.slack.com/t/radijs/shared_invite/enQtMjk3NTE2NjYxMTI2LWFmMTM5NTgwZDI5NmFlYzMzYmMxZjBhMGY0MGM2MzY5NmExY2Y0ODBjNDNmYjYxZWYxMjEyNjJhNjA5OTJjNzQ)
 
 
@@ -26,7 +26,7 @@ If you're not, you can [access these files on unpkg](https://unpkg.com/radi/dist
 
 #### Browser Compatibility
 
-Radi.js currently is compatible with browsers that support ES6. In stable release v1 it will support ES5 compatible browsers and even some below that, yes - looking at IE8 too.
+Radi.js currently is compatible with browsers that support at least ES5.
 
 ## Ecosystem
 
@@ -102,13 +102,11 @@ state: {
 
 ## Architecture
 
-I'm in process of creating some cool examples and diagrams of how exactly Radi works.
+Radi fully renders page only once initially. After that `listeners` take control. They can listen for state changes in any Radi component. When change in state is caught, listener then re-renders only that part.
 
-<!-- ## Benchmarks
+Other frameworks silently re-renders whole page over and over again, then apply changes. But radi only re-renders parts that link to changed state values.
 
-I'm in process of creating some cool examples and diagrams of how exactly Radi works. -->
-
-<!-- To check out [live examples](https://radi.js.org/examples/) and docs, visit [radi.js.org](https://radi.js.org). -->
+To check out [live repl](https://radi.js.org/#/fiddle) and [docs](https://radi.js.org/#/docs), visit [radi.js.org](https://radi.js.org).
 
 <!-- ## Changelog
 
