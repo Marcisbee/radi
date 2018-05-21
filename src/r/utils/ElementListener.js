@@ -31,7 +31,7 @@ export default class ElementListener {
    * @param {*} value
    */
   handleValueChange(value) {
-    const newNode = listenerToNode(value);
+    const newNode = listenerToNode(value, this.element instanceof SVGElement);
 
     var i = 0
     for (const node of newNode) {

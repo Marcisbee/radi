@@ -7,7 +7,7 @@
   var GLOBALS = {
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.3.13',
+    VERSION: '0.3.14',
     ACTIVE_COMPONENTS: {},
     HTML_CACHE: {},
   };
@@ -957,15 +957,16 @@
 
   /**
    * @param {*} value - Value of the listener
+   * @param {boolean} isSvg
    * @returns {Node[]}
    */
-  var listenerToNode = value => {
+  var listenerToNode = (value, isSvg) => {
     if (value instanceof DocumentFragment) {
       return Array.from(value.childNodes);
     }
 
     var element = document.createDocumentFragment();
-    appendChildren(element, ensureArray(value));
+    appendChildren(element, ensureArray(value), isSvg);
     return listenerToNode(element);
   };
 
@@ -996,7 +997,7 @@
    * @param {*} value
    */
   ElementListener.prototype.handleValueChange = function handleValueChange (value) {
-    var newNode = listenerToNode(value);
+    var newNode = listenerToNode(value, this.element instanceof SVGElement);
 
     var i = 0;
     for (var node of newNode) {
