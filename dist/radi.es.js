@@ -1,7 +1,7 @@
 var GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.12',
+  VERSION: '0.3.13',
   ACTIVE_COMPONENTS: {},
   HTML_CACHE: {},
 };
@@ -321,6 +321,14 @@ var setAttributes = (element, attributes) => {
     if (key.toLowerCase() === 'class' || key.toLowerCase() === 'classname') {
       element.setAttribute('class', parseClass(value));
       return;
+    }
+
+    if (key.toLowerCase() === 'loadfocus') {
+      element.onload = (el) => {
+        setTimeout(() => {
+          el.focus();
+        }, 10);
+      };
     }
 
     if (key.toLowerCase() === 'html') {
@@ -1147,6 +1155,8 @@ var buildNode = (isSvg, Query, props, ...children) => {
 
   if (props !== null) { setAttributes(element, props); }
   appendChildren(element, children, copyIsSvg);
+
+  if (element.onload) { element.onload(element); }
 
   return element;
 };

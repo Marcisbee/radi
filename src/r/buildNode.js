@@ -36,6 +36,8 @@ const buildNode = (isSvg, Query, props, ...children) => {
   if (props !== null) setAttributes(element, props);
   appendChildren(element, children, copyIsSvg);
 
+  if (element.onload) element.onload(element);
+
   return element;
 };
 

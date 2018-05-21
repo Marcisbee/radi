@@ -46,6 +46,14 @@ const setAttributes = (element, attributes) => {
       continue;
     }
 
+    if (key.toLowerCase() === 'loadfocus') {
+      element.onload = (el) => {
+        setTimeout(() => {
+          el.focus();
+        }, 10);
+      };
+    }
+
     if (key.toLowerCase() === 'html') {
       element.innerHTML = value;
       continue;
