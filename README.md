@@ -1,14 +1,14 @@
 # <a href='http://radi.js.org'><img src='https://rawgit.com/radi-js/radi/gh-pages/logo/radijs-github.png' height='60' alt='Radi' aria-label='Redux.js.org' /></a>
 
-**Radi** is a tiny (3kB minified & gzipped) javascript framework.
+**Radi** is a tiny javascript framework.
 
 It's built quite differently from any other framework. It doesn't use any kind of diffing algorithm nor virtual dom which makes it really fast.
 
-With Radi you can create any kind of single-page applications or more complex applications with **no dependencies required!** Oh did I mention that Radi.js is faster than any popular framework? And yes it is.
+With Radi you can create any kind of single-page applications or more complex applications.
 
 [![npm version](https://img.shields.io/npm/v/radi.svg?style=flat-square)](https://www.npmjs.com/package/radi)
 [![npm downloads](https://img.shields.io/npm/dm/radi.svg?style=flat-square)](https://www.npmjs.com/package/radi)
-[![gzip bundle size](http://img.badgesize.io/https://unpkg.com/radi@0.1.1/dist/radi.min.js?compression=gzip&style=flat-square)](https://unpkg.com/radi@0.1.1/dist/radi.js)
+[![gzip bundle size](http://img.badgesize.io/https://unpkg.com/radi@latest/dist/radi.es.min.js?compression=gzip&style=flat-square)](https://unpkg.com/radi@latest/dist/radi.js)
 [![radi workspace on slack](https://img.shields.io/badge/slack-radijs-3eb891.svg?style=flat-square)](https://join.slack.com/t/radijs/shared_invite/enQtMjk3NTE2NjYxMTI2LWFmMTM5NTgwZDI5NmFlYzMzYmMxZjBhMGY0MGM2MzY5NmExY2Y0ODBjNDNmYjYxZWYxMjEyNjJhNjA5OTJjNzQ)
 
 
@@ -26,7 +26,7 @@ If you're not, you can [access these files on unpkg](https://unpkg.com/radi/dist
 
 #### Browser Compatibility
 
-Radi.js currently is compatible with browsers that support ES6. In stable release v1 it will support ES5 compatible browsers and even some below that, yes - looking at IE8 too.
+Radi.js currently is compatible with browsers that support at least ES5.
 
 ## Ecosystem
 
@@ -42,7 +42,9 @@ Radi.js currently is compatible with browsers that support ES6. In stable releas
 
 ## Documentation
 
-Documentation is currently being written. For now just a few examples to work our appetite.
+[Getting started guide](/docs)
+
+Here are just a few examples to work our appetite.
 
 #### Hello World example
 
@@ -50,77 +52,61 @@ Lets create component using JSX, tho it's not mandatory
 we can just use hyperscript `r('h1', 'Hello', this.sample, '!')`. I'm using JSX for html familiarity and to showcase compatibility.
 
 ```jsx
-/** @jsx r **/
-const { r, mount, component } = radi;
+/** @jsx Radi.r **/
 
-const main = component({
-  view: function() {
-    return (
-      <h1>Hello { this.sample } !</h1>
-    )
-  },
-  state: {
-    sample: 'World'
+class Hello extends Radi.component {
+  state() {
+    return { sample: 'World' };
   }
-});
+  view() {
+    return (
+      <h1>Hello { this.state.sample } !</h1>
+    )
+  }
+}
 
-mount(new main(), document.body);
+Radi.mount(<Hello />, document.body);
 ```
 
 This example will mount h1 to body like so `<body><h1>Hello World</h1></body>`
 
-[View this example on codepen](https://codepen.io/Marcisbee/pen/MQmOWG?editors=0010)
+#### Counter example (With Single File Component syntax)
 
-#### Counter example
+This will be different as we'll need to update state and use actions. Only actions can change state and trigger changes in DOM.
+Also we'll be using our SFC syntax for `*.radi` files
 
-This will be different as we'll need to update state and use actions. We'll need to use binder function `l(..)`. It binds any value to real DOM. When something in this function updates, DOM will change too.
-
+`Counter.radi`
 ```jsx
-/** @jsx r **/
-const { r, l, mount, component } = radi;
+state: {
+  count: 0
+}
 
-const counter = component({
-  view: function() {
-    return (
-      <div id="app">
-        <div class="counter">
-          { l(this.counter) }
-        </div>
-        <div class="buttons">
-          <button onclick={ this.down }
-            disabled={ l(this.counter <= 0) }>-</button>
-          <button onclick={ this.up }>+</button>
-        </div>
-      </div>
-    )
-  },
-  state: {
-    counter: 0
-  },
-  actions: {
-    up() {
-      this.counter += 1;
-    },
-    down() {
-      this.counter -= 1;
-    }
+@action up() {
+  return {
+    count: this.state.count +1
   }
-});
+}
 
-mount(new counter(), document.body);
+@action down() {
+  return {
+    count: this.state.count -1
+  }
+}
+
+<h1>{ this.state.count }</h1>
+
+<button onclick={ () => this.down() } disabled={ this.state.count <= 0 }>-</button>
+
+<button onclick={ () => this.up() }>+</button>
 ```
-
-[View this example on codepen](https://codepen.io/Marcisbee/pen/PQmObp?editors=0010). In codepen I use hyperscript instead jsx for more diverse example purpose.
 
 ## Architecture
 
-I'm in process of creating some cool examples and diagrams of how exactly Radi works.
+Radi fully renders page only once initially. After that `listeners` take control. They can listen for state changes in any Radi component. When change in state is caught, listener then re-renders only that part.
 
-<!-- ## Benchmarks
+Other frameworks silently re-renders whole page over and over again, then apply changes. But radi only re-renders parts that link to changed state values.
 
-I'm in process of creating some cool examples and diagrams of how exactly Radi works. -->
-
-<!-- To check out [live examples](https://radi.js.org/examples/) and docs, visit [radi.js.org](https://radi.js.org). -->
+To check out [live repl](https://radi.js.org/#/fiddle) and [docs](https://radi.js.org/#/docs), visit [radi.js.org](https://radi.js.org).
 
 <!-- ## Changelog
 

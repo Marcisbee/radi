@@ -1,8 +1,8 @@
-const { mount } = require('../../src/index.js');
+const mount = require('../../src/mount.js').default;
 
-var main = require('./app');
+const main = require('./app');
 
-var app = mount(new main(), 'app');
+const app = mount(new main(), 'app');
 
 if (module.hot) {
   module.hot.accept();
