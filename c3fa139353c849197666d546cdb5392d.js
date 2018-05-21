@@ -70,5 +70,5 @@ var HeadlessComponents = function (_radi$Component) {
 
 exports.default = HeadlessComponents;
 ;
-},{"radi":13,"../../layouts/DocsLayout.radi":49,"../../helpers/docs-bundle.js":50}]},{},[31])
+},{"radi":13,"../../layouts/DocsLayout.radi":38,"../../helpers/docs-bundle.js":39}]},{},[31])
 //# sourceMappingURL=c3fa139353c849197666d546cdb5392d.map

@@ -70,5 +70,5 @@ var Installation = function (_radi$Component) {
 
 exports.default = Installation;
 ;
-},{"radi":13,"../../layouts/DocsLayout.radi":49,"../../helpers/docs-bundle.js":50}]},{},[23])
+},{"radi":13,"../../layouts/DocsLayout.radi":38,"../../helpers/docs-bundle.js":39}]},{},[23])
 //# sourceMappingURL=9ca4b6ef18cb1ad75020484ca3a92949.map

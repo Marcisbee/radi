@@ -70,5 +70,5 @@ var Actions = function (_radi$Component) {
 
 exports.default = Actions;
 ;
-},{"radi":13,"../../layouts/DocsLayout.radi":49,"../../helpers/docs-bundle.js":50}]},{},[27])
+},{"radi":13,"../../layouts/DocsLayout.radi":38,"../../helpers/docs-bundle.js":39}]},{},[27])
 //# sourceMappingURL=8881f6b1d97e538095b5d9959ae76432.map
