@@ -1,7 +1,7 @@
 var GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.14',
+  VERSION: '0.3.15',
   ACTIVE_COMPONENTS: {},
   HTML_CACHE: {},
 };
@@ -909,7 +909,6 @@ Component.isComponent = function isComponent () {
  * @returns {HTMLElement|Node}
  */
 var mount = (component, id, isSvg) => {
-  var container = document.createDocumentFragment();
   var slot = typeof id === 'string' ? document.getElementById(id) : id;
   isSvg = isSvg || slot instanceof SVGElement;
   var rendered =
@@ -917,15 +916,11 @@ var mount = (component, id, isSvg) => {
 
   if (Array.isArray(rendered)) {
     for (var i = 0; i < rendered.length; i++) {
-      mount(rendered[i], container, isSvg);
+      mount(rendered[i], slot, isSvg);
     }
   } else {
-    // Mount to container
-    appendChild(container, isSvg)(rendered);
+    appendChild(slot, isSvg)(rendered);
   }
-
-  // Mount to element
-  slot.appendChild(container);
 
   if (typeof slot.destroy !== 'function') {
     slot.destroy = () => {
@@ -964,6 +959,15 @@ var listenerToNode = (value, isSvg) => {
   return listenerToNode(element);
 };
 
+/**
+ * @param {HTMLElement} beforeNode
+ * @param {HTMLElement} newNode
+ * @returns {HTMLElement}
+ */
+var insertAfter = (beforeNode, newNode) => (
+  beforeNode.parentNode.insertBefore(newNode, beforeNode.nextSibling)
+);
+
 var ElementListener = function ElementListener(ref) {
   var listener = ref.listener;
   var element = ref.element;
@@ -996,7 +1000,12 @@ ElementListener.prototype.handleValueChange = function handleValueChange (value)
   var i = 0;
   for (var node of newNode) {
     if (!this.listenerAsNode[i]) {
-      this.listenerAsNode.push(this.element.appendChild(node));
+      if (this.listenerAsNode[i - 1]) {
+        this.listenerAsNode.push(node);
+        insertAfter(this.listenerAsNode[i - 1], node);
+      } else {
+        this.listenerAsNode.push(this.element.appendChild(node));
+      }
     } else {
       this.listenerAsNode[i] = fuseDom.fuse(this.listenerAsNode[i], node);
     }
@@ -1063,6 +1072,13 @@ var appendChild = (element, isSvg) => child => {
     return;
   }
 
+  if (child.isComponent) {
+    /*eslint-disable*/
+    mount(new child(), element, isSvg);
+    /* eslint-enable */
+    return;
+  }
+
   if (child instanceof Listener) {
     appendListenerToElement(child, element);
     return;
@@ -1073,36 +1089,23 @@ var appendChild = (element, isSvg) => child => {
     return;
   }
 
-  // Handles lazy loading components
   if (typeof child === 'function') {
-    var executed = child();
-    if (executed instanceof Promise) {
-      var placeholder = document.createElement('section');
-      placeholder.__async = true;
-      var el = element.appendChild(placeholder);
-      el.__async = true;
-      executed.then(local => {
-        if (local.default && local.default.isComponent) {
-          /* eslint-disable */
-          appendChild(el, isSvg)(new local.default());
-          /* eslint-enable */
-        } else
-        if (typeof local.default === 'function') {
-          var lazy = local.default();
-          lazy.then(item => {
-            if (item.default && item.default.isComponent) {
-              /* eslint-disable */
-              appendChild(el, isSvg)(new item.default());
-              /* eslint-enable */
-            }
-          });
-        } else {
-          appendChild(el, isSvg)(local.default);
-        }
-      }).catch(console.warn);
-    } else {
-      appendChild(element, isSvg)(executed);
-    }
+    appendChild(element, isSvg)(child());
+    return;
+  }
+
+  // Handles lazy loading components
+  if (child instanceof Promise || child.constructor.name === 'LazyPromise') {
+    var placeholder = document.createElement('section');
+    placeholder.__async = true;
+    var el = element.appendChild(placeholder);
+    child.then(data => {
+      if (data.default) {
+        appendChild(el, isSvg)(data.default);
+      } else {
+        appendChild(el, isSvg)(data);
+      }
+    }).catch(console.warn);
     return;
   }
 

@@ -1,7 +1,7 @@
 const GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.14',
+  VERSION: '0.3.15',
   ACTIVE_COMPONENTS: {},
   HTML_CACHE: {},
 };

@@ -28,6 +28,13 @@ const appendChild = (element, isSvg) => child => {
     return;
   }
 
+  if (child.isComponent) {
+    /*eslint-disable*/
+    mount(new child(), element, isSvg);
+    /* eslint-enable */
+    return;
+  }
+
   if (child instanceof Listener) {
     appendListenerToElement(child, element);
     return;
@@ -38,36 +45,23 @@ const appendChild = (element, isSvg) => child => {
     return;
   }
 
-  // Handles lazy loading components
   if (typeof child === 'function') {
-    const executed = child();
-    if (executed instanceof Promise) {
-      const placeholder = document.createElement('section');
-      placeholder.__async = true;
-      const el = element.appendChild(placeholder);
-      el.__async = true;
-      executed.then(local => {
-        if (local.default && local.default.isComponent) {
-          /* eslint-disable */
-          appendChild(el, isSvg)(new local.default());
-          /* eslint-enable */
-        } else
-        if (typeof local.default === 'function') {
-          const lazy = local.default();
-          lazy.then(item => {
-            if (item.default && item.default.isComponent) {
-              /* eslint-disable */
-              appendChild(el, isSvg)(new item.default());
-              /* eslint-enable */
-            }
-          });
-        } else {
-          appendChild(el, isSvg)(local.default);
-        }
-      }).catch(console.warn);
-    } else {
-      appendChild(element, isSvg)(executed);
-    }
+    appendChild(element, isSvg)(child());
+    return;
+  }
+
+  // Handles lazy loading components
+  if (child instanceof Promise || child.constructor.name === 'LazyPromise') {
+    const placeholder = document.createElement('section');
+    placeholder.__async = true;
+    const el = element.appendChild(placeholder);
+    child.then(data => {
+      if (data.default) {
+        appendChild(el, isSvg)(data.default);
+      } else {
+        appendChild(el, isSvg)(data);
+      }
+    }).catch(console.warn);
     return;
   }
 

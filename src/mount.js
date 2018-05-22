@@ -9,7 +9,6 @@ import fuseDom from './r/utils/fuseDom';
  * @returns {HTMLElement|Node}
  */
 const mount = (component, id, isSvg) => {
-  const container = document.createDocumentFragment()
   const slot = typeof id === 'string' ? document.getElementById(id) : id;
   isSvg = isSvg || slot instanceof SVGElement;
   const rendered =
@@ -17,15 +16,11 @@ const mount = (component, id, isSvg) => {
 
   if (Array.isArray(rendered)) {
     for (var i = 0; i < rendered.length; i++) {
-      mount(rendered[i], container, isSvg);
+      mount(rendered[i], slot, isSvg);
     }
   } else {
-    // Mount to container
-    appendChild(container, isSvg)(rendered);
+    appendChild(slot, isSvg)(rendered);
   }
-
-  // Mount to element
-  slot.appendChild(container);
 
   if (typeof slot.destroy !== 'function') {
     slot.destroy = () => {

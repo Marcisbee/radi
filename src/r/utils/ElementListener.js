@@ -1,4 +1,5 @@
 import listenerToNode from './listenerToNode';
+import insertAfter from './insertAfter';
 import fuseDom from './fuseDom';
 
 export default class ElementListener {
@@ -36,7 +37,12 @@ export default class ElementListener {
     var i = 0
     for (const node of newNode) {
       if (!this.listenerAsNode[i]) {
-        this.listenerAsNode.push(this.element.appendChild(node));
+        if (this.listenerAsNode[i - 1]) {
+          this.listenerAsNode.push(node);
+          insertAfter(this.listenerAsNode[i - 1], node);
+        } else {
+          this.listenerAsNode.push(this.element.appendChild(node));
+        }
       } else {
         this.listenerAsNode[i] = fuseDom.fuse(this.listenerAsNode[i], node);
       }
