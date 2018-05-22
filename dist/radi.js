@@ -7,7 +7,7 @@
   var GLOBALS = {
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.3.15',
+    VERSION: '0.3.16',
     ACTIVE_COMPONENTS: {},
     HTML_CACHE: {},
   };
@@ -364,7 +364,9 @@
             var data = [];
             var inputs = e.target.elements || [];
             for (var input of inputs) {
-              if (input.name !== '') {
+              if (input.name !== ''
+                && (input.type !== 'radio' && input.type !== 'checkbox')
+                || input.checked) {
                 var item = {
                   name: input.name,
                   el: input,
@@ -380,9 +382,11 @@
                   },
                 };
                 data.push(item);
-                Object.defineProperty(data, item.name, {
-                  value: item,
-                });
+                if (!data[item.name]) {
+                  Object.defineProperty(data, item.name, {
+                    value: item,
+                  });
+                }
               }
             }
 

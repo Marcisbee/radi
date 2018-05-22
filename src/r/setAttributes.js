@@ -81,7 +81,9 @@ const setAttributes = (element, attributes) => {
           const data = [];
           const inputs = e.target.elements || [];
           for (const input of inputs) {
-            if (input.name !== '') {
+            if (input.name !== ''
+              && (input.type !== 'radio' && input.type !== 'checkbox')
+              || input.checked) {
               const item = {
                 name: input.name,
                 el: input,
@@ -97,9 +99,11 @@ const setAttributes = (element, attributes) => {
                 },
               };
               data.push(item);
-              Object.defineProperty(data, item.name, {
-                value: item,
-              });
+              if (!data[item.name]) {
+                Object.defineProperty(data, item.name, {
+                  value: item,
+                });
+              }
             }
           }
 
