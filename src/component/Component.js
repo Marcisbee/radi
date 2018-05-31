@@ -53,13 +53,13 @@ export default class Component {
     if (Array.isArray(rendered)) {
       for (let i = 0; i < rendered.length; i++) {
         if (typeof rendered[i].buildNode === 'function') {
-          rendered[i] = rendered[i].buildNode(isSvg);
+          rendered[i] = rendered[i].buildNode(isSvg, 0);
         }
         rendered[i].destroy = this.destroy.bind(this);
       }
     } else {
       if (typeof rendered.buildNode === 'function') {
-        rendered = rendered.buildNode(isSvg);
+        rendered = rendered.buildNode(isSvg, 0);
       }
       rendered.destroy = this.destroy.bind(this);
     }
@@ -107,9 +107,10 @@ export default class Component {
   /**
    * @param {string} key
    * @param {Listener} listener
+   * @param {number} depth
    */
-  addListener(key, listener) {
-    this.$privateStore.addListener(key, listener);
+  addListener(key, listener, depth) {
+    this.$privateStore.addListener(key, listener, depth);
   }
 
   mount() {

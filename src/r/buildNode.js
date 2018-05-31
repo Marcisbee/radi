@@ -17,7 +17,7 @@ const memoizeSVG = query => svgCache[query]
  * @param {...*} children
  * @returns {(HTMLElement|Component)}
  */
-const buildNode = (isSvg, Query, props, ...children) => {
+const buildNode = (isSvg, depth, Query, props, ...children) => {
   if (typeof Query === 'function' && Query.isComponent) {
     return new Query(children).setProps(props || {});
   }
@@ -33,8 +33,8 @@ const buildNode = (isSvg, Query, props, ...children) => {
   const element = (copyIsSvg ? memoizeSVG(Query) : memoizeHTML(Query))
     .cloneNode(false);
 
-  if (props !== null) setAttributes(element, props);
-  appendChildren(element, children, copyIsSvg);
+  if (props !== null) setAttributes(element, props, depth);
+  appendChildren(element, children, copyIsSvg, depth);
 
   if (element.onload) element.onload(element);
 
@@ -42,6 +42,6 @@ const buildNode = (isSvg, Query, props, ...children) => {
 };
 
 export default {
-  html: (...args) => buildNode(false, ...args),
-  svg: (...args) => buildNode(true, ...args),
+  html: depth => (...args) => buildNode(false, depth, ...args),
+  svg: depth => (...args) => buildNode(true, depth, ...args),
 };

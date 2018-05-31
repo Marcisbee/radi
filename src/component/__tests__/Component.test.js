@@ -96,12 +96,12 @@ describe('Component.js', () => {
       attached: true,
       handleUpdate: sinon.spy(),
     };
-    component.addListener('foo', listener);
-    expect(component.$privateStore.store.foo.listeners[0]).toBe(listener);
-    expect(listener.handleUpdate.calledOnce).toBe(true);
+    component.addListener('foo', listener, 0);
+    expect(component.$privateStore.store.foo.listeners[0][0]).toBe(listener);
+    expect(listener.handleUpdate.callCount).toBe(0);
     component.setState({foo: 'baz'});
-    expect(listener.handleUpdate.callCount).toBe(2);
-    expect(listener.handleUpdate.getCall(1).args[0]).toBe('baz');
+    expect(listener.handleUpdate.callCount).toBe(1);
+    expect(listener.handleUpdate.getCall(0).args[0]).toBe('baz');
   });
 
   test('its mount method works correctly', () => {

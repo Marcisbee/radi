@@ -22,10 +22,13 @@ describe('AttributeListener.js', () => {
         onValueChange: (callback) => {
           callback('bar');
         },
+        applyDepth: () => options.listener,
+        init: () => {},
       },
       element: {
         setAttribute: setAttributeSpy,
       },
+      depth: 0,
     };
     const attributeListener = new AttributeListener(options);
     const result = attributeListener.attach();
@@ -33,15 +36,5 @@ describe('AttributeListener.js', () => {
     expect(options.element.attributeListeners[0]).toBe(attributeListener);
     expect(setAttributeSpy.calledOnce).toBe(true);
     expect(setAttributeSpy.getCall(0).args).toEqual(['foo', 'bar']);
-  });
-
-  it('updates its element correctly', () => {
-    const attributeListener = new AttributeListener({
-      attributeKey: 'foo',
-      listener: {},
-      element: {},
-    });
-    attributeListener.updateElement({ foo: 'bar' });
-    expect(attributeListener.element).toEqual({ foo: 'bar' });
   });
 });

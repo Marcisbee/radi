@@ -6,8 +6,10 @@ export default class AttributeListener {
    * @param {string} options.attributeKey
    * @param {Listener} options.listener
    * @param {Node} options.element
+   * @param {number} options.depth
    */
-  constructor({ attributeKey, listener, element }) {
+  constructor({ attributeKey, listener, element, depth }) {
+    this.depth = depth + 1;
     this.attributeKey = attributeKey;
     this.listener = listener;
     this.element = element;
@@ -22,6 +24,7 @@ export default class AttributeListener {
   attach() {
     if (!this.element.attributeListeners) this.element.attributeListeners = [];
     this.element.attributeListeners.push(this);
+    this.listener.applyDepth(this.depth).init();
     this.listener.onValueChange(this.handleValueChange);
     this.attached = true;
 
@@ -58,20 +61,11 @@ export default class AttributeListener {
     }
   }
 
-  /**
-   * @param {Node} newElement
-   */
-  updateElement(newElement) {
-    this.element = newElement;
-    return this.element;
-  }
-
   deattach() {
     this.attributeKey = null;
     this.listener.deattach();
     this.listener = null;
     this.element = null;
-    this.listenerAsNode = null;
     this.attached = false;
     this.handleValueChange = () => {};
   }

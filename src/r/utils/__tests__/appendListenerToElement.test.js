@@ -5,6 +5,8 @@ describe('appendListenerToElement.js', () => {
   it('it creates an instance of ElementListener and attaches it', () => {
     const fakeListener = {
       onValueChange: () => {},
+      applyDepth: () => fakeListener,
+      init: () => {},
     };
     const fakeElement = {
       appendChild: () => {},

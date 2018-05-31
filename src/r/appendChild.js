@@ -10,43 +10,44 @@ import appendListenerToElement from './utils/appendListenerToElement';
 /**
  * @param {HTMLElement} element
  * @param {boolean} isSvg
+ * @param {number} depth
  * @returns {function(*)}
  */
-const appendChild = (element, isSvg) => child => {
+const appendChild = (element, isSvg, depth) => child => {
   if (!child && typeof child !== 'number') {
     // Needs to render every child, even empty ones to preserve dom hierarchy
     child = '';
   }
 
   if (typeof child.buildNode === 'function') {
-    appendChild(element, isSvg)(child.buildNode(isSvg));
+    appendChild(element, isSvg, depth)(child.buildNode(isSvg, depth));
     return;
   }
 
   if (child instanceof Component) {
-    mount(child, element, isSvg);
+    mount(child, element, isSvg, depth);
     return;
   }
 
   if (child.isComponent) {
     /*eslint-disable*/
-    mount(new child(), element, isSvg);
+    mount(new child(), element, isSvg, depth);
     /* eslint-enable */
     return;
   }
 
   if (child instanceof Listener) {
-    appendListenerToElement(child, element);
+    appendListenerToElement(child.applyDepth(depth), element, depth);
     return;
   }
 
   if (Array.isArray(child)) {
-    appendChildren(element, child, isSvg);
+    appendChildren(element, child, isSvg, depth);
     return;
   }
 
   if (typeof child === 'function') {
-    appendChild(element, isSvg)(child());
+    appendChild(element, isSvg, depth)(child());
     return;
   }
 
@@ -57,9 +58,9 @@ const appendChild = (element, isSvg) => child => {
     const el = element.appendChild(placeholder);
     child.then(data => {
       if (data.default) {
-        appendChild(el, isSvg)(data.default);
+        appendChild(el, isSvg, depth)(data.default);
       } else {
-        appendChild(el, isSvg)(data);
+        appendChild(el, isSvg, depth)(data);
       }
     }).catch(console.warn);
     return;

@@ -6,25 +6,28 @@ export default class PrivateStore {
   /**
    * @param {string} key
    * @param {Listener} listener
+   * @param {number} depth
    */
-  addListener(key, listener) {
+  addListener(key, listener, depth) {
     if (typeof this.store[key] === 'undefined') {
       this.createItemWrapper(key);
     }
-    this.store[key].listeners = this.store[key].listeners.filter(item => (
+    this.store[key].listeners[depth] = (this.store[key].listeners[depth] || []).filter(item => (
       item.attached
     ));
-    this.store[key].listeners.push(listener);
-    listener.handleUpdate(this.store[key].value);
+    this.store[key].listeners[depth].push(listener);
 
     return listener;
   }
 
+  /**
+   * Removes all listeners for all keys
+   */
   removeListeners() {
     let o = Object.keys(this.store);
     for (var i = 0; i < o.length; i++) {
-      this.store[o[i]].listeners = [];
-      this.store[o[i]].null = [];
+      this.store[o[i]].listeners = {};
+      this.store[o[i]].value = null;
     }
   }
 
@@ -54,7 +57,7 @@ export default class PrivateStore {
    */
   createItemWrapper(key) {
     return this.store[key] = {
-      listeners: [],
+      listeners: {},
       value: null,
     };
   }
@@ -67,9 +70,17 @@ export default class PrivateStore {
   triggerListeners(key) {
     const item = this.store[key];
     if (item) {
-      item.listeners.forEach(listener => {
-        if (listener.attached) listener.handleUpdate(item.value)
-      });
+      let clone = Object.keys(item.listeners)
+        .sort()
+        .map(key => (
+          item.listeners[key].map(listener => listener)
+        ));
+
+      for (var i = 0; i < clone.length; i++) {
+        for (var n = clone[i].length - 1; n >= 0; n--) {
+          if (clone[i][n].attached) clone[i][n].handleUpdate(item.value)
+        }
+      }
     }
   }
 }

@@ -7,8 +7,8 @@ import buildNode from './buildNode';
  * @returns {(HTMLElement|Component)}
  */
 const r = (Query, props, ...children) => ({
-  buildNode: isSvg =>
-    buildNode[isSvg ? 'svg' : 'html'](Query, props, ...children),
+  buildNode: (isSvg, depth = 0) =>
+    buildNode[isSvg ? 'svg' : 'html'](depth)(Query, props, ...children),
 });
 
 export default r;

@@ -13,31 +13,21 @@ describe('ElementListener.js', () => {
   });
 
   it('attaches and updates correctly', () => {
-    const appendChildSpy = sinon.spy();
     const options = {
       listener: {
         onValueChange: callback => {
           callback('bar');
         },
+        applyDepth: () => options.listener,
+        init: () => {},
       },
-      element: {
-        appendChild: appendChildSpy,
-      },
+      element: document.createElement('div'),
+      depth: 0,
     };
     const elementListener = new ElementListener(options);
     const result = elementListener.attach();
     expect(result).toBe(elementListener);
     expect(options.element.listeners[0]).toBe(elementListener);
-    expect(appendChildSpy.calledOnce).toBe(true);
-    expect(appendChildSpy.getCall(0).args[0]).toEqual(document.createTextNode('bar'));
-  });
-
-  it('updates its element correctly', () => {
-    const elementListener = new ElementListener({
-      listener: {},
-      element: {},
-    });
-    elementListener.updateElement({ foo: 'bar' });
-    expect(elementListener.element).toEqual({ foo: 'bar' });
+    expect(options.element.innerHTML).toEqual('bar');
   });
 });

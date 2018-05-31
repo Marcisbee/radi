@@ -14,8 +14,9 @@ import AttributeListener from './utils/AttributeListener';
 /**
  * @param {HTMLElement} element
  * @param {object} attributes
+ * @param {number} depth
  */
-const setAttributes = (element, attributes) => {
+const setAttributes = (element, attributes, depth) => {
   for (const key in attributes) {
     const value = attributes[key];
 
@@ -28,7 +29,7 @@ const setAttributes = (element, attributes) => {
     }
 
     if (key.toLowerCase() === 'style') {
-      setStyles(element, value);
+      setStyles(element, value, depth);
       continue;
     }
 
@@ -37,6 +38,7 @@ const setAttributes = (element, attributes) => {
         attributeKey: key,
         listener: value,
         element,
+        depth,
       }).attach();
       continue;
     }
@@ -81,8 +83,8 @@ const setAttributes = (element, attributes) => {
           const data = [];
           const inputs = e.target.elements || [];
           for (const input of inputs) {
-            if (input.name !== ''
-              && (input.type !== 'radio' && input.type !== 'checkbox')
+            if ((input.name !== ''
+              && (input.type !== 'radio' && input.type !== 'checkbox'))
               || input.checked) {
               const item = {
                 name: input.name,

@@ -6,8 +6,10 @@ export default class StyleListener {
    * @param {string} options.styleKey
    * @param {Listener} options.listener
    * @param {Node} options.element
+   * @param {number} options.depth
    */
-  constructor({ styleKey, listener, element }) {
+  constructor({ styleKey, listener, element, depth }) {
+    this.depth = depth + 1;
     this.styleKey = styleKey;
     this.listener = listener;
     this.element = element;
@@ -22,6 +24,7 @@ export default class StyleListener {
   attach() {
     if (!this.element.styleListeners) this.element.styleListeners = [];
     this.element.styleListeners.push(this);
+    this.listener.applyDepth(this.depth).init();
     this.listener.onValueChange(this.handleValueChange);
     this.attached = true;
     return this;

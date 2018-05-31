@@ -1,7 +1,7 @@
 import insertAfter from '../insertAfter';
 import buildNode from '../../buildNode';
 
-/* @jsx buildNode.html */
+/* @jsx buildNode.html(0) */
 describe('insertAfter.js', () => {
   it('inserts element correctly', () => {
     const child = <i>1</i>;

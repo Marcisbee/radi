@@ -77,12 +77,12 @@ const destroy = node => {
 			}
 		}
 		el.styleListeners = null;
-		if (el.destroy) el.destroy();
-		bulk.push(function() {
+		bulk.push((el => {
+			if (el && el.destroy) el.destroy();
 			if (el && el.parentNode) {
 				el.parentNode.removeChild(el);
 			}
-		})
+		}).bind(null, el))
 	}
 	if (node.listeners) {
 		for (var i = 0; i < node.listeners.length; i++) {
@@ -117,14 +117,6 @@ const destroy = node => {
 	bulk = null;
 }
 
-function same (a, b) {
-  if (a.id) return a.id === b.id
-  if (a.isSameNode) return a.isSameNode(b)
-  if (a.tagName !== b.tagName) return false
-  if (a.type === 3) return a.nodeValue === b.nodeValue
-  return false
-}
-
 /**
  * @param {HTMLElement} newNode
  * @param {HTMLElement} oldNode
@@ -137,32 +129,41 @@ const fuse = (toNode, fromNode, childOnly) => {
 		const nt1 = toNode.nodeType;
 		const nt2 = fromNode.nodeType;
 
+		if (toNode.isPointer || fromNode.isPointer || toNode.destroy || fromNode.destroy) {
+			toNode.parentNode.insertBefore(fromNode, toNode);
+			destroy(toNode);
+			return fromNode;
+		}
+
 		if (nt1 === nt2 && (nt1 === 3 || nt2 === 8)) {
-			if (!same(toNode, fromNode)) {
-			// if (!toNode.isEqualNode(fromNode)) {
+			if (toNode.nodeValue !== fromNode.nodeValue) {
 				toNode.nodeValue = fromNode.nodeValue;
 				destroy(fromNode);
 			}
 			return toNode;
 		}
 
-		if (fromNode.destroy || toNode.destroy
-			|| fromNode.__async || toNode.__async
-			|| toNode.listeners || fromNode.listeners
-			|| nt1 === 3 || nt2 === 3
-			|| nt1 === 1 || nt2 === 1) {
-			if (!same(toNode, fromNode)) {
-			// if (!toNode.isEqualNode(fromNode)) {
+		// if (nt1 === 1 || nt2 === 1) {
+		// 	toNode.replaceWith(fromNode);
+		// 	destroy(toNode);
+		// 	return fromNode;
+		// }
+		if ((nt1 === 1 || nt2 === 1)
+			&& (toNode.tagName !== fromNode.tagName)
+			|| (toNode.__async || fromNode.__async)
+			|| (toNode.listeners && toNode.listeners.length || fromNode.listeners && fromNode.listeners.length)) {
+			if (toNode.parentNode) {
 				toNode.parentNode.insertBefore(fromNode, toNode);
 				destroy(toNode);
+				return fromNode;
+			} else {
+				toNode.replaceWith(fromNode);
+				destroy(toNode);
+				return fromNode;
 			}
-			return fromNode;
 		}
 
-		// console.dir(fromNode)
-		// if (fromNode.listeners) {
-			fuseAttributes(toNode, fromNode, getElementAttributes(toNode));
-		// }
+		fuseAttributes(toNode, fromNode, getElementAttributes(toNode));
 	}
 
 	let a1 = [ ...toNode.childNodes || toNode ];

@@ -4,7 +4,7 @@
  * @returns {HTMLElement}
  */
 const insertAfter = (beforeNode, newNode) => (
-  beforeNode.parentNode.insertBefore(newNode, beforeNode.nextSibling)
+  beforeNode.parentNode && beforeNode.parentNode.insertBefore(newNode, beforeNode.nextSibling)
 );
 
 export default insertAfter;

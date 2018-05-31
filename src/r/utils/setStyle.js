@@ -9,9 +9,10 @@ import parseValue from './parseValue';
  * @param {HTMLElement} element
  * @param {string} property
  * @param {string} value
+ * @param {number} depth
  * @returns {*}
  */
-const setStyle = (element, property, value) => {
+const setStyle = (element, property, value, depth) => {
   if (typeof value === 'undefined') return undefined;
 
   if (value instanceof Listener) {
@@ -19,6 +20,7 @@ const setStyle = (element, property, value) => {
       styleKey: property,
       listener: value,
       element,
+      depth,
     }).attach();
     return element[property];
   }

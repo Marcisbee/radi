@@ -24,6 +24,8 @@ describe('StyleListener.js', () => {
         onValueChange: (callback) => {
           callback('bar');
         },
+        applyDepth: () => options.listener,
+        init: () => {},
       },
       element: {
         style: {},
