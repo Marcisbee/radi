@@ -1,7 +1,7 @@
 var GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.17',
+  VERSION: '0.3.18',
   ACTIVE_COMPONENTS: {},
   HTML_CACHE: {},
 };
@@ -245,6 +245,41 @@ Listener.prototype.unlink = function unlink () {
   }
 };
 
+
+Listener.prototype.clone = function clone (target, source) {
+  var out = {};
+
+  for (var i in target) {
+    out[i] = target[i];
+  }
+  for (var i$1 in source) {
+    out[i$1] = source[i$1];
+  }
+
+  return out;
+};
+
+Listener.prototype.setPartialState = function setPartialState (path, value, source) {
+  var target = {};
+  if (path.length) {
+    target[path[0]] =
+      path.length > 1
+        ? this.setPartialState(path.slice(1), value, source[path[0]])
+        : value;
+    return this.clone(source, target);
+  }
+  return value;
+};
+
+/**
+ * Updates state value
+ * @param {*} value
+ */
+Listener.prototype.updateValue = function updateValue (value) {
+  var source = this.component.state;
+  return this.component.setState(this.setPartialState([this.key, ...this.path], value, source));
+};
+
 /**
  * @param {*} value
  */
@@ -339,15 +374,11 @@ AttributeListener.prototype.attach = function attach () {
   if (this.attributeKey === 'model') {
     if (/(checkbox|radio)/.test(this.element.getAttribute('type'))) {
       this.element.addEventListener('change', (e) => {
-        this.listener.component.setState({
-          [this.listener.key]: e.target.checked
-        });
+        this.listener.updateValue(e.target.checked);
       });
     } else {
       this.element.addEventListener('input', (e) => {
-        this.listener.component.setState({
-          [this.listener.key]: e.target.value
-        });
+        this.listener.updateValue(e.target.value);
       });
     }
   }
@@ -554,7 +585,6 @@ var setAttributes = (element, attributes, depth) => {
       return;
     }
 
-    // TODO: FuseDom pass event listeners to new element
     if (key.toLowerCase() === 'model') {
       if (/(checkbox|radio)/.test(element.getAttribute('type'))) {
         element.onchange = (e) => {

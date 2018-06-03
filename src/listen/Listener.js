@@ -1,5 +1,7 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-shadow */
+/* eslint-disable guard-for-in */
+/* eslint-disable no-restricted-syntax */
 import fuseDom from '../r/utils/fuseDom';
 
 export default class Listener {
@@ -39,6 +41,41 @@ export default class Listener {
       // Deattach this Listener
       this.value.deattach();
     }
+  }
+
+
+  clone(target, source) {
+    const out = {};
+
+    for (const i in target) {
+      out[i] = target[i];
+    }
+    for (const i in source) {
+      out[i] = source[i];
+    }
+
+    return out;
+  }
+
+  setPartialState(path, value, source) {
+    const target = {};
+    if (path.length) {
+      target[path[0]] =
+        path.length > 1
+          ? this.setPartialState(path.slice(1), value, source[path[0]])
+          : value;
+      return this.clone(source, target);
+    }
+    return value;
+  }
+
+  /**
+   * Updates state value
+   * @param {*} value
+   */
+  updateValue(value) {
+    const source = this.component.state;
+    return this.component.setState(this.setPartialState([this.key, ...this.path], value, source));
   }
 
   /**

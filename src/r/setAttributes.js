@@ -61,7 +61,6 @@ const setAttributes = (element, attributes, depth) => {
       continue;
     }
 
-    // TODO: FuseDom pass event listeners to new element
     if (key.toLowerCase() === 'model') {
       if (/(checkbox|radio)/.test(element.getAttribute('type'))) {
         element.onchange = (e) => {
