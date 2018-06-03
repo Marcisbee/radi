@@ -1,6 +1,7 @@
 /* eslint-disable guard-for-in */
 /* eslint-disable no-restricted-syntax */
 /* eslint-disable no-continue */
+/* eslint-disable no-param-reassign */
 // -- we need those for..in loops for now!
 
 import GLOBALS from '../consts/GLOBALS';
@@ -9,6 +10,7 @@ import PrivateStore from './utils/PrivateStore';
 import fuseDom from '../r/utils/fuseDom';
 import clone from '../utils/clone';
 import skipInProductionAndTest from '../utils/skipInProductionAndTest';
+import Listener from '../listen/Listener';
 
 export default class Component {
   /**
@@ -73,7 +75,20 @@ export default class Component {
    * @returns {Component}
    */
   setProps(props) {
-    this.setState(props);
+    const newState = {};
+    for (const key in props) {
+      if (props[key] instanceof Listener) {
+        newState[key] = props[key].init().value;
+        props[key].changeListener = value => {
+          this.setState({
+            [key]: value,
+          });
+        };
+      } else {
+        newState[key] = props[key];
+      }
+    }
+    this.setState(newState);
     return this;
   }
 

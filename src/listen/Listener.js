@@ -26,6 +26,7 @@ export default class Listener {
     this.value = this.getValue(this.component.state[this.key]);
     this.component.addListener(this.key, this, this.depth);
     this.handleUpdate(this.component.state[this.key]);
+    return this;
   }
 
   /**
@@ -74,8 +75,10 @@ export default class Listener {
    * @param {*} value
    */
   updateValue(value) {
-    const source = this.component.state;
-    return this.component.setState(this.setPartialState([this.key, ...this.path], value, source));
+    const source = this.component.state[this.key];
+    return this.component.setState({
+      [this.key]: this.setPartialState(this.path, value, source),
+    });
   }
 
   /**
@@ -83,10 +86,10 @@ export default class Listener {
    */
   handleUpdate(value) {
     const newValue = this.processValue(this.getValue(value));
-    if (this.value instanceof Listener) {
+    if (this.value instanceof Listener && newValue instanceof Listener) {
       this.value.processValue = newValue.processValue;
-      newValue.deattach();
       this.value.handleUpdate(this.value.component.state[this.value.key]);
+      newValue.deattach();
     } else {
       this.unlink();
       this.value = newValue;
@@ -140,7 +143,6 @@ export default class Listener {
     this.path = null;
     this.unlink();
     this.value = null;
-    this.changeListeners = [];
     this.processValue = () => {};
   }
 }

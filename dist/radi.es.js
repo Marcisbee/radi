@@ -1,7 +1,7 @@
 var GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.18',
+  VERSION: '0.3.19',
   ACTIVE_COMPONENTS: {},
   HTML_CACHE: {},
 };
@@ -228,6 +228,7 @@ Listener.prototype.init = function init () {
   this.value = this.getValue(this.component.state[this.key]);
   this.component.addListener(this.key, this, this.depth);
   this.handleUpdate(this.component.state[this.key]);
+  return this;
 };
 
 /**
@@ -276,8 +277,10 @@ Listener.prototype.setPartialState = function setPartialState (path, value, sour
  * @param {*} value
  */
 Listener.prototype.updateValue = function updateValue (value) {
-  var source = this.component.state;
-  return this.component.setState(this.setPartialState([this.key, ...this.path], value, source));
+  var source = this.component.state[this.key];
+  return this.component.setState({
+    [this.key]: this.setPartialState(this.path, value, source),
+  });
 };
 
 /**
@@ -285,10 +288,10 @@ Listener.prototype.updateValue = function updateValue (value) {
  */
 Listener.prototype.handleUpdate = function handleUpdate (value) {
   var newValue = this.processValue(this.getValue(value));
-  if (this.value instanceof Listener) {
+  if (this.value instanceof Listener && newValue instanceof Listener) {
     this.value.processValue = newValue.processValue;
-    newValue.deattach();
     this.value.handleUpdate(this.value.component.state[this.value.key]);
+    newValue.deattach();
   } else {
     this.unlink();
     this.value = newValue;
@@ -342,7 +345,6 @@ Listener.prototype.deattach = function deattach () {
   this.path = null;
   this.unlink();
   this.value = null;
-  this.changeListeners = [];
   this.processValue = () => {};
 };
 
@@ -860,7 +862,22 @@ Component.prototype.render = function render (isSvg) {
  * @returns {Component}
  */
 Component.prototype.setProps = function setProps (props) {
-  this.setState(props);
+  var newState = {};
+  var loop = function ( key ) {
+    if (props[key] instanceof Listener) {
+      newState[key] = props[key].init().value;
+      props[key].changeListener = value => {
+        this.setState({
+          [key]: value,
+        });
+      };
+    } else {
+      newState[key] = props[key];
+    }
+  };
+
+    for (var key in props) loop( key );
+  this.setState(newState);
   return this;
 };
 
