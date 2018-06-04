@@ -7,9 +7,9 @@
   var GLOBALS = {
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.3.19',
+    VERSION: '0.3.20',
+    // TODO: Collect active components
     ACTIVE_COMPONENTS: {},
-    HTML_CACHE: {},
   };
 
   function getElementAttributes(el) {
@@ -312,7 +312,14 @@
   Listener.prototype.getValue = function getValue (source) {
     var i = 0;
     while (i < this.path.length) {
-      source = source[this.path[i++]];
+      if (source === null
+        || (!source[this.path[i]]
+        && typeof source[this.path[i]] !== 'number')) {
+        source = null;
+      } else {
+        source = source[this.path[i]];
+      }
+      i += 1;
     }
     return source;
   };

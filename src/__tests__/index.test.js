@@ -8,7 +8,6 @@ import component from '../component';
 
 afterAll(() => {
   GLOBALS.FROZEN_STATE = false;
-  GLOBALS.HTML_CACHE = {};
   GLOBALS.ACTIVE_COMPONENTS = [];
   GLOBALS.REGISTERED = [];
 });

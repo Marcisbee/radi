@@ -6,6 +6,5 @@ describe('GLOBALS.js', () => {
     expect(typeof GLOBALS.FROZEN_STATE).toBe('boolean');
     expect(typeof GLOBALS.VERSION).toBe('string');
     expect(typeof GLOBALS.ACTIVE_COMPONENTS).toBe('object');
-    expect(typeof GLOBALS.HTML_CACHE).toBe('object');
   });
 });

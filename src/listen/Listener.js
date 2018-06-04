@@ -104,7 +104,14 @@ export default class Listener {
   getValue(source) {
     let i = 0;
     while (i < this.path.length) {
-      source = source[this.path[i++]];
+      if (source === null
+        || (!source[this.path[i]]
+        && typeof source[this.path[i]] !== 'number')) {
+        source = null;
+      } else {
+        source = source[this.path[i]];
+      }
+      i += 1;
     }
     return source;
   }
