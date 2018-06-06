@@ -33,12 +33,19 @@ Radi.js currently is compatible with browsers that support at least ES5.
 | Project | Status | Description |
 |---------|--------|-------------|
 | [radi-router]          | [![radi-router-status]][radi-router-package] | Single-page application routing |
+| [radi-fetch]          | [![radi-fetch-status]][radi-fetch-package] | HTTP client for Radi.js |
 
 [radi-router]: https://github.com/radi-js/radi-router
 
 [radi-router-status]: https://img.shields.io/npm/v/radi-router.svg?style=flat-square
 
 [radi-router-package]: https://npmjs.com/package/radi-router
+
+[radi-fetch]: https://github.com/radi-js/radi-fetch
+
+[radi-fetch-status]: https://img.shields.io/npm/v/radi-fetch.svg?style=flat-square
+
+[radi-fetch-package]: https://npmjs.com/package/radi-fetch
 
 ## Documentation
 
