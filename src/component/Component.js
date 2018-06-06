@@ -76,11 +76,15 @@ export default class Component {
    */
   setProps(props) {
     const newState = {};
+    const self = this;
     for (const key in props) {
+      if (typeof props[key] === 'function' && key.substr(0, 2) === 'on') {
+        self.when(key.substring(2, key.length), props[key]);
+      } else
       if (props[key] instanceof Listener) {
         newState[key] = props[key].init().value;
         props[key].changeListener = value => {
-          this.setState({
+          self.setState({
             [key]: value,
           });
         };

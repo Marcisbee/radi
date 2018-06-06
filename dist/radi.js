@@ -7,7 +7,7 @@
   var GLOBALS = {
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.3.20',
+    VERSION: '0.3.21',
     // TODO: Collect active components
     ACTIVE_COMPONENTS: {},
   };
@@ -876,11 +876,15 @@
    */
   Component.prototype.setProps = function setProps (props) {
     var newState = {};
+    var self = this;
     var loop = function ( key ) {
+      if (typeof props[key] === 'function' && key.substr(0, 2) === 'on') {
+        self.when(key.substring(2, key.length), props[key]);
+      } else
       if (props[key] instanceof Listener) {
         newState[key] = props[key].init().value;
         props[key].changeListener = value => {
-          this.setState({
+          self.setState({
             [key]: value,
           });
         };
