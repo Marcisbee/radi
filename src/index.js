@@ -4,6 +4,7 @@ import listen from './listen';
 import component from './component';
 import Component from './component';
 import mount from './mount';
+import patch from './r/patch';
 import remountActiveComponents from './utils/remountActiveComponents';
 
 function createWorker(fn) {
@@ -82,6 +83,17 @@ const Radi = {
   Component,
   action,
   subscribe,
+  customAttribute: (attributeName, caller, {
+      allowedTags,
+      addToElement,
+    } = {}) => {
+    GLOBALS.CUSTOM_ATTRIBUTES[attributeName] = {
+      name: attributeName,
+      caller,
+      allowedTags: allowedTags || null,
+      addToElement,
+    };
+  },
   headless: (key, comp) => {
     // TODO: Validate component and key
     let name = '$'.concat(key);
@@ -90,6 +102,8 @@ const Radi = {
     Component.prototype[name] = mountedComponent;
     return GLOBALS.HEADLESS_COMPONENTS[name] = mountedComponent;
   },
+  update: patch,
+  patch,
   mount,
   freeze: () => {
     GLOBALS.FROZEN_STATE = true;
@@ -100,8 +114,16 @@ const Radi = {
   },
 };
 
+// Radi.customAttribute('source', (element, value) => {
+//   element.style.fontSize = value + 'px';
+//   console.log('Sourced', element, value)
+// }, {
+//   allowedTags: ['li', 'ul'],
+// })
+
 // Pass Radi instance to plugins
 Radi.plugin = (fn, ...args) => fn(Radi, ...args);
 
 if (window) window.Radi = Radi;
-export default Radi;
+// export default Radi;
+module.exports = Radi;

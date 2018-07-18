@@ -2,7 +2,7 @@
 /* eslint-disable no-shadow */
 /* eslint-disable guard-for-in */
 /* eslint-disable no-restricted-syntax */
-import fuseDom from '../r/utils/fuseDom';
+// import fuseDom from '../r/utils/fuseDom';
 
 export default class Listener {
   /**
@@ -17,6 +17,7 @@ export default class Listener {
     this.attached = true;
     this.processValue = value => value;
     this.changeListener = () => {};
+    this.addedListeners = [];
   }
 
   /**
@@ -36,7 +37,7 @@ export default class Listener {
   unlink() {
     if (this.value instanceof Node) {
       // Destroy this Node
-      fuseDom.destroy(this.value);
+      // fuseDom.destroy(this.value);
     } else
     if (this.value instanceof Listener) {
       // Deattach this Listener
@@ -81,15 +82,94 @@ export default class Listener {
     });
   }
 
+  extractListeners(value) {
+    // if (this.value instanceof Listener && value instanceof Listener) {
+    //   console.log('middle')
+    // } else
+    if (value instanceof Listener) {
+      // if (this.value instanceof Listener) {
+      //   this.value.processValue = value.processValue;
+      //   // this.value = value;
+      // this.handleUpdate(value.getValue(value.component.state[value.key]));
+      // console.log(value, value.getValue(value.component.state[value.key]));
+      // value.deattach();
+      // }
+      // value.component.addListener(value.key, value, value.depth);
+      // value.handleUpdate = () => {
+      //   console.log('inner handler')
+      // }
+      const tempListener = {
+        depth: value.depth,
+        attached: true,
+        processValue: value => value,
+        handleUpdate: () => {
+          if (this.component) {
+            this.handleUpdate(this.getValue(this.component.state[this.key]));
+          }
+          tempListener.attached = false;
+        },
+        changeListener: () => {},
+      };
+      this.addedListeners.push(tempListener);
+      value.component.addListener(value.key, tempListener, value.depth);
+      // value.init()
+      // value.handleUpdate = () => {
+      //   console.log('inner handler')
+      // }
+      // value.onValueChange((v) => {
+      //   this.handleUpdate(this.getValue(this.component.state[this.key]));
+      //   console.log('me got changed', v)
+      // });
+      const newValue = value.processValue(
+        value.getValue(value.component.state[value.key])
+      );
+      value.deattach();
+      return this.extractListeners(newValue);
+    }
+    return value;
+
+    // return this.processValue(this.getValue(value));
+  }
+
   /**
    * @param {*} value
    */
   handleUpdate(value) {
     const newValue = this.processValue(this.getValue(value));
-    if (this.value instanceof Listener && newValue instanceof Listener) {
-      this.value.processValue = newValue.processValue;
-      this.value.handleUpdate(this.value.component.state[this.value.key]);
-      newValue.deattach();
+    // if (this.value instanceof Listener && newValue instanceof Listener) {
+    //   this.value.processValue = newValue.processValue;
+    //   // this.value = newValue;
+    //   this.value.handleUpdate(newValue.component.state[newValue.key]);
+    //   console.log(newValue, newValue.getValue(newValue.component.state[newValue.key]));
+    //   newValue.deattach();
+    // } else
+    if (newValue instanceof Listener) {
+      // if (this.value instanceof Listener) {
+      //   this.value.processValue = newValue.processValue;
+      //   // this.value = newValue;
+      //   this.value.handleUpdate(newValue.component.state[newValue.key]);
+      //   console.log(newValue, newValue.getValue(newValue.component.state[newValue.key]));
+      //   newValue.deattach();
+      // } else {
+      for (let i = 0; i < this.addedListeners.length; i++) {
+        this.addedListeners[i].attached = false;
+      }
+      this.addedListeners = [];
+      this.value = this.extractListeners(newValue);
+      this.changeListener(this.value);
+      // }
+      // // console.log(this.value.processValue('P'), newValue.processValue('A'));
+      // // console.log(this.extractListeners(newValue));
+      // // newValue.handleUpdate(newValue.component.state[newValue.key]);
+      // // this.value = newValue;
+      // // this.value.processValue = newValue.processValue;
+      // this.value = this.extractListeners(newValue);
+      // this.changeListener(this.value);
+      // // this.value.processValue = newValue.processValue;
+      // // // this.value = newValue;
+      // // this.value.handleUpdate(newValue.component.state[newValue.key]);
+      // // console.log(newValue, newValue.getValue(newValue.component.state[newValue.key]));
+      // // newValue.deattach();
     } else {
       this.unlink();
       this.value = newValue;
@@ -150,6 +230,7 @@ export default class Listener {
     this.path = null;
     this.unlink();
     this.value = null;
+    this.changeListener = () => {};
     this.processValue = () => {};
   }
 }

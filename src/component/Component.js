@@ -7,10 +7,12 @@
 import GLOBALS from '../consts/GLOBALS';
 import generateId from '../utils/generateId';
 import PrivateStore from './utils/PrivateStore';
-import fuseDom from '../r/utils/fuseDom';
+// import fuseDom from '../r/utils/fuseDom';
 import clone from '../utils/clone';
 import skipInProductionAndTest from '../utils/skipInProductionAndTest';
 import Listener from '../listen/Listener';
+// import mount from '../mount';
+import patch from '../r/patch';
 
 export default class Component {
   /**
@@ -36,38 +38,22 @@ export default class Component {
       this[key].when('update', () => this.setState());
     }
 
-    this.state = Object.assign(
-      (typeof this.state === 'function') ? this.state() : {},
-      props || {}
-    );
+    this.state = typeof this.state === 'function'
+      ? this.state()
+      : (this.state || {});
 
     skipInProductionAndTest(() => Object.freeze(this.state));
 
     if (children) this.setChildren(children);
+    if (props) this.setProps(props);
   }
 
   /**
    * @returns {HTMLElement}
    */
-  render(isSvg) {
-    if (typeof this.view !== 'function') return '';
-    let rendered = this.view();
-    if (Array.isArray(rendered)) {
-      for (let i = 0; i < rendered.length; i++) {
-        if (typeof rendered[i].buildNode === 'function') {
-          rendered[i] = rendered[i].buildNode(isSvg, 0);
-        }
-        rendered[i].destroy = this.destroy.bind(this);
-      }
-    } else {
-      if (typeof rendered.buildNode === 'function') {
-        rendered = rendered.buildNode(isSvg, 0);
-      }
-      rendered.destroy = this.destroy.bind(this);
-    }
-
-    this.html = rendered;
-    return rendered;
+  render() {
+    if (typeof this.view !== 'function') return null;
+    return this.html = this.view();
   }
 
   /**
@@ -137,6 +123,14 @@ export default class Component {
   }
 
   destroy() {
+    // if (this.html) {
+    //   for (var i = 0; i < this.html.length; i++) {
+    //     if (this.html[i].parentNode) {
+    //       this.html[i].parentNode.removeChild(this.html[i]);
+    //     }
+    //   }
+    // }
+    this.html = null;
     this.trigger('destroy');
     this.$privateStore.removeListeners();
   }
@@ -185,9 +179,28 @@ export default class Component {
     }
 
     if (!this.$config.listen && typeof this.view === 'function' && this.html) {
-      fuseDom.fuse(this.html, this.view());
+      this.html = patch(this.html, this.view());
     }
+
+    // if (typeof newState === 'object') {
+    //   let oldstate = this.state;
+    //
+    //   skipInProductionAndTest(() => oldstate = clone(this.state));
+    //
+    //   this.state = Object.assign(oldstate, newState);
+    //
+    //   skipInProductionAndTest(() => Object.freeze(this.state));
+    //
+    //   if (this.$config.listen) {
+    //     this.$privateStore.setState(newState);
+    //   }
+    // }
+    //
+    // if (!this.$config.listen && typeof this.view === 'function' && this.html) {
+    //   fuseDom.fuse(this.html, this.view());
+    // }
     this.trigger('update');
+
     return newState;
   }
 

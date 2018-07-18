@@ -1,39 +1,78 @@
-import Listener from '../listen/Listener';
-/* eslint-disable guard-for-in */
+/* eslint-disable no-continue */
+/* eslint-disable no-prototype-builtins */
 /* eslint-disable no-restricted-syntax */
-// -- we need those for..in loops for now!
-
 /* eslint-disable no-param-reassign */
-// -- until this can be rewritten as a pure function, we need to reassign.
+/* eslint-disable no-multi-assign */
 
-import AttributeListener from './utils/AttributeListener';
-import setStyle from './utils/setStyle';
+import Listener from '../listen/Listener';
+import parseValue from './utils/parseValue';
 
 /**
- * @param {HTMLElement} element
- * @param {string|object|Listener} styles
- * @returns {CSSStyleDeclaration}
+ * @param {Structure} structure
+ * @param {object} styles
+ * @param {object} oldStyles
+ * @returns {object}
  */
-const setStyles = (element, styles) => {
+const setStyles = (structure, styles = {}, oldStyles = {}) => {
+  if (!structure.html || !structure.html[0]) return styles;
+  const element = structure.html[0];
+
+  // Handle Listeners
+  if (styles instanceof Listener) {
+    if (typeof structure.$styleListeners.general !== 'undefined') {
+      return element.style;
+    }
+    structure.$styleListeners.general = styles;
+    structure.$styleListeners.general.applyDepth(structure.depth).init();
+
+    structure.$styleListeners.general.onValueChange(value => {
+      setStyles(structure, value, {});
+    });
+
+    return element.style;
+  }
+
   if (typeof styles === 'string') {
     element.style = styles;
-  }
-
-  if (typeof styles !== 'object' || Array.isArray(styles)) {
     return element.style;
   }
 
-  if (styles instanceof Listener) {
-    new AttributeListener({
-      attributeKey: 'style',
-      listener: styles,
-      element,
-    }).attach();
-    return element.style;
+  const toRemove = Object.keys(oldStyles)
+    .filter(key => typeof styles[key] === 'undefined');
+
+  for (const style in styles) {
+    if (styles.hasOwnProperty(style)) {
+      // Skip if styles are the same
+      if (typeof oldStyles !== 'undefined' && oldStyles[style] === styles[style]) continue;
+
+      // Need to remove falsy style
+      if (!styles[style] && typeof styles[style] !== 'number') {
+        element.style[style] = null;
+        continue;
+      }
+
+      // Handle Listeners
+      if (styles[style] instanceof Listener) {
+        if (typeof structure.$styleListeners[style] !== 'undefined') continue;
+        structure.$styleListeners[style] = styles[style];
+        structure.$styleListeners[style].applyDepth(structure.depth).init();
+
+        const mystyle = style;
+        structure.$styleListeners[style].onValueChange(value => {
+          setStyles(structure, {
+            [mystyle]: value,
+          }, {});
+        });
+
+        continue;
+      }
+
+      element.style[style] = parseValue(styles[style]);
+    }
   }
 
-  for (const property in styles) {
-    setStyle(element, property, styles[property]);
+  for (let i = 0; i < toRemove.length; i++) {
+    element.style[toRemove[i]] = null;
   }
 
   return element.style;
