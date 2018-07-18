@@ -2,6 +2,7 @@ import GLOBALS from '../consts/GLOBALS';
 import Component from '../component/Component';
 import r from '../r'; // eslint-disable-line
 import l from '../listen';
+import mount from '../mount';
 
 afterEach(() => {
   GLOBALS.ACTIVE_COMPONENTS = {};
@@ -11,6 +12,7 @@ afterEach(() => {
 describe('component.js', () => {
   // This is more of an integration test really
   test('the full component API works', () => {
+    const container = document.createElement('div');
     class Title extends Component {
       view() {
         return <h1>{this.children}</h1>;
@@ -82,7 +84,8 @@ describe('component.js', () => {
     }
 
     const c = new TestComponent();
-    expect(c.render().innerHTML).toBe(
+    mount(c, container);
+    expect(container.children[0].innerHTML).toBe(
       'hey World' +
       '<h1>World</h1>' +
       '<p style="color: purple;">Foo Bar: World</p>' +
@@ -98,10 +101,12 @@ describe('component.js', () => {
       '<span foo="baz"></span>' +
       '<div style="color: green; width: 200px;"></div>'
     );
+    container.innerHTML = '';
     c.setState(c.setSample());
     c.setState(c.setFoo());
     c.setState(c.setStyles());
-    expect(c.render().innerHTML).toBe(
+    mount(c, container);
+    expect(container.children[0].innerHTML).toBe(
       'hey New World!' +
       '<h1>New World!</h1>' +
       '<p style="color: purple;">Foo Bar: New World!</p>' +
