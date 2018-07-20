@@ -1,7 +1,7 @@
 var GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.22',
+  VERSION: '0.3.23',
   // TODO: Collect active components
   ACTIVE_COMPONENTS: {},
   CUSTOM_ATTRIBUTES: {},
@@ -634,36 +634,38 @@ var setStyles = (structure, styles, oldStyles) => {
   var toRemove = Object.keys(oldStyles)
     .filter(key => typeof styles[key] === 'undefined');
 
-  for (var style in styles) {
+  var loop = function ( style ) {
     if (styles.hasOwnProperty(style)) {
       // Skip if styles are the same
-      if (typeof oldStyles !== 'undefined' && oldStyles[style] === styles[style]) { continue; }
+      if (typeof oldStyles !== 'undefined' && oldStyles[style] === styles[style]) { return; }
 
       // Need to remove falsy style
       if (!styles[style] && typeof styles[style] !== 'number') {
         element.style[style] = null;
-        continue;
+        return;
       }
 
       // Handle Listeners
       if (styles[style] instanceof Listener) {
-        if (typeof structure.$styleListeners[style] !== 'undefined') { continue; }
+        if (typeof structure.$styleListeners[style] !== 'undefined') { return; }
         structure.$styleListeners[style] = styles[style];
         structure.$styleListeners[style].applyDepth(structure.depth).init();
 
-        var mystyle = style;
         structure.$styleListeners[style].onValueChange(value => {
           setStyles(structure, {
-            [mystyle]: value,
+            [style]: value,
           }, {});
         });
 
-        continue;
+        styles[style] = structure.$styleListeners[style].value;
+        return;
       }
 
       element.style[style] = parseValue(styles[style]);
     }
-  }
+  };
+
+  for (var style in styles) loop( style );
 
   for (var i = 0; i < toRemove.length; i++) {
     element.style[toRemove[i]] = null;
@@ -742,10 +744,10 @@ var setAttributes = (structure, propsSource, oldPropsSource) => {
             });
           }
         }
-        var myprop = prop;
-        structure.$attrListeners[myprop].onValueChange(value => {
+
+        structure.$attrListeners[prop].onValueChange(value => {
           setAttributes(structure, {
-            [myprop]: value,
+            [prop]: value,
           }, {});
           // props[prop] = value;
         });

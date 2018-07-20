@@ -57,13 +57,13 @@ const setStyles = (structure, styles = {}, oldStyles = {}) => {
         structure.$styleListeners[style] = styles[style];
         structure.$styleListeners[style].applyDepth(structure.depth).init();
 
-        const mystyle = style;
         structure.$styleListeners[style].onValueChange(value => {
           setStyles(structure, {
-            [mystyle]: value,
+            [style]: value,
           }, {});
         });
 
+        styles[style] = structure.$styleListeners[style].value;
         continue;
       }
 

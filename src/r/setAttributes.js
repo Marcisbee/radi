@@ -62,10 +62,10 @@ const setAttributes = (structure, propsSource = {}, oldPropsSource = {}) => {
             });
           }
         }
-        const myprop = prop;
-        structure.$attrListeners[myprop].onValueChange(value => {
+
+        structure.$attrListeners[prop].onValueChange(value => {
           setAttributes(structure, {
-            [myprop]: value,
+            [prop]: value,
           }, {});
           // props[prop] = value;
         });
