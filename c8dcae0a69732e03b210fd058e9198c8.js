@@ -71,9 +71,9 @@ require = (function (modules, cache, entry) {
 
   // Override the current require with this new one
   return newRequire;
-})({59:[function(require,module,exports) {
+})({73:[function(require,module,exports) {
 module.exports="6e70ba7b1d89921e1828e15e26d37127.svg";
-},{}],53:[function(require,module,exports) {
+},{}],71:[function(require,module,exports) {
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -276,8 +276,8 @@ var Hero = (_class = function (_radi$Component) {
         _radi3.default.r(
           'div',
           { id: 'hero', style: {
-              height: _radi_listen(component, 'height').process(function (_$13) {
-                return _$13 + 'px';
+              height: _radi_listen(component, 'height').process(function (_$9) {
+                return _$9 + 'px';
               })
             } },
           _radi3.default.r(
@@ -309,8 +309,8 @@ var Hero = (_class = function (_radi$Component) {
                   { href: _globals2.default.github, target: '_blank', 'class': 'btn btn-white' },
                   _radi3.default.r('img', { src: _github2.default, alt: '' }),
                   'Star on GitHub',
-                  _radi_listen(component, 'stars').process(function (_$14) {
-                    return _$14 !== null && _radi3.default.r(
+                  _radi_listen(component, 'stars').process(function (_$10) {
+                    return _$10 !== null && _radi3.default.r(
                       'i',
                       { 'class': 'right-side' },
                       _radi_listen(component, 'stars')
@@ -328,8 +328,8 @@ var Hero = (_class = function (_radi$Component) {
           _radi3.default.r(
             'div',
             { id: 'hero-bg', style: 'perspective: 200px;' },
-            _radi_listen(component, 'dots').process(function (_$16) {
-              return _$16.map(function (dot) {
+            _radi_listen(component, 'dots').process(function (_$12) {
+              return _$12.map(function (dot) {
                 return _radi3.default.r('i', { style: {
                     transform: 'translate3d(' + dot.x + 'px, ' + dot.y + 'px, ' + dot.z / 2 + 'px) scale(' + dot.z / 1000 + ')',
                     backgroundColor: 'hsl(276, 72%, ' + (100 / dot.z * 10 + 70) + '%)'
@@ -346,7 +346,7 @@ var Hero = (_class = function (_radi$Component) {
 }(_radi3.default.Component), (_applyDecoratedDescriptor(_class.prototype, 'createDots', [action], Object.getOwnPropertyDescriptor(_class.prototype, 'createDots'), _class.prototype), _applyDecoratedDescriptor(_class.prototype, 'applyStars', [action], Object.getOwnPropertyDescriptor(_class.prototype, 'applyStars'), _class.prototype)), _class);
 exports.default = Hero;
 ;
-},{"radi":13,"../../assets/svg/github.svg":59,"../helpers/globals":21}],62:[function(require,module,exports) {
+},{"radi":13,"../../assets/svg/github.svg":73,"../helpers/globals":21}],75:[function(require,module,exports) {
 var global = (1,eval)("this");
 
 /* **********************************************
@@ -1081,7 +1081,7 @@ Prism.languages.javascript = Prism.languages.extend('clike', {
 
 Prism.languages.insertBefore('javascript', 'keyword', {
 	'regex': {
-		pattern: /((?:^|[^$\w\xA0-\uFFFF."'\])\s])\s*)\/(\[[^\]\r\n]+]|\\.|[^/\\\[\r\n])+\/[gimyu]{0,5}(?=\s*($|[\r\n,.;})]))/,
+		pattern: /((?:^|[^$\w\xA0-\uFFFF."'\])\s])\s*)\/(\[[^\]\r\n]+]|\\.|[^/\\\[\r\n])+\/[gimyu]{0,5}(?=\s*($|[\r\n,.;})\]]))/,
 		lookbehind: true,
 		greedy: true
 	},
@@ -1095,23 +1095,24 @@ Prism.languages.insertBefore('javascript', 'keyword', {
 
 Prism.languages.insertBefore('javascript', 'string', {
 	'template-string': {
-		pattern: /`(?:\\[\s\S]|[^\\`])*`/,
+		pattern: /`(?:\\[\s\S]|\${[^}]+}|[^\\`])*`/,
 		greedy: true,
 		inside: {
 			'interpolation': {
-				pattern: /\$\{[^}]+\}/,
+				pattern: /\${[^}]+}/,
 				inside: {
 					'interpolation-punctuation': {
-						pattern: /^\$\{|\}$/,
+						pattern: /^\${|}$/,
 						alias: 'punctuation'
 					},
-					rest: Prism.languages.javascript
+					rest: null // See below
 				}
 			},
 			'string': /[\s\S]+/
 		}
 	}
 });
+Prism.languages.javascript['template-string'].inside['interpolation'].inside.rest = Prism.languages.javascript;
 
 if (Prism.languages.markup) {
 	Prism.languages.insertBefore('markup', 'tag', {
@@ -1155,7 +1156,7 @@ Prism.languages.js = Prism.languages.javascript;
 			var src = pre.getAttribute('data-src');
 
 			var language, parent = pre;
-			var lang = /\blang(?:uage)?-(?!\*)([\w-]+)\b/i;
+			var lang = /\blang(?:uage)?-([\w-]+)\b/i;
 			while (parent && !lang.test(parent.className)) {
 				parent = parent.parentNode;
 			}
@@ -1199,30 +1200,34 @@ Prism.languages.js = Prism.languages.javascript;
 				}
 			};
 
-			if (pre.hasAttribute('data-download-link') && Prism.plugins.toolbar) {
-				Prism.plugins.toolbar.registerButton('download-file', function () {
-					var a = document.createElement('a');
-					a.textContent = pre.getAttribute('data-download-link-label') || 'Download';
-					a.setAttribute('download', '');
-					a.href = src;
-					return a;
-				});
-			}
-
 			xhr.send(null);
 		});
+
+		if (Prism.plugins.toolbar) {
+			Prism.plugins.toolbar.registerButton('download-file', function (env) {
+				var pre = env.element.parentNode;
+				if (!pre || !/pre/i.test(pre.nodeName) || !pre.hasAttribute('data-src') || !pre.hasAttribute('data-download-link')) {
+					return;
+				}
+				var src = pre.getAttribute('data-src');
+				var a = document.createElement('a');
+				a.textContent = pre.getAttribute('data-download-link-label') || 'Download';
+				a.setAttribute('download', '');
+				a.href = src;
+				return a;
+			});
+		}
 
 	};
 
 	document.addEventListener('DOMContentLoaded', self.Prism.fileHighlight);
 
 })();
+},{}],77:[function(require,module,exports) {
+!function(t){var n=t.util.clone(t.languages.javascript);t.languages.jsx=t.languages.extend("markup",n),t.languages.jsx.tag.pattern=/<\/?(?:[\w.:-]+\s*(?:\s+(?:[\w.:-]+(?:=(?:("|')(?:\\[\s\S]|(?!\1)[^\\])*\1|[^\s{'">=]+|\{(?:\{(?:\{[^}]*\}|[^{}])*\}|[^{}])+\}))?|\{\.{3}[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*\}))*\s*\/?)?>/i,t.languages.jsx.tag.inside.tag.pattern=/^<\/?[^\s>\/]*/i,t.languages.jsx.tag.inside["attr-value"].pattern=/=(?!\{)(?:("|')(?:\\[\s\S]|(?!\1)[^\\])*\1|[^\s'">]+)/i,t.languages.insertBefore("inside","attr-name",{spread:{pattern:/\{\.{3}[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*\}/,inside:{punctuation:/\.{3}|[{}.]/,"attr-value":/\w+/}}},t.languages.jsx.tag),t.languages.insertBefore("inside","attr-value",{script:{pattern:/=(\{(?:\{(?:\{[^}]*\}|[^}])*\}|[^}])+\})/i,inside:{"script-punctuation":{pattern:/^=(?={)/,alias:"punctuation"},rest:t.languages.jsx},alias:"language-javascript"}},t.languages.jsx.tag);var e=function(t){return t?"string"==typeof t?t:"string"==typeof t.content?t.content:t.content.map(e).join(""):""},a=function(n){for(var s=[],g=0;g<n.length;g++){var o=n[g],i=!1;if("string"!=typeof o&&("tag"===o.type&&o.content[0]&&"tag"===o.content[0].type?"</"===o.content[0].content[0].content?s.length>0&&s[s.length-1].tagName===e(o.content[0].content[1])&&s.pop():"/>"===o.content[o.content.length-1].content||s.push({tagName:e(o.content[0].content[1]),openedBraces:0}):s.length>0&&"punctuation"===o.type&&"{"===o.content?s[s.length-1].openedBraces++:s.length>0&&s[s.length-1].openedBraces>0&&"punctuation"===o.type&&"}"===o.content?s[s.length-1].openedBraces--:i=!0),(i||"string"==typeof o)&&s.length>0&&0===s[s.length-1].openedBraces){var p=e(o);g<n.length-1&&("string"==typeof n[g+1]||"plain-text"===n[g+1].type)&&(p+=e(n[g+1]),n.splice(g+1,1)),g>0&&("string"==typeof n[g-1]||"plain-text"===n[g-1].type)&&(p=e(n[g-1])+p,n.splice(g-1,1),g--),n[g]=new t.Token("plain-text",p,null,p)}o.content&&"string"!=typeof o.content&&a(o.content)}};t.hooks.add("after-tokenize",function(t){("jsx"===t.language||"tsx"===t.language)&&a(t.tokens)})}(Prism);
+},{}],74:[function(require,module,exports) {
 
-},{}],76:[function(require,module,exports) {
-!function(t){var n=t.util.clone(t.languages.javascript);t.languages.jsx=t.languages.extend("markup",n),t.languages.jsx.tag.pattern=/<\/?[\w.:-]+\s*(?:\s+(?:[\w.:-]+(?:=(?:("|')(?:\\[\s\S]|(?!\1)[^\\])*\1|[^\s{'">=]+|\{(?:\{[^}]*\}|[^{}])+\}))?|\{\.{3}[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*\}))*\s*\/?>/i,t.languages.jsx.tag.inside["attr-value"].pattern=/=(?!\{)(?:("|')(?:\\[\s\S]|(?!\1)[^\\])*\1|[^\s'">]+)/i,t.languages.insertBefore("inside","attr-name",{spread:{pattern:/\{\.{3}[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*\}/,inside:{punctuation:/\.{3}|[{}.]/,"attr-value":/\w+/}}},t.languages.jsx.tag),t.languages.insertBefore("inside","attr-value",{script:{pattern:/=(\{(?:\{[^}]*\}|[^}])+\})/i,inside:{"script-punctuation":{pattern:/^=(?={)/,alias:"punctuation"},rest:t.languages.jsx},alias:"language-javascript"}},t.languages.jsx.tag);var e=function(t){return"string"==typeof t?t:"string"==typeof t.content?t.content:t.content.map(e).join("")},a=function(n){for(var s=[],g=0;g<n.length;g++){var o=n[g],i=!1;if("string"!=typeof o&&("tag"===o.type&&o.content[0]&&"tag"===o.content[0].type?"</"===o.content[0].content[0].content?s.length>0&&s[s.length-1].tagName===e(o.content[0].content[1])&&s.pop():"/>"===o.content[o.content.length-1].content||s.push({tagName:e(o.content[0].content[1]),openedBraces:0}):s.length>0&&"punctuation"===o.type&&"{"===o.content?s[s.length-1].openedBraces++:s.length>0&&s[s.length-1].openedBraces>0&&"punctuation"===o.type&&"}"===o.content?s[s.length-1].openedBraces--:i=!0),(i||"string"==typeof o)&&s.length>0&&0===s[s.length-1].openedBraces){var p=e(o);g<n.length-1&&("string"==typeof n[g+1]||"plain-text"===n[g+1].type)&&(p+=e(n[g+1]),n.splice(g+1,1)),g>0&&("string"==typeof n[g-1]||"plain-text"===n[g-1].type)&&(p=e(n[g-1])+p,n.splice(g-1,1),g--),n[g]=new t.Token("plain-text",p,null,p)}o.content&&"string"!=typeof o.content&&a(o.content)}};t.hooks.add("after-tokenize",function(t){("jsx"===t.language||"tsx"===t.language)&&a(t.tokens)})}(Prism);
-},{}],60:[function(require,module,exports) {
-
-},{}],54:[function(require,module,exports) {
+},{}],72:[function(require,module,exports) {
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -1327,7 +1332,11 @@ var MiniRepl = (_class = function (_radi$Component) {
         });
       },
       destroy: function destroy() {
-        if (window.lastmount) window.lastmount.destroy();
+        if (window.lastmount) {
+          for (var i = 0; i < window.lastmount.length; i++) {
+            window.lastmount[i].destroy();
+          }
+        }
       }
     };
     return _this;
@@ -1390,7 +1399,11 @@ var MiniRepl = (_class = function (_radi$Component) {
 
       try {
         (function (code) {
-          if (window.lastmount) window.lastmount.destroy();
+          if (window.lastmount) {
+            for (var i = 0; i < window.lastmount.length; i++) {
+              window.lastmount[i].destroy();
+            }
+          }
           var del = document.getElementById('repl-out-' + self.$id);
           del.parentNode.replaceChild(del.cloneNode(false), del);
           eval(code + 'window.lastmount = Radi.mount([new Counter()], "repl-out-' + self.$id + '");');
@@ -1421,8 +1434,8 @@ var MiniRepl = (_class = function (_radi$Component) {
         null,
         _radi3.default.r(
           'div',
-          { 'class': _radi_listen(component, 'error').process(function (_$17) {
-              return ['repl-wrap', _$17 && 'repl-error'];
+          { 'class': _radi_listen(component, 'error').process(function (_$13) {
+              return ['repl-wrap', _$13 && 'repl-error'];
             }) },
           _radi3.default.r(
             'div',
@@ -1441,8 +1454,8 @@ var MiniRepl = (_class = function (_radi$Component) {
               _radi3.default.r(
                 'span',
                 null,
-                _radi_listen(component, 'error').process(function (_$18) {
-                  return _$18 ? 'Error' : 'Live preview';
+                _radi_listen(component, 'error').process(function (_$14) {
+                  return _$14 ? 'Error' : 'Live preview';
                 })
               )
             )
@@ -1456,13 +1469,13 @@ var MiniRepl = (_class = function (_radi$Component) {
               _radi3.default.r(
                 'pre',
                 { style: {
-                    marginTop: _radi_listen(component, 'scroll').process(function (_$19) {
-                      return -_$19 + 'px';
+                    marginTop: _radi_listen(component, 'scroll').process(function (_$15) {
+                      return -_$15 + 'px';
                     })
                   } },
                 _radi3.default.r('code', { 'class': 'tlit-highlight',
-                  html: _radi_listen(component, 'code').process(function (_$20) {
-                    return _prismjs2.default.highlight(_$20, _prismjs2.default.languages.jsx);
+                  html: _radi_listen(component, 'code').process(function (_$16) {
+                    return _prismjs2.default.highlight(_$16, _prismjs2.default.languages.jsx);
                   }) })
               )
             ),
@@ -1477,8 +1490,8 @@ var MiniRepl = (_class = function (_radi$Component) {
               return component.codeChange(e.target.value, 'Counter');
             }), _radi$r))
           ),
-          _radi_listen(component, 'error').process(function (_$22) {
-            return _$22 && _radi3.default.r(
+          _radi_listen(component, 'error').process(function (_$18) {
+            return _$18 && _radi3.default.r(
               'pre',
               { 'class': 'repl-out-error' },
               _radi3.default.r(
@@ -1511,7 +1524,7 @@ var MiniRepl = (_class = function (_radi$Component) {
 }(_radi3.default.Component), (_applyDecoratedDescriptor(_class.prototype, 'scrollCode', [action], Object.getOwnPropertyDescriptor(_class.prototype, 'scrollCode'), _class.prototype), _applyDecoratedDescriptor(_class.prototype, 'setError', [action], Object.getOwnPropertyDescriptor(_class.prototype, 'setError'), _class.prototype)), _class);
 exports.default = MiniRepl;
 ;
-},{"radi":13,"prismjs":62,"babel-plugin-transform-radi-listen":52,"../helpers/radi-compiler-browser.js":49,"prismjs/components/prism-jsx.min":76,"../../assets/stylus/mini-repl.styl":60}],40:[function(require,module,exports) {
+},{"radi":13,"prismjs":75,"babel-plugin-transform-radi-listen":70,"../helpers/radi-compiler-browser.js":69,"prismjs/components/prism-jsx.min":77,"../../assets/stylus/mini-repl.styl":74}],58:[function(require,module,exports) {
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -1622,25 +1635,25 @@ var Default = function (_radi$Component) {
 
 exports.default = Default;
 ;
-},{"radi":13,"../components/Hero.radi":53,"../components/MiniRepl.radi":54,"../components/Header.radi":36,"../helpers/globals":21}],38:[function(require,module,exports) {
+},{"radi":13,"../components/Hero.radi":71,"../components/MiniRepl.radi":72,"../components/Header.radi":36,"../helpers/globals":21}],59:[function(require,module,exports) {
 module.exports="ec1044bce9e69aa95df108c9581b0106.png";
-},{}],41:[function(require,module,exports) {
+},{}],60:[function(require,module,exports) {
 module.exports="94d93683a2ebc1a16ed11e7e5c5b09c6.png";
-},{}],39:[function(require,module,exports) {
+},{}],61:[function(require,module,exports) {
 module.exports="68eaf9dda3323f75544cfa111b82b69c.png";
-},{}],42:[function(require,module,exports) {
+},{}],62:[function(require,module,exports) {
 module.exports="90e891bd752da22c18abff180dd8bef9.png";
-},{}],43:[function(require,module,exports) {
+},{}],63:[function(require,module,exports) {
 module.exports="7dac33bb14b9cd6b71ac140d422436f5.png";
-},{}],44:[function(require,module,exports) {
+},{}],64:[function(require,module,exports) {
 module.exports="e63612f23f466482c9d44de0328f92d1.png";
-},{}],45:[function(require,module,exports) {
+},{}],65:[function(require,module,exports) {
 module.exports="4a4cbae5cc9695d074dc7d3e89ed3361.png";
-},{}],47:[function(require,module,exports) {
+},{}],66:[function(require,module,exports) {
 module.exports="866d1a29ff9d6e555a3ce13f0701e90f.png";
-},{}],46:[function(require,module,exports) {
+},{}],67:[function(require,module,exports) {
 module.exports="6fde0edafe606b5119b8fd221444d322.png";
-},{}],48:[function(require,module,exports) {
+},{}],68:[function(require,module,exports) {
 module.exports="0a1ab65f258cdc331a91f1aa5c19ab56.png";
 },{}],19:[function(require,module,exports) {
 'use strict';
@@ -1949,5 +1962,5 @@ var Index = function (_radi$Component) {
 
 exports.default = Index;
 ;
-},{"radi":13,"../layouts/Default.radi":40,"../helpers/globals":21,"../../assets/img/satelite.png":38,"../../assets/img/satelite@2x.png":41,"../../assets/img/shield.png":39,"../../assets/img/shield@2x.png":42,"../../assets/img/bg.png":43,"../../assets/img/bg@2x.png":44,"../../assets/img/head.png":45,"../../assets/img/head@2x.png":47,"../../assets/img/body.png":46,"../../assets/img/body@2x.png":48}]},{},[19])
+},{"radi":13,"../layouts/Default.radi":58,"../helpers/globals":21,"../../assets/img/satelite.png":59,"../../assets/img/satelite@2x.png":60,"../../assets/img/shield.png":61,"../../assets/img/shield@2x.png":62,"../../assets/img/bg.png":63,"../../assets/img/bg@2x.png":64,"../../assets/img/head.png":65,"../../assets/img/head@2x.png":66,"../../assets/img/body.png":67,"../../assets/img/body@2x.png":68}]},{},[19])
 //# sourceMappingURL=c8dcae0a69732e03b210fd058e9198c8.map

@@ -71,7 +71,7 @@ require = (function (modules, cache, entry) {
 
   // Override the current require with this new one
   return newRequire;
-})({26:[function(require,module,exports) {
+})({27:[function(require,module,exports) {
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -143,5 +143,5 @@ var State = function (_radi$Component) {
 
 exports.default = State;
 ;
-},{"radi":13,"../../layouts/DocsLayout.radi":50,"../../helpers/docs-bundle.js":51}]},{},[26])
+},{"radi":13,"../../layouts/DocsLayout.radi":38,"../../helpers/docs-bundle.js":39}]},{},[27])
 //# sourceMappingURL=aa924706c8490558ea487b3a48015eb7.map

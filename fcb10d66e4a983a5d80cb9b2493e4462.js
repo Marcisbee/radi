@@ -143,5 +143,5 @@ var Components = function (_radi$Component) {
 
 exports.default = Components;
 ;
-},{"radi":13,"../../layouts/DocsLayout.radi":50,"../../helpers/docs-bundle.js":51}]},{},[25])
+},{"radi":13,"../../layouts/DocsLayout.radi":38,"../../helpers/docs-bundle.js":39}]},{},[25])
 //# sourceMappingURL=fcb10d66e4a983a5d80cb9b2493e4462.map

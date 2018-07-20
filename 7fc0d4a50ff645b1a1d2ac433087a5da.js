@@ -220,7 +220,11 @@ var LargeRepl = (_class = function (_radi$Component) {
         });
       },
       destroy: function destroy() {
-        if (window.lastmount) window.lastmount.destroy();
+        if (window.lastmount) {
+          for (var i = 0; i < window.lastmount.length; i++) {
+            window.lastmount[i].destroy();
+          }
+        }
       },
       resize: function resize(el) {
         return {
@@ -295,7 +299,11 @@ var LargeRepl = (_class = function (_radi$Component) {
       });
 
       (function (code) {
-        if (window.lastmount) window.lastmount.destroy();
+        if (window.lastmount) {
+          for (var i = 0; i < window.lastmount.length; i++) {
+            window.lastmount[i].destroy();
+          }
+        }
         var del = document.getElementById('repl-out-' + self.$id);
         del.parentNode.replaceChild(del.cloneNode(false), del);
         eval(code + 'window.lastmount = Radi.mount([new Sample()], "repl-out-' + self.$id + '");');
@@ -413,7 +421,7 @@ var LargeRepl = (_class = function (_radi$Component) {
 }(_radi3.default.Component), (_applyDecoratedDescriptor(_class.prototype, 'scrollCode', [action], Object.getOwnPropertyDescriptor(_class.prototype, 'scrollCode'), _class.prototype), _applyDecoratedDescriptor(_class.prototype, 'setError', [action], Object.getOwnPropertyDescriptor(_class.prototype, 'setError'), _class.prototype), _applyDecoratedDescriptor(_class.prototype, 'originalChange', [action], Object.getOwnPropertyDescriptor(_class.prototype, 'originalChange'), _class.prototype), _applyDecoratedDescriptor(_class.prototype, 'toBase64', [action], Object.getOwnPropertyDescriptor(_class.prototype, 'toBase64'), _class.prototype)), _class);
 exports.default = LargeRepl;
 ;
-},{"radi":13,"babel-plugin-transform-radi-listen":52,"../helpers/radi-compiler-browser.js":49,"../../assets/stylus/large-repl.styl":37}],20:[function(require,module,exports) {
+},{"radi":13,"babel-plugin-transform-radi-listen":70,"../helpers/radi-compiler-browser.js":69,"../../assets/stylus/large-repl.styl":37}],20:[function(require,module,exports) {
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {

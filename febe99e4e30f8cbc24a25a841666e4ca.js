@@ -143,5 +143,5 @@ var Hyperscript = function (_radi$Component) {
 
 exports.default = Hyperscript;
 ;
-},{"radi":13,"../../layouts/DocsLayout.radi":50,"../../helpers/docs-bundle.js":51}]},{},[24])
+},{"radi":13,"../../layouts/DocsLayout.radi":38,"../../helpers/docs-bundle.js":39}]},{},[24])
 //# sourceMappingURL=febe99e4e30f8cbc24a25a841666e4ca.map

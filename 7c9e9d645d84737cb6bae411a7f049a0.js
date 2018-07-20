@@ -143,5 +143,5 @@ var Plugin = function (_radi$Component) {
 
 exports.default = Plugin;
 ;
-},{"radi":13,"../../layouts/DocsLayout.radi":50,"../../helpers/docs-bundle.js":51}]},{},[32])
+},{"radi":13,"../../layouts/DocsLayout.radi":38,"../../helpers/docs-bundle.js":39}]},{},[32])
 //# sourceMappingURL=7c9e9d645d84737cb6bae411a7f049a0.map

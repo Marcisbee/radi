@@ -71,7 +71,7 @@ require = (function (modules, cache, entry) {
 
   // Override the current require with this new one
   return newRequire;
-})({64:[function(require,module,exports) {
+})({45:[function(require,module,exports) {
 module.exports=`<h2 id="introduction">Introduction</h2>
 <p><strong>Radi</strong> is a tiny javascript framework.</p>
 <p><a href="https://www.npmjs.com/package/radi"><img src="https://img.shields.io/npm/v/radi.svg?style=flat-square" alt="npm version"></a>
@@ -81,7 +81,7 @@ module.exports=`<h2 id="introduction">Introduction</h2>
 <p>It&#39;s built quite differently from any other framework. It doesn&#39;t use any kind of diffing algorithm nor virtual dom which makes it really fast.</p>
 <p>With Radi you can create any kind of single-page applications or more complex applications.</p>
 `
-},{}],65:[function(require,module,exports) {
+},{}],41:[function(require,module,exports) {
 module.exports=`<h2 id="installation">Installation</h2>
 <p>Install with npm or Yarn.</p>
 <pre><code>npm i radi
@@ -95,7 +95,7 @@ module.exports=`<h2 id="installation">Installation</h2>
   <span class="token operator">...</span>
 </span><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>script</span><span class="token punctuation">></span></span></code></pre>
 `
-},{}],68:[function(require,module,exports) {
+},{}],44:[function(require,module,exports) {
 module.exports=`<h2 id="hyperscript">Hyperscript</h2>
 <p><code>r</code> is a helper for <code>document.createElement</code> with couple of differences.
 The basic idea is to simply create elements with <code>r</code> and mount them with <code>mount</code>, almost like you would do with plain JavaScript:</p>
@@ -109,7 +109,7 @@ The basic idea is to simply create elements with <code>r</code> and mount them w
   <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>h1</span><span class="token punctuation">></span></span>Hello Radi!<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>h1</span><span class="token punctuation">></span></span>
 <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>body</span><span class="token punctuation">></span></span></code></pre>
 `
-},{}],66:[function(require,module,exports) {
+},{}],42:[function(require,module,exports) {
 module.exports=`<h2 id="components">Components</h2>
 <p>Simply define a class or function that extends <code>Radi.Component</code>. It can have <code>state</code> method that returns <a href="#state">state object</a>, <code>view</code> method that returns <a href="#view">view data</a> and any other methods that can be decorated as <a href="#actions">action</a>. State can also be defined inside <code>constructor</code> as simple object. But <code>view</code> must always be method.</p>
 <pre><code class="language-jsx"><span class="token keyword">import</span> <span class="token punctuation">{</span> r<span class="token punctuation">,</span> l<span class="token punctuation">,</span> action<span class="token punctuation">,</span> Component <span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'radi'</span><span class="token punctuation">;</span>
@@ -136,14 +136,14 @@ module.exports=`<h2 id="components">Components</h2>
   <span class="token punctuation">}</span>
 <span class="token punctuation">}</span></code></pre>
 `
-},{}],72:[function(require,module,exports) {
+},{}],43:[function(require,module,exports) {
 module.exports=`<h2 id="state">State</h2>
 <p>State is a plain JS object that describes your entire program. Data in it cannot be changed once created, it can only be updated with actions or <code>setState</code> method that is part of Component.</p>
 <pre><code class="language-js"><span class="token keyword">this</span><span class="token punctuation">.</span>state <span class="token operator">=</span> <span class="token punctuation">{</span>
   name<span class="token punctuation">:</span> <span class="token string">'John'</span>
 <span class="token punctuation">}</span></code></pre>
 `
-},{}],67:[function(require,module,exports) {
+},{}],48:[function(require,module,exports) {
 module.exports=`<h2 id="actions">Actions</h2>
 <p>One of the ways to change state is with actions. Every action is regular class method that has been decorated with <code>@action</code> decorator. It must return state changes to modify state.</p>
 <pre><code class="language-js">@action
@@ -155,7 +155,7 @@ module.exports=`<h2 id="actions">Actions</h2>
 
 <p>State is always immutable. Do not mutate it without returning state change in action. DOM will not be re-rendered that way.</p>
 `
-},{}],69:[function(require,module,exports) {
+},{}],47:[function(require,module,exports) {
 module.exports=`<h2 id="view">View</h2>
 <p>View is a function in Component class that returns <a href="#hyperscript">Hyperscript</a>/JSX nodes, DOM Nodes, Component or Array of these three.</p>
 <pre><code class="language-jsx"><span class="token keyword">this</span><span class="token punctuation">.</span><span class="token function">view</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
@@ -177,7 +177,7 @@ module.exports=`<h2 id="view">View</h2>
 <p>View is rendered only once when Component is mounted or re-mounted. This is where Radi differs from other frameworks - it doesn&#39;t re render whole view, instead it uses <a href="#listener">Listener</a> to re-render only necessary parts of DOM.
 So if you write logic inside <code>view</code> method before return statement, it will NOT be triggered every time something updates.</p>
 `
-},{}],71:[function(require,module,exports) {
+},{}],51:[function(require,module,exports) {
 module.exports=`<h2 id="listener">Listener</h2>
 <p><strong>NOTE:</strong>  Radi has a <a href="https://github.com/radi-js/babel-plugin-transform-radi-listen">babel transformer plugin</a> for listeners to be handled automatically (just like transformation from JSX to <a href="#hyperscript">hyperscript</a>).</p>
 <p>Listeners watch for changes in the state of the assigned component and if changes happen it is responsible for re-rendering that part of view and updating it in DOM.
@@ -193,7 +193,7 @@ Listener expects to receive component that it should listen to and path of state
 <p>Listeners can also do some processing with that state value.</p>
 <pre><code class="language-jsx"><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>h1</span><span class="token punctuation">></span></span><span class="token punctuation">{</span> <span class="token function">listener</span><span class="token punctuation">(</span><span class="token keyword">this</span><span class="token punctuation">,</span> <span class="token string">'count'</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">process</span><span class="token punctuation">(</span>count <span class="token operator">=></span> count <span class="token operator">+</span> <span class="token number">50</span><span class="token punctuation">)</span> <span class="token punctuation">}</span><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>h1</span><span class="token punctuation">></span></span></code></pre>
 `
-},{}],70:[function(require,module,exports) {
+},{}],46:[function(require,module,exports) {
 module.exports=`<h2 id="events">Events</h2>
 <p>Events are part of <code>on</code> method in every Component. It can also be defined inside <code>constructor</code> as simple object. Every method that is part of it is event handler. Every event can also be an <a href="#actions">action</a>.</p>
 <pre><code class="language-js"><span class="token keyword">this</span><span class="token punctuation">.</span>on <span class="token operator">=</span> <span class="token punctuation">{</span>
@@ -253,7 +253,7 @@ module.exports=`<h2 id="events">Events</h2>
 <h3 id="global-event-handling">Global event handling</h3>
 <p>Coming Soon</p>
 `
-},{}],74:[function(require,module,exports) {
+},{}],49:[function(require,module,exports) {
 module.exports=`<h2 id="headless-components">Headless Components</h2>
 <p>Components can also be registered as headless (without view). These are components that live in other components as contained mixins and handle logic, events and rendering. This is useful for plugins that handle global data and some logic.</p>
 <pre><code class="language-js"><span class="token keyword">import</span> <span class="token punctuation">{</span> action<span class="token punctuation">,</span> headless<span class="token punctuation">,</span> Component <span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'radi'</span><span class="token punctuation">;</span>
@@ -289,7 +289,7 @@ module.exports=`<h2 id="headless-components">Headless Components</h2>
 
 <p>This will output <code>GlobalComponent</code> state.count output.</p>
 `
-},{}],73:[function(require,module,exports) {
+},{}],50:[function(require,module,exports) {
 module.exports=`<h2 id="plugin">Plugin</h2>
 <p>Plugin is a function that expects a callback function that takes current Radi scope as first argument. This way we can register plugins easily to the current scope of Radi.</p>
 <pre><code class="language-js"><span class="token keyword">import</span> plugin <span class="token keyword">from</span> <span class="token string">'radi'</span>
@@ -306,7 +306,7 @@ module.exports=`<h2 id="plugin">Plugin</h2>
 <span class="token keyword">const</span> <span class="token punctuation">{</span> mom <span class="token punctuation">}</span> <span class="token operator">=</span> <span class="token function">plugin</span><span class="token punctuation">(</span>myCoolPlugin<span class="token punctuation">)</span>
 <span class="token comment">// mom = 'hi'</span></code></pre>
 `
-},{}],75:[function(require,module,exports) {
+},{}],52:[function(require,module,exports) {
 module.exports=`<h2 id="mount">Mount</h2>
 <p>Mount is a function that will mount anything that <a href="#view">view</a> returns (<a href="#hyperscript">Hyperscript</a>/JSX nodes, DOM Nodes, Component or Array of these three) to any DOM node. This is how we mount our Apps root component to DOM.</p>
 <pre><code class="language-jsx"><span class="token keyword">import</span> <span class="token punctuation">{</span> r<span class="token punctuation">,</span> mount<span class="token punctuation">,</span> Component <span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'radi'</span><span class="token punctuation">;</span>
@@ -317,7 +317,7 @@ module.exports=`<h2 id="mount">Mount</h2>
 
 <span class="token function">mount</span><span class="token punctuation">(</span><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>MyComponent</span> <span class="token punctuation">/></span></span><span class="token punctuation">,</span> document<span class="token punctuation">.</span>body<span class="token punctuation">)</span></code></pre>
 `
-},{}],51:[function(require,module,exports) {
+},{}],39:[function(require,module,exports) {
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -388,7 +388,7 @@ exports.default = {
   plugin: _plugin2.default,
   mount: _mount2.default
 };
-},{"radi/docs/readme.md":64,"radi/docs/installation.md":65,"radi/docs/hyperscript.md":68,"radi/docs/components.md":66,"radi/docs/state.md":72,"radi/docs/actions.md":67,"radi/docs/view.md":69,"radi/docs/listener.md":71,"radi/docs/events.md":70,"radi/docs/headless-components.md":74,"radi/docs/plugin.md":73,"radi/docs/mount.md":75}],33:[function(require,module,exports) {
+},{"radi/docs/readme.md":45,"radi/docs/installation.md":41,"radi/docs/hyperscript.md":44,"radi/docs/components.md":42,"radi/docs/state.md":43,"radi/docs/actions.md":48,"radi/docs/view.md":47,"radi/docs/listener.md":51,"radi/docs/events.md":46,"radi/docs/headless-components.md":49,"radi/docs/plugin.md":50,"radi/docs/mount.md":52}],33:[function(require,module,exports) {
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -460,5 +460,5 @@ var Mount = function (_radi$Component) {
 
 exports.default = Mount;
 ;
-},{"radi":13,"../../layouts/DocsLayout.radi":50,"../../helpers/docs-bundle.js":51}]},{},[33])
+},{"radi":13,"../../layouts/DocsLayout.radi":38,"../../helpers/docs-bundle.js":39}]},{},[33])
 //# sourceMappingURL=7406b75c376fd94088325c6c5578c6c5.map
