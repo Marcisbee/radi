@@ -1,7 +1,7 @@
 var GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.23',
+  VERSION: '0.3.24',
   // TODO: Collect active components
   ACTIVE_COMPONENTS: {},
   CUSTOM_ATTRIBUTES: {},
@@ -1191,7 +1191,7 @@ var patch = (rawfirst, rawsecond, parent,
             second[i].$isSvg,
             second[i].$depth + 1);
         }
-        first[i].destroy(false);
+        first[i].destroy();
 
         return;
       }

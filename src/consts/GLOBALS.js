@@ -1,7 +1,7 @@
 const GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.23',
+  VERSION: '0.3.24',
   // TODO: Collect active components
   ACTIVE_COMPONENTS: {},
   CUSTOM_ATTRIBUTES: {},

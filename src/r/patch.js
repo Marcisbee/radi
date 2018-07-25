@@ -120,7 +120,7 @@ const patch = (rawfirst, rawsecond, parent,
             second[i].$isSvg,
             second[i].$depth + 1);
         }
-        first[i].destroy(false);
+        first[i].destroy();
 
         continue;
       }

@@ -1,6 +1,6 @@
 {
   "name": "radi",
-  "version": "0.3.23",
+  "version": "0.3.24",
   "main": "dist/radi.js",
   "module": "dist/radi.js",
   "jsnext:main": "dist/radi.es.js",
