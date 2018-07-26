@@ -35,7 +35,9 @@ export default class Component {
 
     // Links headless components
     for (const key in GLOBALS.HEADLESS_COMPONENTS) {
-      this[key].when('update', () => this.setState());
+      if (this[key] && typeof this[key].when === 'function') {
+        this[key].when('update', () => this.setState());
+      }
     }
 
     this.state = typeof this.state === 'function'
@@ -62,18 +64,18 @@ export default class Component {
    */
   setProps(props) {
     const newState = {};
-    const self = this;
+
     for (const key in props) {
       if (typeof props[key] === 'function' && key.substr(0, 2) === 'on') {
-        self.when(key.substring(2, key.length), props[key]);
+        this.when(key.substring(2, key.length), props[key]);
       } else
       if (props[key] instanceof Listener) {
         newState[key] = props[key].init().value;
-        props[key].changeListener = value => {
-          self.setState({
+        props[key].changeListener = (value => {
+          this.setState({
             [key]: value,
           });
-        };
+        });
       } else {
         newState[key] = props[key];
       }

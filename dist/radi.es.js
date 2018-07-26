@@ -1,7 +1,7 @@
 var GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.24',
+  VERSION: '0.3.25',
   // TODO: Collect active components
   ACTIVE_COMPONENTS: {},
   CUSTOM_ATTRIBUTES: {},
@@ -1251,7 +1251,9 @@ var Component = function Component(children, props) {
 
   // Links headless components
   for (var key in GLOBALS.HEADLESS_COMPONENTS) {
-    this[key].when('update', () => this.setState());
+    if (this[key] && typeof this[key].when === 'function') {
+      this[key].when('update', () => this.setState());
+    }
   }
 
   this.state = typeof this.state === 'function'
@@ -1278,18 +1280,18 @@ Component.prototype.render = function render () {
  */
 Component.prototype.setProps = function setProps (props) {
   var newState = {};
-  var self = this;
+
   var loop = function ( key ) {
     if (typeof props[key] === 'function' && key.substr(0, 2) === 'on') {
-      self.when(key.substring(2, key.length), props[key]);
+      this.when(key.substring(2, key.length), props[key]);
     } else
     if (props[key] instanceof Listener) {
       newState[key] = props[key].init().value;
-      props[key].changeListener = value => {
-        self.setState({
+      props[key].changeListener = (value => {
+        this.setState({
           [key]: value,
         });
-      };
+      });
     } else {
       newState[key] = props[key];
     }
