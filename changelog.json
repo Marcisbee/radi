@@ -1,0 +1,8 @@
+{
+  "releases": {
+    "0.3.26": [
+      "[New] Adds changelog in json format",
+      "[Fixed] Param passing as Listeners from Component to Component"
+    ]
+  }
+}
