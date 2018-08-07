@@ -27,6 +27,7 @@ module.exports = {
   },
   rules: {
     'class-methods-use-this': 'off',
+    'no-param-reassign': 'off',
     'no-underscore-dangle': 'off',
     'no-plusplus': 'off',
     'no-return-assign': 'off',

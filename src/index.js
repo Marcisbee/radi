@@ -1,76 +1,17 @@
 import GLOBALS from './consts/GLOBALS';
 import r from './r';
 import listen from './listen';
-import component from './component';
 import Component from './component';
+import headless from './component/headless';
+import generateId from './utils/generateId';
 import mount from './mount';
 import patch from './r/patch';
+import action from './action';
+import worker from './action/worker';
+import subscribe from './action/subscribe';
+import customTag from './r/customTag';
+import customAttribute from './r/customAttribute';
 import remountActiveComponents from './utils/remountActiveComponents';
-
-function createWorker(fn) {
-  let fire = () => {}
-
-  var blob = new Blob([`self.onmessage = function(e) {
-    self.postMessage((${fn.toString()})(e.data));
-  }`], { type: 'text/javascript' })
-
-  var url = window.URL.createObjectURL(blob)
-  let myWorker = new Worker(url)
-
-  myWorker.onmessage = e => { fire(e.data, null) }
-  myWorker.onerror = e => { fire(null, e.data) }
-
-  return arg => new Promise((resolve, reject) => {
-    fire = (data, err) => !err ? resolve(data) : reject(data)
-    myWorker.postMessage(arg)
-  })
-}
-
-// Descriptor for worker
-function worker(target, key, descriptor) {
-  const act = descriptor.value;
-
-  const promisedWorker = createWorker(act);
-
-  descriptor.value = function (...args) {
-    promisedWorker(...args).then(newState => {
-      this.setState.call(this, newState);
-    })
-  }
-  return descriptor;
-}
-
-// Descriptor for actions
-function action(target, key, descriptor) {
-  const act = descriptor.value;
-  descriptor.value = function (...args) {
-    return this.setState.call(this, act.call(this, ...args));
-  }
-  return descriptor;
-}
-
-// Descriptor for subscriptions
-function subscribe(container, eventName, triggerMount) {
-  // TODO: Remove event after no longer needed / Currently overrides existing
-  // TODO: Do not override existing event - use EventListener
-  // TODO: triggerMount should trigger this event on mount too
-  return function (target, key, descriptor) {
-    let name = 'on' + (eventName || key);
-    let fn = function (...args) {
-      return descriptor.value.call(this, ...args);
-    }
-
-    container[name] = fn;
-    // if (container && container.addEventListener) {
-    //   container.addEventListener(name, fn);
-    //   self.when('destroy', () => {
-    //     container.removeEventListener(name, fn);
-    //   });
-    // }
-    // console.log(target, key, descriptor, container[name], name, fn, fn.radiGlobalEvent);
-    return descriptor;
-  }
-}
 
 const Radi = {
   version: GLOBALS.VERSION,
@@ -79,29 +20,13 @@ const Radi = {
   listen,
   l: listen,
   worker,
-  component,
   Component,
+  component: Component,
   action,
   subscribe,
-  customAttribute: (attributeName, caller, {
-      allowedTags,
-      addToElement,
-    } = {}) => {
-    GLOBALS.CUSTOM_ATTRIBUTES[attributeName] = {
-      name: attributeName,
-      caller,
-      allowedTags: allowedTags || null,
-      addToElement,
-    };
-  },
-  headless: (key, comp) => {
-    // TODO: Validate component and key
-    let name = '$'.concat(key);
-    const mountedComponent = new comp();
-    mountedComponent.mount();
-    Component.prototype[name] = mountedComponent;
-    return GLOBALS.HEADLESS_COMPONENTS[name] = mountedComponent;
-  },
+  customTag,
+  customAttribute,
+  headless,
   update: patch,
   patch,
   mount,
@@ -114,12 +39,111 @@ const Radi = {
   },
 };
 
-// Radi.customAttribute('source', (element, value) => {
-//   element.style.fontSize = value + 'px';
-//   console.log('Sourced', element, value)
-// }, {
-//   allowedTags: ['li', 'ul'],
-// })
+class Modal extends Radi.Component {
+  state() {
+    return {
+      registry: {},
+    };
+  }
+
+  register(name, element) {
+    if (typeof this.state.registry[name] !== 'undefined') {
+      console.warn('[Radi.js] Warn: Modal with name "' + name + '" is already registerd!');
+      return;
+    }
+
+    return this.setState({
+      registry: Object.assign({}, this.state.registry, {
+        [name]: {
+          status: false,
+          element,
+        },
+      }),
+    });
+  }
+
+  exists(name) {
+    if (typeof this.state.registry[name] === 'undefined') {
+      console.warn('[Radi.js] Warn: Modal with name "' + name + '" is not registerd!');
+      return false;
+    }
+
+    return true;
+  }
+
+  open(name) {
+    if (!this.exists(name) || this.state.registry[name].status) return;
+
+    return this.setState({
+      registry: Object.assign({}, this.state.registry, {
+        [name]: {
+          status: true,
+          element: this.state.registry[name].element,
+        },
+      }),
+    });
+  }
+
+  close(name) {
+    if (!this.exists(name) || !this.state.registry[name].status) return;
+
+    return this.setState({
+      registry: Object.assign({}, this.state.registry, {
+        [name]: {
+          status: false,
+          element: this.state.registry[name].element,
+        },
+      }),
+    });
+  }
+
+  closeAll() {
+    let keys = Object.keys(this.state.registry);
+    let registry = keys.reduce((acc, name) => Object.assign(acc, {
+      [name]: {
+        status: false,
+        element: this.state.registry[name].element,
+      },
+    }), {});
+
+    return this.setState({
+      registry,
+    });
+  }
+}
+
+let $modal = headless('modal', Modal);
+
+Radi.customTag('modal',
+  (props, children, buildNode, save) => {
+    let name = props.name || 'default';
+
+    $modal.register(name, null);
+
+    if (typeof props.name === 'undefined') {
+      console.warn('[Radi.js] Warn: Every <modal> tag needs to have `name` attribute!');
+    }
+
+    Radi.mount(listen($modal, 'registry', name)
+      .process(v => (
+        v.status && r('div',
+          { class: 'radi-modal', name },
+          r('div', {
+            class: 'radi-modal-backdrop',
+            onclick: () => $modal.close(name),
+          }),
+          r('div',
+            { class: 'radi-modal-content' },
+            ...(children.slice())
+          )
+        )
+      )), document.body);
+
+    return buildNode(null);
+  }, (element) => {
+    // Destroyed element
+  }
+);
 
 // Pass Radi instance to plugins
 Radi.plugin = (fn, ...args) => fn(Radi, ...args);

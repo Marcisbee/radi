@@ -1,5 +1,11 @@
 {
   "releases": {
+    "0.3.27": [
+      "[New] Adds custom tag creator `Radi.customTag()`",
+      "[New] Adds custom tag <modal>",
+      "[New] Adds custom attribute `prevent` that prevents default from onsubmit event",
+      "[Improved] Code structure fixes"
+    ],
     "0.3.26": [
       "[New] Adds changelog in json format",
       "[Fixed] Param passing as Listeners from Component to Component"

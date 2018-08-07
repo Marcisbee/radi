@@ -1,10 +1,11 @@
 var GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.26',
+  VERSION: '0.3.27',
   // TODO: Collect active components
   ACTIVE_COMPONENTS: {},
   CUSTOM_ATTRIBUTES: {},
+  CUSTOM_TAGS: {},
 };
 
 /**
@@ -553,7 +554,7 @@ var explode = (raw, parent, next, depth, isSvg) => {
   // console.log('explode', {parent, nodes})
 
   for (var i = 0; i < nodes.length; i++) {
-    if (nodes[i] instanceof Structure && !nodes[i].html) {
+    if ((nodes[i] instanceof Structure || nodes[i].isStructure) && !nodes[i].html) {
       // let pp = depth === 0 ? parent : nodes[i];
       // let pp = parent;
       // console.log('EXPLODE 1', parent.$depth, depth, parent.$redirect, nodes[i].$redirect)
@@ -808,8 +809,12 @@ var setAttributes = (structure, propsSource, oldPropsSource) => {
       // Handles events 'on<event>'
       if (prop.substring(0, 2).toLowerCase() === 'on' && typeof props[prop] === 'function') {
         var fn = props[prop];
-        if (prop.substring(0, 8).toLowerCase() === 'onsubmit') {
+        if (prop.toLowerCase() === 'onsubmit') {
           element[prop] = (e) => {
+            if (props.prevent) {
+              e.preventDefault();
+            }
+
             var data = [];
             var inputs = e.target.elements || [];
             for (var input of inputs) {
@@ -1079,6 +1084,10 @@ Structure.prototype.render = function render (next, parent, depth, isSvg) {
   return next(textNode(this.query));
 };
 
+Structure.prototype.isStructure = function isStructure () {
+  return true;
+};
+
 /* eslint-disable no-restricted-syntax */
 
 // const hasRedirect = item => (
@@ -1116,8 +1125,8 @@ var patch = (rawfirst, rawsecond, parent,
 
     second[i].$depth = depth;
 
-    if (first[i] instanceof Structure
-      && second[i] instanceof Structure
+    if ((first[i] instanceof Structure || first[i].isStructure)
+      && (second[i] instanceof Structure || second[i].isStructure)
       && first[i] !== second[i]) {
       // if (second[i].$redirect2) {
       //   second[i] = patch(
@@ -1457,28 +1466,32 @@ var isComponent = value => {
  */
 var filterNode = value => {
 
+  if (Array.isArray(value)) {
+    return value.map(filterNode);
+  }
+
   if (typeof value === 'string' || typeof value === 'number') {
-    return r('#text', value)
+    return r('#text', value);
   }
 
   if (!value || typeof value === 'boolean') {
-    return r('#text', '')
+    return r('#text', '');
   }
 
   if (value instanceof Listener) {
-    return r(value)
+    return r(value);
   }
 
   if (isComponent(value) || value instanceof Component) {
-    return r(value)
+    return r(value);
   }
 
   if (typeof value === 'function') {
-    return r(value)
+    return r(value);
   }
 
   if (value instanceof Promise || value.constructor.name === 'LazyPromise') {
-    return r(value)
+    return r(value);
   }
 
   return value;
@@ -1493,6 +1506,15 @@ var filterNode = value => {
  * @returns {object}
  */
 var r = (query, props, ...children) => {
+  if (typeof GLOBALS.CUSTOM_TAGS[query] !== 'undefined') {
+    return GLOBALS.CUSTOM_TAGS[query].onmount(
+      props || {},
+      (children && flatten([children]).map(filterNode)) || [],
+      filterNode,
+      v => (GLOBALS.CUSTOM_TAGS[query].saved = v)
+    ) || null;
+  }
+
   if (query === 'await') {
     var output = null;
 
@@ -1549,23 +1571,36 @@ var r = (query, props, ...children) => {
 var listen = (component, ...path) =>
   new Listener(component, ...path);
 
-var remountActiveComponents = () => {
-  Object.values(GLOBALS.ACTIVE_COMPONENTS).forEach(component => {
-    if (typeof component.onMount === 'function') {
-      component.onMount(component);
-    }
-  });
+var headless = (key, Comp) => {
+  // TODO: Validate component and key
+  var name = '$'.concat(key);
+  var mountedComponent = new Comp();
+  mountedComponent.mount();
+  Component.prototype[name] = mountedComponent;
+  return GLOBALS.HEADLESS_COMPONENTS[name] = mountedComponent;
 };
 
-function createWorker(fn) {
+/* eslint-disable func-names */
+
+var action = (target, key, descriptor) => {
+  var act = descriptor.value;
+  descriptor.value = function (...args) {
+    return this.setState.call(this, act.call(this, ...args));
+  };
+  return descriptor;
+};
+
+/* eslint-disable func-names */
+
+var createWorker = fn => {
   var fire = () => {};
 
-  var blob = new Blob([`self.onmessage = function(e) {
+  var blob = new window.Blob([`self.onmessage = function(e) {
     self.postMessage((${fn.toString()})(e.data));
   }`], { type: 'text/javascript' });
 
   var url = window.URL.createObjectURL(blob);
-  var myWorker = new Worker(url);
+  var myWorker = new window.Worker(url);
 
   myWorker.onmessage = e => { fire(e.data, null); };
   myWorker.onerror = e => { fire(null, e.data); };
@@ -1573,11 +1608,11 @@ function createWorker(fn) {
   return arg => new Promise((resolve, reject) => {
     fire = (data, err) => !err ? resolve(data) : reject(data);
     myWorker.postMessage(arg);
-  })
-}
+  });
+};
 
 // Descriptor for worker
-function worker(target, key, descriptor) {
+var worker = (target, key, descriptor) => {
   var act = descriptor.value;
 
   var promisedWorker = createWorker(act);
@@ -1588,24 +1623,17 @@ function worker(target, key, descriptor) {
     });
   };
   return descriptor;
-}
+};
 
-// Descriptor for actions
-function action(target, key, descriptor) {
-  var act = descriptor.value;
-  descriptor.value = function (...args) {
-    return this.setState.call(this, act.call(this, ...args));
-  };
-  return descriptor;
-}
+/* eslint-disable func-names */
 
 // Descriptor for subscriptions
-function subscribe(container, eventName, triggerMount) {
+var subscribe = (container, eventName/* , triggerMount */) =>
   // TODO: Remove event after no longer needed / Currently overrides existing
   // TODO: Do not override existing event - use EventListener
   // TODO: triggerMount should trigger this event on mount too
-  return function (target, key, descriptor) {
-    var name = 'on' + (eventName || key);
+  function (target, key, descriptor) {
+    var name = `on${eventName || key}`;
     var fn = function (...args) {
       return descriptor.value.call(this, ...args);
     };
@@ -1619,8 +1647,47 @@ function subscribe(container, eventName, triggerMount) {
     // }
     // console.log(target, key, descriptor, container[name], name, fn, fn.radiGlobalEvent);
     return descriptor;
-  }
-}
+  };
+
+/**
+ * @param {string} tagName
+ * @param {function} onmount
+ * @param {function} ondestroy
+ * @returns {object}
+ */
+var customTag = (tagName, onmount, ondestroy) => GLOBALS.CUSTOM_TAGS[tagName] = {
+  name: tagName,
+  onmount: onmount || (() => {}),
+  ondestroy: ondestroy || (() => {}),
+  saved: null,
+};
+
+/**
+ * @param {string} attributeName
+ * @param {function} caller
+ * @param {object} object
+ * @returns {object}
+ */
+var customAttribute = (attributeName, caller, ref) => {
+  if ( ref === void 0 ) ref = {};
+  var allowedTags = ref.allowedTags;
+  var addToElement = ref.addToElement;
+
+  return GLOBALS.CUSTOM_ATTRIBUTES[attributeName] = {
+  name: attributeName,
+  caller,
+  allowedTags: allowedTags || null,
+  addToElement,
+};
+};
+
+var remountActiveComponents = () => {
+  Object.values(GLOBALS.ACTIVE_COMPONENTS).forEach(component => {
+    if (typeof component.onMount === 'function') {
+      component.onMount(component);
+    }
+  });
+};
 
 var Radi = {
   version: GLOBALS.VERSION,
@@ -1629,30 +1696,13 @@ var Radi = {
   listen,
   l: listen,
   worker,
-  component: Component,
   Component,
+  component: Component,
   action,
   subscribe,
-  customAttribute: (attributeName, caller, ref) => {
-    if ( ref === void 0 ) ref = {};
-    var allowedTags = ref.allowedTags;
-    var addToElement = ref.addToElement;
-
-    GLOBALS.CUSTOM_ATTRIBUTES[attributeName] = {
-      name: attributeName,
-      caller,
-      allowedTags: allowedTags || null,
-      addToElement,
-    };
-  },
-  headless: (key, comp) => {
-    // TODO: Validate component and key
-    var name = '$'.concat(key);
-    var mountedComponent = new comp();
-    mountedComponent.mount();
-    Component.prototype[name] = mountedComponent;
-    return GLOBALS.HEADLESS_COMPONENTS[name] = mountedComponent;
-  },
+  customTag,
+  customAttribute,
+  headless,
   update: patch,
   patch,
   mount,
@@ -1665,12 +1715,121 @@ var Radi = {
   },
 };
 
-// Radi.customAttribute('source', (element, value) => {
-//   element.style.fontSize = value + 'px';
-//   console.log('Sourced', element, value)
-// }, {
-//   allowedTags: ['li', 'ul'],
-// })
+var Modal = (function (superclass) {
+  function Modal () {
+    superclass.apply(this, arguments);
+  }
+
+  if ( superclass ) Modal.__proto__ = superclass;
+  Modal.prototype = Object.create( superclass && superclass.prototype );
+  Modal.prototype.constructor = Modal;
+
+  Modal.prototype.state = function state () {
+    return {
+      registry: {},
+    };
+  };
+
+  Modal.prototype.register = function register (name, element) {
+    if (typeof this.state.registry[name] !== 'undefined') {
+      console.warn('[Radi.js] Warn: Modal with name "' + name + '" is already registerd!');
+      return;
+    }
+
+    return this.setState({
+      registry: Object.assign({}, this.state.registry, {
+        [name]: {
+          status: false,
+          element,
+        },
+      }),
+    });
+  };
+
+  Modal.prototype.exists = function exists (name) {
+    if (typeof this.state.registry[name] === 'undefined') {
+      console.warn('[Radi.js] Warn: Modal with name "' + name + '" is not registerd!');
+      return false;
+    }
+
+    return true;
+  };
+
+  Modal.prototype.open = function open (name) {
+    if (!this.exists(name) || this.state.registry[name].status) { return; }
+
+    return this.setState({
+      registry: Object.assign({}, this.state.registry, {
+        [name]: {
+          status: true,
+          element: this.state.registry[name].element,
+        },
+      }),
+    });
+  };
+
+  Modal.prototype.close = function close (name) {
+    if (!this.exists(name) || !this.state.registry[name].status) { return; }
+
+    return this.setState({
+      registry: Object.assign({}, this.state.registry, {
+        [name]: {
+          status: false,
+          element: this.state.registry[name].element,
+        },
+      }),
+    });
+  };
+
+  Modal.prototype.closeAll = function closeAll () {
+    var keys = Object.keys(this.state.registry);
+    var registry = keys.reduce((acc, name) => Object.assign(acc, {
+      [name]: {
+        status: false,
+        element: this.state.registry[name].element,
+      },
+    }), {});
+
+    return this.setState({
+      registry,
+    });
+  };
+
+  return Modal;
+}(Radi.Component));
+
+var $modal = headless('modal', Modal);
+
+Radi.customTag('modal',
+  (props, children, buildNode, save) => {
+    var name = props.name || 'default';
+
+    $modal.register(name, null);
+
+    if (typeof props.name === 'undefined') {
+      console.warn('[Radi.js] Warn: Every <modal> tag needs to have `name` attribute!');
+    }
+
+    Radi.mount(listen($modal, 'registry', name)
+      .process(v => (
+        v.status && r('div',
+          { class: 'radi-modal', name },
+          r('div', {
+            class: 'radi-modal-backdrop',
+            onclick: () => $modal.close(name),
+          }),
+          r('div',
+            { class: 'radi-modal-content' },
+            ...(children.slice())
+          )
+        )
+      )), document.body);
+
+    return buildNode(null);
+  }, (element) => {
+    // Destroyed element
+  }
+);
 
 // Pass Radi instance to plugins
 Radi.plugin = (fn, ...args) => fn(Radi, ...args);

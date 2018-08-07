@@ -15,7 +15,7 @@ const explode = (raw, parent, next, depth = 0, isSvg) => {
   // console.log('explode', {parent, nodes})
 
   for (var i = 0; i < nodes.length; i++) {
-    if (nodes[i] instanceof Structure && !nodes[i].html) {
+    if ((nodes[i] instanceof Structure || nodes[i].isStructure) && !nodes[i].html) {
       // let pp = depth === 0 ? parent : nodes[i];
       // let pp = parent;
       // console.log('EXPLODE 1', parent.$depth, depth, parent.$redirect, nodes[i].$redirect)

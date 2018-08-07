@@ -127,6 +127,10 @@ const setAttributes = (structure, propsSource = {}, oldPropsSource = {}) => {
         const fn = props[prop];
         if (prop.substring(0, 8).toLowerCase() === 'onsubmit') {
           element[prop] = (e) => {
+            if (props.prevent) {
+              e.preventDefault();
+            }
+
             const data = [];
             const inputs = e.target.elements || [];
             for (const input of inputs) {

@@ -1,5 +1,6 @@
 /* eslint-disable no-restricted-syntax */
 
+// import GLOBALS from '../consts/GLOBALS';
 import Component from '../component/Component';
 import flatten from '../utils/flatten';
 import patch from './patch';
@@ -217,6 +218,10 @@ class Structure {
     }
 
     return next(textNode(this.query));
+  }
+
+  isStructure() {
+    return true;
   }
 }
 

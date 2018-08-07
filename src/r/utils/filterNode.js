@@ -10,28 +10,32 @@ import Listener from '../../listen/Listener';
  */
 const filterNode = value => {
 
+  if (Array.isArray(value)) {
+    return value.map(filterNode);
+  }
+
   if (typeof value === 'string' || typeof value === 'number') {
-    return r('#text', value)
+    return r('#text', value);
   }
 
   if (!value || typeof value === 'boolean') {
-    return r('#text', '')
+    return r('#text', '');
   }
 
   if (value instanceof Listener) {
-    return r(value)
+    return r(value);
   }
 
   if (isComponent(value) || value instanceof Component) {
-    return r(value)
+    return r(value);
   }
 
   if (typeof value === 'function') {
-    return r(value)
+    return r(value);
   }
 
   if (value instanceof Promise || value.constructor.name === 'LazyPromise') {
-    return r(value)
+    return r(value);
   }
 
   return value;

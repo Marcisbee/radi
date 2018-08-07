@@ -45,8 +45,8 @@ const patch = (rawfirst, rawsecond, parent,
 
     second[i].$depth = depth;
 
-    if (first[i] instanceof Structure
-      && second[i] instanceof Structure
+    if ((first[i] instanceof Structure || first[i].isStructure)
+      && (second[i] instanceof Structure || second[i].isStructure)
       && first[i] !== second[i]) {
       // if (second[i].$redirect2) {
       //   second[i] = patch(
