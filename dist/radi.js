@@ -853,7 +853,7 @@
               return fn(e, data);
             };
           } else {
-            element[prop] = e => fn(e);
+            element[prop] = (e, ...args) => fn(e, ...args);
           }
           return;
         }

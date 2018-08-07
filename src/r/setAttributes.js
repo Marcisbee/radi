@@ -163,7 +163,7 @@ const setAttributes = (structure, propsSource = {}, oldPropsSource = {}) => {
             return fn(e, data);
           };
         } else {
-          element[prop] = e => fn(e);
+          element[prop] = (e, ...args) => fn(e, ...args);
         }
         continue;
       }
