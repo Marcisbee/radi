@@ -815,7 +815,7 @@
         // Handles events 'on<event>'
         if (prop.substring(0, 2).toLowerCase() === 'on' && typeof props[prop] === 'function') {
           var fn = props[prop];
-          if (prop.toLowerCase() === 'onsubmit') {
+          if (prop.substring(0, 8).toLowerCase() === 'onsubmit') {
             element[prop] = (e) => {
               if (props.prevent) {
                 e.preventDefault();
