@@ -84,27 +84,31 @@ Also we'll be using our SFC syntax for `*.radi` files
 
 `Counter.radi`
 ```jsx
-state: {
-  count: 0
-}
+class {
+  state = {
+    count: 0
+  }
 
-@action up() {
-  return {
-    count: this.state.count +1
+  @action up() {
+    return {
+      count: this.state.count +1
+    }
+  }
+
+  @action down() {
+    return {
+      count: this.state.count -1
+    }
   }
 }
 
-@action down() {
-  return {
-    count: this.state.count -1
-  }
-}
+<div>
+  <h1>{ this.state.count }</h1>
 
-<h1>{ this.state.count }</h1>
+  <button onclick={ () => this.down() } disabled={ this.state.count <= 0 }>-</button>
 
-<button onclick={ () => this.down() } disabled={ this.state.count <= 0 }>-</button>
-
-<button onclick={ () => this.up() }>+</button>
+  <button onclick={ () => this.up() }>+</button>
+</div>
 ```
 
 ## Architecture
