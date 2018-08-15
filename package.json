@@ -24,7 +24,10 @@
     "min-js": "google-closure-compiler-js dist/radi.js > dist/radi.min.js",
     "min-es": "squash dist/radi.es.js -o dist/radi.es.min.js",
     "lint": "eslint ./src/**/*.js --fix",
-    "test": "jest --watch",
+    "test:watch": "jest --watch",
+    "test": "jest",
+    "test:ci": "npm run test -- --ci",
+    "ci": "npm run test:ci  && npm run build",
     "precommit": "pretty-quick --staged"
   },
   "devDependencies": {
