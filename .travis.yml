@@ -4,8 +4,16 @@ node_js:
 cache:
   bundler: true
   directories:
-    - "node_modules"
+  - node_modules
 install:
 - npm install
 script:
 - npm run ci
+deploy:
+  provider: npm
+  email: marcisbergmanis@gmail.com
+  api_key:
+    secure: qeHK5NwTrQf5dwJbYj3OsOa0JF2Ly7ILsumBFSnpMSfNWl8VeTdNa4xX+P92ZJTuXabiTlZYwaWpZu1Ltw39Ju9NSnKkrzECCW7Pk3lUGnzmO/qO1GCIGZ8/4JiNfOgKFVUHb42mdwLpW54oLkVMqAy+42+wRI4r2Bhrexp0IQcXr6vUFg8OUemNLkhtZLxjQpEBbYul4BkGZfiium8V1lBCWI2++fypLZE+MF61XEAn2yBu8Y7HatnQCadzdXS0t8Mg7QwbnLvWmBQyRhSAkAymb9GB8bEmewizC47CUkIJ/erGjliy+NlLmrAJprBZ2ILIcjWNN0R/XeCEuQyuwLid1Gh+F8R+AsqOafzrUenE15K/6ljaDSu7J1jpgu7BxnHBmtLvukL7KVtsp3CKjaR8YiXhLXSN6IwPJQOSBw1beFX6YH1Yapqnra3xePbFLZ3bKNm5A+8UfNtrZgZs0CiF93PeHNokBAFo+cFhOu+uQo15yncQgEWleCKFmppBocwac807nPtXMTtZEvqh+PIjrMBah8CKpwhi/bnnCRRcCmWwEWh0gZzEbWKGaCISetdmC+mWk2tWtKKT7kb0i+pkjqpYoePaQHZncoZ7e6nnhK9IOsbdCcQ5L4NbfLaf6LkLNnIX9/I1Q38AKWHNpeHxyKqo9Z9MCx4q130OZPE=
+  on:
+    tags: true
+    branch: master
