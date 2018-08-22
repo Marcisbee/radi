@@ -1,5 +1,8 @@
 {
   "releases": {
+    "0.3.28": [
+      "[New] Adds new custom attribute `animation`"
+    ],
     "0.3.27": [
       "[New] Adds custom tag creator `Radi.customTag()`",
       "[New] Adds custom tag <modal>",
