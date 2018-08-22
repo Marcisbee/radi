@@ -86,9 +86,15 @@ class Structure {
     }
 
     if (this.html) {
+      const items = this.html;
       for (let i = 0; i < this.html.length; i++) {
-        if (this.html[i].parentNode) {
-          this.html[i].parentNode.removeChild(this.html[i]);
+        if (items[i].parentNode) {
+          const destroyHTML = () => items[i].parentNode.removeChild(items[i]);
+          if (typeof items[i].beforedestroy === 'function') {
+            items[i].beforedestroy(destroyHTML);
+          } else {
+            destroyHTML();
+          }
         }
       }
     }

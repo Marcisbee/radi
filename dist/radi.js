@@ -7,7 +7,7 @@
   var GLOBALS = {
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.3.27',
+    VERSION: '0.3.28',
     // TODO: Collect active components
     ACTIVE_COMPONENTS: {},
     CUSTOM_ATTRIBUTES: {},
@@ -953,11 +953,19 @@
     }
 
     if (this.html) {
-      for (var i$2 = 0; i$2 < this.html.length; i$2++) {
-        if (this.html[i$2].parentNode) {
-          this.html[i$2].parentNode.removeChild(this.html[i$2]);
+      var items = this.html;
+      var loop = function ( i ) {
+        if (items[i].parentNode) {
+          var destroyHTML = () => items[i].parentNode.removeChild(items[i]);
+          if (typeof items[i].beforedestroy === 'function') {
+            items[i].beforedestroy(destroyHTML);
+          } else {
+            destroyHTML();
+          }
         }
-      }
+      };
+
+        for (var i$2 = 0; i$2 < this.html.length; i$2++) loop( i$2 );
     }
 
     if (this.$component instanceof Component) {
@@ -1695,39 +1703,30 @@
     });
   };
 
-  var Radi = {
-    version: GLOBALS.VERSION,
-    activeComponents: GLOBALS.ACTIVE_COMPONENTS,
-    r,
-    listen,
-    l: listen,
-    worker,
-    Component,
-    component: Component,
-    action,
-    subscribe,
-    customTag,
-    customAttribute,
-    headless,
-    update: patch,
-    patch,
-    mount,
-    freeze: () => {
-      GLOBALS.FROZEN_STATE = true;
-    },
-    unfreeze: () => {
-      GLOBALS.FROZEN_STATE = false;
-      remountActiveComponents();
-    },
-  };
-
-  var Modal = (function (superclass) {
-    function Modal () {
-      superclass.apply(this, arguments);
+  var animate = (target, type, opts, done) => {
+    var direct = opts[type];
+    if (typeof direct !== 'function') {
+      console.warn(`[Radi.js] Animation \`${type}\` for node \`${target.nodeName.toLowerCase}\` should be function`);
+      return;
     }
 
-    if ( superclass ) Modal.__proto__ = superclass;
-    Modal.prototype = Object.create( superclass && superclass.prototype );
+    return direct(target, done);
+  };
+
+  customAttribute('animation', (el, props) => {
+    animate(el, 'in', props, () => {});
+    el.beforedestroy = done => animate(el, 'out', props, done);
+  });
+
+  /* eslint-disable consistent-return */
+
+  var Modal = (function (Component$$1) {
+    function Modal () {
+      Component$$1.apply(this, arguments);
+    }
+
+    if ( Component$$1 ) Modal.__proto__ = Component$$1;
+    Modal.prototype = Object.create( Component$$1 && Component$$1.prototype );
     Modal.prototype.constructor = Modal;
 
     Modal.prototype.state = function state () {
@@ -1738,11 +1737,11 @@
 
     Modal.prototype.register = function register (name, element) {
       if (typeof this.state.registry[name] !== 'undefined') {
-        console.warn('[Radi.js] Warn: Modal with name "' + name + '" is already registerd!');
+        console.warn(`[Radi.js] Warn: Modal with name "${name}" is already registerd!`);
         return;
       }
 
-      return this.setState({
+      this.setState({
         registry: Object.assign({}, this.state.registry, {
           [name]: {
             status: false,
@@ -1754,7 +1753,7 @@
 
     Modal.prototype.exists = function exists (name) {
       if (typeof this.state.registry[name] === 'undefined') {
-        console.warn('[Radi.js] Warn: Modal with name "' + name + '" is not registerd!');
+        console.warn(`[Radi.js] Warn: Modal with name "${name}" is not registerd!`);
         return false;
       }
 
@@ -1802,12 +1801,12 @@
     };
 
     return Modal;
-  }(Radi.Component));
+  }(Component));
 
   var $modal = headless('modal', Modal);
 
-  Radi.customTag('modal',
-    (props, children, buildNode, save) => {
+  customTag('modal',
+    (props, children, buildNode) => {
       var name = props.name || 'default';
 
       $modal.register(name, null);
@@ -1816,7 +1815,7 @@
         console.warn('[Radi.js] Warn: Every <modal> tag needs to have `name` attribute!');
       }
 
-      Radi.mount(listen($modal, 'registry', name)
+      mount(listen($modal, 'registry', name)
         .process(v => (
           v.status && r('div',
             { class: 'radi-modal', name },
@@ -1832,10 +1831,36 @@
         )), document.body);
 
       return buildNode(null);
-    }, (element) => {
-      // Destroyed element
+    }, () => {
+      // Destroyed `element`
     }
   );
+
+  var Radi = {
+    version: GLOBALS.VERSION,
+    activeComponents: GLOBALS.ACTIVE_COMPONENTS,
+    r,
+    listen,
+    l: listen,
+    worker,
+    Component,
+    component: Component,
+    action,
+    subscribe,
+    customTag,
+    customAttribute,
+    headless,
+    update: patch,
+    patch,
+    mount,
+    freeze: () => {
+      GLOBALS.FROZEN_STATE = true;
+    },
+    unfreeze: () => {
+      GLOBALS.FROZEN_STATE = false;
+      remountActiveComponents();
+    },
+  };
 
   // Pass Radi instance to plugins
   Radi.plugin = (fn, ...args) => fn(Radi, ...args);
