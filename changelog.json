@@ -1,5 +1,8 @@
 {
   "releases": {
+    "0.3.29": [
+      "[Fixed] Browser export now works again #29"
+    ],
     "0.3.28": [
       "[New] Adds new custom attribute `animation`"
     ],

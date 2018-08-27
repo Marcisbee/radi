@@ -1,7 +1,7 @@
 var GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.3.28',
+  VERSION: '0.3.29',
   // TODO: Collect active components
   ACTIVE_COMPONENTS: {},
   CUSTOM_ATTRIBUTES: {},
@@ -1860,6 +1860,7 @@ var Radi = {
 Radi.plugin = (fn, ...args) => fn(Radi, ...args);
 
 if (window) { window.Radi = Radi; }
-// export default Radi;
-module.exports = Radi;
+// module.exports = Radi;
+
+export default Radi;
 //# sourceMappingURL=radi.es.js.map
