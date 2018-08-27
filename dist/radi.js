@@ -1,13 +1,13 @@
 (function (global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ? factory() :
+  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
   typeof define === 'function' && define.amd ? define(factory) :
-  (factory());
+  (global.Radi = factory());
 }(this, (function () { 'use strict';
 
   var GLOBALS = {
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.3.28',
+    VERSION: '0.3.29',
     // TODO: Collect active components
     ACTIVE_COMPONENTS: {},
     CUSTOM_ATTRIBUTES: {},
@@ -1866,8 +1866,9 @@
   Radi.plugin = (fn, ...args) => fn(Radi, ...args);
 
   if (window) { window.Radi = Radi; }
-  // export default Radi;
-  module.exports = Radi;
+  // module.exports = Radi;
+
+  return Radi;
 
 })));
 //# sourceMappingURL=radi.js.map
