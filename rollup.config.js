@@ -8,7 +8,8 @@ export default {
       target: { chrome: 48, firefox: 43 },
       transforms: {
         forOf: false,
-      }
+      },
+      objectAssign: 'Object.assign'
     })
   ]
 };

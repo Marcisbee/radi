@@ -1,11 +1,12 @@
-/* eslint-disable func-names */
-
+// Decorator for actions
 const action = (target, key, descriptor) => {
-  const act = descriptor.value;
-  descriptor.value = function (...args) {
-    return this.setState.call(this, act.call(this, ...args));
+  const fn = descriptor.value;
+  return {
+    configurable: true,
+    value(...args) {
+      return this.setState.call(this, fn.call(this, ...args), key);
+    },
   };
-  return descriptor;
 };
 
 export default action;
