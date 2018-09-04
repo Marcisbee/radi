@@ -166,8 +166,9 @@ export default class Component {
 
   /**
    * @param {object} newState
+   * @param {string} actionName
    */
-  setState(newState) {
+  setState(newState, actionName) {
     if (typeof newState === 'object') {
       let oldstate = this.state;
 
@@ -184,6 +185,10 @@ export default class Component {
 
     if (!this.$config.listen && typeof this.view === 'function' && this.html) {
       this.html = patch(this.html, this.view());
+    }
+
+    if (typeof actionName === 'string' && typeof this[actionName] === 'function') {
+      this.trigger(`after${actionName[0].toUpperCase()}${actionName.substr(1)}`);
     }
 
     // if (typeof newState === 'object') {
