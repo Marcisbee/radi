@@ -1,5 +1,4 @@
-/* eslint-disable func-names */
-
+// Decorator for actions
 const action = (target, key, descriptor) => {
   const fn = descriptor.value;
   return {

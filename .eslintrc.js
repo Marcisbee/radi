@@ -30,11 +30,13 @@ module.exports = {
     'no-param-reassign': 'off',
     'no-underscore-dangle': 'off',
     'no-plusplus': 'off',
+    'no-prototype-builtins': 'off',
     'no-return-assign': 'off',
     'import/no-named-as-default': 'off',
     'import/no-named-as-default-member': 'off',
     'arrow-parens': 'off',
     'no-confusing-arrow': 'off',
+    'func-names': 'off',
     'function-paren-newline': 'off',
     'comma-dangle': [
       'error',

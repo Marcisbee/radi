@@ -1,4 +1,3 @@
-/* eslint-disable no-prototype-builtins */
 import sinon from 'sinon';
 import GLOBALS from '../../consts/GLOBALS';
 import Component from '../Component';
