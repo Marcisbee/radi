@@ -1,5 +1,9 @@
 {
   "releases": {
+    "0.3.30": [
+      "[New] Adds new event `after{ActionName}`",
+      "[Improved] Action decorator rewrite"
+    ],
     "0.3.29": [
       "[Fixed] Browser export now works again #29"
     ],
