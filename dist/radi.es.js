@@ -1401,8 +1401,9 @@ Component.prototype.trigger = function trigger (key, ...args) {
 
 /**
  * @param {object} newState
+ * @param {string} actionName
  */
-Component.prototype.setState = function setState (newState) {
+Component.prototype.setState = function setState (newState, actionName) {
   if (typeof newState === 'object') {
     var oldstate = this.state;
 
@@ -1419,6 +1420,10 @@ Component.prototype.setState = function setState (newState) {
 
   if (!this.$config.listen && typeof this.view === 'function' && this.html) {
     this.html = patch(this.html, this.view());
+  }
+
+  if (typeof actionName === 'string' && typeof this[actionName] === 'function') {
+    this.trigger('after' + actionName[0].toUpperCase() + actionName.substr(1));
   }
 
   // if (typeof newState === 'object') {
@@ -1588,14 +1593,15 @@ var headless = (key, Comp) => {
   return GLOBALS.HEADLESS_COMPONENTS[name] = mountedComponent;
 };
 
-/* eslint-disable func-names */
-
+// Decorator for actions
 var action = (target, key, descriptor) => {
-  var act = descriptor.value;
-  descriptor.value = function (...args) {
-    return this.setState.call(this, act.call(this, ...args));
+  var fn = descriptor.value;
+  return {
+    configurable: true,
+    value(...args) {
+      return this.setState.call(this, fn.call(this, ...args), key);
+    },
   };
-  return descriptor;
 };
 
 /* eslint-disable func-names */
@@ -1633,28 +1639,51 @@ var worker = (target, key, descriptor) => {
   return descriptor;
 };
 
-/* eslint-disable func-names */
-
 // Descriptor for subscriptions
 var subscribe = (container, eventName/* , triggerMount */) =>
-  // TODO: Remove event after no longer needed / Currently overrides existing
-  // TODO: Do not override existing event - use EventListener
-  // TODO: triggerMount should trigger this event on mount too
-  function (target, key, descriptor) {
-    var name = `on${eventName || key}`;
-    var fn = function (...args) {
-      return descriptor.value.call(this, ...args);
-    };
+  (target, key, descriptor) => {
+    var fn = descriptor.value;
+    var boundFn = () => {};
 
-    container[name] = fn;
-    // if (container && container.addEventListener) {
-    //   container.addEventListener(name, fn);
-    //   self.when('destroy', () => {
-    //     container.removeEventListener(name, fn);
-    //   });
-    // }
-    // console.log(target, key, descriptor, container[name], name, fn, fn.radiGlobalEvent);
-    return descriptor;
+    if (typeof fn !== 'function') {
+      throw new Error(`@subscribe decorator can only be applied to methods not: ${typeof fn}`);
+    }
+
+    // In IE11 calling Object.defineProperty has a side-effect of evaluating the
+    // getter for the property which is being replaced. This causes infinite
+    // recursion and an "Out of stack space" error.
+    var definingProperty = false;
+
+    container[eventName] = (...args) => boundFn(...args);
+
+    return {
+      configurable: true,
+      get() {
+        if (definingProperty || this === target.prototype || this.hasOwnProperty(key)
+          || typeof fn !== 'function') {
+          return fn;
+        }
+
+        boundFn = fn.bind(this);
+
+        definingProperty = true;
+        Object.defineProperty(this, key, {
+          configurable: true,
+          get() {
+            return boundFn;
+          },
+          set(value) {
+            fn = value;
+            delete this[key];
+          }
+        });
+        definingProperty = false;
+        return boundFn;
+      },
+      set(value) {
+        fn = value;
+      }
+    };
   };
 
 /**
