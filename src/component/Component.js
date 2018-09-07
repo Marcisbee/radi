@@ -14,6 +14,8 @@ import Listener from '../listen/Listener';
 // import mount from '../mount';
 import patch from '../r/patch';
 
+const capitalise = lower => lower.charAt(0).toUpperCase() + lower.substr(1);
+
 export default class Component {
   /**
    * @param {Node[]|*[]} [children]
@@ -26,17 +28,22 @@ export default class Component {
       $config: (typeof this.config === 'function') ? this.config() : {
         listen: true,
       },
-      $events: {},
-      $privateStore: new PrivateStore(),
+      __$events: {},
+      __$privateStore: new PrivateStore(),
     });
 
-    this.on = (typeof this.on === 'function') ? this.on() : {};
+    // TODO: Remove this! Deprecated!
+    if (typeof this.on !== 'function'
+      || (typeof this.on === 'function' && typeof this.on() === 'object')) {
+      throw new Error('[Radi.js] Using `on.eventName()` is deprecated. Please use `onEventName()`.');
+    }
+
     this.children = [];
 
     // Links headless components
     for (const key in GLOBALS.HEADLESS_COMPONENTS) {
-      if (this[key] && typeof this[key].when === 'function') {
-        this[key].when('update', () => this.setState());
+      if (this[key] && typeof this[key].on === 'function') {
+        this[key].on('update', () => this.setState());
       }
     }
 
@@ -69,7 +76,7 @@ export default class Component {
 
     for (const key in props) {
       if (typeof props[key] === 'function' && key.substr(0, 2) === 'on') {
-        self.when(key.substring(2, key.length), props[key]);
+        self.on(key.substring(2, key.length), props[key]);
       } else
       if (props[key] instanceof Listener) {
         newState[key] = props[key].init().value;
@@ -93,8 +100,8 @@ export default class Component {
     this.children = children;
     this.setState();
     for (let i = 0; i < this.children.length; i++) {
-      if (typeof this.children[i].when === 'function') {
-        this.children[i].when('update', () => this.setState());
+      if (typeof this.children[i].on === 'function') {
+        this.children[i].on('update', () => this.setState());
       }
     }
     return this;
@@ -119,7 +126,7 @@ export default class Component {
    * @param {number} depth
    */
   addListener(key, listener, depth) {
-    this.$privateStore.addListener(key, listener, depth);
+    this.__$privateStore.addListener(key, listener, depth);
   }
 
   mount() {
@@ -136,16 +143,23 @@ export default class Component {
     // }
     this.html = null;
     this.trigger('destroy');
-    this.$privateStore.removeListeners();
+    this.__$privateStore.removeListeners();
+  }
+
+  // TODO: Remove this! Deprecated!
+  when() {
+    throw new Error('[Radi.js] Using `.when(\'Event\')` is deprecated. Use `.on(\'Event\')` instead.');
   }
 
   /**
    * @param {string} key
    * @param {function} fn
+   * @returns {function}
    */
-  when(key, fn) {
-    if (typeof this.$events[key] === 'undefined') this.$events[key] = [];
-    this.$events[key].push(fn);
+  on(key, fn) {
+    if (typeof this.__$events[key] === 'undefined') this.__$events[key] = [];
+    this.__$events[key].push(fn);
+    return fn;
   }
 
   /**
@@ -153,13 +167,15 @@ export default class Component {
    * @param {*} value
    */
   trigger(key, ...args) {
-    if (typeof this.on[key] === 'function') {
-      this.on[key].call(this, ...args);
+    const event = this[`on${capitalise(key)}`];
+
+    if (typeof event === 'function') {
+      event.call(this, ...args);
     }
 
-    if (typeof this.$events[key] !== 'undefined') {
-      for (const i in this.$events[key]) {
-        this.$events[key][i].call(this, ...args);
+    if (typeof this.__$events[key] !== 'undefined') {
+      for (const i in this.__$events[key]) {
+        this.__$events[key][i].call(this, ...args);
       }
     }
   }
@@ -179,7 +195,7 @@ export default class Component {
       skipInProductionAndTest(() => Object.freeze(this.state));
 
       if (this.$config.listen) {
-        this.$privateStore.setState(newState);
+        this.__$privateStore.setState(newState);
       }
     }
 
@@ -201,7 +217,7 @@ export default class Component {
     //   skipInProductionAndTest(() => Object.freeze(this.state));
     //
     //   if (this.$config.listen) {
-    //     this.$privateStore.setState(newState);
+    //     this.__$privateStore.setState(newState);
     //   }
     // }
     //
