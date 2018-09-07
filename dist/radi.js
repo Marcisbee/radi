@@ -7,7 +7,7 @@
   var GLOBALS = {
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.3.29',
+    VERSION: '0.4.0',
     // TODO: Collect active components
     ACTIVE_COMPONENTS: {},
     CUSTOM_ATTRIBUTES: {},
@@ -1258,6 +1258,8 @@
 
   /* eslint-disable guard-for-in */
 
+  var capitalise = lower => lower.charAt(0).toUpperCase() + lower.substr(1);
+
   var Component = function Component(children, props) {
     this.addNonEnumerableProperties({
       $id: generateId(),
@@ -1265,17 +1267,22 @@
       $config: (typeof this.config === 'function') ? this.config() : {
         listen: true,
       },
-      $events: {},
-      $privateStore: new PrivateStore(),
+      __$events: {},
+      __$privateStore: new PrivateStore(),
     });
 
-    this.on = (typeof this.on === 'function') ? this.on() : {};
+    // TODO: Remove this! Deprecated!
+    if (typeof this.on !== 'function'
+      || (typeof this.on === 'function' && typeof this.on() === 'object')) {
+      throw new Error('[Radi.js] Using `on.eventName()` is deprecated. Please use `onEventName()`.');
+    }
+
     this.children = [];
 
     // Links headless components
     for (var key in GLOBALS.HEADLESS_COMPONENTS) {
-      if (this[key] && typeof this[key].when === 'function') {
-        this[key].when('update', () => this.setState());
+      if (this[key] && typeof this[key].on === 'function') {
+        this[key].on('update', () => this.setState());
       }
     }
 
@@ -1308,7 +1315,7 @@
 
     var loop = function ( key ) {
       if (typeof props[key] === 'function' && key.substr(0, 2) === 'on') {
-        self.when(key.substring(2, key.length), props[key]);
+        self.on(key.substring(2, key.length), props[key]);
       } else
       if (props[key] instanceof Listener) {
         newState[key] = props[key].init().value;
@@ -1334,8 +1341,8 @@
     this.children = children;
     this.setState();
     for (var i = 0; i < this.children.length; i++) {
-      if (typeof this.children[i].when === 'function') {
-        this.children[i].when('update', () => this.setState());
+      if (typeof this.children[i].on === 'function') {
+        this.children[i].on('update', () => this.setState());
       }
     }
     return this;
@@ -1360,7 +1367,7 @@
    * @param {number} depth
    */
   Component.prototype.addListener = function addListener (key, listener, depth) {
-    this.$privateStore.addListener(key, listener, depth);
+    this.__$privateStore.addListener(key, listener, depth);
   };
 
   Component.prototype.mount = function mount () {
@@ -1377,16 +1384,23 @@
     // }
     this.html = null;
     this.trigger('destroy');
-    this.$privateStore.removeListeners();
+    this.__$privateStore.removeListeners();
+  };
+
+  // TODO: Remove this! Deprecated!
+  Component.prototype.when = function when () {
+    throw new Error('[Radi.js] Using `.when(\'Event\')` is deprecated. Use `.on(\'Event\')` instead.');
   };
 
   /**
    * @param {string} key
    * @param {function} fn
+   * @returns {function}
    */
-  Component.prototype.when = function when (key, fn) {
-    if (typeof this.$events[key] === 'undefined') { this.$events[key] = []; }
-    this.$events[key].push(fn);
+  Component.prototype.on = function on (key, fn) {
+    if (typeof this.__$events[key] === 'undefined') { this.__$events[key] = []; }
+    this.__$events[key].push(fn);
+    return fn;
   };
 
   /**
@@ -1394,13 +1408,15 @@
    * @param {*} value
    */
   Component.prototype.trigger = function trigger (key, ...args) {
-    if (typeof this.on[key] === 'function') {
-      this.on[key].call(this, ...args);
+    var event = this[`on${capitalise(key)}`];
+
+    if (typeof event === 'function') {
+      event.call(this, ...args);
     }
 
-    if (typeof this.$events[key] !== 'undefined') {
-      for (var i in this.$events[key]) {
-        this.$events[key][i].call(this, ...args);
+    if (typeof this.__$events[key] !== 'undefined') {
+      for (var i in this.__$events[key]) {
+        this.__$events[key][i].call(this, ...args);
       }
     }
   };
@@ -1420,7 +1436,7 @@
       skipInProductionAndTest(() => Object.freeze(this.state));
 
       if (this.$config.listen) {
-        this.$privateStore.setState(newState);
+        this.__$privateStore.setState(newState);
       }
     }
 
@@ -1429,7 +1445,7 @@
     }
 
     if (typeof actionName === 'string' && typeof this[actionName] === 'function') {
-      this.trigger('after' + actionName[0].toUpperCase() + actionName.substr(1));
+      this.trigger(`after${actionName[0].toUpperCase()}${actionName.substr(1)}`);
     }
 
     // if (typeof newState === 'object') {
@@ -1442,7 +1458,7 @@
     // skipInProductionAndTest(() => Object.freeze(this.state));
     //
     // if (this.$config.listen) {
-    //   this.$privateStore.setState(newState);
+    //   this.__$privateStore.setState(newState);
     // }
     // }
     //
@@ -1681,14 +1697,14 @@
             set(value) {
               fn = value;
               delete this[key];
-            }
+            },
           });
           definingProperty = false;
           return boundFn;
         },
         set(value) {
           fn = value;
-        }
+        },
       };
     };
 

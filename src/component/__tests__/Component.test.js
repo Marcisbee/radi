@@ -47,14 +47,14 @@ describe('Component.js', () => {
 
     expect(component.children).toEqual([1, 2, 3]);
 
-    expect(component.$privateStore).toBeInstanceOf(PrivateStore);
+    expect(component.__$privateStore).toBeInstanceOf(PrivateStore);
 
     expect(component.view()).toEqual(expect.objectContaining({ a: 'b' }));
     expect(viewSpy.calledOnce).toBe(true);
 
     expect(component.$id.propertyIsEnumerable()).toBe(false);
     expect(component.state.propertyIsEnumerable()).toBe(false);
-    expect(component.$privateStore.propertyIsEnumerable()).toBe(false);
+    expect(component.__$privateStore.propertyIsEnumerable()).toBe(false);
     expect(component.view.propertyIsEnumerable()).toBe(false);
   });
 
@@ -96,7 +96,7 @@ describe('Component.js', () => {
       handleUpdate: sinon.spy(),
     };
     component.addListener('foo', listener, 0);
-    expect(component.$privateStore.store.foo.listeners[0][0]).toBe(listener);
+    expect(component.__$privateStore.store.foo.listeners[0][0]).toBe(listener);
     expect(listener.handleUpdate.callCount).toBe(0);
     component.setState({foo: 'baz'});
     expect(listener.handleUpdate.callCount).toBe(1);
@@ -108,9 +108,7 @@ describe('Component.js', () => {
     class Fake extends Component {
       constructor() {
         super();
-        this.on = {
-          mount: onMountSpy,
-        };
+        this.onMount = onMountSpy;
       }
     };
     const component = new Fake();
@@ -123,9 +121,7 @@ describe('Component.js', () => {
     class Fake extends Component {
       constructor() {
         super();
-        this.on = {
-          destroy: onDestroySpy,
-        };
+        this.onDestroy = onDestroySpy;
       }
     };
     const component = new Fake();
@@ -140,9 +136,7 @@ describe('Component.js', () => {
     class Fake extends Component {
       constructor() {
         super();
-        this.on = {
-          mount: onMountSpy,
-        };
+        this.onMount = onMountSpy;
       }
       view() {
         return document.createElement('h1');
