@@ -1,7 +1,11 @@
 {
   "releases": {
+    "0.4.0": [
+      "[New] Deprecates usage of on.event, instead use onEvent for components",
+      "[Improved] Rename of `$events` and `$privateStore`"
+    ],
     "0.3.30": [
-      "[New] Adds new event `after{ActionName}`",
+      "[Added] New event `after{ActionName}`",
       "[Improved] Action decorator rewrite"
     ],
     "0.3.29": [
