@@ -162,11 +162,15 @@ const setAttributes = (structure, propsSource = {}, oldPropsSource = {}) => {
                   default: input.defaultValue,
                   value: input.value,
                   set(val) {
-                    structure.el.value = val;
+                    if (structure && structure.el && structure.el.value) {
+                      structure.el.value = val;
+                    }
                   },
                   reset(val) {
-                    structure.el.value = val;
-                    structure.el.defaultValue = val;
+                    if (structure && structure.el && structure.el.value) {
+                      structure.el.value = val;
+                      structure.el.defaultValue = val;
+                    }
                   },
                 };
                 data.push(item);

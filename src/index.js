@@ -13,6 +13,8 @@ import customTag from './r/customTag';
 import customAttribute from './r/customAttribute';
 import remountActiveComponents from './utils/remountActiveComponents';
 import {} from './custom';
+import validate from './custom/validation/validate';
+import { Validator } from './custom/validation/Validator';
 
 const Radi = {
   version: GLOBALS.VERSION,
@@ -38,10 +40,13 @@ const Radi = {
     GLOBALS.FROZEN_STATE = false;
     remountActiveComponents();
   },
+  Validator,
 };
 
 // Pass Radi instance to plugins
 Radi.plugin = (fn, ...args) => fn(Radi, ...args);
+
+Radi.plugin(validate);
 
 if (window) window.Radi = Radi;
 export default Radi;
