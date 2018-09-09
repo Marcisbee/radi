@@ -1,5 +1,11 @@
 {
   "releases": {
+    "0.4.1": [
+      "[Added] Events `onMount` and `onDestroy` to DOM nodes",
+      "[Fixed] Modal now destroys correctly",
+      "[Fixed] Attribute `loadfocus` now uses correct event",
+      "[Improved] Input types `radio` and `checkbox` now works well with `model` attribute"
+    ],
     "0.4.0": [
       "[New] Deprecates usage of on.event, instead use onEvent for components",
       "[Improved] Rename of `$events` and `$privateStore`"

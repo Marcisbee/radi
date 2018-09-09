@@ -1,7 +1,7 @@
 var GLOBALS = {
   HEADLESS_COMPONENTS: {},
   FROZEN_STATE: false,
-  VERSION: '0.4.0',
+  VERSION: '0.4.1',
   // TODO: Collect active components
   ACTIVE_COMPONENTS: {},
   CUSTOM_ATTRIBUTES: {},
@@ -383,6 +383,12 @@ Listener.prototype.deattach = function deattach () {
   this.processValue = () => {};
 };
 
+var onMountEvent = document.createEvent('Event');
+onMountEvent.initEvent('mount', true, true);
+
+var onLoadEvent = document.createEvent('Event');
+onLoadEvent.initEvent('load', true, true);
+
 /**
  * Append dom node to dom tree (after - (true) should append after 'to' element
  * or (false) inside it)
@@ -392,9 +398,16 @@ Listener.prototype.deattach = function deattach () {
  * @returns {HTMLElement}
  */
 var append = (node, to, after) => {
+  if (typeof node.dispatchEvent === 'function') {
+    node.dispatchEvent(onLoadEvent);
+  }
+
   if (after && to) {
     if (to.parentNode) {
       to.parentNode.insertBefore(node, to);
+      if (typeof node.dispatchEvent === 'function') {
+        node.dispatchEvent(onMountEvent);
+      }
       // if (!to.nextSibling) {
       //   to.parentNode.appendChild(node);
       // } else {
@@ -404,7 +417,13 @@ var append = (node, to, after) => {
     return node;
   }
 
-  return to.appendChild(node);
+  to.appendChild(node);
+
+  if (typeof node.dispatchEvent === 'function') {
+    node.dispatchEvent(onMountEvent);
+  }
+
+  return node;
 };
 
 var getLast = (child) => {
@@ -714,18 +733,14 @@ var setAttributes = (structure, propsSource, oldPropsSource) => {
       // Skip if proprs are the same
       if (typeof oldProps !== 'undefined' && oldProps[prop] === props[prop]) { return; }
 
-      // Need to remove falsy attribute
-      if (!props[prop] && typeof props[prop] !== 'number') {
-        element.removeAttribute(prop);
-        return;
+      if (prop === 'checked') {
+        element.checked = props[prop];
       }
 
-      if ((prop === 'value' || prop === 'model') && !(props[prop] instanceof Listener)) {
-        if (/(checkbox|radio)/.test(element.getAttribute('type'))) {
-          element.checked = props[prop];
-        } else {
-          element.value = props[prop];
-        }
+      // Need to remove falsy attribute
+      if (!props[prop] && typeof props[prop] !== 'number' && typeof props[prop] !== 'string') {
+        element.removeAttribute(prop);
+        return;
       }
 
       // Handle Listeners
@@ -734,30 +749,55 @@ var setAttributes = (structure, propsSource, oldPropsSource) => {
         structure.$attrListeners[prop] = props[prop];
         props[prop].applyDepth(structure.depth).init();
 
-        if (prop.toLowerCase() === 'model') {
-          if (/(checkbox|radio)/.test(element.getAttribute('type'))) {
-            element.addEventListener('change', (e) => {
-              structure.$attrListeners[prop].updateValue(e.target.checked);
+        if (prop.toLowerCase() === 'model' || prop.toLowerCase() === 'checked') {
+          if (element.getAttribute('type') === 'radio') {
+            element.addEventListener('input', (e) => {
+              structure.$attrListeners[prop].updateValue(
+                (e.target.checked && e.target.value)
+                || e.target.checked
+              );
+            }, false);
+            structure.$attrListeners[prop].onValueChange(value => {
+              setAttributes(structure, {
+                checked: element.value === value && Boolean(value),
+              }, {});
+            });
+          } else
+          if (element.getAttribute('type') === 'checkbox') {
+            element.addEventListener('input', (e) => {
+              structure.$attrListeners[prop].updateValue(
+                Boolean(e.target.checked)
+              );
+            }, false);
+            structure.$attrListeners[prop].onValueChange(value => {
+              setAttributes(structure, {
+                checked: Boolean(value),
+              }, {});
             });
           } else {
             element.addEventListener('input', (e) => {
               structure.$attrListeners[prop].updateValue(e.target.value);
-            });
+            }, false);
           }
         }
 
-        structure.$attrListeners[prop].onValueChange(value => {
-          setAttributes(structure, {
-            [prop]: value,
-          }, {});
-          // props[prop] = value;
-        });
+        if (!/(checkbox|radio)/.test(element.getAttribute('type'))) {
+          structure.$attrListeners[prop].onValueChange(value => {
+            setAttributes(structure, {
+              [prop]: value,
+            }, {});
+          });
+        }
 
         // structure.setProps(Object.assign(structure.data.props, {
         //   [prop]: props[prop].value,
         // }));
         props[prop] = structure.$attrListeners[prop].value;
         return;
+      }
+
+      if (prop === 'value' || prop === 'model') {
+        element.value = props[prop];
       }
 
       if (typeof GLOBALS.CUSTOM_ATTRIBUTES[prop] !== 'undefined') {
@@ -793,11 +833,9 @@ var setAttributes = (structure, propsSource, oldPropsSource) => {
       }
 
       if (prop.toLowerCase() === 'loadfocus') {
-        element.onload = (el) => {
-          setTimeout(() => {
-            el.focus();
-          }, 10);
-        };
+        element.addEventListener('mount', () => {
+          element.focus();
+        }, false);
         return;
       }
 
@@ -879,7 +917,6 @@ var Structure = function Structure(query, props, children, depth) {
   if ( props === void 0 ) props = {};
   if ( depth === void 0 ) depth = 0;
 
-  // console.log('H', query, children)
   this.query = query;
   this.props = Boolean !== props ? props : {};
   if (isComponent(query) || query instanceof Component) {
@@ -903,10 +940,13 @@ var Structure = function Structure(query, props, children, depth) {
 
 Structure.prototype.mount = function mount () {
   this.$destroyed = false;
-  // console.warn('[mounted]', this)
 
   if (this.$component instanceof Component) {
     this.$component.mount();
+  }
+
+  if (typeof this.onMount === 'function') {
+    this.onMount();
   }
 };
 
@@ -914,7 +954,6 @@ Structure.prototype.destroy = function destroy (childrenToo) {
     if ( childrenToo === void 0 ) childrenToo = true;
 
   if (this.$destroyed) { return false; }
-  // console.warn('[destroyed]', this, this.html, this.$redirect)
 
   for (var l in this.$styleListeners) {
     if (this.$styleListeners[l]
@@ -973,6 +1012,11 @@ Structure.prototype.destroy = function destroy (childrenToo) {
   if (this.$pointer && this.$pointer.parentNode) {
     this.$pointer.parentNode.removeChild(this.$pointer);
   }
+
+  if (typeof this.onDestroy === 'function') {
+    this.onDestroy();
+  }
+
   this.$pointer = null;
   this.$redirect = null;
   this.$component = null;
@@ -1439,7 +1483,7 @@ Component.prototype.setState = function setState (newState, actionName) {
   }
 
   if (typeof actionName === 'string' && typeof this[actionName] === 'function') {
-    this.trigger(`after${actionName[0].toUpperCase()}${actionName.substr(1)}`);
+    this.trigger(`after${capitalise(actionName)}`, newState);
   }
 
   // if (typeof newState === 'object') {
@@ -1787,7 +1831,7 @@ var Modal = (function (Component$$1) {
           element,
         },
       }),
-    });
+    }, 'register');
   };
 
   Modal.prototype.exists = function exists (name) {
@@ -1809,7 +1853,7 @@ var Modal = (function (Component$$1) {
           element: this.state.registry[name].element,
         },
       }),
-    });
+    }, 'open');
   };
 
   Modal.prototype.close = function close (name) {
@@ -1822,7 +1866,7 @@ var Modal = (function (Component$$1) {
           element: this.state.registry[name].element,
         },
       }),
-    });
+    }, 'close');
   };
 
   Modal.prototype.closeAll = function closeAll () {
@@ -1836,7 +1880,7 @@ var Modal = (function (Component$$1) {
 
     return this.setState({
       registry,
-    });
+    }, 'closeAll');
   };
 
   return Modal;
@@ -1854,7 +1898,7 @@ customTag('modal',
       console.warn('[Radi.js] Warn: Every <modal> tag needs to have `name` attribute!');
     }
 
-    mount(listen($modal, 'registry', name)
+    var mounted = mount(listen($modal, 'registry', name)
       .process(v => (
         v.status && r('div',
           { class: 'radi-modal', name },
@@ -1869,7 +1913,15 @@ customTag('modal',
         )
       )), document.body);
 
-    return buildNode(null);
+    var treeSitter = buildNode(null);
+
+    treeSitter.onDestroy = () => {
+      for (var i = 0; i < mounted.length; i++) {
+        if (typeof mounted[i].destroy === 'function') { mounted[i].destroy(); }
+      }
+    };
+
+    return treeSitter;
   }, () => {
     // Destroyed `element`
   }

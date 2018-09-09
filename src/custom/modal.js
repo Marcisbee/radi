@@ -28,7 +28,7 @@ class Modal extends Component {
           element,
         },
       }),
-    });
+    }, 'register');
   }
 
   exists(name) {
@@ -50,7 +50,7 @@ class Modal extends Component {
           element: this.state.registry[name].element,
         },
       }),
-    });
+    }, 'open');
   }
 
   close(name) {
@@ -63,7 +63,7 @@ class Modal extends Component {
           element: this.state.registry[name].element,
         },
       }),
-    });
+    }, 'close');
   }
 
   closeAll() {
@@ -77,7 +77,7 @@ class Modal extends Component {
 
     return this.setState({
       registry,
-    });
+    }, 'closeAll');
   }
 }
 
@@ -93,7 +93,7 @@ customTag('modal',
       console.warn('[Radi.js] Warn: Every <modal> tag needs to have `name` attribute!');
     }
 
-    mount(listen($modal, 'registry', name)
+    const mounted = mount(listen($modal, 'registry', name)
       .process(v => (
         v.status && r('div',
           { class: 'radi-modal', name },
@@ -108,7 +108,15 @@ customTag('modal',
         )
       )), document.body);
 
-    return buildNode(null);
+    const treeSitter = buildNode(null);
+
+    treeSitter.onDestroy = () => {
+      for (let i = 0; i < mounted.length; i++) {
+        if (typeof mounted[i].destroy === 'function') mounted[i].destroy();
+      }
+    };
+
+    return treeSitter;
   }, () => {
     // Destroyed `element`
   }
