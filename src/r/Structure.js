@@ -20,7 +20,6 @@ import setAttributes from './setAttributes';
  */
 class Structure {
   constructor(query, props = {}, children, depth = 0) {
-    // console.log('H', query, children)
     this.query = query;
     this.props = Boolean !== props ? props : {};
     if (isComponent(query) || query instanceof Component) {
@@ -44,16 +43,18 @@ class Structure {
 
   mount() {
     this.$destroyed = false;
-    // console.warn('[mounted]', this)
 
     if (this.$component instanceof Component) {
       this.$component.mount();
+    }
+
+    if (typeof this.onMount === 'function') {
+      this.onMount();
     }
   }
 
   destroy(childrenToo = true) {
     if (this.$destroyed) return false;
-    // console.warn('[destroyed]', this, this.html, this.$redirect)
 
     for (const l in this.$styleListeners) {
       if (this.$styleListeners[l]
@@ -110,6 +111,11 @@ class Structure {
     if (this.$pointer && this.$pointer.parentNode) {
       this.$pointer.parentNode.removeChild(this.$pointer);
     }
+
+    if (typeof this.onDestroy === 'function') {
+      this.onDestroy();
+    }
+
     this.$pointer = null;
     this.$redirect = null;
     this.$component = null;
