@@ -7,7 +7,7 @@
   var GLOBALS = {
     HEADLESS_COMPONENTS: {},
     FROZEN_STATE: false,
-    VERSION: '0.4.1',
+    VERSION: '0.4.2',
     // TODO: Collect active components
     ACTIVE_COMPONENTS: {},
     CUSTOM_ATTRIBUTES: {},
@@ -872,11 +872,15 @@
                     default: input.defaultValue,
                     value: input.value,
                     set(val) {
-                      structure.el.value = val;
+                      if (structure && structure.el && structure.el.value) {
+                        structure.el.value = val;
+                      }
                     },
                     reset(val) {
-                      structure.el.value = val;
-                      structure.el.defaultValue = val;
+                      if (structure && structure.el && structure.el.value) {
+                        structure.el.value = val;
+                        structure.el.defaultValue = val;
+                      }
                     },
                   };
                   data.push(item);
@@ -1933,6 +1937,245 @@
     }
   );
 
+  var extract = form => {
+    var data = {};
+    var inputs = form.elements || [];
+    for (var input of inputs) {
+      if ((input.name !== ''
+        && (input.type !== 'radio' && input.type !== 'checkbox'))
+        || input.checked) {
+        data[input.name] = input.value;
+      }
+    }
+
+    return data;
+  };
+
+  var findButton = elements => {
+    var button = null;
+    for (var input of elements) {
+      if (input.submitButton) { button = input; }
+    }
+
+    return button;
+  };
+
+  function validate(_radi) {
+
+    var Errors = (function (superclass) {
+      function Errors () {
+        superclass.apply(this, arguments);
+      }
+
+      if ( superclass ) Errors.__proto__ = superclass;
+      Errors.prototype = Object.create( superclass && superclass.prototype );
+      Errors.prototype.constructor = Errors;
+
+      Errors.prototype.state = function state () {
+        return {
+
+        }
+      };
+
+      Errors.prototype.add = function add (name, errors) {
+        var newState = this.setState({
+          [name]: errors,
+        });
+        this.trigger('update:' + name, errors);
+        return newState;
+      };
+
+      Errors.prototype.remove = function remove (name) {
+        return this.add(name, []);
+      };
+
+      return Errors;
+    }(_radi.Component));
+
+    var $errors = _radi.headless('errors', Errors);
+
+    _radi.customTag('errors',
+      (props, children, buildNode, save) => {
+      var output = buildNode(null);
+
+      $errors.on('update:' + props.name, err => {
+        var nomalizedData;
+
+        if (!err || err.length <= 0) {
+          nomalizedData = buildNode(null);
+        } else {
+          nomalizedData = buildNode(props.onrender(err || []));
+        }
+
+        output = _radi.patch(output, nomalizedData, output.html[0].parentNode)[0];
+      });
+
+      return output;
+    }, () => {});
+
+    _radi.customAttribute('error', (element, value) => {
+      element.onerror = errors => $errors.add(value, errors);
+      element.onvalid = () => $errors.remove(value);
+    }, {
+      allowedTags: ['form'],
+      addToElement: false,
+    });
+
+    _radi.customAttribute('validate-submit', (element, props) => {
+      element.submitButton = true;
+    }, {
+      allowedTags: ['button'],
+    });
+
+    _radi.customAttribute('validate', (element, props) => {
+      var form = element.form;
+      var button = null;
+
+      var doValidation = e => {
+        if (!form) { form = element.form; }
+        if (form && typeof form.onvalidate === 'function') {
+          button = findButton(form.elements);
+          var inputs = extract(form);
+          var output = form.onvalidate(form);
+          var touched = form.touched || [];
+
+          if (output) {
+            if (typeof output === 'object') {
+              var failed = [];
+              for (var input in output) {
+                if (output.hasOwnProperty(input)) {
+                  if (typeof output[input] === 'function') {
+                    var validated = output[input](inputs[input]);
+                    if (typeof validated === 'string' && touched.indexOf(input) < 0) {
+                      failed.push({
+                        field: input,
+                        reason: null,
+                      });
+                    } else
+                    if (typeof validated === 'string') {
+                      failed.push({
+                        field: input,
+                        reason: validated || null,
+                      });
+                    }
+                  }
+                }
+              }
+
+              if (failed.length > 0) {
+                if (button) { button.disabled = true; }
+                if (typeof form.onerror === 'function') {
+                  form.onerror(failed.filter(v => v.reason));
+                }
+                return;
+              }
+            }
+
+            if (button) { button.disabled = false; }
+            if (form && typeof form.onvalid === 'function') {
+              form.onvalid();
+            }
+            return;
+          }
+        }
+
+        if (button) { button.disabled = true; }
+        if (form && typeof form.onerror === 'function') {
+          form.onerror(null);
+        }
+        return;
+      };
+
+      element.addEventListener('change', e => {
+        if (form) {
+          var name = element.name;
+          if (typeof form.touched === 'undefined') {
+            form.touched = [];
+          }
+          if (form.touched.indexOf(name) < 0) {
+            form.touched.push(element.name);
+            doValidation(e);
+          }
+        }
+      });
+      element.addEventListener('input', doValidation);
+
+      return true;
+    }, {
+      allowedTags: [
+        'input',
+        'textarea',
+        'select',
+      ],
+    });
+  }
+
+  var Validator = function Validator(value) {
+    this.value = value;
+    this.rules = [];
+  };
+
+  Validator.prototype.register = function register (ref) {
+      var type = ref.type;
+      var validate = ref.validate;
+      var error = ref.error;
+
+    var nn = this.rules.push({
+      type: type,
+      validate: value => (value && validate(value)),
+      error: error || 'Invalid field',
+    });
+
+    this.error = text => {
+      this.rules[nn - 1].error = text || error;
+      return this;
+    };
+
+    return this;
+  };
+
+  Validator.prototype.check = function check (newValue) {
+    if (typeof newValue !== 'undefined') {
+      this.value = newValue;
+    }
+
+    return this.rules.reduce((acc, value) => (
+      typeof acc === 'string' ? acc : (!value.validate(this.value) && value.error) || acc
+    ), true)
+  };
+
+  Validator.prototype.required = function required () {
+    return this.register({
+      type: 'required',
+      validate: value => value !== '',
+      error: 'Field is required',
+    })
+  };
+
+  Validator.prototype.min = function min (num) {
+    return this.register({
+      type: 'min',
+      validate: value => value.length >= num,
+      error: 'Min char length is ' + num,
+    })
+  };
+
+  Validator.prototype.max = function max (num) {
+    return this.register({
+      type: 'max',
+      validate: value => value.length < num,
+      error: 'Max char length is ' + num,
+    })
+  };
+
+  Validator.prototype.email = function email () {
+    return this.register({
+      type: 'email',
+      validate: value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+      error: 'Email is not valid',
+    })
+  };
+
   var Radi = {
     version: GLOBALS.VERSION,
     activeComponents: GLOBALS.ACTIVE_COMPONENTS,
@@ -1957,10 +2200,13 @@
       GLOBALS.FROZEN_STATE = false;
       remountActiveComponents();
     },
+    Validator,
   };
 
   // Pass Radi instance to plugins
   Radi.plugin = (fn, ...args) => fn(Radi, ...args);
+
+  Radi.plugin(validate);
 
   if (window) { window.Radi = Radi; }
   // module.exports = Radi;

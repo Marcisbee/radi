@@ -1,5 +1,9 @@
 {
   "releases": {
+    "0.4.2": [
+      "[Added] Form validation controls",
+      "[Added] Simple validator"
+    ],
     "0.4.1": [
       "[Added] Events `onMount` and `onDestroy` to DOM nodes",
       "[Fixed] Modal now destroys correctly",
