@@ -129,7 +129,7 @@ const setAttributes = (structure, propsSource = {}, oldPropsSource = {}) => {
       }
 
       if (prop.toLowerCase() === 'loadfocus') {
-        element.addEventListener('mount', (e) => {
+        element.addEventListener('mount', () => {
           element.focus();
         }, false);
         continue;

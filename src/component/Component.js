@@ -204,7 +204,7 @@ export default class Component {
     }
 
     if (typeof actionName === 'string' && typeof this[actionName] === 'function') {
-      this.trigger(`after${actionName[0].toUpperCase()}${actionName.substr(1)}`);
+      this.trigger(`after${capitalise(actionName)}`, newState);
     }
 
     // if (typeof newState === 'object') {

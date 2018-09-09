@@ -1,2 +1,2 @@
-export * from './attributes/animation';
-export * from './modal';
+import {} from './attributes/animation';
+import {} from './modal';

@@ -111,10 +111,10 @@ customTag('modal',
     const treeSitter = buildNode(null);
 
     treeSitter.onDestroy = () => {
-      for (var i = 0; i < mounted.length; i++) {
+      for (let i = 0; i < mounted.length; i++) {
         if (typeof mounted[i].destroy === 'function') mounted[i].destroy();
       }
-    }
+    };
 
     return treeSitter;
   }, () => {
