@@ -30,18 +30,14 @@ const setAttributes = (structure, propsSource = {}, oldPropsSource = {}) => {
       // Skip if proprs are the same
       if (typeof oldProps !== 'undefined' && oldProps[prop] === props[prop]) continue;
 
-      // Need to remove falsy attribute
-      if (!props[prop] && typeof props[prop] !== 'number') {
-        element.removeAttribute(prop);
-        continue;
+      if (prop === 'checked') {
+        element.checked = props[prop];
       }
 
-      if ((prop === 'value' || prop === 'model') && !(props[prop] instanceof Listener)) {
-        if (/(checkbox|radio)/.test(element.getAttribute('type'))) {
-          element.checked = props[prop];
-        } else {
-          element.value = props[prop];
-        }
+      // Need to remove falsy attribute
+      if (!props[prop] && typeof props[prop] !== 'number' && typeof props[prop] !== 'string') {
+        element.removeAttribute(prop);
+        continue;
       }
 
       // Handle Listeners
@@ -50,30 +46,55 @@ const setAttributes = (structure, propsSource = {}, oldPropsSource = {}) => {
         structure.$attrListeners[prop] = props[prop];
         props[prop].applyDepth(structure.depth).init();
 
-        if (prop.toLowerCase() === 'model') {
-          if (/(checkbox|radio)/.test(element.getAttribute('type'))) {
-            element.addEventListener('change', (e) => {
-              structure.$attrListeners[prop].updateValue(e.target.checked);
+        if (prop.toLowerCase() === 'model' || prop.toLowerCase() === 'checked') {
+          if (element.getAttribute('type') === 'radio') {
+            element.addEventListener('input', (e) => {
+              structure.$attrListeners[prop].updateValue(
+                (e.target.checked && e.target.value)
+                || e.target.checked
+              );
+            }, false);
+            structure.$attrListeners[prop].onValueChange(value => {
+              setAttributes(structure, {
+                checked: element.value === value && Boolean(value),
+              }, {});
+            });
+          } else
+          if (element.getAttribute('type') === 'checkbox') {
+            element.addEventListener('input', (e) => {
+              structure.$attrListeners[prop].updateValue(
+                Boolean(e.target.checked)
+              );
+            }, false);
+            structure.$attrListeners[prop].onValueChange(value => {
+              setAttributes(structure, {
+                checked: Boolean(value),
+              }, {});
             });
           } else {
             element.addEventListener('input', (e) => {
               structure.$attrListeners[prop].updateValue(e.target.value);
-            });
+            }, false);
           }
         }
 
-        structure.$attrListeners[prop].onValueChange(value => {
-          setAttributes(structure, {
-            [prop]: value,
-          }, {});
-          // props[prop] = value;
-        });
+        if (!/(checkbox|radio)/.test(element.getAttribute('type'))) {
+          structure.$attrListeners[prop].onValueChange(value => {
+            setAttributes(structure, {
+              [prop]: value,
+            }, {});
+          });
+        }
 
         // structure.setProps(Object.assign(structure.data.props, {
         //   [prop]: props[prop].value,
         // }));
         props[prop] = structure.$attrListeners[prop].value;
         continue;
+      }
+
+      if (prop === 'value' || prop === 'model') {
+        element.value = props[prop];
       }
 
       if (typeof GLOBALS.CUSTOM_ATTRIBUTES[prop] !== 'undefined') {
@@ -108,11 +129,9 @@ const setAttributes = (structure, propsSource = {}, oldPropsSource = {}) => {
       }
 
       if (prop.toLowerCase() === 'loadfocus') {
-        element.onload = (el) => {
-          setTimeout(() => {
-            el.focus();
-          }, 10);
-        };
+        element.addEventListener('mount', (e) => {
+          element.focus();
+        }, false);
         continue;
       }
 
