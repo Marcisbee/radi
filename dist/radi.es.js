@@ -1,1754 +1,517 @@
 var GLOBALS = {
-  HEADLESS_COMPONENTS: {},
-  FROZEN_STATE: false,
-  VERSION: '0.4.2',
-  // TODO: Collect active components
-  ACTIVE_COMPONENTS: {},
+  VERSION: '0.5.0',
   CUSTOM_ATTRIBUTES: {},
   CUSTOM_TAGS: {},
+  SERVICES: {},
 };
+
+/**
+ * @param {string} str
+ * @returns {string}
+ */
+function capitalise(str) {
+  return str.charAt(0).toUpperCase() + str.substr(1);
+}
 
 /**
  * @param {*[]} list
  * @returns {*[]}
  */
-var flatten = function flatten(list) {
-  return list.reduce((a, b) => a.concat(Array.isArray(b) ? flatten(b) : b), []);
-};
-
-/**
- * UUID v4 generator
- * https://gist.github.com/jcxplorer/823878
- * @returns {string}
- */
-var generateId = () => {
-  var uuid = '';
-  for (var i = 0; i < 32; i++) {
-    var random = (Math.random() * 16) | 0; // eslint-disable-line
-
-    if (i === 8 || i === 12 || i === 16 || i === 20) {
-      uuid += '-';
-    }
-    uuid += (i === 12 ? 4 : i === 16 ? (random & 3) | 8 : random).toString(16); // eslint-disable-line
+function ensureArray(list) {
+  if (arguments.length === 0) { return []; }
+  if (arguments.length === 1) {
+    if (list === undefined || list === null) { return []; }
+    if (Array.isArray(list)) { return list; }
   }
-  return uuid;
-};
-
-var PrivateStore = function PrivateStore() {
-  this.store = {};
-};
+  return Array.prototype.slice.call(arguments);
+}
 
 /**
- * @param {string} key
- * @param {Listener} listener
- * @param {number} depth
+ * @param {*[]} list
+ * @returns {*[]}
  */
-PrivateStore.prototype.addListener = function addListener (key, listener, depth) {
-  if (typeof this.store[key] === 'undefined') {
-    this.createItemWrapper(key);
-  }
-  this.store[key].listeners[depth] = (this.store[key].listeners[depth] || []).filter(item => (
-    item.attached
-  ));
-  this.store[key].listeners[depth].push(listener);
+function flatten(list) {
+  return list.reduce(function (a, b) { return a.concat(Array.isArray(b) ? flatten(b) : b); }, []);
+}
 
-  return listener;
+var Component = function Component(fn, name) {
+  this.self = fn;
+  this.name = name || fn.name;
+  this.__$events = {};
 };
 
 /**
- * Removes all listeners for all keys
- */
-PrivateStore.prototype.removeListeners = function removeListeners () {
-  var o = Object.keys(this.store);
-  for (var i = 0; i < o.length; i++) {
-    this.store[o[i]].listeners = {};
-    this.store[o[i]].value = null;
-  }
-};
-
-/**
- * setState
- * @param {*} newState
- * @returns {*}
- */
-PrivateStore.prototype.setState = function setState (newState) {
-  // Find and trigger changes for listeners
-  for (var key of Object.keys(newState)) {
-    if (typeof this.store[key] === 'undefined') {
-      this.createItemWrapper(key);
-    }
-    this.store[key].value = newState[key];
-
-    this.triggerListeners(key);
-  }
-  return newState;
-};
-
-/**
- * createItemWrapper
- * @private
- * @param {string} key
- * @returns {object}
- */
-PrivateStore.prototype.createItemWrapper = function createItemWrapper (key) {
-  return this.store[key] = {
-    listeners: {},
-    value: null,
-  };
-};
-
-/**
- * triggerListeners
- * @private
- * @param {string} key
- */
-PrivateStore.prototype.triggerListeners = function triggerListeners (key) {
-  var item = this.store[key];
-  if (item) {
-    var clone = Object.keys(item.listeners)
-      .sort()
-      .map(key => (
-        item.listeners[key].map(listener => listener)
-      ));
-
-    for (var i = 0; i < clone.length; i++) {
-      for (var n = clone[i].length - 1; n >= 0; n--) {
-        if (clone[i][n].attached) { clone[i][n].handleUpdate(item.value); }
-      }
-    }
-  }
-};
-
-/**
- * @param {*} obj
- * @returns {*}
- */
-var clone = obj => {
-  if (typeof obj !== 'object') { return obj; }
-  if (obj === null) { return obj; }
-  if (Array.isArray(obj)) { return obj.map(clone); }
-
-  /*eslint-disable*/
-  // Reverted as currently throws some errors
-  var cloned = {};
-  for (var key in obj) {
-    if (obj.hasOwnProperty(key)) {
-      cloned[key] = clone(obj[key]);
-    }
-  }
-  /* eslint-enable */
-
-  return cloned;
-};
-
-var skipInProductionAndTest = fn => {
-  if (typeof process === 'undefined'
-    || (process.env.NODE_ENV === 'production'
-    || process.env.NODE_ENV === 'test')) {
-    return false;
-  }
-  return fn && fn();
-};
-
-/* eslint-disable no-param-reassign */
-/* eslint-disable no-shadow */
-/* eslint-disable guard-for-in */
-/* eslint-disable no-restricted-syntax */
-// import fuseDom from '../r/utils/fuseDom';
-
-var Listener = function Listener(component, ...path) {
-  var assign;
-
-  this.component = component;
-  (assign = path, this.key = assign[0]);
-  this.path = path.slice(1, path.length);
-  this.depth = 0;
-  this.attached = true;
-  this.processValue = value => value;
-  this.changeListener = () => {};
-  this.addedListeners = [];
-};
-
-/**
- * Applies values and events to listener
- */
-Listener.prototype.init = function init () {
-  this.value = this.getValue(this.component.state[this.key]);
-  this.component.addListener(this.key, this, this.depth);
-  this.handleUpdate(this.component.state[this.key]);
-  return this;
-};
-
-/**
- * Removes last active value with destroying listeners and
- * @param {*} value
- */
-Listener.prototype.unlink = function unlink () {
-  if (this.value instanceof Node) {
-    // Destroy this Node
-    // fuseDom.destroy(this.value);
-  } else
-  if (this.value instanceof Listener) {
-    // Deattach this Listener
-    this.value.deattach();
-  }
-};
-
-
-Listener.prototype.clone = function clone (target, source) {
-  var out = {};
-
-  for (var i in target) {
-    out[i] = target[i];
-  }
-  for (var i$1 in source) {
-    out[i$1] = source[i$1];
-  }
-
-  return out;
-};
-
-Listener.prototype.setPartialState = function setPartialState (path, value, source) {
-  var target = {};
-  if (path.length) {
-    target[path[0]] =
-      path.length > 1
-        ? this.setPartialState(path.slice(1), value, source[path[0]])
-        : value;
-    return this.clone(source, target);
-  }
-  return value;
-};
-
-/**
- * Updates state value
- * @param {*} value
- */
-Listener.prototype.updateValue = function updateValue (value) {
-  var source = this.component.state[this.key];
-  return this.component.setState({
-    [this.key]: this.setPartialState(this.path, value, source),
-  });
-};
-
-Listener.prototype.extractListeners = function extractListeners (value) {
-  // if (this.value instanceof Listener && value instanceof Listener) {
-  // console.log('middle')
-  // } else
-  if (value instanceof Listener) {
-    // if (this.value instanceof Listener) {
-    // this.value.processValue = value.processValue;
-    // // this.value = value;
-    // this.handleUpdate(value.getValue(value.component.state[value.key]));
-    // console.log(value, value.getValue(value.component.state[value.key]));
-    // value.deattach();
-    // }
-    // value.component.addListener(value.key, value, value.depth);
-    // value.handleUpdate = () => {
-    // console.log('inner handler')
-    // }
-    var tempListener = {
-      depth: value.depth,
-      attached: true,
-      processValue: value => value,
-      handleUpdate: () => {
-        if (this.component) {
-          this.handleUpdate(this.getValue(this.component.state[this.key]));
-        }
-        tempListener.attached = false;
-      },
-      changeListener: () => {},
-    };
-    this.addedListeners.push(tempListener);
-    value.component.addListener(value.key, tempListener, value.depth);
-    // value.init()
-    // value.handleUpdate = () => {
-    // console.log('inner handler')
-    // }
-    // value.onValueChange((v) => {
-    // this.handleUpdate(this.getValue(this.component.state[this.key]));
-    // console.log('me got changed', v)
-    // });
-    var newValue = value.processValue(
-      value.getValue(value.component.state[value.key])
-    );
-    value.deattach();
-    return this.extractListeners(newValue);
-  }
-  return value;
-
-  // return this.processValue(this.getValue(value));
-};
-
-/**
- * @param {*} value
- */
-Listener.prototype.handleUpdate = function handleUpdate (value) {
-  var newValue = this.processValue(this.getValue(value));
-  // if (this.value instanceof Listener && newValue instanceof Listener) {
-  // this.value.processValue = newValue.processValue;
-  // // this.value = newValue;
-  // this.value.handleUpdate(newValue.component.state[newValue.key]);
-  // console.log(newValue, newValue.getValue(newValue.component.state[newValue.key]));
-  // newValue.deattach();
-  // } else
-  if (newValue instanceof Listener) {
-    // if (this.value instanceof Listener) {
-    // this.value.processValue = newValue.processValue;
-    // // this.value = newValue;
-    // this.value.handleUpdate(newValue.component.state[newValue.key]);
-    // console.log(newValue, newValue.getValue(newValue.component.state[newValue.key]));
-    // newValue.deattach();
-    // } else {
-    for (var i = 0; i < this.addedListeners.length; i++) {
-      this.addedListeners[i].attached = false;
-    }
-    this.addedListeners = [];
-    this.value = this.extractListeners(newValue);
-    this.changeListener(this.value);
-    // }
-    // // console.log(this.value.processValue('P'), newValue.processValue('A'));
-    // // console.log(this.extractListeners(newValue));
-    // // newValue.handleUpdate(newValue.component.state[newValue.key]);
-    // // this.value = newValue;
-    // // this.value.processValue = newValue.processValue;
-    // this.value = this.extractListeners(newValue);
-    // this.changeListener(this.value);
-    // // this.value.processValue = newValue.processValue;
-    // // // this.value = newValue;
-    // // this.value.handleUpdate(newValue.component.state[newValue.key]);
-    // // console.log(newValue, newValue.getValue(newValue.component.state[newValue.key]));
-    // // newValue.deattach();
-  } else {
-    this.unlink();
-    this.value = newValue;
-    this.changeListener(this.value);
-  }
-};
-
-/**
- * @param {*} source
- * @returns {*}
- */
-Listener.prototype.getValue = function getValue (source) {
-  var i = 0;
-  while (i < this.path.length) {
-    if (source === null
-      || (!source[this.path[i]]
-      && typeof source[this.path[i]] !== 'number')) {
-      source = null;
-    } else {
-      source = source[this.path[i]];
-    }
-    i += 1;
-  }
-  return source;
-};
-
-/**
- * @param {number} depth
- * @returns {Listener}
- */
-Listener.prototype.applyDepth = function applyDepth (depth) {
-  this.depth = depth;
-  return this;
-};
-
-/**
- * @param {function(*)} changeListener
- */
-Listener.prototype.onValueChange = function onValueChange (changeListener) {
-  this.changeListener = changeListener;
-  this.changeListener(this.value);
-};
-
-/**
- * @param {function(*): *} processValue
- * @returns {function(*): *}
- */
-Listener.prototype.process = function process (processValue) {
-  this.processValue = processValue;
-  return this;
-};
-
-Listener.prototype.deattach = function deattach () {
-  this.component = null;
-  this.attached = false;
-  this.key = null;
-  this.childPath = null;
-  this.path = null;
-  this.unlink();
-  this.value = null;
-  this.changeListener = () => {};
-  this.processValue = () => {};
-};
-
-var onMountEvent = document.createEvent('Event');
-onMountEvent.initEvent('mount', true, true);
-
-var onLoadEvent = document.createEvent('Event');
-onLoadEvent.initEvent('load', true, true);
-
-/**
- * Append dom node to dom tree (after - (true) should append after 'to' element
- * or (false) inside it)
- * @param {HTMLElement} node
- * @param {HTMLElement} to
- * @param {Boolean} after
- * @returns {HTMLElement}
- */
-var append = (node, to, after) => {
-  if (typeof node.dispatchEvent === 'function') {
-    node.dispatchEvent(onLoadEvent);
-  }
-
-  if (after && to) {
-    if (to.parentNode) {
-      to.parentNode.insertBefore(node, to);
-      if (typeof node.dispatchEvent === 'function') {
-        node.dispatchEvent(onMountEvent);
-      }
-      // if (!to.nextSibling) {
-      //   to.parentNode.appendChild(node);
-      // } else {
-      //   to.parentNode.insertBefore(node, to.nextSibling || to);
-      // }
-    }
-    return node;
-  }
-
-  to.appendChild(node);
-
-  if (typeof node.dispatchEvent === 'function') {
-    node.dispatchEvent(onMountEvent);
-  }
-
-  return node;
-};
-
-var getLast = (child) => {
-  if (child.$redirect && child.$redirect[child.$redirect.length - 1]) {
-    return getLast(child.$redirect[child.$redirect.length - 1]);
-  }
-
-  // if (child.children && child.children.length > 0) {
-  //   return child.children;
-  // }
-
-  return child;
-};
-
-/**
- * @param {Structure} child
- */
-var mountChildren = (child, isSvg, depth) => {
-  if ( depth === void 0 ) depth = 0;
-
-  if (!child) { return; }
-
-  if (child.$redirect && child.$redirect.length > 0) {
-    mountChildren(getLast(child), isSvg, depth + 1);
-  } else if (child.children && child.children.length > 0) {
-    if (child.html && child.html.length === 1) {
-      mount(child.children,
-        child.html[0],
-        child.html[0].nodeType !== 1,
-        child.$isSvg,
-        child.$depth);
-    } else {
-      mount(child.children,
-        child.$pointer,
-        true,
-        child.$isSvg,
-        child.$depth);
-    }
-  }
-};
-
-/**
- * @param {string} value
- * @returns {HTMLElement}
- */
-var textNode = value => (
-  document.createTextNode(
-    (typeof value === 'object'
-    ? JSON.stringify(value)
-    : value)
-  )
-);
-
-// import Component from './component/Component';
-
-/**
- * Appends structure[] to dom node
- * @param {*} component
- * @param {string} id
- * @param {boolean} isSvg
- * @param {number} depth
- * @returns {HTMLElement|Node}
- */
-var mount = (raw, parent, after, isSvg, depth) => {
-  if ( after === void 0 ) after = false;
-  if ( isSvg === void 0 ) isSvg = false;
-  if ( depth === void 0 ) depth = 0;
-
-  parent = typeof parent === 'string' ? document.getElementById(parent) : parent;
-  var nodes = flatten([raw]).map(filterNode);
-
-  // console.log(1, 'MOUNT')
-
-  var loop = function ( i ) {
-    var nn = nodes[i];
-
-    // console.log(2, nodes[i])
-    if (nn instanceof Node) {
-      append(nn, parent, after);
-    } else
-    if (nn && typeof nn.render === 'function') {
-      // nn.$pointer = text('[pointer]');
-      nn.$pointer = textNode('');
-      append(nn.$pointer, parent, after);
-
-      nodes[i].render(rendered => {
-        // console.log(3, rendered)
-
-        // Abort! Pointer was destroyed
-        if (nn.$pointer === false) { return false; }
-
-        for (var n = 0; n < rendered.length; n++) {
-          if (nn.$pointer) {
-            append(rendered[n], nn.$pointer, true);
-          } else {
-            append(rendered[n], parent, after);
-          }
-        }
-
-        mountChildren(nn, nn.$isSvg, depth + 1);
-      }, nn, depth, isSvg);
-    }
-
-    // if (!nn.html) {
-    //   nn.$pointer = text('[pointer]');
-    //   append(nn.$pointer, parent, after);
-    // }
-  };
-
-  for (var i = 0; i < nodes.length; i++) loop( i );
-
-  return nodes;
-};
-
-/**
- * @param {*} query
- * @returns {Node}
- */
-var getElementFromQuery = (query, isSvg) => {
-  if (typeof query === 'string' || typeof query === 'number')
-    { return query !== 'template'
-      ? isSvg || query === 'svg'
-        ? document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            query
-          )
-        : document.createElement(query)
-      : document.createDocumentFragment(); }
-  console.warn(
-    '[Radi.js] Warn: Creating a JSX element whose query is not of type string, automatically converting query to string.'
-  );
-  return document.createElement(query.toString());
-};
-
-/**
- * @param {*[]} raw
- * @param {HTMLElement} parent
- * @param {string} raw
- * @returns {HTMLElement}
- */
-var explode = (raw, parent, next, depth, isSvg) => {
-  if ( depth === void 0 ) depth = 0;
-
-  var nodes = flatten([raw]).map(filterNode);
-  // console.log('EXPLODE', nodes)
-
-  // console.log('explode', {parent, nodes})
-
-  for (var i = 0; i < nodes.length; i++) {
-    if ((nodes[i] instanceof Structure || nodes[i].isStructure) && !nodes[i].html) {
-      // let pp = depth === 0 ? parent : nodes[i];
-      // let pp = parent;
-      // console.log('EXPLODE 1', parent.$depth, depth, parent.$redirect, nodes[i].$redirect)
-      if (parent.children.length <= 0) {
-        if (!parent.$redirect) {
-          parent.$redirect = [nodes[i]];
-        } else {
-          parent.$redirect.push(nodes[i]);
-        }
-      }
-
-      if (!parent.$redirect && nodes[i].children) {
-        parent.children = parent.children.concat(nodes[i].children);
-      }
-
-      if (typeof nodes[i].render === 'function') {
-        nodes[i].render(v => {
-          // if (parent.children.length <= 0) {
-          //   if (!parent.$redirect) {
-          //     parent.$redirect = [nodes[n]];
-          //   } else {
-          //     parent.$redirect.push(nodes[n]);
-          //   }
-          // }
-          // console.log('EXPLODE 2', nodes[n], v, parent.$depth, nodes[n].$depth)
-          next(v);
-          // nodes[n].mount();
-        }, nodes[i], depth + 1, isSvg);
-      }
-    }
-  }
-
-  return;
-};
-
-/**
- * @param {*} value
+ * Just so there is always onMount event
  * @return {*}
  */
-var parseValue = value =>
-  typeof value === 'number' && !Number.isNaN(value) ? `${value}px` : value;
+Component.prototype.onMount = function onMount () {
 
-/* eslint-disable no-continue */
-
-/**
- * @param {Structure} structure
- * @param {object} styles
- * @param {object} oldStyles
- * @returns {object}
- */
-var setStyles = (structure, styles, oldStyles) => {
-  if ( styles === void 0 ) styles = {};
-  if ( oldStyles === void 0 ) oldStyles = {};
-
-  if (!structure.html || !structure.html[0]) { return styles; }
-  var element = structure.html[0];
-
-  // Handle Listeners
-  if (styles instanceof Listener) {
-    if (typeof structure.$styleListeners.general !== 'undefined') {
-      return element.style;
-    }
-    structure.$styleListeners.general = styles;
-    structure.$styleListeners.general.applyDepth(structure.depth).init();
-
-    structure.$styleListeners.general.onValueChange(value => {
-      setStyles(structure, value, {});
-    });
-
-    return element.style;
-  }
-
-  if (typeof styles === 'string') {
-    element.style = styles;
-    return element.style;
-  }
-
-  var toRemove = Object.keys(oldStyles)
-    .filter(key => typeof styles[key] === 'undefined');
-
-  var loop = function ( style ) {
-    if (styles.hasOwnProperty(style)) {
-      // Skip if styles are the same
-      if (typeof oldStyles !== 'undefined' && oldStyles[style] === styles[style]) { return; }
-
-      // Need to remove falsy style
-      if (!styles[style] && typeof styles[style] !== 'number') {
-        element.style[style] = null;
-        return;
-      }
-
-      // Handle Listeners
-      if (styles[style] instanceof Listener) {
-        if (typeof structure.$styleListeners[style] !== 'undefined') { return; }
-        structure.$styleListeners[style] = styles[style];
-        structure.$styleListeners[style].applyDepth(structure.depth).init();
-
-        structure.$styleListeners[style].onValueChange(value => {
-          setStyles(structure, {
-            [style]: value,
-          }, {});
-        });
-
-        styles[style] = structure.$styleListeners[style].value;
-        return;
-      }
-
-      element.style[style] = parseValue(styles[style]);
-    }
-  };
-
-  for (var style in styles) loop( style );
-
-  for (var i = 0; i < toRemove.length; i++) {
-    element.style[toRemove[i]] = null;
-  }
-
-  return element.style;
 };
 
 /**
- * @param {*} value
- * @return {*}
+ * @param{string} event
+ * @param{Function} fn
+ * @return {Function}
  */
-var parseClass = value => {
-  if (Array.isArray(value)) {
-    return value.filter(item => item).join(' ')
-  }
-  return value;
-};
-
-/* eslint-disable no-continue */
-// import AttributeListener from './utils/AttributeListener';
-
-/**
- * @param {Structure} structure
- * @param {object} propsSource
- * @param {object} oldPropsSource
- */
-var setAttributes = (structure, propsSource, oldPropsSource) => {
-  if ( propsSource === void 0 ) propsSource = {};
-  if ( oldPropsSource === void 0 ) oldPropsSource = {};
-
-  var props = propsSource || {};
-  var oldProps = oldPropsSource || {};
-
-  if (!structure.html || !structure.html[0]) { return structure; }
-  var element = structure.html[0];
-
-  if (!(element instanceof Node && element.nodeType !== 3)) { return structure; }
-
-  var toRemove = Object.keys(oldProps)
-    .filter(key => typeof props[key] === 'undefined');
-
-  var loop = function ( prop ) {
-    if (props.hasOwnProperty(prop)) {
-      // Skip if proprs are the same
-      if (typeof oldProps !== 'undefined' && oldProps[prop] === props[prop]) { return; }
-
-      if (prop === 'checked') {
-        element.checked = props[prop];
-      }
-
-      // Need to remove falsy attribute
-      if (!props[prop] && typeof props[prop] !== 'number' && typeof props[prop] !== 'string') {
-        element.removeAttribute(prop);
-        return;
-      }
-
-      // Handle Listeners
-      if (props[prop] instanceof Listener) {
-        if (typeof structure.$attrListeners[prop] !== 'undefined') { return; }
-        structure.$attrListeners[prop] = props[prop];
-        props[prop].applyDepth(structure.depth).init();
-
-        if (prop.toLowerCase() === 'model' || prop.toLowerCase() === 'checked') {
-          if (element.getAttribute('type') === 'radio') {
-            element.addEventListener('input', (e) => {
-              structure.$attrListeners[prop].updateValue(
-                (e.target.checked && e.target.value)
-                || e.target.checked
-              );
-            }, false);
-            structure.$attrListeners[prop].onValueChange(value => {
-              setAttributes(structure, {
-                checked: element.value === value && Boolean(value),
-              }, {});
-            });
-          } else
-          if (element.getAttribute('type') === 'checkbox') {
-            element.addEventListener('input', (e) => {
-              structure.$attrListeners[prop].updateValue(
-                Boolean(e.target.checked)
-              );
-            }, false);
-            structure.$attrListeners[prop].onValueChange(value => {
-              setAttributes(structure, {
-                checked: Boolean(value),
-              }, {});
-            });
-          } else {
-            element.addEventListener('input', (e) => {
-              structure.$attrListeners[prop].updateValue(e.target.value);
-            }, false);
-          }
-        }
-
-        if (!/(checkbox|radio)/.test(element.getAttribute('type'))) {
-          structure.$attrListeners[prop].onValueChange(value => {
-            setAttributes(structure, {
-              [prop]: value,
-            }, {});
-          });
-        }
-
-        // structure.setProps(Object.assign(structure.data.props, {
-        //   [prop]: props[prop].value,
-        // }));
-        props[prop] = structure.$attrListeners[prop].value;
-        return;
-      }
-
-      if (prop === 'value' || prop === 'model') {
-        element.value = props[prop];
-      }
-
-      if (typeof GLOBALS.CUSTOM_ATTRIBUTES[prop] !== 'undefined') {
-        var ref = GLOBALS.CUSTOM_ATTRIBUTES[prop];
-        var allowedTags = ref.allowedTags;
-
-        if (!allowedTags || (
-          allowedTags
-            && allowedTags.length > 0
-            && allowedTags.indexOf(element.localName) >= 0
-        )) {
-          if (typeof GLOBALS.CUSTOM_ATTRIBUTES[prop].caller === 'function') {
-            GLOBALS.CUSTOM_ATTRIBUTES[prop].caller(element, props[prop]);
-          }
-          if (!GLOBALS.CUSTOM_ATTRIBUTES[prop].addToElement) { return; }
-        }
-      }
-
-
-      if (prop.toLowerCase() === 'style') {
-        if (typeof props[prop] === 'object') {
-          setStyles(structure, props[prop], (oldProps && oldProps.style) || {});
-          // props[prop] = structure.setStyles(props[prop], (oldProps && oldProps.style) || {});
-        } else {
-          element.style = props[prop];
-        }
-        return;
-      }
-
-      if (prop.toLowerCase() === 'class' || prop.toLowerCase() === 'classname') {
-        element.setAttribute('class', parseClass(props[prop]));
-        return;
-      }
-
-      if (prop.toLowerCase() === 'loadfocus') {
-        element.addEventListener('mount', () => {
-          element.focus();
-        }, false);
-        return;
-      }
-
-      if (prop.toLowerCase() === 'html') {
-        element.innerHTML = props[prop];
-        return;
-      }
-
-      // Handles events 'on<event>'
-      if (prop.substring(0, 2).toLowerCase() === 'on' && typeof props[prop] === 'function') {
-        var fn = props[prop];
-        if (prop.substring(0, 8).toLowerCase() === 'onsubmit') {
-          element[prop] = (e) => {
-            if (props.prevent) {
-              e.preventDefault();
-            }
-
-            var data = [];
-            var inputs = e.target.elements || [];
-            for (var input of inputs) {
-              if ((input.name !== ''
-                && (input.type !== 'radio' && input.type !== 'checkbox'))
-                || input.checked) {
-                var item = {
-                  name: input.name,
-                  el: input,
-                  type: input.type,
-                  default: input.defaultValue,
-                  value: input.value,
-                  set(val) {
-                    if (structure && structure.el && structure.el.value) {
-                      structure.el.value = val;
-                    }
-                  },
-                  reset(val) {
-                    if (structure && structure.el && structure.el.value) {
-                      structure.el.value = val;
-                      structure.el.defaultValue = val;
-                    }
-                  },
-                };
-                data.push(item);
-                if (!data[item.name]) {
-                  Object.defineProperty(data, item.name, {
-                    value: item,
-                  });
-                }
-              }
-            }
-
-            return fn(e, data);
-          };
-        } else {
-          element[prop] = (e, ...args) => fn(e, ...args);
-        }
-        return;
-      }
-
-      element.setAttribute(prop, props[prop]);
-    }
-  };
-
-  for (var prop in props) loop( prop );
-
-  for (var i = 0; i < toRemove.length; i++) {
-    element.removeAttribute(toRemove[i]);
-  }
-
-  structure.props = props;
-
-  return structure;
-};
-
-/* eslint-disable no-restricted-syntax */
-
-/**
- * @param {*} query
- * @param {object} props
- * @param {...*} children
- * @param {number} depth
- */
-var Structure = function Structure(query, props, children, depth) {
-  if ( props === void 0 ) props = {};
-  if ( depth === void 0 ) depth = 0;
-
-  this.query = query;
-  this.props = Boolean !== props ? props : {};
-  if (isComponent(query) || query instanceof Component) {
-    this.$compChildren = flatten(children || []).map(filterNode);
-    this.children = [];
-  } else {
-    this.children = flatten(children || []).map(filterNode);
-    this.$compChildren = [];
-  }
-  this.html = null;
-  this.$attrListeners = [];
-  this.$styleListeners = [];
-  this.$pointer = null;
-  this.$component = null;
-  this.$listener = null;
-  this.$redirect = null;
-  this.$destroyed = false;
-  this.$isSvg = query === 'svg';
-  this.$depth = depth;
-};
-
-Structure.prototype.mount = function mount () {
-  this.$destroyed = false;
-
-  if (this.$component instanceof Component) {
-    this.$component.mount();
-  }
-
-  if (typeof this.onMount === 'function') {
-    this.onMount();
-  }
-};
-
-Structure.prototype.destroy = function destroy (childrenToo) {
-    if ( childrenToo === void 0 ) childrenToo = true;
-
-  if (this.$destroyed) { return false; }
-
-  for (var l in this.$styleListeners) {
-    if (this.$styleListeners[l]
-      && typeof this.$styleListeners[l].deattach === 'function') {
-      this.$styleListeners[l].deattach();
-    }
-  }
-
-  for (var l$1 in this.$attrListeners) {
-    if (this.$attrListeners[l$1]
-      && typeof this.$attrListeners[l$1].deattach === 'function') {
-      this.$attrListeners[l$1].deattach();
-    }
-  }
-
-  if (this.$redirect) {
-    for (var i = 0; i < this.$redirect.length; i++) {
-      if (typeof this.$redirect[i].destroy === 'function') {
-        this.$redirect[i].destroy();
-      }
-    }
-  }
-
-  if (childrenToo && this.children) {
-    for (var i$1 = 0; i$1 < this.children.length; i$1++) {
-      if (typeof this.children[i$1].destroy === 'function') {
-        this.children[i$1].destroy();
-      }
-    }
-  }
-
-  if (this.html) {
-    var items = this.html;
-    var loop = function ( i ) {
-      if (items[i].parentNode) {
-        var destroyHTML = () => items[i].parentNode.removeChild(items[i]);
-        if (typeof items[i].beforedestroy === 'function') {
-          items[i].beforedestroy(destroyHTML);
-        } else {
-          destroyHTML();
-        }
-      }
-    };
-
-      for (var i$2 = 0; i$2 < this.html.length; i$2++) loop( i$2 );
-  }
-
-  if (this.$component instanceof Component) {
-    this.$component.destroy();
-  }
-
-  if (this.$listener instanceof Listener) {
-    this.$listener.deattach();
-  }
-
-  if (this.$pointer && this.$pointer.parentNode) {
-    this.$pointer.parentNode.removeChild(this.$pointer);
-  }
-
-  if (typeof this.onDestroy === 'function') {
-    this.onDestroy();
-  }
-
-  this.$pointer = null;
-  this.$redirect = null;
-  this.$component = null;
-  this.render = () => {};
-  this.html = null;
-  this.$destroyed = true;
-  return true;
-};
-
-Structure.prototype.render = function render (next, parent, depth, isSvg) {
-    if ( depth === void 0 ) depth = 0;
-    if ( isSvg === void 0 ) isSvg = false;
-
-  // console.log('RENDER', isSvg, parent, parent && parent.$isSvg)
-  this.$depth = Math.max(this.$depth, depth);
-  this.$isSvg = isSvg || (parent && parent.$isSvg) || this.query === 'svg';
-
-  if (this.query === '#text') {
-    this.html = [textNode(this.props)];
-    return next(this.html);
-  }
-
-  if (typeof this.query === 'string' || typeof this.query === 'number') {
-    this.html = [getElementFromQuery(this.query, this.$isSvg)];
-
-    setAttributes(this, this.props, {});
-
-    return next(this.html);
-  }
-
-  if (this.query instanceof Listener) {
-    if (!this.$listener) {
-      this.$listener = this.query.applyDepth(this.$depth).init();
-      this.mount();
-    }
-    return this.query.onValueChange(v => {
-      if (this.html) {
-        var tempParent = this.html[0];
-
-        if (this.$pointer) {
-          this.$redirect = patch(this.$redirect, v, this.$pointer,
-            true, this.$isSvg, this.$depth + 1);
-        } else {
-          this.$redirect = patch(this.$redirect, v, tempParent,
-            true, this.$isSvg, this.$depth + 1);
-        }
-
-        // let a = {
-        // $redirect: [],
-        // children: [],
-        // };
-        //
-        // explode(v, a, output => {
-        // // this.html = output;
-        // if (this.$pointer) {
-        //   this.$redirect = patch(this.$redirect, a.$redirect,
-        // this.$pointer, true, this.$isSvg, this.$depth + 1);
-        // } else {
-        //   this.$redirect = patch(this.$redirect, a.$redirect,
-        // tempParent, true, this.$isSvg, this.$depth + 1);
-        // }
-        // // next(output);
-        // }, this.$depth + 1, this.$isSvg);
-      } else {
-        explode(v, parent || this, output => {
-          // console.warn('change HTML', this.html)
-          this.html = output;
-          next(output);
-        }, this.$depth + 1, this.$isSvg);
-      }
-    });
-  }
-
-  if (this.query instanceof Promise
-    || this.query.constructor.name === 'LazyPromise') {
-    return this.query.then(v => {
-      var normalisedValue = v.default || v;
-      explode(normalisedValue, parent || this, output => {
-        this.html = output;
-        next(output);
-      }, this.$depth, this.$isSvg);
-    });
-  }
-
-  if (this.query instanceof Component
-    && typeof this.query.render === 'function') {
-    this.$component = this.query;
-    return explode(this.$component.render(), parent || this, v => {
-      this.html = v;
-      next(v);
-      this.mount();
-    }, this.$depth, this.$isSvg);
-  }
-
-  if (isComponent(this.query)) {
-    if (!this.$component) {
-      this.$component =
-        new this.query(this.$compChildren).setProps(this.props); // eslint-disable-line
-    }
-    if (typeof this.$component.render === 'function') {
-      explode(this.$component.render(), parent || this, v => {
-        this.html = v;
-        next(v);
-      }, this.$depth, this.$isSvg);
-      this.mount();
-    }
-    return null;
-  }
-
-  if (typeof this.query === 'function') {
-    return explode(this.query(this.props), parent || this, v => {
-      this.html = v;
-      next(v);
-    }, this.$depth, this.$isSvg);
-  }
-
-  return next(textNode(this.query));
-};
-
-Structure.prototype.isStructure = function isStructure () {
-  return true;
-};
-
-/* eslint-disable no-restricted-syntax */
-
-// const hasRedirect = item => (
-//   item && item.$redirect
-// );
-
-var patch = (rawfirst, rawsecond, parent,
-  after, isSvg, depth) => {
-  if ( after === void 0 ) after = false;
-  if ( isSvg === void 0 ) isSvg = false;
-  if ( depth === void 0 ) depth = 0;
-
-  var first = flatten([rawfirst]);
-  var second = flatten([rawsecond]).map(filterNode);
-
-  var length = Math.max(first.length, second.length);
-
-  var loop = function ( i ) {
-    // debugger
-    // const nn = i;
-    // first[i] = first[i].$redirect || first[i];
-    if (typeof first[i] === 'undefined') {
-      // mount
-      mount(second[i], parent, after, isSvg, depth);
-      return;
-    }
-
-    if (typeof second[i] === 'undefined') {
-      // remove
-      if (typeof first[i].destroy === 'function') {
-        first[i].destroy();
-      }
-      return;
-    }
-
-    second[i].$depth = depth;
-
-    if ((first[i] instanceof Structure || first[i].isStructure)
-      && (second[i] instanceof Structure || second[i].isStructure)
-      && first[i] !== second[i]) {
-      // if (second[i].$redirect2) {
-      //   second[i] = patch(
-      //     // first[i].$redirect || first[i],
-      //     hasRedirect(first[i]) || first[i],
-      //     second[i].$redirect[second[i].$redirect.length - 1] || second[i],
-      //     parent,
-      //     after,
-      //     isSvg,
-      //     depth
-      //   );
-      //   continue;
-      // }
-
-      if (first[i].html
-        && first[i].query === '#text'
-        && second[i].query === '#text') {
-        for (var n = 0; n < first[i].html.length; n++) {
-          if (first[i].props !== second[i].props) {
-            first[i].html[n].textContent = first[i].props = second[i].props;
-          }
-        }
-
-        second[i].html = first[i].html;
-        first[i].html = null;
-
-        if (first[i].$pointer) {
-          if (second[i].$pointer && second[i].$pointer.parentNode) {
-            second[i].$pointer.parentNode.removeChild(second[i].$pointer);
-          }
-          second[i].$pointer = first[i].$pointer;
-          first[i].$pointer = null;
-        }
-
-        first[i].destroy();
-        return;
-      }
-
-
-      if (first[i].html
-        && typeof first[i].query === 'string'
-        && typeof second[i].query === 'string'
-        && first[i].query === second[i].query) {
-        // for (var n = 0; n < first[i].html.length; n++) {
-        //   if (first[i].props !== second[i].props) {
-        //     // first[i].html[n].textContent = second[i].props;
-        //   }
-        // }
-
-        second[i].html = first[i].html;
-        first[i].html = null;
-
-        if (first[i].$pointer) {
-          if (second[i].$pointer && second[i].$pointer.parentNode) {
-            second[i].$pointer.parentNode.removeChild(second[i].$pointer);
-          }
-          second[i].$pointer = first[i].$pointer;
-          first[i].$pointer = null;
-        }
-
-        setAttributes(second[i], second[i].props, first[i].props);
-        // mountChildren(second[i], second[i].$isSvg, second[i].$depth + 1);
-
-        if (second[i].html[0]
-            && second[i].children
-            && second[i].children.length > 0) {
-          second[i].children = patch(first[i].children,
-            second[i].children,
-            second[i].html[0],
-            false,
-            second[i].$isSvg,
-            second[i].$depth + 1);
-        }
-        first[i].destroy();
-
-        return;
-      }
-
-      // maybe merge
-      var n1 = first[i];
-      var n2 = second[i];
-
-      // n2.$pointer = textNode('[pointer2]');
-      n2.$pointer = textNode('');
-      append(n2.$pointer, parent, after);
-
-      n2.render(rendered => {
-        if (n1.$pointer) {
-          if (n2.$pointer && n2.$pointer.parentNode) {
-            n2.$pointer.parentNode.removeChild(n2.$pointer);
-          }
-          n2.$pointer = n1.$pointer;
-          n1.$pointer = null;
-        }
-
-        for (var n = 0; n < rendered.length; n++) {
-          if ((n1.html && !n1.html[i]) || !n1.html) {
-            append(rendered[n], n2.$pointer, true);
-          } else {
-            append(rendered[n], n1.html[i], true);
-          }
-        }
-
-        mountChildren(n2, isSvg, depth + 1);
-
-        n1.destroy(false);
-      }, n2, depth, isSvg);
-    }
-  };
-
-  for (var i = 0; i < length; i++) loop( i );
-
-  return second;
-};
-
-/* eslint-disable guard-for-in */
-
-var capitalise = lower => lower.charAt(0).toUpperCase() + lower.substr(1);
-
-var Component = function Component(children, props) {
-  this.addNonEnumerableProperties({
-    $id: generateId(),
-    $name: this.constructor.name,
-    $config: (typeof this.config === 'function') ? this.config() : {
-      listen: true,
-    },
-    __$events: {},
-    __$privateStore: new PrivateStore(),
-  });
-
-  // TODO: Remove this! Deprecated!
-  if (typeof this.on !== 'function'
-    || (typeof this.on === 'function' && typeof this.on() === 'object')) {
-    throw new Error('[Radi.js] Using `on.eventName()` is deprecated. Please use `onEventName()`.');
-  }
-
-  this.children = [];
-
-  // Links headless components
-  for (var key in GLOBALS.HEADLESS_COMPONENTS) {
-    if (this[key] && typeof this[key].on === 'function') {
-      this[key].on('update', () => this.setState());
-    }
-  }
-
-  this.state = typeof this.state === 'function'
-    ? this.state()
-    : (this.state || {});
-
-  skipInProductionAndTest(() => Object.freeze(this.state));
-
-  if (children) { this.setChildren(children); }
-  if (props) { this.setProps(props); }
-};
-
-/**
- * @returns {HTMLElement}
- */
-Component.prototype.render = function render () {
-  if (typeof this.view !== 'function') { return null; }
-  return this.html = this.view();
-};
-
-/**
- * @param {object} props
- * @returns {Component}
- */
-Component.prototype.setProps = function setProps (props) {
-  var newState = {};
-  // Self is needed cause of compilation
-  var self = this;
-
-  var loop = function ( key ) {
-    if (typeof props[key] === 'function' && key.substr(0, 2) === 'on') {
-      self.on(key.substring(2, key.length), props[key]);
-    } else
-    if (props[key] instanceof Listener) {
-      newState[key] = props[key].init().value;
-      props[key].changeListener = (value => {
-        self.setState({
-          [key]: value,
-        });
-      });
-    } else {
-      newState[key] = props[key];
-    }
-  };
-
-    for (var key in props) loop( key );
-  this.setState(newState);
-  return this;
-};
-
-/**
- * @param {Node[]|*[]} children
- */
-Component.prototype.setChildren = function setChildren (children) {
-  this.children = children;
-  this.setState();
-  for (var i = 0; i < this.children.length; i++) {
-    if (typeof this.children[i].on === 'function') {
-      this.children[i].on('update', () => this.setState());
-    }
-  }
-  return this;
-};
-
-/**
- * @private
- * @param {object} obj
- */
-Component.prototype.addNonEnumerableProperties = function addNonEnumerableProperties (obj) {
-  for (var key in obj) {
-    if (typeof this[key] !== 'undefined') { continue; }
-    Object.defineProperty(this, key, {
-      value: obj[key],
-    });
-  }
-};
-
-/**
- * @param {string} key
- * @param {Listener} listener
- * @param {number} depth
- */
-Component.prototype.addListener = function addListener (key, listener, depth) {
-  this.__$privateStore.addListener(key, listener, depth);
-};
-
-Component.prototype.mount = function mount () {
-  this.trigger('mount');
-};
-
-Component.prototype.destroy = function destroy () {
-  // if (this.html) {
-  // for (var i = 0; i < this.html.length; i++) {
-  //   if (this.html[i].parentNode) {
-  //     this.html[i].parentNode.removeChild(this.html[i]);
-  //   }
-  // }
-  // }
-  this.html = null;
-  this.trigger('destroy');
-  this.__$privateStore.removeListeners();
-};
-
-// TODO: Remove this! Deprecated!
-Component.prototype.when = function when () {
-  throw new Error('[Radi.js] Using `.when(\'Event\')` is deprecated. Use `.on(\'Event\')` instead.');
-};
-
-/**
- * @param {string} key
- * @param {function} fn
- * @returns {function}
- */
-Component.prototype.on = function on (key, fn) {
-  if (typeof this.__$events[key] === 'undefined') { this.__$events[key] = []; }
-  this.__$events[key].push(fn);
+Component.prototype.on = function on (event, fn) {
+  var e = this.__$events;
+  var name = "on" + (capitalise(event));
+  if (!e[name]) { e[name] = []; }
+  e[name].push(fn);
   return fn;
 };
 
 /**
- * @param {string} key
- * @param {*} value
+ * @param{string} event
+ * @param{*[]} args
  */
-Component.prototype.trigger = function trigger (key, ...args) {
-  var event = this[`on${capitalise(key)}`];
+Component.prototype.trigger = function trigger (event) {
+    var ref, ref$1;
 
-  if (typeof event === 'function') {
-    event.call(this, ...args);
+    var args = [], len = arguments.length - 1;
+    while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+  var name = "on" + (capitalise(event));
+
+  (this.__$events[name] || [])
+    .map(function (e) { return e.apply(void 0, args); });
+
+  if (typeof this[name] === 'function') {
+    (ref = this)[name].apply(ref, args);
   }
 
-  if (typeof this.__$events[key] !== 'undefined') {
-    for (var i in this.__$events[key]) {
-      this.__$events[key][i].call(this, ...args);
-    }
+  if (typeof this.self[name] === 'function') {
+    (ref$1 = this.self)[name].apply(ref$1, args);
   }
 };
 
 /**
- * @param {object} newState
- * @param {string} actionName
+ * @param  {string}   key
+ * @param  {Function} fn
+ * @param  {*[]}   args
+ * @return {Function}
  */
-Component.prototype.setState = function setState (newState, actionName) {
-  if (typeof newState === 'object') {
-    var oldstate = this.state;
+function service(key, fn) {
+  var args = [], len = arguments.length - 2;
+  while ( len-- > 0 ) args[ len ] = arguments[ len + 2 ];
 
-    skipInProductionAndTest(() => oldstate = clone(this.state));
-
-    this.state = Object.assign(oldstate, newState);
-
-    skipInProductionAndTest(() => Object.freeze(this.state));
-
-    if (this.$config.listen) {
-      this.__$privateStore.setState(newState);
-    }
+  if (typeof key !== 'string') {
+    throw new Error('[Radi.js] Service first argument has to be string');
   }
 
-  if (!this.$config.listen && typeof this.view === 'function' && this.html) {
-    this.html = patch(this.html, this.view());
+  if (typeof fn !== 'function') {
+    throw new Error('[Radi.js] Service second argument has to be function');
   }
 
-  if (typeof actionName === 'string' && typeof this[actionName] === 'function') {
-    this.trigger(`after${capitalise(actionName)}`, newState);
-  }
+  var name = '$'.concat(key);
+  var Comp = new Component(fn, key);
+  var mounted = fn.call.apply(fn, [ Comp ].concat( args ));
 
-  // if (typeof newState === 'object') {
-  // let oldstate = this.state;
-  //
-  // skipInProductionAndTest(() => oldstate = clone(this.state));
-  //
-  // this.state = Object.assign(oldstate, newState);
-  //
-  // skipInProductionAndTest(() => Object.freeze(this.state));
-  //
-  // if (this.$config.listen) {
-  //   this.__$privateStore.setState(newState);
-  // }
-  // }
-  //
-  // if (!this.$config.listen && typeof this.view === 'function' && this.html) {
-  // fuseDom.fuse(this.html, this.view());
-  // }
-  this.trigger('update');
+  Comp.trigger('mount');
+  Component.prototype[name] = mounted;
 
-  return newState;
-};
+  return GLOBALS.SERVICES[name] = mounted;
+}
 
 /**
- * @returns {boolean}
+ * @param  {HTMLElement} node
  */
-Component.isComponent = function isComponent () {
-  return true;
-};
+function destroyTree$$1(node) {
+  fireEvent('destroy', node);
 
-/**
- * @param {*} value
- * @returns {Boolean}
- */
-var isComponent = value => {
-  if (value) {
-    if (value.prototype instanceof Component) {
-      return true;
-    }
-
-    if (value.isComponent) {
-      return true;
+  if (node.nodeType === 1) {
+    var curChild = node.firstChild;
+    while (curChild) {
+      destroyTree$$1(curChild);
+      curChild = curChild.nextSibling;
     }
   }
+}
+
+/**
+ * @param  {string} type
+ * @param  {HTMLElement} $node
+ * @return {HTMLElement}
+ */
+function fireEvent(type, $node) {
+  var onEvent = document.createEvent('Event');
+  onEvent.initEvent(type, true, true);
+
+  if (typeof $node.dispatchEvent === 'function') {
+    $node._eventFired = true;
+    $node.dispatchEvent(onEvent);
+  }
+
+  return $node;
+}
+
+/**
+ * @param  {HTMLElement} newNode
+ * @param  {HTMLElement} $reference
+ * @param  {HTMLElement} $parent
+ * @return {HTMLElement}
+ */
+function insertAfter(newNode, $reference, $parent) {
+  if (!$parent) { $parent = $reference.parentNode; }
+
+  if (newNode instanceof Node) {
+    if ($reference === null || $reference === undefined) {
+      return $parent.insertBefore(newNode, $reference);
+    }
+
+    if ($reference instanceof Node) {
+      return $parent.insertBefore(newNode, $reference.nextSibling);
+    }
+  }
+
+  return newNode;
+}
+
+/**
+ * @param  {Node} node1
+ * @param  {Node} node2
+ * @return {boolean}
+ */
+function nodeChanged(node1, node2) {
+  if (node1 === undefined || node2 === undefined) { return false; }
+  if (typeof node1 !== typeof node2) { return true; }
+  if ((typeof node1 === 'string' || typeof node1 === 'number')
+    && node1 !== node2) { return true; }
+  if (node1.type !== node2.type) { return true; }
+  if (node1.props) { return true; }
 
   return false;
-};
+}
 
-/**
- * @param {function} value
- * @returns {object}
- */
-var filterNode = value => {
-
-  if (Array.isArray(value)) {
-    return value.map(filterNode);
+function autoUpdate(value, fn) {
+  if (typeof value === 'function' && value.__radiStateUpdater) {
+    return value(fn);
   }
+  return fn(value);
+}
 
-  if (typeof value === 'string' || typeof value === 'number') {
-    return r('#text', value);
+function setBooleanProp($target, name, value) {
+  if (value) {
+    $target.setAttribute(name, value);
+    $target[name] = true;
+  } else {
+    $target[name] = false;
   }
+}
 
-  if (!value || typeof value === 'boolean') {
-    return r('#text', '');
+function removeBooleanProp($target, name) {
+  $target.removeAttribute(name);
+  $target[name] = false;
+}
+
+function isEventProp(name) {
+  return /^on/.test(name);
+}
+
+function extractEventName(name) {
+  return name.slice(2).toLowerCase();
+}
+
+function isCustomProp(name) {
+  return isEventProp(name);
+}
+
+function setProp($target, name, value) {
+  if (name === 'style') {
+    setStyles($target, value);
+  } else if (isCustomProp(name)) {
+
+  } else if (name === 'className') {
+    $target.setAttribute('class', value);
+  } else if (typeof value === 'boolean') {
+    setBooleanProp($target, name, value);
+  } else {
+    $target.setAttribute(name, value);
   }
+}
 
-  if (value instanceof Listener) {
-    return r(value);
+function removeProp($target, name, value) {
+  if (isCustomProp(name)) {
+
+  } else if (name === 'className') {
+    $target.removeAttribute('class');
+  } else if (typeof value === 'boolean') {
+    removeBooleanProp($target, name);
+  } else {
+    $target.removeAttribute(name);
   }
+}
 
-  if (isComponent(value) || value instanceof Component) {
-    return r(value);
-  }
+function setStyles($target, styles) {
+  Object.keys(styles).forEach(function (name) {
+    autoUpdate(styles[name], function (value) {
+      $target.style[name] = value;
+    });
+  });
+}
 
-  if (typeof value === 'function') {
-    return r(value);
-  }
-
-  if (value instanceof Promise || value.constructor.name === 'LazyPromise') {
-    return r(value);
-  }
-
-  return value;
-};
-
-// import Component from '../component/Component';
-
-/**
- * @param {*} query
- * @param {object} props
- * @param {...*} children
- * @returns {object}
- */
-var r = (query, props, ...children) => {
-  if (typeof GLOBALS.CUSTOM_TAGS[query] !== 'undefined') {
-    return GLOBALS.CUSTOM_TAGS[query].onmount(
-      props || {},
-      (children && flatten([children]).map(filterNode)) || [],
-      filterNode,
-      v => (GLOBALS.CUSTOM_TAGS[query].saved = v)
-    ) || null;
-  }
-
-  if (query === 'await') {
-    var output = null;
-
-    if (props.src && props.src instanceof Promise) {
-      props.src.then(v => {
-        var nomalizedData = filterNode(
-          typeof props.transform === 'function'
-            ? props.transform(v)
-            : v
-        );
-
-        if (output) {
-          output = patch(output, nomalizedData, output.html[0].parentNode);
-        } else {
-          output = nomalizedData;
+function setProps($target, props) {
+  Object.keys(props).forEach(function (name) {
+    autoUpdate(props[name], function (value) {
+      if (name === 'class' || name === 'className') {
+        if (Array.isArray(value)) {
+          value = value.filter(function (v) { return v && typeof v !== 'function'; }).join(' ');
         }
-      }).catch(error => {
-        var placerror = filterNode(
-          typeof props.error === 'function'
-            ? props.error(error)
-            : props.error
-        );
+      }
+      setProp($target, name, value);
+    });
+  });
+}
 
-        if (output) {
-          output = patch(output, placerror, output.html[0].parentNode);
-        } else {
-          output = placerror;
-        }
-      });
-    }
-
-    if (!output) {
-      output = filterNode(props.placeholder);
-    }
-
-    return output;
+function updateProp($target, name, newVal, oldVal) {
+  if (!newVal) {
+    removeProp($target, name, oldVal);
+  } else if (!oldVal || newVal !== oldVal) {
+    setProp($target, name, newVal);
   }
+}
 
-  if (query === 'template') {
-    // return flatten([children]).map(filterNode);
-    return new Structure('section', props, flatten([children]).map(filterNode));
-  }
+function updateProps($target, newProps, oldProps) {
+  if ( oldProps === void 0 ) oldProps = {};
 
-  return new Structure(query, props, flatten([children]).map(filterNode));
-};
+  var props = Object.assign({}, newProps, oldProps);
+  Object.keys(props).forEach(function (name) {
+    autoUpdate(newProps[name], function (value) {
+      updateProp($target, name, value, oldProps[name]);
+    });
+  });
+}
+
+function addEventListeners($target, props) {
+  var exceptions = ['mount', 'destroy'];
+  Object.keys(props).forEach(function (name) {
+    if (isEventProp(name)) {
+      $target.addEventListener(
+        extractEventName(name),
+        function (e) {
+          if (exceptions.indexOf(name) >= 0) {
+            if ($target === e.target) { props[name](e); }
+          } else {
+            props[name](e);
+          }
+        },
+        false
+      );
+    }
+  });
+}
 
 /**
- * The listen function is used for dynamically binding a component property
- * to the DOM. Also commonly imported as 'l'.
- * @param {Component} component
- * @param {...string} path
- * @returns {Listener}
+ * @param  {HTMLElement} $parent
+ * @param  {Object|Object[]} newNode
+ * @param  {Object|Object[]} oldNode
+ * @param  {number} [index=0]
+ * @param  {HTMLElement} $pointer
+ * @return {Object[]}
  */
-var listen = (component, ...path) =>
-  new Listener(component, ...path);
+function patch($parent, newNode, oldNode, index, $pointer) {
+  if ( index === void 0 ) index = 0;
 
-var headless = (key, Comp) => {
-  // TODO: Validate component and key
-  var name = '$'.concat(key);
-  var mountedComponent = new Comp();
-  mountedComponent.mount();
-  Component.prototype[name] = mountedComponent;
-  return GLOBALS.HEADLESS_COMPONENTS[name] = mountedComponent;
-};
+  var $output = $parent && $parent.childNodes[index];
+  if ($pointer) {
+    index = Array.prototype.indexOf.call($parent.childNodes, $pointer) + 1;
+  }
 
-// Decorator for actions
-var action = (target, key, descriptor) => {
-  var fn = descriptor.value;
+  var normalNewNode = flatten(ensureArray(newNode));
+  var normalOldNode = flatten(ensureArray(oldNode));
+  var newLength = normalNewNode.length;
+  var oldLength = normalOldNode.length;
+
+  var modifier = 0;
+  for (var i = 0; i < newLength || i < oldLength; i++) {
+    if (normalNewNode[i] instanceof Date) { normalNewNode[i] = normalNewNode[i].toString(); }
+    if (normalOldNode[i] === false || normalOldNode[i] === undefined || normalOldNode[i] === null) {
+      $output = createElement$$1(normalNewNode[i], $parent);
+      if ($pointer) {
+        insertAfter($output, $parent.childNodes[((index + i) - 1)], $parent);
+      } else {
+        $parent.appendChild($output);
+      }
+      fireEvent('mount', $output);
+    } else
+    if (normalNewNode[i] === false || normalNewNode[i] === undefined || normalNewNode[i] === null) {
+      var $target = $parent.childNodes[index + i + modifier];
+      if ($target) {
+        $parent.removeChild($target);
+        destroyTree$$1($target);
+        modifier -= 1;
+      }
+    } else
+    if (nodeChanged(normalNewNode[i], normalOldNode[i])) {
+      $parent.replaceChild(
+        $output = createElement$$1(normalNewNode[i], $parent),
+        $parent.childNodes[index + i]
+      );
+      fireEvent('mount', $output);
+    } else if (typeof normalNewNode[i].type === 'string') {
+      var childNew = normalNewNode[i];
+      var childOld = normalOldNode[i];
+      updateProps(
+        $parent.childNodes[index + i],
+        childNew.props,
+        childOld.props
+      );
+      var newLength2 = childNew.children.length;
+      var oldLength2 = childOld.children.length;
+      for (var n = 0; n < newLength2 || n < oldLength2; n++) {
+        patch(
+          $parent.childNodes[index + i],
+          childNew.children[n],
+          childOld.children[n],
+          n
+        );
+      }
+    }
+  }
+
+  return normalNewNode;
+}
+
+/**
+ * @typedef {Object} Mount
+ * @property {Object} component
+ * @property {Object} node
+ * @property {function} destroy
+ */
+
+/**
+ * @param  {Object} component
+ * @param  {HTMLElement} container
+ * @return {Mount}
+ */
+function mount(component, container) {
   return {
-    configurable: true,
-    value(...args) {
-      return this.setState.call(this, fn.call(this, ...args), key);
+    component: component,
+    node: patch(container, component),
+    destroy: function () {
+      return patch(container, null);
     },
   };
-};
+}
 
-/* eslint-disable func-names */
+/**
+ * @param  {Object} node
+ * @param  {HTMLElement} $parent
+ * @return {HTMLElement|null}
+ */
+function createElement$$1(node, $parent) {
+  if (typeof node === 'string' || typeof node === 'number') {
+    return document.createTextNode(node);
+  }
 
-var createWorker = fn => {
-  var fire = () => {};
+  if (node === undefined || node === false || node === null) {
+    return document.createComment('');
+  }
 
-  var blob = new window.Blob([`self.onmessage = function(e) {
-    self.postMessage((${fn.toString()})(e.data));
-  }`], { type: 'text/javascript' });
+  if (Array.isArray(node)) {
+    var $pointer = document.createTextNode('');
 
-  var url = window.URL.createObjectURL(blob);
-  var myWorker = new window.Worker(url);
-
-  myWorker.onmessage = e => { fire(e.data, null); };
-  myWorker.onerror = e => { fire(null, e.data); };
-
-  return arg => new Promise((resolve, reject) => {
-    fire = (data, err) => !err ? resolve(data) : reject(data);
-    myWorker.postMessage(arg);
-  });
-};
-
-// Descriptor for worker
-var worker = (target, key, descriptor) => {
-  var act = descriptor.value;
-
-  var promisedWorker = createWorker(act);
-
-  descriptor.value = function (...args) {
-    promisedWorker(...args).then(newState => {
-      this.setState.call(this, newState);
+    $pointer.addEventListener('mount', function () {
+      for (var i = 0; i < node.length; i++) {
+        mount(node[i], $parent);
+      }
     });
-  };
-  return descriptor;
-};
 
-// Descriptor for subscriptions
-var subscribe = (container, eventName/* , triggerMount */) =>
-  (target, key, descriptor) => {
-    var fn = descriptor.value;
-    var boundFn = () => {};
+    return $pointer;
+  }
 
-    if (typeof fn !== 'function') {
-      throw new Error(`@subscribe decorator can only be applied to methods not: ${typeof fn}`);
+  if (typeof node === 'function' || typeof node.type === 'function') {
+    var fn = node.type || node;
+
+    var lifecycles = new Component(fn);
+
+    var $element = createElement$$1(
+      fn.call(lifecycles, Object.assign({}, (node.props || {}),
+        {children: node.children || []})),
+      $parent
+    );
+
+    var $styleRef;
+
+    if ($element && typeof $element.addEventListener === 'function') {
+      $element.addEventListener('mount', function () {
+        if (typeof lifecycles.style === 'string') {
+          $styleRef = document.createElement('style');
+          $styleRef.innerHTML = lifecycles.style;
+          document.head.appendChild($styleRef);
+        }
+        lifecycles.trigger('mount', $element, $parent);
+      }, {
+        passive: true,
+        once: true,
+      }, false);
+
+      $element.addEventListener('destroy', function () {
+        lifecycles.trigger('destroy', $element, $parent);
+        if ($styleRef instanceof Node) {
+          document.head.removeChild($styleRef);
+        }
+      }, {
+        passive: true,
+        once: true,
+      }, false);
     }
 
-    // In IE11 calling Object.defineProperty has a side-effect of evaluating the
-    // getter for the property which is being replaced. This causes infinite
-    // recursion and an "Out of stack space" error.
-    var definingProperty = false;
+    return $element;
+  }
 
-    container[eventName] = (...args) => boundFn(...args);
-
-    return {
-      configurable: true,
-      get() {
-        if (definingProperty || this === target.prototype || this.hasOwnProperty(key)
-          || typeof fn !== 'function') {
-          return fn;
+  if (typeof node === 'object') {
+    if (node.type) {
+      var $el;
+      if (node.type === 'svg' || $parent instanceof SVGElement) {
+        $el = document.createElementNS(
+          'http://www.w3.org/2000/svg',
+          node.type
+        );
+      } else {
+        $el = document.createElement(node.type);
+      }
+      var $lastEl = null;
+      setProps($el, node.props);
+      addEventListeners($el, node.props);
+      var applyChildren = function ($child) { return function (n) {
+        var $n = createElement$$1(n, $child);
+        if ($n) {
+          if ($lastEl) {
+            insertAfter($n, $lastEl, $child);
+          } else {
+            $child.appendChild.call($el, $n);
+            fireEvent('mount', $n);
+          }
         }
+      }; };
+      node.children.map(applyChildren($el));
+      return $el;
+    }
+    return createElement$$1(JSON.stringify(node), $parent);
+  }
 
-        boundFn = fn.bind(this);
+  console.error('Unhandled node', node);
+  return null;
+}
 
-        definingProperty = true;
-        Object.defineProperty(this, key, {
-          configurable: true,
-          get() {
-            return boundFn;
-          },
-          set(value) {
-            fn = value;
-            delete this[key];
-          },
-        });
-        definingProperty = false;
-        return boundFn;
-      },
-      set(value) {
-        fn = value;
-      },
-    };
+/**
+ * @param {string} attributeName
+ * @param {function} caller
+ * @param {Object} object
+ * @returns {Object}
+ */
+function customAttribute(attributeName, caller, ref) {
+  if ( ref === void 0 ) ref = {};
+  var allowedTags = ref.allowedTags;
+  var addToElement = ref.addToElement;
+
+  return GLOBALS.CUSTOM_ATTRIBUTES[attributeName] = {
+    name: attributeName,
+    caller: caller,
+    allowedTags: allowedTags || null,
+    addToElement: addToElement,
   };
+}
 
 /**
  * @param {string} tagName
@@ -1756,454 +519,254 @@ var subscribe = (container, eventName/* , triggerMount */) =>
  * @param {function} ondestroy
  * @returns {object}
  */
-var customTag = (tagName, onmount, ondestroy) => GLOBALS.CUSTOM_TAGS[tagName] = {
-  name: tagName,
-  onmount: onmount || (() => {}),
-  ondestroy: ondestroy || (() => {}),
-  saved: null,
-};
-
-/**
- * @param {string} attributeName
- * @param {function} caller
- * @param {object} object
- * @returns {object}
- */
-var customAttribute = (attributeName, caller, ref) => {
-  if ( ref === void 0 ) ref = {};
-  var allowedTags = ref.allowedTags;
-  var addToElement = ref.addToElement;
-
-  return GLOBALS.CUSTOM_ATTRIBUTES[attributeName] = {
-  name: attributeName,
-  caller,
-  allowedTags: allowedTags || null,
-  addToElement,
-};
-};
-
-var remountActiveComponents = () => {
-  Object.values(GLOBALS.ACTIVE_COMPONENTS).forEach(component => {
-    if (typeof component.onMount === 'function') {
-      component.onMount(component);
-    }
-  });
-};
-
-var animate = (target, type, opts, done) => {
-  var direct = opts[type];
-  if (typeof direct !== 'function') {
-    console.warn(`[Radi.js] Animation \`${type}\` for node \`${target.nodeName.toLowerCase}\` should be function`);
-    return;
-  }
-
-  return direct(target, done);
-};
-
-customAttribute('animation', (el, props) => {
-  animate(el, 'in', props, () => {});
-  el.beforedestroy = done => animate(el, 'out', props, done);
-});
-
-/* eslint-disable consistent-return */
-
-var Modal = (function (Component$$1) {
-  function Modal () {
-    Component$$1.apply(this, arguments);
-  }
-
-  if ( Component$$1 ) Modal.__proto__ = Component$$1;
-  Modal.prototype = Object.create( Component$$1 && Component$$1.prototype );
-  Modal.prototype.constructor = Modal;
-
-  Modal.prototype.state = function state () {
-    return {
-      registry: {},
-    };
+function customTag(tagName, onmount, ondestroy) {
+  return GLOBALS.CUSTOM_TAGS[tagName] = {
+    name: tagName,
+    onmount: onmount || (function () {}),
+    ondestroy: ondestroy || (function () {}),
+    saved: null,
   };
-
-  Modal.prototype.register = function register (name, element) {
-    if (typeof this.state.registry[name] !== 'undefined') {
-      console.warn(`[Radi.js] Warn: Modal with name "${name}" is already registerd!`);
-      return;
-    }
-
-    this.setState({
-      registry: Object.assign({}, this.state.registry, {
-        [name]: {
-          status: false,
-          element,
-        },
-      }),
-    }, 'register');
-  };
-
-  Modal.prototype.exists = function exists (name) {
-    if (typeof this.state.registry[name] === 'undefined') {
-      console.warn(`[Radi.js] Warn: Modal with name "${name}" is not registerd!`);
-      return false;
-    }
-
-    return true;
-  };
-
-  Modal.prototype.open = function open (name) {
-    if (!this.exists(name) || this.state.registry[name].status) { return; }
-
-    return this.setState({
-      registry: Object.assign({}, this.state.registry, {
-        [name]: {
-          status: true,
-          element: this.state.registry[name].element,
-        },
-      }),
-    }, 'open');
-  };
-
-  Modal.prototype.close = function close (name) {
-    if (!this.exists(name) || !this.state.registry[name].status) { return; }
-
-    return this.setState({
-      registry: Object.assign({}, this.state.registry, {
-        [name]: {
-          status: false,
-          element: this.state.registry[name].element,
-        },
-      }),
-    }, 'close');
-  };
-
-  Modal.prototype.closeAll = function closeAll () {
-    var keys = Object.keys(this.state.registry);
-    var registry = keys.reduce((acc, name) => Object.assign(acc, {
-      [name]: {
-        status: false,
-        element: this.state.registry[name].element,
-      },
-    }), {});
-
-    return this.setState({
-      registry,
-    }, 'closeAll');
-  };
-
-  return Modal;
-}(Component));
-
-var $modal = headless('modal', Modal);
-
-customTag('modal',
-  (props, children, buildNode) => {
-    var name = props.name || 'default';
-
-    $modal.register(name, null);
-
-    if (typeof props.name === 'undefined') {
-      console.warn('[Radi.js] Warn: Every <modal> tag needs to have `name` attribute!');
-    }
-
-    var mounted = mount(listen($modal, 'registry', name)
-      .process(v => (
-        v.status && r('div',
-          { class: 'radi-modal', name },
-          r('div', {
-            class: 'radi-modal-backdrop',
-            onclick: () => $modal.close(name),
-          }),
-          r('div',
-            { class: 'radi-modal-content' },
-            ...(children.slice())
-          )
-        )
-      )), document.body);
-
-    var treeSitter = buildNode(null);
-
-    treeSitter.onDestroy = () => {
-      for (var i = 0; i < mounted.length; i++) {
-        if (typeof mounted[i].destroy === 'function') { mounted[i].destroy(); }
-      }
-    };
-
-    return treeSitter;
-  }, () => {
-    // Destroyed `element`
-  }
-);
-
-var extract = form => {
-  var data = {};
-  var inputs = form.elements || [];
-  for (var input of inputs) {
-    if ((input.name !== ''
-      && (input.type !== 'radio' && input.type !== 'checkbox'))
-      || input.checked) {
-      data[input.name] = input.value;
-    }
-  }
-
-  return data;
-};
-
-var findButton = elements => {
-  var button = null;
-  for (var input of elements) {
-    if (input.submitButton) { button = input; }
-  }
-
-  return button;
-};
-
-function validate(_radi) {
-
-  var Errors = (function (superclass) {
-    function Errors () {
-      superclass.apply(this, arguments);
-    }
-
-    if ( superclass ) Errors.__proto__ = superclass;
-    Errors.prototype = Object.create( superclass && superclass.prototype );
-    Errors.prototype.constructor = Errors;
-
-    Errors.prototype.state = function state () {
-      return {
-
-      }
-    };
-
-    Errors.prototype.add = function add (name, errors) {
-      var newState = this.setState({
-        [name]: errors,
-      });
-      this.trigger('update:' + name, errors);
-      return newState;
-    };
-
-    Errors.prototype.remove = function remove (name) {
-      return this.add(name, []);
-    };
-
-    return Errors;
-  }(_radi.Component));
-
-  var $errors = _radi.headless('errors', Errors);
-
-  _radi.customTag('errors',
-    (props, children, buildNode, save) => {
-    var output = buildNode(null);
-
-    $errors.on('update:' + props.name, err => {
-      var nomalizedData;
-
-      if (!err || err.length <= 0) {
-        nomalizedData = buildNode(null);
-      } else {
-        nomalizedData = buildNode(props.onrender(err || []));
-      }
-
-      output = _radi.patch(output, nomalizedData, output.html[0].parentNode)[0];
-    });
-
-    return output;
-  }, () => {});
-
-  _radi.customAttribute('error', (element, value) => {
-    element.onerror = errors => $errors.add(value, errors);
-    element.onvalid = () => $errors.remove(value);
-  }, {
-    allowedTags: ['form'],
-    addToElement: false,
-  });
-
-  _radi.customAttribute('validate-submit', (element, props) => {
-    element.submitButton = true;
-  }, {
-    allowedTags: ['button'],
-  });
-
-  _radi.customAttribute('validate', (element, props) => {
-    var form = element.form;
-    var button = null;
-
-    var doValidation = e => {
-      if (!form) { form = element.form; }
-      if (form && typeof form.onvalidate === 'function') {
-        button = findButton(form.elements);
-        var inputs = extract(form);
-        var output = form.onvalidate(form);
-        var touched = form.touched || [];
-
-        if (output) {
-          if (typeof output === 'object') {
-            var failed = [];
-            for (var input in output) {
-              if (output.hasOwnProperty(input)) {
-                if (typeof output[input] === 'function') {
-                  var validated = output[input](inputs[input]);
-                  if (typeof validated === 'string' && touched.indexOf(input) < 0) {
-                    failed.push({
-                      field: input,
-                      reason: null,
-                    });
-                  } else
-                  if (typeof validated === 'string') {
-                    failed.push({
-                      field: input,
-                      reason: validated || null,
-                    });
-                  }
-                }
-              }
-            }
-
-            if (failed.length > 0) {
-              if (button) { button.disabled = true; }
-              if (typeof form.onerror === 'function') {
-                form.onerror(failed.filter(v => v.reason));
-              }
-              return;
-            }
-          }
-
-          if (button) { button.disabled = false; }
-          if (form && typeof form.onvalid === 'function') {
-            form.onvalid();
-          }
-          return;
-        }
-      }
-
-      if (button) { button.disabled = true; }
-      if (form && typeof form.onerror === 'function') {
-        form.onerror(null);
-      }
-      return;
-    };
-
-    element.addEventListener('change', e => {
-      if (form) {
-        var name = element.name;
-        if (typeof form.touched === 'undefined') {
-          form.touched = [];
-        }
-        if (form.touched.indexOf(name) < 0) {
-          form.touched.push(element.name);
-          doValidation(e);
-        }
-      }
-    });
-    element.addEventListener('input', doValidation);
-
-    return true;
-  }, {
-    allowedTags: [
-      'input',
-      'textarea',
-      'select',
-    ],
-  });
 }
 
-var Validator = function Validator(value) {
-  this.value = value;
-  this.rules = [];
-};
+/**
+ * @typedef {Object} Node
+ * @property {*} type
+ * @property {Object} props
+ * @property {*[]} children
+ */
 
-Validator.prototype.register = function register (ref) {
-    var type = ref.type;
-    var validate = ref.validate;
-    var error = ref.error;
+/**
+ * @param  {*} type
+ * @param  {Object} props
+ * @param  {*[]} children
+ * @return {Node}
+ */
+function html(type, props) {
+  var children = [], len = arguments.length - 2;
+  while ( len-- > 0 ) children[ len ] = arguments[ len + 2 ];
 
-  var nn = this.rules.push({
-    type: type,
-    validate: value => (value && validate(value)),
-    error: error || 'Invalid field',
-  });
+  return {
+    type: (typeof type === 'number') ? ("" + type) : type,
+    props: props || {},
+    children: flatten(children),
+  };
+}
 
-  this.error = text => {
-    this.rules[nn - 1].error = text || error;
-    return this;
+function setDataInObject(source, path, data) {
+  var name = path[0];
+  var out = {};
+  out[name] = source[name];
+  var temp = out;
+  var i = 0;
+  while (i < path.length - 1) {
+    temp = temp[path[i++]];
+  }
+  temp[path[i]] = data;
+  return out;
+}
+
+function mapData(target, store, source, path) {
+  if ( path === void 0 ) path = [];
+
+  var out = {};
+  if (target && target.$loading) {
+    Object.defineProperty(out, '$loading', {
+      value: true,
+      writable: false,
+    });
+  }
+  if (!source) { source = out; }
+
+  var loop = function ( i ) {
+    var name = i;
+    if (typeof target[i] === 'function') {
+      out[name] = {};
+      Object.defineProperty(out[name], '$loading', {
+        value: true,
+        writable: false,
+      });
+      target[i](function (data, useUpdate) {
+        var payload = setDataInObject(source, path.concat(name), data);
+        if (!useUpdate) {
+          store.dispatch(function () { return payload; });
+        } else {
+          store.update(payload);
+        }
+      });
+    } else {
+      out[name] = target[name] && typeof target[name] === 'object'
+        && !Array.isArray(target[name])
+        ? mapData(target[name], store, source, path.concat(name))
+        : target[name];
+    }
   };
 
-  return this;
-};
+  for (var i in target) loop( i );
 
-Validator.prototype.check = function check (newValue) {
-  if (typeof newValue !== 'undefined') {
-    this.value = newValue;
-  }
+  return out;
+}
 
-  return this.rules.reduce((acc, value) => (
-    typeof acc === 'string' ? acc : (!value.validate(this.value) && value.error) || acc
-  ), true)
-};
+// export class Store {
+//
+// }
 
-Validator.prototype.required = function required () {
-  return this.register({
-    type: 'required',
-    validate: value => value !== '',
-    error: 'Field is required',
-  })
-};
+function Store(state) {
+  if ( state === void 0 ) state = {};
 
-Validator.prototype.min = function min (num) {
-  return this.register({
-    type: 'min',
-    validate: value => value.length >= num,
-    error: 'Min char length is ' + num,
-  })
-};
+  var OUT = {};
+  var subscriptions = [];
+  var subscriptionsStrict = [];
+  var latestStore;
 
-Validator.prototype.max = function max (num) {
-  return this.register({
-    type: 'max',
-    validate: value => value.length < num,
-    error: 'Max char length is ' + num,
-  })
-};
+  Object.setPrototypeOf(OUT, {
+    getInitial: function getInitial() {
+      return STORE;
+    },
+    get: function get() {
+      return latestStore;
+    },
+    update: function update(chunkState, noStrictSubs) {
+      var newState = Object.assign({}, latestStore,
+        mapData(chunkState, OUT));
+      latestStore = newState;
+      if (!noStrictSubs) {
+        subscriptionsStrict.map(function (s) {
+          if (typeof s === 'function') {
+            s(newState);
+          }
+          return false;
+        });
+      }
+      subscriptions.map(function (s) {
+        if (typeof s === 'function') {
+          s(newState);
+        }
+        return false;
+      });
+      return latestStore;
+    },
+    subscribe: function subscribe(fn, strict) {
+      if (strict) {
+        subscriptionsStrict.push(fn);
+      } else {
+        subscriptions.push(fn);
+      }
+    },
+    dispatch: function dispatch(fn) {
+      var args = [], len = arguments.length - 1;
+      while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
 
-Validator.prototype.email = function email () {
-  return this.register({
-    type: 'email',
-    validate: value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
-    error: 'Email is not valid',
-  })
-};
+      var payload = fn.apply(void 0, [ latestStore ].concat( args ));
+      // console.log('dispatch', {
+      //   action: fn.name,
+      //   args: args,
+      //   payload,
+      // });
+      // console.log('dispatch', fn.name, payload);
+      return this.update(payload);
+    },
+    render: function render(fn) {
+      if ( fn === void 0 ) fn = function (s) { return JSON.stringify(s); };
+
+      var $parent;
+      var $pointer;
+      var newTree;
+      var oldTree;
+      var mounted = false;
+
+      function update(data) {
+        newTree = fn(data);
+        patch($parent, newTree, oldTree, 0, $pointer);
+        oldTree = newTree;
+        return data;
+      }
+
+      subscriptions.push(function (data) {
+        if (mounted) {
+          update(data);
+        }
+        return data;
+      });
+
+      function item() {
+        this.onMount = function (element, parent) {
+          mounted = true;
+          $pointer = element;
+          $parent = parent || element.parentNode;
+          update(latestStore);
+        };
+        return '';
+      }
+
+      return item;
+    },
+    inject: function inject(update) {
+      if (typeof update !== 'function') {
+        console.warn('[Radi.js] Store\'s `.inject()` method must not be called on it\'s own. Instead use `{ field: Store.inject }`.');
+        return false;
+      }
+      OUT.subscribe(update, true);
+      update(latestStore, true);
+      return true;
+    },
+    out: function out(fn) {
+      var lastValue;
+      function stateUpdater(update) {
+        if (typeof update === 'function') {
+          OUT.subscribe(function (s) {
+            var newValue = fn(s);
+            if (lastValue !== newValue) {
+              update(newValue);
+            }
+          });
+          update(lastValue = fn(latestStore), true);
+        } else {
+          var a = OUT.render(fn);
+          return a;
+        }
+        return lastValue;
+      }
+      stateUpdater.__radiStateUpdater = true;
+      return stateUpdater;
+    },
+  });
+
+  var STORE = mapData(state, OUT);
+
+  latestStore = STORE;
+
+  return OUT;
+}
+
+// import {} from './custom';
+// import validate from './custom/validation/validate';
+// import { Validator } from './custom/validation/Validator';
 
 var Radi = {
+  v: GLOBALS.VERSION,
   version: GLOBALS.VERSION,
-  activeComponents: GLOBALS.ACTIVE_COMPONENTS,
-  r,
-  listen,
-  l: listen,
-  worker,
-  Component,
-  component: Component,
-  action,
-  subscribe,
-  customTag,
-  customAttribute,
-  headless,
-  update: patch,
-  patch,
-  mount,
-  freeze: () => {
-    GLOBALS.FROZEN_STATE = true;
-  },
-  unfreeze: () => {
-    GLOBALS.FROZEN_STATE = false;
-    remountActiveComponents();
-  },
-  Validator,
+  h: html,
+  html: html,
+  Store: Store,
+  customTag: customTag,
+  customAttribute: customAttribute,
+  patch: patch,
+  mount: mount,
+  service: service,
+  // Validator,
 };
 
 // Pass Radi instance to plugins
-Radi.plugin = (fn, ...args) => fn(Radi, ...args);
+Radi.plugin = function (fn) {
+  var args = [], len = arguments.length - 1;
+  while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
 
-Radi.plugin(validate);
+  return fn.apply(void 0, [ Radi ].concat( args ));
+};
+
+// Radi.plugin(validate);
 
 if (window) { window.Radi = Radi; }
-// module.exports = Radi;
 
 export default Radi;
 //# sourceMappingURL=radi.es.js.map

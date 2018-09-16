@@ -21,23 +21,30 @@ module.exports = {
     HTMLHeadingElement: true,
     CSSStyleDeclaration: true,
     HTMLElement: true,
+    SVGElement: true,
     $Radi: true,
     Node: true,
     jest: true
   },
   rules: {
     'class-methods-use-this': 'off',
+    'no-empty': 'off',
     'no-param-reassign': 'off',
+    'no-restricted-syntax': 'off',
     'no-underscore-dangle': 'off',
+    'no-use-before-define': 'off',
     'no-plusplus': 'off',
     'no-prototype-builtins': 'off',
     'no-return-assign': 'off',
+    'import/prefer-default-export': 'off',
     'import/no-named-as-default': 'off',
     'import/no-named-as-default-member': 'off',
     'arrow-parens': 'off',
     'no-confusing-arrow': 'off',
     'func-names': 'off',
     'function-paren-newline': 'off',
+    'guard-for-in': 'off',
+    'prefer-rest-params': 'off',
     'comma-dangle': [
       'error',
       {
@@ -48,6 +55,7 @@ module.exports = {
         functions: 'ignore',
       },
     ],
+    "sort-imports": "error",
     "react/jsx-uses-vars": "error"
   },
 };
