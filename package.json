@@ -1,6 +1,6 @@
 {
   "name": "radi",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "main": "dist/radi.js",
   "module": "dist/radi.js",
   "jsnext:main": "dist/radi.es.js",
@@ -14,7 +14,7 @@
     "dom"
   ],
   "scripts": {
-    "dev": "webpack --config ./.webpack/dev.js",
+    "dev": "rollup -c -n Radi -f umd -i src/index.js -o dist/radi.js -m --watch",
     "prod": "npm run build",
     "build": "npm run roll && npm run min",
     "roll": "npm run roll-es && npm run roll-js",

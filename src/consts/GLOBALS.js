@@ -1,11 +1,8 @@
 const GLOBALS = {
-  HEADLESS_COMPONENTS: {},
-  FROZEN_STATE: false,
-  VERSION: '0.4.2',
-  // TODO: Collect active components
-  ACTIVE_COMPONENTS: {},
+  VERSION: '0.5.0',
   CUSTOM_ATTRIBUTES: {},
   CUSTOM_TAGS: {},
+  SERVICES: {},
 };
 
 export default GLOBALS;
