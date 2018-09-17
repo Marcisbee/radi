@@ -27,14 +27,16 @@ function mapData(target, store, source, path = []) {
   for (const i in target) {
     const name = i;
     if (typeof target[i] === 'function') {
-      out[name] = target[i]((data, useUpdate) => {
+      const tempOutput = target[i]((data, useUpdate) => {
         const payload = setDataInObject(source, path.concat(name), data);
         if (!useUpdate) {
           store.dispatch(() => payload);
         } else {
           store.update(payload);
         }
-      }) || {};
+      });
+      out[name] = typeof tempOutput === 'object' ? tempOutput : {};
+
       Object.defineProperty(out[name], '$loading', {
         value: true,
         writable: false,
@@ -143,7 +145,7 @@ export function Store(state = {}) {
         return;
       }
       OUT.subscribe(update, true);
-      // update(latestStore, true);
+      update(latestStore, true);
       return latestStore;
     },
     out(fn) {

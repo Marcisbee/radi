@@ -17,7 +17,7 @@ export function mount(component, container) {
     component: component,
     node: patch(container, component),
     destroy: () => {
-      return patch(container, null);
+      return patch(container, null, component);
     },
   };
 };

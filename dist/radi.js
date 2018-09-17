@@ -384,7 +384,7 @@
       component: component,
       node: patch(container, component),
       destroy: function () {
-        return patch(container, null);
+        return patch(container, null, component);
       },
     };
   }
@@ -512,15 +512,12 @@
   /**
    * @param {string} tagName
    * @param {function} onmount
-   * @param {function} ondestroy
    * @returns {object}
    */
-  function customTag(tagName, onmount, ondestroy) {
+  function customTag(tagName, render) {
     return GLOBALS.CUSTOM_TAGS[tagName] = {
       name: tagName,
-      onmount: onmount || (function () {}),
-      ondestroy: ondestroy || (function () {}),
-      saved: null,
+      render: render || (function () {}),
     };
   }
 
@@ -541,8 +538,14 @@
     var children = [], len = arguments.length - 2;
     while ( len-- > 0 ) children[ len ] = arguments[ len + 2 ];
 
+    var finalType = type;
+
+    if (typeof GLOBALS.CUSTOM_TAGS[type] !== 'undefined') {
+      finalType = GLOBALS.CUSTOM_TAGS[type].render;
+    }
+
     return {
-      type: (typeof type === 'number') ? ("" + type) : type,
+      type: (typeof finalType === 'number') ? finalType + '' : finalType,
       props: props || {},
       children: flatten(children),
     };
@@ -576,14 +579,16 @@
     var loop = function ( i ) {
       var name = i;
       if (typeof target[i] === 'function') {
-        out[name] = target[i](function (data, useUpdate) {
+        var tempOutput = target[i](function (data, useUpdate) {
           var payload = setDataInObject(source, path.concat(name), data);
           if (!useUpdate) {
             store.dispatch(function () { return payload; });
           } else {
             store.update(payload);
           }
-        }) || {};
+        });
+        out[name] = typeof tempOutput === 'object' ? tempOutput : {};
+
         Object.defineProperty(out[name], '$loading', {
           value: true,
           writable: false,
@@ -699,7 +704,7 @@
           return;
         }
         OUT.subscribe(update, true);
-        // update(latestStore, true);
+        update(latestStore, true);
         return latestStore;
       },
       out: function out(fn) {
@@ -783,6 +788,33 @@
       }
     }
   }
+
+  var Portal = customTag('portal',
+    function (data) {
+      var $ref;
+      var $parent;
+      var toRender = data.children || [];
+
+      this.onMount = function ($element) {
+        mount(function () {
+          this.onMount = function ($el, $p) {
+            $ref = $el;
+            $parent = $p;
+          };
+
+          return function () { return toRender; };
+        }, data.on || document.body);
+      };
+
+      this.onDestroy = function (el, parent) {
+        patch($parent, null, toRender, 0, $ref || el);
+      };
+
+      return null;
+    }
+  );
+
+  // import {} from './attributes/animation';
 
   // import {} from './custom';
   // import validate from './custom/validation/validate';

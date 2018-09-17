@@ -3,14 +3,11 @@ import GLOBALS from '../consts/GLOBALS';
 /**
  * @param {string} tagName
  * @param {function} onmount
- * @param {function} ondestroy
  * @returns {object}
  */
-export function customTag(tagName, onmount, ondestroy) {
+export function customTag(tagName, render) {
   return GLOBALS.CUSTOM_TAGS[tagName] = {
     name: tagName,
-    onmount: onmount || (() => {}),
-    ondestroy: ondestroy || (() => {}),
-    saved: null,
+    render: render || (() => {}),
   };
 }
