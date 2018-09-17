@@ -12,14 +12,6 @@ export class Component {
   }
 
   /**
-   * Just so there is always onMount event
-   * @return {*}
-   */
-  onMount() {
-
-  }
-
-  /**
    * @param  {string}   event
    * @param  {Function} fn
    * @return {Function}

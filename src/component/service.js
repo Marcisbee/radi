@@ -17,10 +17,8 @@ export function service(key, fn, ...args) {
   }
 
   const name = '$'.concat(key);
-  const Comp = new Component(fn, key);
-  const mounted = fn.call(Comp, ...args);
+  const mounted = fn(...args);
 
-  Comp.trigger('mount');
   Component.prototype[name] = mounted;
 
   return GLOBALS.SERVICES[name] = mounted;

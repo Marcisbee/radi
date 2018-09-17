@@ -47,14 +47,6 @@
   };
 
   /**
-   * Just so there is always onMount event
-   * @return {*}
-   */
-  Component.prototype.onMount = function onMount () {
-
-  };
-
-  /**
    * @param{string} event
    * @param{Function} fn
    * @return {Function}
@@ -109,10 +101,8 @@
     }
 
     var name = '$'.concat(key);
-    var Comp = new Component(fn, key);
-    var mounted = fn.call.apply(fn, [ Comp ].concat( args ));
+    var mounted = fn.apply(void 0, args);
 
-    Comp.trigger('mount');
     Component.prototype[name] = mounted;
 
     return GLOBALS.SERVICES[name] = mounted;
@@ -586,18 +576,17 @@
     var loop = function ( i ) {
       var name = i;
       if (typeof target[i] === 'function') {
-        out[name] = {};
-        Object.defineProperty(out[name], '$loading', {
-          value: true,
-          writable: false,
-        });
-        target[i](function (data, useUpdate) {
+        out[name] = target[i](function (data, useUpdate) {
           var payload = setDataInObject(source, path.concat(name), data);
           if (!useUpdate) {
             store.dispatch(function () { return payload; });
           } else {
             store.update(payload);
           }
+        }) || {};
+        Object.defineProperty(out[name], '$loading', {
+          value: true,
+          writable: false,
         });
       } else {
         out[name] = target[name] && typeof target[name] === 'object'
@@ -612,9 +601,7 @@
     return out;
   }
 
-  // export class Store {
-  //
-  // }
+  // TODO: Check out why initial state for Subscribe is `{}`
 
   function Store(state) {
     if ( state === void 0 ) state = {};
@@ -709,11 +696,11 @@
       inject: function inject(update) {
         if (typeof update !== 'function') {
           console.warn('[Radi.js] Store\'s `.inject()` method must not be called on it\'s own. Instead use `{ field: Store.inject }`.');
-          return false;
+          return;
         }
         OUT.subscribe(update, true);
-        update(latestStore, true);
-        return true;
+        // update(latestStore, true);
+        return latestStore;
       },
       out: function out(fn) {
         var lastValue;
@@ -744,6 +731,59 @@
     return OUT;
   }
 
+  /**
+   * @param       {EventTarget} [target=document] [description]
+   * @constructor
+   */
+  function Subscribe(target) {
+    if ( target === void 0 ) target = document;
+
+    return {
+      on: function (event, fn) {
+        if ( fn === void 0 ) fn = function (e) { return e; };
+
+        var eventSubscription = null;
+        var staticDefaults = null;
+        var staticUpdate = null;
+        var state = false;
+        var transformer = typeof fn === 'object'
+          ? function (e) { return (Object.keys(fn)
+            .reduce(function (acc, key) {
+              var obj;
+
+              return (Object.assign({}, acc,
+              ( obj = {}, obj[key] = e[key], obj)));
+            }, {})); }
+          : fn;
+
+        if (typeof transformer !== 'function') {
+          throw new Error('[Radi.js] Subscription `'+event+'` must be transformed by function');
+          return;
+        }
+
+        function updater(defaults) {
+          return function (update) {
+            state = true;
+            staticDefaults = defaults;
+            staticUpdate = update;
+            target.addEventListener(event, eventSubscription = function () {
+              var args = [], len = arguments.length;
+              while ( len-- ) args[ len ] = arguments[ len ];
+
+              return update(transformer.apply(void 0, args));
+            });
+            return defaults;
+          };
+        }
+
+        updater.stop = function () { return (state && (target.removeEventListener(event, eventSubscription), state = !state)); };
+        updater.start = function () { return (!state && updater(staticDefaults)(staticUpdate)); };
+
+        return updater;
+      }
+    }
+  }
+
   // import {} from './custom';
   // import validate from './custom/validation/validate';
   // import { Validator } from './custom/validation/Validator';
@@ -759,6 +799,7 @@
     patch: patch,
     mount: mount,
     service: service,
+    Subscribe: Subscribe,
     // Validator,
   };
 

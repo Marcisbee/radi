@@ -7,6 +7,7 @@ import {
   patch,
 } from './html';
 import { Store } from './store';
+import { Subscribe } from './subscribe';
 import { mount } from './mount';
 // import {} from './custom';
 // import validate from './custom/validation/validate';
@@ -23,6 +24,7 @@ const Radi = {
   patch,
   mount,
   service,
+  Subscribe,
   // Validator,
 };
 
