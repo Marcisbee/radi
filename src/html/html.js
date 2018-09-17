@@ -1,3 +1,4 @@
+import GLOBALS from '../consts/GLOBALS';
 import { flatten } from '../utils';
 
 /**
@@ -14,8 +15,14 @@ import { flatten } from '../utils';
  * @return {Node}
  */
 export function html(type, props, ...children) {
+  let finalType = type;
+
+  if (typeof GLOBALS.CUSTOM_TAGS[type] !== 'undefined') {
+    finalType = GLOBALS.CUSTOM_TAGS[type].render;
+  }
+
   return {
-    type: (typeof type === 'number') ? `${type}` : type,
+    type: (typeof finalType === 'number') ? finalType + '' : finalType,
     props: props || {},
     children: flatten(children),
   };
