@@ -27,18 +27,17 @@ function mapData(target, store, source, path = []) {
   for (const i in target) {
     const name = i;
     if (typeof target[i] === 'function') {
-      out[name] = {};
-      Object.defineProperty(out[name], '$loading', {
-        value: true,
-        writable: false,
-      });
-      target[i]((data, useUpdate) => {
+      out[name] = target[i]((data, useUpdate) => {
         const payload = setDataInObject(source, path.concat(name), data);
         if (!useUpdate) {
           store.dispatch(() => payload);
         } else {
           store.update(payload);
         }
+      }) || {};
+      Object.defineProperty(out[name], '$loading', {
+        value: true,
+        writable: false,
       });
     } else {
       out[name] = target[name] && typeof target[name] === 'object'
@@ -51,9 +50,7 @@ function mapData(target, store, source, path = []) {
   return out;
 }
 
-// export class Store {
-//
-// }
+// TODO: Check out why initial state for Subscribe is `{}`
 
 export function Store(state = {}) {
   const OUT = {};
@@ -143,11 +140,11 @@ export function Store(state = {}) {
     inject(update) {
       if (typeof update !== 'function') {
         console.warn('[Radi.js] Store\'s `.inject()` method must not be called on it\'s own. Instead use `{ field: Store.inject }`.');
-        return false;
+        return;
       }
       OUT.subscribe(update, true);
-      update(latestStore, true);
-      return true;
+      // update(latestStore, true);
+      return latestStore;
     },
     out(fn) {
       let lastValue;
