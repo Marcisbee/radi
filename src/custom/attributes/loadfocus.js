@@ -1,5 +1,5 @@
 import { customAttribute } from '../../html/customAttribute';
 
-customAttribute('loadfocus', (el, props) => {
+customAttribute('loadfocus', (el) => {
   el.addEventListener('mount', () => el.focus());
 });

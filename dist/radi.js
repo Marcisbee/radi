@@ -831,12 +831,22 @@
     return direct(target, done);
   };
 
-  customAttribute('animation', function (el, props) {
-    animate(el, 'in', props, function () {});
-    el.beforedestroy = function (done) { return animate(el, 'out', props, done); };
+  customAttribute('animation', function (el, value) {
+    animate(el, 'in', value, function () {});
+    el.beforedestroy = function (done) { return animate(el, 'out', value, done); };
   });
 
-  customAttribute('loadfocus', function (el, props) {
+  customAttribute('html', function (el, value) {
+    el.addEventListener('mount', function () {
+      if (el.escape) {
+        el.textContent = value;
+      } else {
+        el.innerHTML = value;
+      }
+    });
+  });
+
+  customAttribute('loadfocus', function (el) {
     el.addEventListener('mount', function () { return el.focus(); });
   });
 
