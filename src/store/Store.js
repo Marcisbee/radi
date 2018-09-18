@@ -142,7 +142,7 @@ export function Store(state = {}) {
     inject(update) {
       if (typeof update !== 'function') {
         console.warn('[Radi.js] Store\'s `.inject()` method must not be called on it\'s own. Instead use `{ field: Store.inject }`.');
-        return;
+        return latestStore;
       }
       OUT.subscribe(update, true);
       update(latestStore, true);

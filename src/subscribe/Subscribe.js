@@ -19,8 +19,7 @@ export function Subscribe(target = document) {
         : fn;
 
       if (typeof transformer !== 'function') {
-        throw new Error('[Radi.js] Subscription `'+event+'` must be transformed by function');
-        return;
+        throw new Error(`[Radi.js] Subscription \`${event}\` must be transformed by function`);
       }
 
       function updater(defaults) {
@@ -28,15 +27,18 @@ export function Subscribe(target = document) {
           state = true;
           staticDefaults = defaults;
           staticUpdate = update;
-          target.addEventListener(event, eventSubscription = (...args) => update(transformer(...args)));
+          target.addEventListener(event,
+            eventSubscription = (...args) => update(transformer(...args)));
           return defaults;
         };
       }
 
-      updater.stop = () => (state && (target.removeEventListener(event, eventSubscription), state = !state));
+      updater.stop = () => (state &&
+        (target.removeEventListener(event, eventSubscription), state = !state)
+      );
       updater.start = () => (!state && updater(staticDefaults)(staticUpdate));
 
       return updater;
-    }
-  }
+    },
+  };
 }

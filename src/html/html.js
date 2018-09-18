@@ -22,7 +22,7 @@ export function html(type, props, ...children) {
   }
 
   return {
-    type: (typeof finalType === 'number') ? finalType + '' : finalType,
+    type: (typeof finalType === 'number') ? `${finalType}` : finalType,
     props: props || {},
     children: flatten(children),
   };
