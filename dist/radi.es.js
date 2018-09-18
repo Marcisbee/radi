@@ -830,6 +830,10 @@ var AnimationAttribute = customAttribute('animation', function (el, props) {
   el.beforedestroy = function (done) { return animate(el, 'out', props, done); };
 });
 
+var LoadfocusAttribute = customAttribute('loadfocus', function (el, props) {
+  el.addEventListener('mount', function () { return el.focus(); });
+});
+
 var h = html;
 
 var ModalStore = new Store({});
