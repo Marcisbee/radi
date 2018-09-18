@@ -825,12 +825,12 @@ var animate = function (target, type, opts, done) {
   return direct(target, done);
 };
 
-var AnimationAttribute = customAttribute('animation', function (el, props) {
+customAttribute('animation', function (el, props) {
   animate(el, 'in', props, function () {});
   el.beforedestroy = function (done) { return animate(el, 'out', props, done); };
 });
 
-var LoadfocusAttribute = customAttribute('loadfocus', function (el, props) {
+customAttribute('loadfocus', function (el, props) {
   el.addEventListener('mount', function () { return el.focus(); });
 });
 

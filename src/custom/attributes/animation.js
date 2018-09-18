@@ -10,7 +10,7 @@ export const animate = (target, type, opts, done) => {
   return direct(target, done);
 };
 
-export const AnimationAttribute = customAttribute('animation', (el, props) => {
+customAttribute('animation', (el, props) => {
   animate(el, 'in', props, () => {});
   el.beforedestroy = done => animate(el, 'out', props, done);
 });
