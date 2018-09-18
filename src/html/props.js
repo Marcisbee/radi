@@ -1,3 +1,4 @@
+import GLOBALS from '../consts/GLOBALS';
 
 function autoUpdate(value, fn) {
   if (typeof value === 'function' && value.__radiStateUpdater) {
@@ -33,6 +34,21 @@ function isCustomProp(name) {
 }
 
 export function setProp($target, name, value) {
+  if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
+    const { allowedTags } = GLOBALS.CUSTOM_ATTRIBUTES[name];
+
+    if (!allowedTags || (
+      allowedTags
+        && allowedTags.length > 0
+        && allowedTags.indexOf($target.localName) >= 0
+    )) {
+      if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name].caller === 'function') {
+        GLOBALS.CUSTOM_ATTRIBUTES[name].caller($target, value);
+      }
+      if (!GLOBALS.CUSTOM_ATTRIBUTES[name].addToElement) return;
+    }
+  }
+
   if (name === 'style') {
     setStyles($target, value);
   } else if (isCustomProp(name)) {
