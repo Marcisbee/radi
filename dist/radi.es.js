@@ -783,6 +783,63 @@ function Subscribe(target) {
   }
 }
 
+var h = html;
+
+var ModalStore = new Store({});
+
+var registerModal = function (store, name) {
+  var obj;
+
+  return (( obj = {}, obj[name] = false, obj));
+};
+
+var switchModal = function (store, name, type) {
+  var obj;
+
+  return (( obj = {}, obj[name] = type, obj));
+};
+
+var ModalService = service('modal', function () {
+  var args = [], len = arguments.length;
+  while ( len-- ) args[ len ] = arguments[ len ];
+
+  return {
+    open: function (name) { return ModalStore.dispatch(switchModal, name, true); },
+    close: function (name) { return ModalStore.dispatch(switchModal, name, false); },
+  };
+});
+
+var Modal = customTag('modal',
+  function modal(ref) {
+    var this$1 = this;
+    var name = ref.name; if ( name === void 0 ) name = 'default';
+    var children = ref.children;
+
+    if (typeof name === 'undefined') {
+      console.warn('[Radi.js] Warn: Every <modal> tag needs to have `name` attribute!');
+    }
+
+    this.style = "\n      .--radi-modal {\n        display: block;\n        position: fixed;\n        top: 0;\n        left: 0;\n        width: 100%;\n        height: 100%;\n        z-index: 1000;\n      }\n      .--radi-modal-backdrop {\n        display: block;\n        position: absolute;\n        left: 0;\n        top: 0;\n        width: 100%;\n        height: 100%;\n        z-index: 0;\n        background-color: rgba(0, 0, 0, 0.7);\n      }\n      .--radi-modal-content {\n        display: block;\n        position: relative;\n        width: 600px;\n        max-width: 98%;\n        z-index: 1;\n        margin: 40px auto;\n        border-radius: 8px;\n        box-shadow: 0 5px 0px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.3);\n        background-color: #fff;\n        padding: 26px;\n      }\n    ";
+
+    this.onMount = function (el) { return ModalStore.dispatch(registerModal, name); };
+
+    return h('portal', {},
+      ModalStore.out(function (data) { return (
+        data[name] && h('div',
+          { class: '--radi-modal', name: name },
+          h('div', {
+            class: '--radi-modal-backdrop',
+            onclick: function () { return this$1.$modal.close(name); },
+          }),
+          h.apply(void 0, [ 'div',
+            { class: '--radi-modal-content' } ].concat( (children.slice()) )
+          )
+        )
+      ); })
+    );
+  }
+);
+
 var Portal = customTag('portal',
   function (data) {
     var $ref;
