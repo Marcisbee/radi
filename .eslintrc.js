@@ -29,6 +29,7 @@ module.exports = {
   rules: {
     'class-methods-use-this': 'off',
     'no-empty': 'off',
+    'no-loop-func': 'off',
     'no-param-reassign': 'off',
     'no-restricted-syntax': 'off',
     'no-underscore-dangle': 'off',
