@@ -206,6 +206,22 @@ function isCustomProp(name) {
 }
 
 function setProp($target, name, value) {
+  if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
+    var ref = GLOBALS.CUSTOM_ATTRIBUTES[name];
+    var allowedTags = ref.allowedTags;
+
+    if (!allowedTags || (
+      allowedTags
+        && allowedTags.length > 0
+        && allowedTags.indexOf($target.localName) >= 0
+    )) {
+      if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name].caller === 'function') {
+        GLOBALS.CUSTOM_ATTRIBUTES[name].caller($target, value);
+      }
+      if (!GLOBALS.CUSTOM_ATTRIBUTES[name].addToElement) { return; }
+    }
+  }
+
   if (name === 'style') {
     setStyles($target, value);
   } else if (isCustomProp(name)) {
@@ -290,6 +306,14 @@ function addEventListeners($target, props) {
   });
 }
 
+function beforeDestroy(node, next) {
+  if (typeof node.beforedestroy === 'function') {
+    return node.beforedestroy(next);
+  }
+
+  return next();
+}
+
 /**
  * @param  {HTMLElement} $parent
  * @param  {Object|Object[]} newNode
@@ -312,7 +336,7 @@ function patch($parent, newNode, oldNode, index, $pointer) {
   var oldLength = normalOldNode.length;
 
   var modifier = 0;
-  for (var i = 0; i < newLength || i < oldLength; i++) {
+  var loop = function ( i ) {
     if (normalNewNode[i] instanceof Date) { normalNewNode[i] = normalNewNode[i].toString(); }
     if (normalOldNode[i] === false || normalOldNode[i] === undefined || normalOldNode[i] === null) {
       $output = createElement$$1(normalNewNode[i], $parent);
@@ -326,9 +350,13 @@ function patch($parent, newNode, oldNode, index, $pointer) {
     if (normalNewNode[i] === false || normalNewNode[i] === undefined || normalNewNode[i] === null) {
       var $target = $parent.childNodes[index + i + modifier];
       if ($target) {
-        $parent.removeChild($target);
-        destroyTree$$1($target);
-        modifier -= 1;
+        beforeDestroy($target, function () {
+          // This is for async node removals
+          var $targetScoped = $parent.childNodes[index + i + modifier];
+          $parent.removeChild($targetScoped);
+          destroyTree$$1($targetScoped);
+          modifier -= 1;
+        });
       }
     } else
     if (nodeChanged(normalNewNode[i], normalOldNode[i])) {
@@ -356,7 +384,9 @@ function patch($parent, newNode, oldNode, index, $pointer) {
         );
       }
     }
-  }
+  };
+
+  for (var i = 0; i < newLength || i < oldLength; i++) loop( i );
 
   return normalNewNode;
 }
@@ -539,7 +569,7 @@ function html(type, props) {
   }
 
   return {
-    type: (typeof finalType === 'number') ? finalType + '' : finalType,
+    type: (typeof finalType === 'number') ? ("" + finalType) : finalType,
     props: props || {},
     children: flatten(children),
   };
@@ -695,7 +725,7 @@ function Store(state) {
     inject: function inject(update) {
       if (typeof update !== 'function') {
         console.warn('[Radi.js] Store\'s `.inject()` method must not be called on it\'s own. Instead use `{ field: Store.inject }`.');
-        return;
+        return latestStore;
       }
       OUT.subscribe(update, true);
       update(latestStore, true);
@@ -756,8 +786,7 @@ function Subscribe(target) {
         : fn;
 
       if (typeof transformer !== 'function') {
-        throw new Error('[Radi.js] Subscription `'+event+'` must be transformed by function');
-        return;
+        throw new Error(("[Radi.js] Subscription `" + event + "` must be transformed by function"));
       }
 
       function updater(defaults) {
@@ -765,23 +794,45 @@ function Subscribe(target) {
           state = true;
           staticDefaults = defaults;
           staticUpdate = update;
-          target.addEventListener(event, eventSubscription = function () {
-            var args = [], len = arguments.length;
-            while ( len-- ) args[ len ] = arguments[ len ];
+          target.addEventListener(event,
+            eventSubscription = function () {
+              var args = [], len = arguments.length;
+              while ( len-- ) args[ len ] = arguments[ len ];
 
-            return update(transformer.apply(void 0, args));
+              return update(transformer.apply(void 0, args));
           });
           return defaults;
         };
       }
 
-      updater.stop = function () { return (state && (target.removeEventListener(event, eventSubscription), state = !state)); };
+      updater.stop = function () { return (state &&
+        (target.removeEventListener(event, eventSubscription), state = !state)
+      ); };
       updater.start = function () { return (!state && updater(staticDefaults)(staticUpdate)); };
 
       return updater;
-    }
-  }
+    },
+  };
 }
+
+var animate = function (target, type, opts, done) {
+  var direct = opts[type];
+  if (typeof direct !== 'function') {
+    console.warn(("[Radi.js] Animation `" + type + "` for node `" + (target.nodeName.toLowerCase) + "` should be function"));
+    return;
+  }
+
+  return direct(target, done);
+};
+
+customAttribute('animation', function (el, props) {
+  animate(el, 'in', props, function () {});
+  el.beforedestroy = function (done) { return animate(el, 'out', props, done); };
+});
+
+customAttribute('loadfocus', function (el, props) {
+  el.addEventListener('mount', function () { return el.focus(); });
+});
 
 var h = html;
 
@@ -865,7 +916,74 @@ var Portal = customTag('portal',
   }
 );
 
-// import {} from './attributes/animation';
+var Validator = function Validator(value) {
+  this.value = value;
+  this.rules = [];
+};
+
+Validator.prototype.register = function register (ref) {
+    var this$1 = this;
+    var type = ref.type;
+    var validate = ref.validate;
+    var error = ref.error;
+
+  var nn = this.rules.push({
+    type: type,
+    validate: function (value) { return (value && validate(value)); },
+    error: error || 'Invalid field',
+  });
+
+  this.error = function (text) {
+    this$1.rules[nn - 1].error = text || error;
+    return this$1;
+  };
+
+  return this;
+};
+
+Validator.prototype.check = function check (newValue) {
+    var this$1 = this;
+
+  if (typeof newValue !== 'undefined') {
+    this.value = newValue;
+  }
+
+  return this.rules.reduce(function (acc, value) { return (
+    typeof acc === 'string' ? acc : (!value.validate(this$1.value) && value.error) || acc
+  ); }, true)
+};
+
+Validator.prototype.required = function required () {
+  return this.register({
+    type: 'required',
+    validate: function (value) { return value !== ''; },
+    error: 'Field is required',
+  })
+};
+
+Validator.prototype.min = function min (num) {
+  return this.register({
+    type: 'min',
+    validate: function (value) { return value.length >= num; },
+    error: 'Min char length is ' + num,
+  })
+};
+
+Validator.prototype.max = function max (num) {
+  return this.register({
+    type: 'max',
+    validate: function (value) { return value.length < num; },
+    error: 'Max char length is ' + num,
+  })
+};
+
+Validator.prototype.email = function email () {
+  return this.register({
+    type: 'email',
+    validate: function (value) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); },
+    error: 'Email is not valid',
+  })
+};
 
 // import {} from './custom';
 // import validate from './custom/validation/validate';
@@ -883,7 +1001,7 @@ var Radi = {
   mount: mount,
   service: service,
   Subscribe: Subscribe,
-  // Validator,
+  Validator: Validator,
 };
 
 // Pass Radi instance to plugins

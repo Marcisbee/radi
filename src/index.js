@@ -9,9 +9,7 @@ import {
 import { Store } from './store';
 import { Subscribe } from './subscribe';
 import { mount } from './mount';
-import {
-  Portal,
-} from './custom';
+import { Validator } from './custom';
 // import {} from './custom';
 // import validate from './custom/validation/validate';
 // import { Validator } from './custom/validation/Validator';
@@ -28,7 +26,7 @@ const Radi = {
   mount,
   service,
   Subscribe,
-  // Validator,
+  Validator,
 };
 
 // Pass Radi instance to plugins

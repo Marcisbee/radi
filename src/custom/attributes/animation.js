@@ -1,6 +1,6 @@
-import customAttribute from '../../r/customAttribute';
+import { customAttribute } from '../../html/customAttribute';
 
-const animate = (target, type, opts, done) => {
+export const animate = (target, type, opts, done) => {
   const direct = opts[type];
   if (typeof direct !== 'function') {
     console.warn(`[Radi.js] Animation \`${type}\` for node \`${target.nodeName.toLowerCase}\` should be function`);

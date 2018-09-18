@@ -9,6 +9,14 @@ import { insertAfter } from './insertAfter';
 import { nodeChanged } from './nodeChanged';
 import { updateProps } from './props';
 
+function beforeDestroy(node, next) {
+  if (typeof node.beforedestroy === 'function') {
+    return node.beforedestroy(next);
+  }
+
+  return next();
+}
+
 /**
  * @param  {HTMLElement} $parent
  * @param  {Object|Object[]} newNode
@@ -43,9 +51,13 @@ export function patch($parent, newNode, oldNode, index = 0, $pointer) {
     if (normalNewNode[i] === false || normalNewNode[i] === undefined || normalNewNode[i] === null) {
       const $target = $parent.childNodes[index + i + modifier];
       if ($target) {
-        $parent.removeChild($target);
-        destroyTree($target);
-        modifier -= 1;
+        beforeDestroy($target, () => {
+          // This is for async node removals
+          const $targetScoped = $parent.childNodes[index + i + modifier];
+          $parent.removeChild($targetScoped);
+          destroyTree($targetScoped);
+          modifier -= 1;
+        });
       }
     } else
     if (nodeChanged(normalNewNode[i], normalOldNode[i])) {
