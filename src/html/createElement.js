@@ -107,6 +107,6 @@ export function createElement(node, $parent) {
     return createElement(JSON.stringify(node), $parent);
   }
 
-  console.error('Unhandled node', node);
-  return null;
+  // console.error('Unhandled node', node);
+  return document.createTextNode(node + '');
 }
