@@ -27,20 +27,24 @@ function mapData(target, store, source, path = []) {
   for (const i in target) {
     const name = i;
     if (typeof target[i] === 'function') {
-      const tempOutput = target[i]((data, useUpdate) => {
+      const tempOutput = target[i]((data, useUpdate, fnName = '') => {
         const payload = setDataInObject(source, path.concat(name), data);
         if (!useUpdate) {
-          store.dispatch(() => payload);
+          let f = () => payload;
+          Object.defineProperty(f, 'name', {value: fnName, writable: false});
+          store.dispatch(f);
         } else {
           store.update(payload);
         }
       });
-      out[name] = typeof tempOutput === 'object' ? tempOutput : {};
+      out[name] = tempOutput;
 
-      Object.defineProperty(out[name], '$loading', {
-        value: true,
-        writable: false,
-      });
+      if (out[name] && typeof out[name] === 'object') {
+        Object.defineProperty(out[name], '$loading', {
+          value: true,
+          writable: false,
+        });
+      }
     } else {
       out[name] = target[name] && typeof target[name] === 'object'
         && !Array.isArray(target[name])
@@ -51,8 +55,6 @@ function mapData(target, store, source, path = []) {
 
   return out;
 }
-
-// TODO: Check out why initial state for Subscribe is `{}`
 
 export function Store(state = {}) {
   const OUT = {};
@@ -95,6 +97,8 @@ export function Store(state = {}) {
       } else {
         subscriptions.push(fn);
       }
+      fn(latestStore);
+      return OUT;
     },
     dispatch(fn, ...args) {
       const payload = fn(latestStore, ...args);

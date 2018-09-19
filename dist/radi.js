@@ -516,8 +516,8 @@
       return createElement$$1(JSON.stringify(node), $parent);
     }
 
-    console.error('Unhandled node', node);
-    return null;
+    // console.error('Unhandled node', node);
+    return document.createTextNode(node + '');
   }
 
   /**
@@ -609,20 +609,26 @@
     var loop = function ( i ) {
       var name = i;
       if (typeof target[i] === 'function') {
-        var tempOutput = target[i](function (data, useUpdate) {
+        var tempOutput = target[i](function (data, useUpdate, fnName) {
+          if ( fnName === void 0 ) fnName = '';
+
           var payload = setDataInObject(source, path.concat(name), data);
           if (!useUpdate) {
-            store.dispatch(function () { return payload; });
+            var f = function () { return payload; };
+            Object.defineProperty(f, 'name', {value: fnName, writable: false});
+            store.dispatch(f);
           } else {
             store.update(payload);
           }
         });
-        out[name] = typeof tempOutput === 'object' ? tempOutput : {};
+        out[name] = tempOutput;
 
-        Object.defineProperty(out[name], '$loading', {
-          value: true,
-          writable: false,
-        });
+        if (out[name] && typeof out[name] === 'object') {
+          Object.defineProperty(out[name], '$loading', {
+            value: true,
+            writable: false,
+          });
+        }
       } else {
         out[name] = target[name] && typeof target[name] === 'object'
           && !Array.isArray(target[name])
@@ -635,8 +641,6 @@
 
     return out;
   }
-
-  // TODO: Check out why initial state for Subscribe is `{}`
 
   function Store(state) {
     if ( state === void 0 ) state = {};
@@ -679,6 +683,8 @@
         } else {
           subscriptions.push(fn);
         }
+        fn(latestStore);
+        return OUT;
       },
       dispatch: function dispatch(fn) {
         var args = [], len = arguments.length - 1;
@@ -774,25 +780,17 @@
     if ( target === void 0 ) target = document;
 
     return {
-      on: function (event, fn) {
-        if ( fn === void 0 ) fn = function (e) { return e; };
+      on: function (eventHolder, transformer) {
+        if ( transformer === void 0 ) transformer = function (e) { return e; };
 
+        var events = eventHolder.trim().split(' ');
         var eventSubscription = null;
         var staticDefaults = null;
         var staticUpdate = null;
         var state = false;
-        var transformer = typeof fn === 'object'
-          ? function (e) { return (Object.keys(fn)
-            .reduce(function (acc, key) {
-              var obj;
-
-              return (Object.assign({}, acc,
-              ( obj = {}, obj[key] = e[key], obj)));
-            }, {})); }
-          : fn;
 
         if (typeof transformer !== 'function') {
-          throw new Error(("[Radi.js] Subscription `" + event + "` must be transformed by function"));
+          throw new Error(("[Radi.js] Subscription `" + eventHolder + "` must be transformed by function"));
         }
 
         function updater(defaults) {
@@ -800,20 +798,27 @@
             state = true;
             staticDefaults = defaults;
             staticUpdate = update;
-            target.addEventListener(event,
-              eventSubscription = function () {
-                var args = [], len = arguments.length;
-                while ( len-- ) args[ len ] = arguments[ len ];
+            events.map(function (event) {
+              target.addEventListener(event,
+                eventSubscription = function () {
+                    var args = [], len = arguments.length;
+                    while ( len-- ) args[ len ] = arguments[ len ];
 
-                return update(transformer.apply(void 0, args));
+                    return update(transformer.apply(void 0, args.concat( [event] )), false, 'Subscribe: ' + event);
+              });
             });
             return defaults;
           };
         }
 
-        updater.stop = function () { return (state &&
-          (target.removeEventListener(event, eventSubscription), state = !state)
-        ); };
+        updater.stop = function () {
+          if (state) {
+            events.map(function (event) {
+              target.removeEventListener(event, eventSubscription);
+            });
+          }
+          return state = !state
+        };
         updater.start = function () { return (!state && updater(staticDefaults)(staticUpdate)); };
 
         return updater;
@@ -848,6 +853,16 @@
 
   customAttribute('loadfocus', function (el) {
     el.addEventListener('mount', function () { return el.focus(); });
+  });
+
+  customAttribute('model', function (el, store) {
+    console.log(store, store instanceof Store);
+    // el.addEventListener('mount', () => el.focus());
+  }, {
+    allowedTags: [
+      'input',
+      'textarea',
+      'select' ],
   });
 
   var h = html;
