@@ -1,5 +1,4 @@
 import {
-  addEventListeners,
   fireEvent,
   insertAfter,
   setProps,
@@ -89,7 +88,6 @@ export function createElement(node, $parent) {
       }
       const $lastEl = null;
       setProps($el, node.props);
-      addEventListeners($el, node.props);
       const applyChildren = $child => n => {
         const $n = createElement(n, $child);
         if ($n) {
@@ -108,5 +106,5 @@ export function createElement(node, $parent) {
   }
 
   // console.error('Unhandled node', node);
-  return document.createTextNode(node + '');
+  return document.createTextNode(`${node}`);
 }

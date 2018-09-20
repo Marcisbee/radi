@@ -21,8 +21,8 @@ export const ModalService = service('modal', (...args) => {
   };
 });
 
-export const Modal = customTag('modal',
-  function modal({name = 'default', children}) {
+customTag('modal',
+  function Modal({name = 'default', children}) {
     if (typeof name === 'undefined') {
       console.warn('[Radi.js] Warn: Every <modal> tag needs to have `name` attribute!');
     }
@@ -64,7 +64,7 @@ export const Modal = customTag('modal',
     this.onMount = el => ModalStore.dispatch(registerModal, name);
 
     return h('portal', {},
-      ModalStore.out(data => (
+      ModalStore(data => (
         data[name] && h('div',
           { class: '--radi-modal', name },
           h('div', {

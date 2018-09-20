@@ -4,8 +4,8 @@ import {
   patch,
 } from '../../html';
 
-export const Portal = customTag('portal',
-  function (data) {
+customTag('portal',
+  function Portal(data) {
     let $ref;
     let $parent;
     const toRender = data.children || [];

@@ -35,24 +35,24 @@ function isCustomProp(name) {
 
 export function setProp($target, name, value) {
   if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
-    const { allowedTags } = GLOBALS.CUSTOM_ATTRIBUTES[name];
+    const { allowedTags, addToElement, caller } = GLOBALS.CUSTOM_ATTRIBUTES[name];
 
     if (!allowedTags || (
       allowedTags
         && allowedTags.length > 0
         && allowedTags.indexOf($target.localName) >= 0
     )) {
-      if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name].caller === 'function') {
-        GLOBALS.CUSTOM_ATTRIBUTES[name].caller($target, value);
+      if (typeof caller === 'function') {
+        value = caller($target, value);
       }
-      if (!GLOBALS.CUSTOM_ATTRIBUTES[name].addToElement) return;
+      if (!addToElement) return;
     }
   }
 
   if (name === 'style') {
     setStyles($target, value);
   } else if (isCustomProp(name)) {
-
+    addEventListener($target, name, value);
   } else if (name === 'className') {
     $target.setAttribute('class', value);
   } else if (typeof value === 'boolean') {
@@ -112,21 +112,19 @@ export function updateProps($target, newProps, oldProps = {}) {
   });
 }
 
-export function addEventListeners($target, props) {
+export function addEventListener($target, name, value) {
   const exceptions = ['mount', 'destroy'];
-  Object.keys(props).forEach(name => {
-    if (isEventProp(name)) {
-      $target.addEventListener(
-        extractEventName(name),
-        (e) => {
-          if (exceptions.indexOf(name) >= 0) {
-            if ($target === e.target) props[name](e);
-          } else {
-            props[name](e);
-          }
-        },
-        false
-      );
-    }
-  });
+  if (isEventProp(name)) {
+    $target.addEventListener(
+      extractEventName(name),
+      (e) => {
+        if (exceptions.indexOf(name) >= 0) {
+          if ($target === e.target) value(e);
+        } else {
+          value(e);
+        }
+      },
+      false
+    );
+  }
 }
