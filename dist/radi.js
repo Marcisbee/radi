@@ -40,6 +40,72 @@
     return list.reduce(function (a, b) { return a.concat(Array.isArray(b) ? flatten(b) : b); }, []);
   }
 
+  /**
+   * Checks that an element has a non-empty `name` and `value` property.
+   * @param  {Element} element  the element to check
+   * @return {Bool}             true if the element is an input, false if not
+   */
+  var isValidElement = function (element) { return element.name && (element.value || element.value === ''); };
+
+  /**
+   * Checks if an element’s value can be saved (e.g. not an unselected checkbox).
+   * @param  {Element} element  the element to check
+   * @return {Boolean}          true if the value should be added, false if not
+   */
+  var isValidValue = function (element) { return (!['checkbox', 'radio'].includes(element.type) || element.checked); };
+
+  /**
+   * Checks if an input is a checkbox, because checkboxes allow multiple values.
+   * @param  {Element} element  the element to check
+   * @return {Boolean}          true if the element is a checkbox, false if not
+   */
+  var isCheckbox = function (element) { return element.type === 'checkbox'; };
+
+  /**
+   * Checks if an input is a `select` with the `multiple` attribute.
+   * @param  {Element} element  the element to check
+   * @return {Boolean}          true if the element is a multiselect, false if not
+   */
+  var isMultiSelect = function (element) { return element.options && element.multiple; };
+
+  /**
+   * Retrieves the selected options from a multi-select as an array.
+   * @param  {HTMLOptionsCollection} options  the options for the select
+   * @return {Array}                          an array of selected option values
+   */
+  var getSelectValues = function (options) { return [].reduce.call(options, function (values, option) { return option.selected
+        ? values.concat(option.value)
+        : values; }, []); };
+
+  /**
+   * Retrieves input data from a form and returns it as a JSON object.
+   * @param  {HTMLFormControlsCollection} elements  the form elements
+   * @return {Object}                               form data as an object literal
+   */
+  var formToJSON = function (elements, transform) {
+      if ( transform === void 0 ) transform = function (e, v) { return v; };
+
+      return [].reduce.call(elements, function (data, element) {
+    // Make sure the element has the required properties and should be added.
+      if (isValidElement(element) && isValidValue(element)) {
+      /*
+       * Some fields allow for more than one value, so we need to check if this
+       * is one of those fields and, if so, store the values as an array.
+       */
+        if (isCheckbox(element)) {
+          data[element.name] = (data[element.name] || [])
+            .concat(transform(element, element.value));
+        } else if (isMultiSelect(element)) {
+          data[element.name] = transform(element, getSelectValues(element));
+        } else {
+          data[element.name] = transform(element, element.value);
+        }
+      }
+
+      return data;
+    }, {});
+  };
+
   var Component = function Component(fn, name) {
     this.self = fn;
     this.name = name || fn.name;
@@ -215,23 +281,25 @@
     if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
       var ref = GLOBALS.CUSTOM_ATTRIBUTES[name];
       var allowedTags = ref.allowedTags;
+      var addToElement = ref.addToElement;
+      var caller = ref.caller;
 
       if (!allowedTags || (
         allowedTags
           && allowedTags.length > 0
           && allowedTags.indexOf($target.localName) >= 0
       )) {
-        if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name].caller === 'function') {
-          GLOBALS.CUSTOM_ATTRIBUTES[name].caller($target, value);
+        if (typeof caller === 'function') {
+          value = caller($target, value);
         }
-        if (!GLOBALS.CUSTOM_ATTRIBUTES[name].addToElement) { return; }
+        if (!addToElement) { return; }
       }
     }
 
     if (name === 'style') {
       setStyles($target, value);
     } else if (isCustomProp(name)) {
-
+      addEventListener($target, name, value);
     } else if (name === 'className') {
       $target.setAttribute('class', value);
     } else if (typeof value === 'boolean') {
@@ -293,24 +361,28 @@
     });
   }
 
-  function addEventListeners($target, props) {
+  function addEventListener($target, name, value) {
     var exceptions = ['mount', 'destroy'];
-    Object.keys(props).forEach(function (name) {
-      if (isEventProp(name)) {
-        $target.addEventListener(
-          extractEventName(name),
-          function (e) {
-            if (exceptions.indexOf(name) >= 0) {
-              if ($target === e.target) { props[name](e); }
-            } else {
-              props[name](e);
-            }
-          },
-          false
-        );
-      }
-    });
+    if (isEventProp(name)) {
+      $target.addEventListener(
+        extractEventName(name),
+        function (e) {
+          if (exceptions.indexOf(name) >= 0) {
+            if ($target === e.target) { value(e); }
+          } else {
+            value(e);
+          }
+        },
+        false
+      );
+    }
   }
+
+  // export function addEventListeners($target, props) {
+  //   Object.keys(props).forEach(name => {
+  //     addEventListener($target, name, props[name]);
+  //   });
+  // }
 
   function beforeDestroy(node, next) {
     if (typeof node.beforedestroy === 'function') {
@@ -498,7 +570,7 @@
         }
         var $lastEl = null;
         setProps($el, node.props);
-        addEventListeners($el, node.props);
+        // addEventListeners($el, node.props);
         var applyChildren = function ($child) { return function (n) {
           var $n = createElement$$1(n, $child);
           if ($n) {
@@ -517,7 +589,7 @@
     }
 
     // console.error('Unhandled node', node);
-    return document.createTextNode(node + '');
+    return document.createTextNode(("" + node));
   }
 
   /**
@@ -601,7 +673,7 @@
     if (target && target.$loading) {
       Object.defineProperty(out, '$loading', {
         value: true,
-        writable: false,
+        writable: true,
       });
     }
     if (!source) { source = out; }
@@ -609,26 +681,18 @@
     var loop = function ( i ) {
       var name = i;
       if (typeof target[i] === 'function') {
-        var tempOutput = target[i](function (data, useUpdate, fnName) {
+        out[name] = target[i].call(store, function (data, useUpdate, fnName) {
           if ( fnName === void 0 ) fnName = '';
 
           var payload = setDataInObject(source, path.concat(name), data);
           if (!useUpdate) {
             var f = function () { return payload; };
-            Object.defineProperty(f, 'name', {value: fnName, writable: false});
+            Object.defineProperty(f, 'name', { value: fnName, writable: false });
             store.dispatch(f);
           } else {
             store.update(payload);
           }
         });
-        out[name] = tempOutput;
-
-        if (out[name] && typeof out[name] === 'object') {
-          Object.defineProperty(out[name], '$loading', {
-            value: true,
-            writable: false,
-          });
-        }
       } else {
         out[name] = target[name] && typeof target[name] === 'object'
           && !Array.isArray(target[name])
@@ -645,131 +709,162 @@
   function Store(state) {
     if ( state === void 0 ) state = {};
 
-    var OUT = {};
     var subscriptions = [];
     var subscriptionsStrict = [];
     var latestStore;
 
-    Object.setPrototypeOf(OUT, {
-      getInitial: function getInitial() {
-        return STORE;
-      },
-      get: function get() {
+    function StoreOutput(fn) {
+      if ( fn === void 0 ) fn = function (e) { return e; };
+      var args = [], len = arguments.length - 1;
+      while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+
+      // Handle rendering inside DOM
+      if (this instanceof Component) {
+        return StoreHold.render(fn);
+      }
+
+      // Handle injection into another store
+      if (this && this.name === 'StoreHold' && typeof args[0] === 'function') {
+        StoreHold.subscribe(args[0], true);
+        fn(latestStore, true);
         return latestStore;
-      },
-      update: function update(chunkState, noStrictSubs) {
-        var newState = Object.assign({}, latestStore,
-          mapData(chunkState, OUT));
-        latestStore = newState;
-        if (!noStrictSubs) {
-          subscriptionsStrict.map(function (s) {
-            if (typeof s === 'function') {
-              s(newState);
+      }
+
+      // Handle dom props and other 3rd party plugins
+      var lastValue;
+      function stateUpdater(update) {
+        if (typeof update === 'function') {
+          StoreHold.subscribe(function (s) {
+            var newValue = fn(s);
+            if (lastValue !== newValue) {
+              update(newValue);
             }
-            return false;
           });
+          update(lastValue = fn(latestStore), true);
+        } else {
+          var a = StoreHold.render(fn);
+          return a;
         }
-        subscriptions.map(function (s) {
+        return lastValue;
+      }
+      stateUpdater.__radiStateUpdater = true;
+      return stateUpdater.apply(void 0, args);
+    }
+
+    function StoreHold(fn) {
+      function stateUpdater() {
+        var args = [], len = arguments.length;
+        while ( len-- ) args[ len ] = arguments[ len ];
+
+        return StoreOutput.call.apply(StoreOutput, [ this, fn ].concat( args ));
+      }
+      stateUpdater.__radiStateUpdater = true;
+      return stateUpdater;
+    }
+
+    StoreHold.getInitial = function () { return STORE; };
+    StoreHold.get = function () { return latestStore; };
+    StoreHold.update = function (chunkState, noStrictSubs) {
+      var newState = Object.assign({}, latestStore,
+        mapData(chunkState, StoreHold));
+      latestStore = newState;
+      if (!noStrictSubs) {
+        subscriptionsStrict.map(function (s) {
           if (typeof s === 'function') {
             s(newState);
           }
           return false;
         });
-        return latestStore;
-      },
-      subscribe: function subscribe(fn, strict) {
-        if (strict) {
-          subscriptionsStrict.push(fn);
-        } else {
-          subscriptions.push(fn);
+      }
+      subscriptions.map(function (s) {
+        if (typeof s === 'function') {
+          s(newState);
         }
-        fn(latestStore);
-        return OUT;
-      },
-      dispatch: function dispatch(fn) {
-        var args = [], len = arguments.length - 1;
-        while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+        return false;
+      });
+      return latestStore;
+    };
+    StoreHold.subscribe = function (fn, strict) {
+      if (strict) {
+        subscriptionsStrict.push(fn);
+      } else {
+        subscriptions.push(fn);
+      }
+      fn(latestStore);
+      return StoreHold;
+    };
+    StoreHold.dispatch = function (fn) {
+      var args = [], len = arguments.length - 1;
+      while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
 
-        var payload = fn.apply(void 0, [ latestStore ].concat( args ));
-        // console.log('dispatch', {
-        //   action: fn.name,
-        //   args: args,
-        //   payload,
-        // });
-        // console.log('dispatch', fn.name, payload);
-        return this.update(payload);
-      },
-      render: function render(fn) {
-        if ( fn === void 0 ) fn = function (s) { return JSON.stringify(s); };
+      var payload = fn.apply(void 0, [ latestStore ].concat( args ));
+      // console.log('dispatch', {
+      //   action: fn.name,
+      //   args: args,
+      //   payload,
+      // });
+      // console.log('dispatch', fn.name, payload);
+      return StoreHold.update(payload);
+    };
+    StoreHold.render = function (fn) {
+      if ( fn === void 0 ) fn = function (s) { return JSON.stringify(s); };
 
-        var $parent;
-        var $pointer;
-        var newTree;
-        var oldTree;
-        var mounted = false;
+      var $parent;
+      var $pointer;
+      var newTree;
+      var oldTree;
+      var mounted = false;
 
-        function update(data) {
-          newTree = fn(data);
-          patch($parent, newTree, oldTree, 0, $pointer);
-          oldTree = newTree;
-          return data;
+      function update(data) {
+        newTree = fn(data);
+        patch($parent, newTree, oldTree, 0, $pointer);
+        oldTree = newTree;
+        return data;
+      }
+
+      subscriptions.push(function (data) {
+        if (mounted) {
+          update(data);
         }
+        return data;
+      });
 
-        subscriptions.push(function (data) {
-          if (mounted) {
-            update(data);
-          }
-          return data;
-        });
+      function item() {
+        this.onMount = function (element, parent) {
+          mounted = true;
+          $pointer = element;
+          $parent = parent || element.parentNode;
+          update(latestStore);
+        };
+        return '';
+      }
 
-        function item() {
-          this.onMount = function (element, parent) {
-            mounted = true;
-            $pointer = element;
-            $parent = parent || element.parentNode;
-            update(latestStore);
-          };
-          return '';
-        }
+      return item;
+    };
 
-        return item;
-      },
-      inject: function inject(update) {
-        if (typeof update !== 'function') {
-          console.warn('[Radi.js] Store\'s `.inject()` method must not be called on it\'s own. Instead use `{ field: Store.inject }`.');
-          return latestStore;
-        }
-        OUT.subscribe(update, true);
-        update(latestStore, true);
-        return latestStore;
-      },
-      out: function out(fn) {
-        var lastValue;
-        function stateUpdater(update) {
-          if (typeof update === 'function') {
-            OUT.subscribe(function (s) {
-              var newValue = fn(s);
-              if (lastValue !== newValue) {
-                update(newValue);
-              }
-            });
-            update(lastValue = fn(latestStore), true);
-          } else {
-            var a = OUT.render(fn);
-            return a;
-          }
-          return lastValue;
-        }
-        stateUpdater.__radiStateUpdater = true;
-        return stateUpdater;
-      },
-    });
-
-    var STORE = mapData(state, OUT);
+    var STORE = mapData(state, StoreHold);
 
     latestStore = STORE;
 
-    return OUT;
+    return StoreHold;
+  }
+
+  function applyLoading(subject, value) {
+    if (typeof subject === 'object') {
+      Object.defineProperty(subject, '$loading', {
+        value: value,
+        writable: true,
+      });
+    }
+    return subject;
+  }
+
+  function Fetch(url, map) {
+    return function (payload) { return function (update) {
+      setTimeout(update, 1000, applyLoading(map({ user: { _key: payload.id } }), false));
+
+      return applyLoading({ $loading: true }, true);
+    }; };
   }
 
   /**
@@ -798,26 +893,22 @@
             state = true;
             staticDefaults = defaults;
             staticUpdate = update;
-            events.map(function (event) {
-              target.addEventListener(event,
-                eventSubscription = function () {
-                    var args = [], len = arguments.length;
-                    while ( len-- ) args[ len ] = arguments[ len ];
+            events.map(function (event) { return target.addEventListener(event,
+              eventSubscription = function () {
+                  var args = [], len = arguments.length;
+                  while ( len-- ) args[ len ] = arguments[ len ];
 
-                    return update(transformer.apply(void 0, args.concat( [event] )), false, 'Subscribe: ' + event);
-              });
-            });
+                  return update(transformer.apply(void 0, args.concat( [event] )), false, ("Subscribe: " + event));
+              }); });
             return defaults;
           };
         }
 
         updater.stop = function () {
           if (state) {
-            events.map(function (event) {
-              target.removeEventListener(event, eventSubscription);
-            });
+            events.map(function (event) { return target.removeEventListener(event, eventSubscription); });
           }
-          return state = !state
+          return state = !state;
         };
         updater.start = function () { return (!state && updater(staticDefaults)(staticUpdate)); };
 
@@ -865,6 +956,144 @@
       'select' ],
   });
 
+  customAttribute('onsubmit', function (el, fn) {
+    return function(e) {
+      if (el.prevent) { e.preventDefault(); }
+      fn(e, formToJSON(el.elements || {}));
+    }
+  }, {
+    allowedTags: [
+      'form' ],
+    addToElement: true,
+  });
+
+  var errorsStore = new Store({}, 'errorStore');
+  var setErrors = function (state, name, errors) {
+    var obj;
+
+    return (Object.assign({}, state,
+    ( obj = {}, obj[name] = errors, obj)));
+  };
+
+  function fullValidate(elements, rules, update) {
+    var values = formToJSON(elements, function (ref, value) {
+      var touched = ref.touched;
+
+      return ({touched: touched, value: value});
+    });
+    var errors = [];
+
+    for (var name in values) {
+      var value = values[name];
+
+      if (typeof rules[name] === 'function') {
+        var result = rules[name](value.value);
+        var valid = (
+            result
+            && typeof result.check === 'function'
+            && result.check()
+          )
+          || result
+          || name + ' field is invalid';
+
+        if (valid !== true) { errors.push({
+          touched: Boolean(value.touched),
+          error: valid,
+        }); }
+      }
+    }
+
+    update(errors);
+  }
+
+  var formCount = 0;
+
+  customAttribute('onvalidate', function (el, rules) {
+    var formName = el.name || 'defaultForm' + (formCount++);
+    var submit;
+
+    function update(errors) {
+      errorsStore.dispatch(setErrors, formName, errors);
+    }
+
+    errorsStore.subscribe(function (state) {
+      if (submit) {
+        submit.disabled = state[formName].length > 0;
+      }
+    });
+
+    el.addEventListener('mount', function (e) {
+      var validate = rules(e);
+      var elements = e.target.elements;
+      if (validate && typeof validate === 'object'
+        && elements) {
+
+        for (var element of elements) {
+          var name = element.name;
+
+          if (!element.__radiValidate
+            && typeof name === 'string'
+            && typeof validate[name] === 'function') {
+
+            element.addEventListener('input', function () {
+              fullValidate(
+                elements,
+                validate,
+                update
+              );
+            });
+            element.__radiValidate = true;
+
+            element.touched = false;
+            var setTouched = function (ref) {
+              var target = ref.target;
+
+              target.touched = true;
+              target.removeEventListener('change', setTouched);
+              fullValidate(
+                elements,
+                validate,
+                update
+              );
+            };
+            element.addEventListener('change', setTouched);
+          }
+
+          if (element.type === 'submit' && element.disabled === true) {
+            submit = element;
+          }
+        }
+
+        fullValidate(
+          elements,
+          validate,
+          update
+        );
+      }
+    }, false);
+  }, {
+    allowedTags: [
+      'form' ],
+  });
+
+  customTag('errors',
+    function Errors(ref) {
+      var name = ref.name;
+      var onrender = ref.onrender;
+
+      if (typeof name === 'undefined') {
+        console.warn('[Radi.js] Warn: Every <errors> tag needs to have `name` attribute!');
+      }
+      if (typeof onrender === 'function') {
+        console.warn('[Radi.js] Warn: Every <errors> tag needs to have `onrender` attribute!');
+      }
+
+      return errorsStore(function (state) { return (
+        state[name] && onrender(state[name])
+      ); })
+    }
+  );
+
   var h = html;
 
   var ModalStore = new Store({});
@@ -891,8 +1120,8 @@
     };
   });
 
-  var Modal = customTag('modal',
-    function modal(ref) {
+  customTag('modal',
+    function Modal(ref) {
       var this$1 = this;
       var name = ref.name; if ( name === void 0 ) name = 'default';
       var children = ref.children;
@@ -906,7 +1135,7 @@
       this.onMount = function (el) { return ModalStore.dispatch(registerModal, name); };
 
       return h('portal', {},
-        ModalStore.out(function (data) { return (
+        ModalStore(function (data) { return (
           data[name] && h('div',
             { class: '--radi-modal', name: name },
             h('div', {
@@ -922,8 +1151,8 @@
     }
   );
 
-  var Portal = customTag('portal',
-    function (data) {
+  customTag('portal',
+    function Portal(data) {
       var $ref;
       var $parent;
       var toRender = data.children || [];
@@ -992,6 +1221,14 @@
     })
   };
 
+  Validator.prototype.equal = function equal (equal$1) {
+    return this.register({
+      type: 'equal',
+      validate: function (value) { return value === equal$1; },
+      error: 'Field must be equal to ' + equal$1,
+    })
+  };
+
   Validator.prototype.min = function min (num) {
     return this.register({
       type: 'min',
@@ -1024,6 +1261,7 @@
     v: GLOBALS.VERSION,
     version: GLOBALS.VERSION,
     h: html,
+    Fetch: Fetch,
     html: html,
     Store: Store,
     customTag: customTag,

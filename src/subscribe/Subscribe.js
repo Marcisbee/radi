@@ -21,22 +21,18 @@ export function Subscribe(target = document) {
           state = true;
           staticDefaults = defaults;
           staticUpdate = update;
-          events.map(event => {
-            target.addEventListener(event,
-              eventSubscription = (...args) =>
-                update(transformer(...args, event), false, 'Subscribe: ' + event));
-          })
+          events.map(event => target.addEventListener(event,
+            eventSubscription = (...args) =>
+              update(transformer(...args, event), false, `Subscribe: ${event}`)));
           return defaults;
         };
       }
 
       updater.stop = () => {
         if (state) {
-          events.map(event => {
-            target.removeEventListener(event, eventSubscription);
-          });
+          events.map(event => target.removeEventListener(event, eventSubscription));
         }
-        return state = !state
+        return state = !state;
       };
       updater.start = () => (!state && updater(staticDefaults)(staticUpdate));
 

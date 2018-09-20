@@ -37,6 +37,14 @@ export class Validator {
     })
   }
 
+  equal(equal) {
+    return this.register({
+      type: 'equal',
+      validate: value => value === equal,
+      error: 'Field must be equal to ' + equal,
+    })
+  }
+
   min(num) {
     return this.register({
       type: 'min',
