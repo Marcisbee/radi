@@ -10,13 +10,18 @@ const setErrors = (state, name, errors) => ({
 
 function fullValidate(elements, rules, update) {
   let values = formToJSON(elements, ({touched}, value) => ({touched, value}));
+  let plainValues = Object.keys(values)
+    .reduce((acc, key) => ({
+      ...acc,
+      [key]: values[key].value,
+    }), {});
   let errors = [];
 
   for (let name in values) {
     const value = values[name];
 
     if (typeof rules[name] === 'function') {
-      const result = rules[name](value.value);
+      const result = rules[name](value.value, plainValues);
       const valid = (
           result
           && typeof result.check === 'function'
