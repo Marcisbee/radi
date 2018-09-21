@@ -9,21 +9,30 @@ import { flatten } from '../utils';
  */
 
 /**
- * @param  {*} type
- * @param  {Object} props
- * @param  {*[]} children
+ * @param  {*} preType
+ * @param  {Object} preProps
+ * @param  {*[]} preChildren
  * @return {Node}
  */
-export function html(type, props, ...children) {
-  let finalType = type;
+export function html(preType, preProps, ...preChildren) {
+  let type = (typeof preType === 'number') ? `${preType}` : preType;
+  let props = preProps || {};
+  const children = flatten(preChildren);
+
+  if (type instanceof Promise) {
+    type = 'await';
+    props = {
+      src: preType,
+    };
+  }
 
   if (typeof GLOBALS.CUSTOM_TAGS[type] !== 'undefined') {
-    finalType = GLOBALS.CUSTOM_TAGS[type].render;
+    type = GLOBALS.CUSTOM_TAGS[type].render;
   }
 
   return {
-    type: (typeof finalType === 'number') ? `${finalType}` : finalType,
-    props: props || {},
-    children: flatten(children),
+    type,
+    props,
+    children,
   };
 }

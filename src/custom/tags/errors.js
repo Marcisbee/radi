@@ -6,7 +6,7 @@ customTag('errors',
     if (typeof name === 'undefined') {
       console.warn('[Radi.js] Warn: Every <errors> tag needs to have `name` attribute!');
     }
-    if (typeof onrender === 'function') {
+    if (typeof onrender !== 'function') {
       console.warn('[Radi.js] Warn: Every <errors> tag needs to have `onrender` attribute!');
     }
 

@@ -378,12 +378,6 @@
     }
   }
 
-  // export function addEventListeners($target, props) {
-  //   Object.keys(props).forEach(name => {
-  //     addEventListener($target, name, props[name]);
-  //   });
-  // }
-
   function beforeDestroy(node, next) {
     if (typeof node.beforedestroy === 'function') {
       return node.beforedestroy(next);
@@ -570,7 +564,6 @@
         }
         var $lastEl = null;
         setProps($el, node.props);
-        // addEventListeners($el, node.props);
         var applyChildren = function ($child) { return function (n) {
           var $n = createElement$$1(n, $child);
           if ($n) {
@@ -631,25 +624,34 @@
    */
 
   /**
-   * @param  {*} type
-   * @param  {Object} props
-   * @param  {*[]} children
+   * @param  {*} preType
+   * @param  {Object} preProps
+   * @param  {*[]} preChildren
    * @return {Node}
    */
-  function html(type, props) {
-    var children = [], len = arguments.length - 2;
-    while ( len-- > 0 ) children[ len ] = arguments[ len + 2 ];
+  function html(preType, preProps) {
+    var preChildren = [], len = arguments.length - 2;
+    while ( len-- > 0 ) preChildren[ len ] = arguments[ len + 2 ];
 
-    var finalType = type;
+    var type = (typeof preType === 'number') ? ("" + preType) : preType;
+    var props = preProps || {};
+    var children = flatten(preChildren);
+
+    if (type instanceof Promise) {
+      type = 'await';
+      props = {
+        src: preType,
+      };
+    }
 
     if (typeof GLOBALS.CUSTOM_TAGS[type] !== 'undefined') {
-      finalType = GLOBALS.CUSTOM_TAGS[type].render;
+      type = GLOBALS.CUSTOM_TAGS[type].render;
     }
 
     return {
-      type: (typeof finalType === 'number') ? ("" + finalType) : finalType,
-      props: props || {},
-      children: flatten(children),
+      type: type,
+      props: props,
+      children: children,
     };
   }
 
@@ -981,13 +983,20 @@
 
       return ({touched: touched, value: value});
     });
+    var plainValues = Object.keys(values)
+      .reduce(function (acc, key) {
+        var obj;
+
+        return (Object.assign({}, acc,
+        ( obj = {}, obj[key] = values[key].value, obj)));
+    }, {});
     var errors = [];
 
     for (var name in values) {
       var value = values[name];
 
       if (typeof rules[name] === 'function') {
-        var result = rules[name](value.value);
+        var result = rules[name](value.value, plainValues);
         var valid = (
             result
             && typeof result.check === 'function'
@@ -1076,6 +1085,45 @@
       'form' ],
   });
 
+  function ensureFn(maybeFn) {
+    if (typeof maybeFn === 'function') { return maybeFn; }
+    return function (e) { return maybeFn || e; };
+  }
+
+  customTag('await',
+    function Await(promise) {
+      var src = promise.src;
+      var awaitStore = new Store({
+        status: 'placeholder',
+      });
+
+      var update = function (e, status) { return ({status: status}); };
+
+      if (src &&
+        (src instanceof Promise || src.constructor.name === 'LazyPromise')
+      ) {
+        var output = '';
+        src
+          .then(function (data) {
+            output = data;
+            awaitStore.dispatch(update, 'transform');
+          })
+          .catch(function (error) {
+            output = error;
+            awaitStore.dispatch(update, 'error');
+          });
+
+        return awaitStore(function (ref) {
+          var status = ref.status;
+
+          return ensureFn(promise[status])(output);
+        });
+      }
+
+      return null;
+    }
+  );
+
   customTag('errors',
     function Errors(ref) {
       var name = ref.name;
@@ -1084,7 +1132,7 @@
       if (typeof name === 'undefined') {
         console.warn('[Radi.js] Warn: Every <errors> tag needs to have `name` attribute!');
       }
-      if (typeof onrender === 'function') {
+      if (typeof onrender !== 'function') {
         console.warn('[Radi.js] Warn: Every <errors> tag needs to have `onrender` attribute!');
       }
 
@@ -1130,20 +1178,18 @@
         console.warn('[Radi.js] Warn: Every <modal> tag needs to have `name` attribute!');
       }
 
-      this.style = "\n      .--radi-modal {\n        display: block;\n        position: fixed;\n        top: 0;\n        left: 0;\n        width: 100%;\n        height: 100%;\n        z-index: 1000;\n      }\n      .--radi-modal-backdrop {\n        display: block;\n        position: absolute;\n        left: 0;\n        top: 0;\n        width: 100%;\n        height: 100%;\n        z-index: 0;\n        background-color: rgba(0, 0, 0, 0.7);\n      }\n      .--radi-modal-content {\n        display: block;\n        position: relative;\n        width: 600px;\n        max-width: 98%;\n        z-index: 1;\n        margin: 40px auto;\n        border-radius: 8px;\n        box-shadow: 0 5px 0px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.3);\n        background-color: #fff;\n        padding: 26px;\n      }\n    ";
-
       this.onMount = function (el) { return ModalStore.dispatch(registerModal, name); };
 
       return h('portal', {},
         ModalStore(function (data) { return (
           data[name] && h('div',
-            { class: '--radi-modal', name: name },
+            { class: 'radi-modal', name: name },
             h('div', {
-              class: '--radi-modal-backdrop',
+              class: 'radi-modal-backdrop',
               onclick: function () { return this$1.$modal.close(name); },
             }),
             h.apply(void 0, [ 'div',
-              { class: '--radi-modal-content' } ].concat( (children.slice()) )
+              { class: 'radi-modal-content' } ].concat( (children.slice()) )
             )
           )
         ); })
@@ -1221,11 +1267,27 @@
     })
   };
 
+  Validator.prototype.test = function test (regexp) {
+    return this.register({
+      type: 'test',
+      validate: function (value) { return regexp.test(value); },
+      error: 'Field must be valid',
+    })
+  };
+
   Validator.prototype.equal = function equal (equal$1) {
     return this.register({
       type: 'equal',
       validate: function (value) { return value === equal$1; },
       error: 'Field must be equal to ' + equal$1,
+    })
+  };
+
+  Validator.prototype.notEqual = function notEqual (equal) {
+    return this.register({
+      type: 'notEqual',
+      validate: function (value) { return value !== equal; },
+      error: 'Field must not be equal to ' + equal,
     })
   };
 

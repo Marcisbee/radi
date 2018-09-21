@@ -37,11 +37,27 @@ export class Validator {
     })
   }
 
+  test(regexp) {
+    return this.register({
+      type: 'test',
+      validate: value => regexp.test(value),
+      error: 'Field must be valid',
+    })
+  }
+
   equal(equal) {
     return this.register({
       type: 'equal',
       validate: value => value === equal,
       error: 'Field must be equal to ' + equal,
+    })
+  }
+
+  notEqual(equal) {
+    return this.register({
+      type: 'notEqual',
+      validate: value => value !== equal,
+      error: 'Field must not be equal to ' + equal,
     })
   }
 

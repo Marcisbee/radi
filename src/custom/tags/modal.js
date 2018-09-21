@@ -60,19 +60,18 @@ customTag('modal',
         padding: 26px;
       }
     `
-
     this.onMount = el => ModalStore.dispatch(registerModal, name);
 
     return h('portal', {},
       ModalStore(data => (
         data[name] && h('div',
-          { class: '--radi-modal', name },
+          { class: 'radi-modal', name },
           h('div', {
-            class: '--radi-modal-backdrop',
+            class: 'radi-modal-backdrop',
             onclick: () => this.$modal.close(name),
           }),
           h('div',
-            { class: '--radi-modal-content' },
+            { class: 'radi-modal-content' },
             ...(children.slice())
           )
         )
