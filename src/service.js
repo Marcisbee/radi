@@ -1,14 +1,13 @@
-import { Component } from './Component';
-import GLOBALS from '../consts/GLOBALS';
+import GLOBALS from './consts/GLOBALS';
 
 /**
- * @param  {string}   key
+ * @param  {string}   name
  * @param  {Function} fn
  * @param  {*[]}   args
  * @return {Function}
  */
-export function service(key, fn, ...args) {
-  if (typeof key !== 'string') {
+export function service(name, fn, ...args) {
+  if (typeof name !== 'string') {
     throw new Error('[Radi.js] Service first argument has to be string');
   }
 
@@ -16,10 +15,9 @@ export function service(key, fn, ...args) {
     throw new Error('[Radi.js] Service second argument has to be function');
   }
 
-  const name = '$'.concat(key);
   const mounted = fn(...args);
 
-  Component.prototype[name] = mounted;
+  service.prototype[name] = mounted;
 
   return GLOBALS.SERVICES[name] = mounted;
 }

@@ -1,5 +1,5 @@
 import GLOBALS from './consts/GLOBALS';
-import { service } from './component';
+import { service } from './service';
 import {
   customAttribute,
   customTag,

@@ -129,7 +129,8 @@ export function addEventListener($target, name, value) {
       (e) => {
         if (exceptions.indexOf(name) >= 0) {
           if ($target === e.target) value(e);
-        } else {
+        } else
+        if (typeof value === 'function') {
           value(e);
         }
       },

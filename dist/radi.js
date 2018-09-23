@@ -12,6 +12,31 @@
   };
 
   /**
+   * @param  {string}   name
+   * @param  {Function} fn
+   * @param  {*[]}   args
+   * @return {Function}
+   */
+  function service(name, fn) {
+    var args = [], len = arguments.length - 2;
+    while ( len-- > 0 ) args[ len ] = arguments[ len + 2 ];
+
+    if (typeof name !== 'string') {
+      throw new Error('[Radi.js] Service first argument has to be string');
+    }
+
+    if (typeof fn !== 'function') {
+      throw new Error('[Radi.js] Service second argument has to be function');
+    }
+
+    var mounted = fn.apply(void 0, args);
+
+    service.prototype[name] = mounted;
+
+    return GLOBALS.SERVICES[name] = mounted;
+  }
+
+  /**
    * @param {string} str
    * @returns {string}
    */
@@ -147,32 +172,6 @@
       (ref$1 = this.self)[name].apply(ref$1, args);
     }
   };
-
-  /**
-   * @param  {string}   key
-   * @param  {Function} fn
-   * @param  {*[]}   args
-   * @return {Function}
-   */
-  function service(key, fn) {
-    var args = [], len = arguments.length - 2;
-    while ( len-- > 0 ) args[ len ] = arguments[ len + 2 ];
-
-    if (typeof key !== 'string') {
-      throw new Error('[Radi.js] Service first argument has to be string');
-    }
-
-    if (typeof fn !== 'function') {
-      throw new Error('[Radi.js] Service second argument has to be function');
-    }
-
-    var name = '$'.concat(key);
-    var mounted = fn.apply(void 0, args);
-
-    Component.prototype[name] = mounted;
-
-    return GLOBALS.SERVICES[name] = mounted;
-  }
 
   /**
    * @param  {HTMLElement} node
@@ -378,7 +377,8 @@
         function (e) {
           if (exceptions.indexOf(name) >= 0) {
             if ($target === e.target) { value(e); }
-          } else {
+          } else
+          if (typeof value === 'function') {
             value(e);
           }
         },
@@ -646,7 +646,7 @@
     var props = preProps || {};
     var children = flatten(preChildren);
 
-    if (type instanceof Promise) {
+    if (type instanceof Promise || (type && type.constructor.name === 'LazyPromise')) {
       type = 'await';
       props = {
         src: preType,
@@ -716,6 +716,9 @@
 
     var loop = function ( i ) {
       var name = i;
+      if (target[i] && target[i].name === 'StoreHold') {
+        target[i] = target[i]();
+      }
       if (typeof target[i] === 'function') {
         out[name] = target[i].call(store, function (data, useUpdate, fnName) {
           if ( fnName === void 0 ) fnName = '';
@@ -741,6 +744,7 @@
     var subscriptions = [];
     var subscriptionsStrict = [];
     var latestStore;
+    var remap = function (e) { return e; };
 
     function StoreOutput(fn) {
       if ( fn === void 0 ) fn = function (e) { return e; };
@@ -792,23 +796,23 @@
     }
 
     StoreHold.getInitial = function () { return STORE; };
-    StoreHold.get = function () { return latestStore; };
+    StoreHold.get = function () { return remap(latestStore); };
     StoreHold.update = function (chunkState, noStrictSubs) {
       var oldState = latestStore;
       var newState = Object.assign({}, latestStore,
         mapData(chunkState, StoreHold));
       latestStore = newState;
       if (!noStrictSubs) {
-        subscriptionsStrict.map(function (s) {
+        subscriptionsStrict.forEach(function (s) {
           if (typeof s === 'function') {
-            s(newState, oldState);
+            s(remap(newState), remap(oldState));
           }
           return false;
         });
       }
-      subscriptions.map(function (s) {
+      subscriptions.forEach(function (s) {
         if (typeof s === 'function') {
-          s(newState, oldState);
+          s(remap(newState), remap(oldState));
         }
         return false;
       });
@@ -820,7 +824,17 @@
       } else {
         subscriptions.push(fn);
       }
-      fn(latestStore);
+      fn(StoreHold.get(), StoreHold.get());
+      return StoreHold;
+    };
+    StoreHold.unsubscribe = function (fn) {
+      console.log('before', subscriptionsStrict.length + subscriptions.length);
+      subscriptionsStrict = subscriptionsStrict.filter(function (v) { return v !== fn; });
+      subscriptions = subscriptions.filter(function (v) { return v !== fn; });
+      console.log('after', subscriptionsStrict.length + subscriptions.length);
+    };
+    StoreHold.map = function (fn) {
+      remap = fn;
       return StoreHold;
     };
     StoreHold.bind = function (path, output, input) {
@@ -877,7 +891,7 @@
           mounted = true;
           $pointer = element;
           $parent = parent || element.parentNode;
-          update(latestStore);
+          update(StoreHold.get());
         };
         return '';
       }
@@ -1185,7 +1199,6 @@
 
   customTag('modal',
     function Modal(ref) {
-      var this$1 = this;
       var name = ref.name; if ( name === void 0 ) name = 'default';
       var children = ref.children;
 
@@ -1201,7 +1214,7 @@
             { class: 'radi-modal', name: name },
             h('div', {
               class: 'radi-modal-backdrop',
-              onclick: function () { return this$1.$modal.close(name); },
+              onclick: function () { return service.modal.close(name); },
             }),
             h.apply(void 0, [ 'div',
               { class: 'radi-modal-content' } ].concat( (children.slice()) )

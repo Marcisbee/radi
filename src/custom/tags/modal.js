@@ -1,4 +1,4 @@
-import { service } from '../../component';
+import { service } from '../../service';
 import { html, customTag } from '../../html';
 import { Store } from '../../store';
 
@@ -39,7 +39,7 @@ customTag('modal',
           { class: 'radi-modal', name },
           h('div', {
             class: 'radi-modal-backdrop',
-            onclick: () => this.$modal.close(name),
+            onclick: () => service.modal.close(name),
           }),
           h('div',
             { class: 'radi-modal-content' },

@@ -19,7 +19,7 @@ export function html(preType, preProps, ...preChildren) {
   let props = preProps || {};
   const children = flatten(preChildren);
 
-  if (type instanceof Promise) {
+  if (type instanceof Promise || (type && type.constructor.name === 'LazyPromise')) {
     type = 'await';
     props = {
       src: preType,

@@ -50,6 +50,9 @@ function mapData(target, store, source, path = []) {
 
   for (const i in target) {
     const name = i;
+    if (target[i] && target[i].name === 'StoreHold') {
+      target[i] = target[i]();
+    }
     if (typeof target[i] === 'function') {
       out[name] = target[i].call(store, (data, useUpdate, fnName = '') => {
         updateState(store, source, path.concat(name), data, useUpdate, fnName);
@@ -66,9 +69,10 @@ function mapData(target, store, source, path = []) {
 }
 
 export function Store(state = {}) {
-  const subscriptions = [];
-  const subscriptionsStrict = [];
+  let subscriptions = [];
+  let subscriptionsStrict = [];
   let latestStore;
+  let remap = e => e;
 
   function StoreOutput(fn = e => e, ...args) {
     // Handle rendering inside DOM
@@ -113,7 +117,7 @@ export function Store(state = {}) {
   }
 
   StoreHold.getInitial = () => STORE;
-  StoreHold.get = () => latestStore;
+  StoreHold.get = () => remap(latestStore);
   StoreHold.update = (chunkState, noStrictSubs) => {
     const oldState = latestStore;
     const newState = {
@@ -122,16 +126,16 @@ export function Store(state = {}) {
     };
     latestStore = newState;
     if (!noStrictSubs) {
-      subscriptionsStrict.map(s => {
+      subscriptionsStrict.forEach(s => {
         if (typeof s === 'function') {
-          s(newState, oldState);
+          s(remap(newState), remap(oldState));
         }
         return false;
       });
     }
-    subscriptions.map(s => {
+    subscriptions.forEach(s => {
       if (typeof s === 'function') {
-        s(newState, oldState);
+        s(remap(newState), remap(oldState));
       }
       return false;
     });
@@ -143,7 +147,17 @@ export function Store(state = {}) {
     } else {
       subscriptions.push(fn);
     }
-    fn(latestStore);
+    fn(StoreHold.get(), StoreHold.get());
+    return StoreHold;
+  };
+  StoreHold.unsubscribe = (fn) => {
+    console.log('before', subscriptionsStrict.length + subscriptions.length);
+    subscriptionsStrict = subscriptionsStrict.filter(v => v !== fn);
+    subscriptions = subscriptions.filter(v => v !== fn);
+    console.log('after', subscriptionsStrict.length + subscriptions.length);
+  };
+  StoreHold.map = (fn) => {
+    remap = fn;
     return StoreHold;
   };
   StoreHold.bind = (path, output = e => e, input = e => e) => {
@@ -192,7 +206,7 @@ export function Store(state = {}) {
         mounted = true;
         $pointer = element;
         $parent = parent || element.parentNode;
-        update(latestStore);
+        update(StoreHold.get());
       };
       return '';
     }
