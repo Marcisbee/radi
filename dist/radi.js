@@ -1033,6 +1033,7 @@
           || name + ' field is invalid';
 
         if (valid !== true) { errors.push({
+          field: name,
           touched: Boolean(value.touched),
           error: valid,
         }); }
