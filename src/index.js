@@ -10,9 +10,6 @@ import { Store } from './store';
 import { Subscribe } from './subscribe';
 import { mount } from './mount';
 import { Validator } from './custom';
-// import {} from './custom';
-// import validate from './custom/validation/validate';
-// import { Validator } from './custom/validation/Validator';
 
 const Radi = {
   v: GLOBALS.VERSION,
@@ -31,8 +28,6 @@ const Radi = {
 
 // Pass Radi instance to plugins
 Radi.plugin = (fn, ...args) => fn(Radi, ...args);
-
-// Radi.plugin(validate);
 
 if (window) window.Radi = Radi;
 export default Radi;

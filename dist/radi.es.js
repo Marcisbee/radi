@@ -299,6 +299,9 @@ function setProp($target, name, value) {
   } else if (typeof value === 'boolean') {
     setBooleanProp($target, name, value);
   } else {
+    if (name === 'value' && document.activeElement !== $target) {
+      $target[name] = value;
+    }
     $target.setAttribute(name, value);
   }
 }
@@ -326,6 +329,9 @@ function setStyles($target, styles) {
 function setProps($target, props) {
   Object.keys(props).forEach(function (name) {
     autoUpdate(props[name], function (value) {
+      if (name === 'model') {
+        name = 'value';
+      } else
       if (name === 'class' || name === 'className') {
         if (Array.isArray(value)) {
           value = value.filter(function (v) { return v && typeof v !== 'function'; }).join(' ');
@@ -350,6 +356,9 @@ function updateProps($target, newProps, oldProps) {
   var props = Object.assign({}, newProps, oldProps);
   Object.keys(props).forEach(function (name) {
     autoUpdate(newProps[name], function (value) {
+      if (name === 'model') {
+        name = 'value';
+      }
       updateProp($target, name, value, oldProps[name]);
     });
   });
@@ -662,6 +671,31 @@ function setDataInObject(source, path, data) {
   return out;
 }
 
+function getDataFromObject(path, source) {
+  var i = 0;
+  while (i < path.length) {
+    if (typeof source === 'undefined') {
+      i++;
+    } else {
+      source = source[path[i++]];
+    }
+  }
+  return source;
+}
+
+function updateState(state, source, path, data, useUpdate, name) {
+  if ( name === void 0 ) name = '';
+
+  var payload = setDataInObject(source, path, data);
+  if (!useUpdate) {
+    var f = function () { return payload; };
+    Object.defineProperty(f, 'name', { value: name, writable: false });
+    state.dispatch(f);
+  } else {
+    state.update(payload);
+  }
+}
+
 function mapData(target, store, source, path) {
   if ( path === void 0 ) path = [];
 
@@ -680,14 +714,7 @@ function mapData(target, store, source, path) {
       out[name] = target[i].call(store, function (data, useUpdate, fnName) {
         if ( fnName === void 0 ) fnName = '';
 
-        var payload = setDataInObject(source, path.concat(name), data);
-        if (!useUpdate) {
-          var f = function () { return payload; };
-          Object.defineProperty(f, 'name', { value: fnName, writable: false });
-          store.dispatch(f);
-        } else {
-          store.update(payload);
-        }
+        updateState(store, source, path.concat(name), data, useUpdate, fnName);
       });
     } else {
       out[name] = target[name] && typeof target[name] === 'object'
@@ -761,20 +788,21 @@ function Store(state) {
   StoreHold.getInitial = function () { return STORE; };
   StoreHold.get = function () { return latestStore; };
   StoreHold.update = function (chunkState, noStrictSubs) {
+    var oldState = latestStore;
     var newState = Object.assign({}, latestStore,
       mapData(chunkState, StoreHold));
     latestStore = newState;
     if (!noStrictSubs) {
       subscriptionsStrict.map(function (s) {
         if (typeof s === 'function') {
-          s(newState);
+          s(newState, oldState);
         }
         return false;
       });
     }
     subscriptions.map(function (s) {
       if (typeof s === 'function') {
-        s(newState);
+        s(newState, oldState);
       }
       return false;
     });
@@ -788,6 +816,19 @@ function Store(state) {
     }
     fn(latestStore);
     return StoreHold;
+  };
+  StoreHold.bind = function (path, output, input) {
+    if ( output === void 0 ) output = function (e) { return e; };
+    if ( input === void 0 ) input = function (e) { return e; };
+
+    var pathAsArray = Array.isArray(path) ? path : path.split('.');
+    var getVal = function (source) { return output(getDataFromObject(pathAsArray, source)); };
+    var setVal = function (value) { return updateState(StoreHold, latestStore, pathAsArray, input(value), false, ("Bind:" + path)); };
+
+    return {
+      model: StoreHold(getVal),
+      oninput: function (e) { return setVal(e.target.value); },
+    };
   };
   StoreHold.dispatch = function (fn) {
     var args = [], len = arguments.length - 1;
@@ -843,24 +884,6 @@ function Store(state) {
   latestStore = STORE;
 
   return StoreHold;
-}
-
-function applyLoading(subject, value) {
-  if (typeof subject === 'object') {
-    Object.defineProperty(subject, '$loading', {
-      value: value,
-      writable: true,
-    });
-  }
-  return subject;
-}
-
-function Fetch(url, map) {
-  return function (payload) { return function (update) {
-    setTimeout(update, 1000, applyLoading(map({ user: { _key: payload.id } }), false));
-
-    return applyLoading({ $loading: true }, true);
-  }; };
 }
 
 /**
@@ -940,16 +963,6 @@ customAttribute('html', function (el, value) {
 
 customAttribute('loadfocus', function (el) {
   el.addEventListener('mount', function () { return el.focus(); });
-});
-
-customAttribute('model', function (el, store) {
-  console.log(store, store instanceof Store);
-  // el.addEventListener('mount', () => el.focus());
-}, {
-  allowedTags: [
-    'input',
-    'textarea',
-    'select' ],
 });
 
 customAttribute('onsubmit', function (el, fn) {
@@ -1159,6 +1172,8 @@ var ModalService = service('modal', function () {
   return {
     open: function (name) { return ModalStore.dispatch(switchModal, name, true); },
     close: function (name) { return ModalStore.dispatch(switchModal, name, false); },
+    onOpen: function (name, fn) { return ModalStore.subscribe(function (n, p) { return n[name] === true && n[name] !== p[name] && fn(); }); },
+    onClose: function (name, fn) { return ModalStore.subscribe(function (n, p) { return n[name] === false && n[name] !== p[name] && fn(); }); },
   };
 });
 
@@ -1309,15 +1324,10 @@ Validator.prototype.email = function email () {
   })
 };
 
-// import {} from './custom';
-// import validate from './custom/validation/validate';
-// import { Validator } from './custom/validation/Validator';
-
 var Radi = {
   v: GLOBALS.VERSION,
   version: GLOBALS.VERSION,
   h: html,
-  Fetch: Fetch,
   html: html,
   Store: Store,
   customTag: customTag,
@@ -1336,8 +1346,6 @@ Radi.plugin = function (fn) {
 
   return fn.apply(void 0, [ Radi ].concat( args ));
 };
-
-// Radi.plugin(validate);
 
 if (window) { window.Radi = Radi; }
 

@@ -58,6 +58,9 @@ export function setProp($target, name, value) {
   } else if (typeof value === 'boolean') {
     setBooleanProp($target, name, value);
   } else {
+    if (name === 'value' && document.activeElement !== $target) {
+      $target[name] = value;
+    }
     $target.setAttribute(name, value);
   }
 }
@@ -85,6 +88,9 @@ export function setStyles($target, styles) {
 export function setProps($target, props) {
   Object.keys(props).forEach(name => {
     autoUpdate(props[name], value => {
+      if (name === 'model') {
+        name = 'value';
+      } else
       if (name === 'class' || name === 'className') {
         if (Array.isArray(value)) {
           value = value.filter(v => v && typeof v !== 'function').join(' ');
@@ -107,6 +113,9 @@ export function updateProps($target, newProps, oldProps = {}) {
   const props = Object.assign({}, newProps, oldProps);
   Object.keys(props).forEach(name => {
     autoUpdate(newProps[name], value => {
+      if (name === 'model') {
+        name = 'value';
+      }
       updateProp($target, name, value, oldProps[name]);
     });
   });
