@@ -1,3 +1,9 @@
+const validValue = (value) => (
+  typeof value === 'string'
+    || typeof value === 'number'
+    || value
+);
+
 export class Validator {
   constructor(value) {
     this.value = value;
@@ -7,7 +13,7 @@ export class Validator {
   register({type, validate, error}) {
     let nn = this.rules.push({
       type: type,
-      validate: value => (value && validate(value)),
+      validate: value => (validValue(value) && validate(value)),
       error: error || 'Invalid field',
     });
 
@@ -40,7 +46,7 @@ export class Validator {
   test(regexp) {
     return this.register({
       type: 'test',
-      validate: value => regexp.test(value),
+      validate: value => value === '' || regexp.test(value),
       error: 'Field must be valid',
     })
   }
@@ -48,7 +54,7 @@ export class Validator {
   equal(equal) {
     return this.register({
       type: 'equal',
-      validate: value => value === equal,
+      validate: value => value === '' || value === equal,
       error: 'Field must be equal to ' + equal,
     })
   }
@@ -56,7 +62,7 @@ export class Validator {
   notEqual(equal) {
     return this.register({
       type: 'notEqual',
-      validate: value => value !== equal,
+      validate: value => value === '' || value !== equal,
       error: 'Field must not be equal to ' + equal,
     })
   }
@@ -80,7 +86,7 @@ export class Validator {
   email() {
     return this.register({
       type: 'email',
-      validate: value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+      validate: value => value === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
       error: 'Email is not valid',
     })
   }

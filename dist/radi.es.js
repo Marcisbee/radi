@@ -1231,6 +1231,12 @@ customTag('portal',
   }
 );
 
+var validValue = function (value) { return (
+  typeof value === 'string'
+    || typeof value === 'number'
+    || value
+); };
+
 var Validator = function Validator(value) {
   this.value = value;
   this.rules = [];
@@ -1244,7 +1250,7 @@ Validator.prototype.register = function register (ref) {
 
   var nn = this.rules.push({
     type: type,
-    validate: function (value) { return (value && validate(value)); },
+    validate: function (value) { return (validValue(value) && validate(value)); },
     error: error || 'Invalid field',
   });
 
@@ -1279,7 +1285,7 @@ Validator.prototype.required = function required () {
 Validator.prototype.test = function test (regexp) {
   return this.register({
     type: 'test',
-    validate: function (value) { return regexp.test(value); },
+    validate: function (value) { return value === '' || regexp.test(value); },
     error: 'Field must be valid',
   })
 };
@@ -1287,7 +1293,7 @@ Validator.prototype.test = function test (regexp) {
 Validator.prototype.equal = function equal (equal$1) {
   return this.register({
     type: 'equal',
-    validate: function (value) { return value === equal$1; },
+    validate: function (value) { return value === '' || value === equal$1; },
     error: 'Field must be equal to ' + equal$1,
   })
 };
@@ -1295,7 +1301,7 @@ Validator.prototype.equal = function equal (equal$1) {
 Validator.prototype.notEqual = function notEqual (equal) {
   return this.register({
     type: 'notEqual',
-    validate: function (value) { return value !== equal; },
+    validate: function (value) { return value === '' || value !== equal; },
     error: 'Field must not be equal to ' + equal,
   })
 };
@@ -1319,7 +1325,7 @@ Validator.prototype.max = function max (num) {
 Validator.prototype.email = function email () {
   return this.register({
     type: 'email',
-    validate: function (value) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); },
+    validate: function (value) { return value === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); },
     error: 'Email is not valid',
   })
 };
