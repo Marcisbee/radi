@@ -99,6 +99,7 @@ export function Store(state = {}) {
   StoreHold.getInitial = () => STORE;
   StoreHold.get = () => latestStore;
   StoreHold.update = (chunkState, noStrictSubs) => {
+    const oldState = latestStore;
     const newState = {
       ...latestStore,
       ...mapData(chunkState, StoreHold),
@@ -107,14 +108,14 @@ export function Store(state = {}) {
     if (!noStrictSubs) {
       subscriptionsStrict.map(s => {
         if (typeof s === 'function') {
-          s(newState);
+          s(newState, oldState);
         }
         return false;
       });
     }
     subscriptions.map(s => {
       if (typeof s === 'function') {
-        s(newState);
+        s(newState, oldState);
       }
       return false;
     });
