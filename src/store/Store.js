@@ -15,6 +15,29 @@ function setDataInObject(source, path, data) {
   return out;
 }
 
+function getDataFromObject(path, source) {
+  let i = 0;
+  while (i < path.length) {
+    if (typeof source === 'undefined') {
+      i++;
+    } else {
+      source = source[path[i++]];
+    }
+  }
+  return source;
+}
+
+function updateState(state, source, path, data, useUpdate, name = '') {
+  const payload = setDataInObject(source, path, data);
+  if (!useUpdate) {
+    const f = () => payload;
+    Object.defineProperty(f, 'name', { value: name, writable: false });
+    state.dispatch(f);
+  } else {
+    state.update(payload);
+  }
+}
+
 function mapData(target, store, source, path = []) {
   const out = {};
   if (target && target.$loading) {
@@ -29,14 +52,7 @@ function mapData(target, store, source, path = []) {
     const name = i;
     if (typeof target[i] === 'function') {
       out[name] = target[i].call(store, (data, useUpdate, fnName = '') => {
-        const payload = setDataInObject(source, path.concat(name), data);
-        if (!useUpdate) {
-          const f = () => payload;
-          Object.defineProperty(f, 'name', { value: fnName, writable: false });
-          store.dispatch(f);
-        } else {
-          store.update(payload);
-        }
+        updateState(store, source, path.concat(name), data, useUpdate, fnName);
       });
     } else {
       out[name] = target[name] && typeof target[name] === 'object'
@@ -129,6 +145,16 @@ export function Store(state = {}) {
     }
     fn(latestStore);
     return StoreHold;
+  };
+  StoreHold.bind = (path, output = e => e, input = e => e) => {
+    const pathAsArray = Array.isArray(path) ? path : path.split('.');
+    const getVal = (source) => output(getDataFromObject(pathAsArray, source));
+    const setVal = (value) => updateState(StoreHold, latestStore, pathAsArray, input(value), false, `Bind:${path}`);
+
+    return {
+      model: StoreHold(getVal),
+      oninput: e => setVal(e.target.value),
+    };
   };
   StoreHold.dispatch = (fn, ...args) => {
     const payload = fn(latestStore, ...args);
