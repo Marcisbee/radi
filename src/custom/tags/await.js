@@ -32,6 +32,8 @@ customTag('await',
       return awaitStore(({status}) => ensureFn(promise[status])(output));
     }
 
+    this.onMount = e => e.__radiJunk = true;
+
     return null;
   }
 );

@@ -22,6 +22,7 @@ module.exports = {
     CSSStyleDeclaration: true,
     HTMLElement: true,
     SVGElement: true,
+    Text: true,
     $Radi: true,
     Node: true,
     jest: true

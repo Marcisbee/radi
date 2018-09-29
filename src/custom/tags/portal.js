@@ -11,6 +11,7 @@ customTag('portal',
     const toRender = data.children || [];
 
     this.onMount = ($element) => {
+      $element.__radiJunk = true;
       mount(function () {
         this.onMount = ($el, $p) => {
           $ref = $el;

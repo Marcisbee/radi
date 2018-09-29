@@ -1,13 +1,8 @@
-import {
-  ensureArray,
-  flatten,
-} from '../utils';
-import { createElement } from './createElement';
 import { destroyTree } from './destroyTree';
 import { fireEvent } from './fireEvent';
-import { insertAfter } from './insertAfter';
-import { nodeChanged } from './nodeChanged';
-import { updateProps } from './props';
+import { patchComponent } from './renderComponent';
+import { render } from './render';
+import { setAttribute } from './setAttribute';
 
 function beforeDestroy(node, next) {
   if (typeof node.beforedestroy === 'function') {
@@ -17,75 +12,48 @@ function beforeDestroy(node, next) {
   return next();
 }
 
-/**
- * @param  {HTMLElement} $parent
- * @param  {Object|Object[]} newNode
- * @param  {Object|Object[]} oldNode
- * @param  {number} [index=0]
- * @param  {HTMLElement} $pointer
- * @return {Object[]}
- */
-export function patch($parent, newNode, oldNode, index = 0, $pointer) {
-  let $output = $parent && $parent.childNodes[index];
-  if ($pointer) {
-    index = Array.prototype.indexOf.call($parent.childNodes, $pointer) + 1;
-  }
-
-  const normalNewNode = flatten(ensureArray(newNode));
-  const normalOldNode = flatten(ensureArray(oldNode));
-  const newLength = normalNewNode.length;
-  const oldLength = normalOldNode.length;
-
-  let modifier = 0;
-  for (let i = 0; i < newLength || i < oldLength; i++) {
-    if (normalNewNode[i] instanceof Date) normalNewNode[i] = normalNewNode[i].toString();
-    if (normalOldNode[i] === false || normalOldNode[i] === undefined || normalOldNode[i] === null) {
-      $output = createElement(normalNewNode[i], $parent);
-      if ($pointer) {
-        insertAfter($output, $parent.childNodes[((index + i) - 1)], $parent);
+export function patch(dom, vdom, parent = dom.parentNode) {
+  const replace = parent ? el => (parent.replaceChild(el, dom) && el) : (el => el);
+  if (typeof vdom === 'object' && typeof vdom.type === 'function') {
+    return patchComponent(dom, vdom, parent);
+  } else if (typeof vdom !== 'object' && dom instanceof Text) {
+    return dom.textContent !== vdom ? replace(render(vdom, parent)) : dom;
+  } else if (typeof vdom === 'object' && dom instanceof Text) {
+    return replace(render(vdom, parent));
+  } else if (typeof vdom === 'object' && dom.nodeName !== vdom.type.toUpperCase()) {
+    return replace(render(vdom, parent));
+  } else if (typeof vdom === 'object' && dom.nodeName === vdom.type.toUpperCase()) {
+    const pool = {};
+    const active = document.activeElement;
+    [].concat(...dom.childNodes).filter(n => !n.__radiRemoved).forEach((child, index) => {
+      const key = child.__radiKey || `__index_${index}`;
+      pool[key] = child;
+    });
+    [].concat(...vdom.children).forEach((child, index) => {
+      const key = child.props && (child.props.key || `__index_${index}`);
+      if (pool[key]) {
+        fireEvent('update', patch(pool[key], child));
+        delete pool[key];
       } else {
-        $parent.appendChild($output);
+        const temp = pool[key] ? patch(pool[key], child) : render(child, dom);
+        if (temp) {
+          dom.appendChild(temp);
+          delete pool[key];
+        }
       }
-      fireEvent('mount', $output);
-    } else
-    if (normalNewNode[i] === false || normalNewNode[i] === undefined || normalNewNode[i] === null) {
-      const $target = $parent.childNodes[index + i + modifier];
-      if ($target) {
-        beforeDestroy($target, () => {
-          // This is for async node removals
-          const $targetScoped = $parent.childNodes[index + i + modifier];
-          $parent.removeChild($targetScoped);
-          destroyTree($targetScoped);
-          modifier -= 1;
-        });
-      }
-    } else
-    if (nodeChanged(normalNewNode[i], normalOldNode[i])) {
-      $parent.replaceChild(
-        $output = createElement(normalNewNode[i], $parent),
-        $parent.childNodes[index + i]
-      );
-      fireEvent('mount', $output);
-    } else if (typeof normalNewNode[i].type === 'string') {
-      const childNew = normalNewNode[i];
-      const childOld = normalOldNode[i];
-      updateProps(
-        $parent.childNodes[index + i],
-        childNew.props,
-        childOld.props
-      );
-      const newLength2 = childNew.children.length;
-      const oldLength2 = childOld.children.length;
-      for (let n = 0; n < newLength2 || n < oldLength2; n++) {
-        patch(
-          $parent.childNodes[index + i],
-          childNew.children[n],
-          childOld.children[n],
-          n
-        );
-      }
+    });
+    for (const key in pool) {
+      pool[key].__radiRemoved = true;
+      beforeDestroy(pool[key], () => {
+        // This is for async node removals
+        destroyTree(pool[key]);
+        pool[key].remove();
+      });
     }
+    for (const attr of dom.attributes) dom.removeAttribute(attr.name);
+    for (const prop in vdom.props) setAttribute(dom, prop, vdom.props[prop]);
+    active.focus();
+    return dom;
   }
-
-  return normalNewNode;
+  return null;
 }
