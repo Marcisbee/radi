@@ -1,8 +1,9 @@
 import GLOBALS from '../consts/GLOBALS';
+import { Listener } from '../store';
 
 function autoUpdate(value, fn) {
-  if (typeof value === 'function' && value.__radiStateUpdater) {
-    return value(fn);
+  if (value instanceof Listener) {
+    return fn(value.getValue(e => fn(value.map(e))));
   }
   return fn(value);
 }

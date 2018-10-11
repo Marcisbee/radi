@@ -244,8 +244,8 @@
   }
 
   function autoUpdate(value, fn) {
-    if (typeof value === 'function' && value.__radiStateUpdater) {
-      return value(fn);
+    if (value instanceof Listener) {
+      return fn(value.getValue(function (e) { return fn(value.map(e)); }));
     }
     return fn(value);
   }
@@ -472,6 +472,287 @@
     return normalNewNode;
   }
 
+  var currentListener = null;
+
+  function anchored(anchor, to) {
+    return function (newState, oldState) {
+      if (anchor[0] === newState) { return false; }
+      if (newState !== oldState) {
+        anchor[0] = newState;
+        to.dispatch(function () { return newState; });
+      }
+      return true;
+    };
+  }
+
+  function extractState(state, path) {
+    var this$1 = this;
+    if ( path === void 0 ) path = [];
+
+    if (!state) { return state; }
+
+    if (this && state && typeof state.subscribe === 'function') {
+      var anchor = [];
+      if (path.length > 0) {
+        state.subscribe(function (newState, oldState) {
+          if (anchor[0] === newState) { return false; }
+          if (newState !== oldState) {
+            this$1.dispatch(function () { return this$1.setPartial(path, newState); });
+            anchor[0] = newState;
+          }
+          return true;
+        });
+      } else {
+        this.subscribe(anchored(anchor, state));
+        state.subscribe(anchored(anchor, this));
+      }
+      return state.get();
+    }
+
+    if (typeof state === 'object') {
+      var tempState = Array.isArray(state) ? new Array(state.length) : {};
+      for (var key in state) {
+        if (state.hasOwnProperty(key)) {
+          tempState[key] = extractState.call(this$1, state[key], path.concat(key));
+        }
+      }
+      return tempState;
+    }
+
+    return state;
+  }
+
+  function clone(target, source) {
+    var out = Array.isArray(target) ? [] : {};
+
+    for (var i in target) { out[i] = target[i]; }
+    for (var i$1 in source) { out[i$1] = source[i$1]; }
+
+    return out;
+  }
+
+  function proxied(state, fn, path) {
+    if ( path === void 0 ) path = [];
+
+    return new Proxy(state, {
+      get: function get(_, prop) {
+        var newPath = path.concat(prop);
+
+        if (typeof state[prop] === 'object') {
+          return proxied(state[prop], fn, newPath);
+        }
+
+        if (typeof fn === 'function') { fn(newPath); }
+        return state[prop];
+      },
+    });
+  }
+
+  var renderQueue = [];
+
+  function addToRenderQueue(data) {
+    var fn = data.update || data;
+    if (renderQueue.indexOf(fn) < 0) {
+      renderQueue.push(fn);
+    }
+    return fn;
+  }
+
+  function clearRenderQueue() {
+    renderQueue = [];
+  }
+
+  function Dependencies() {
+    var this$1 = this;
+
+    this.dependencies = {};
+    this.add = function (path, component) {
+      var key = path[0];
+      if (typeof this$1.dependencies[key] === 'undefined') { this$1.dependencies[key] = []; }
+
+      if (this$1.dependencies[key].indexOf(component) < 0) {
+        // console.log('addDependency', key, component)
+        this$1.dependencies[key].push(component);
+      }
+    };
+    this.remove = function (path, component) {
+      var key = path[0];
+      var index = (this$1.dependencies[key] || []).indexOf(component);
+      if (index >= 0) {
+        // console.log('removeDependency', key, component)
+        this$1.dependencies[key].splice(index, 1);
+      }
+    };
+    this.fn = function (fn) { return function (path) {
+      var current = currentListener;
+      if (current) {
+        this$1.add(path, current);
+
+        current.__onDestroy = function () {
+          this$1.remove(path, current);
+        };
+      }
+      return fn(path);
+    }; };
+    this.trigger = function (key, newStore, oldState) {
+      if (this$1.dependencies[key]) {
+        this$1.dependencies[key].forEach(function (fn) { return (
+          addToRenderQueue(fn)(newStore, oldState)
+        ); });
+      }
+    };
+  }
+
+  var noop = function (e) { return e; };
+
+  var Listener = function Listener(map, store, dep) {
+    this.map = map;
+    this.update = this.update.bind(this);
+    this.render = this.render.bind(this);
+    this.store = store;
+    this.dep = dep;
+  };
+
+  Listener.prototype.getValue = function getValue (updater) {
+    var tempListener = currentListener;
+    currentListener = updater;
+
+    var state = proxied(this.store.get(), this.dep.fn(function () {}));
+
+    this.newTree = this.map(state);
+
+    currentListener = tempListener;
+    return this.newTree;
+  };
+
+  Listener.prototype.update = function update () {
+    var value = this.getValue(this.update);
+
+    patch(this.$parent, this.newTree, this.oldTree, 0, this.$pointer);
+    this.oldTree = this.newTree;
+    return value;
+  };
+
+  Listener.prototype.render = function render (state) {
+    var comp = this;
+    return function () {
+      this.onMount = function (element, parent) {
+        comp.mounted = true;
+        comp.$pointer = element;
+        comp.$parent = parent || element.parentNode;
+        comp.update(state);
+      };
+      return null;
+    };
+  };
+
+  function Store(state/* , fn = () => {} */) {
+    var this$1 = this;
+    if ( state === void 0 ) state = {};
+
+    var currentState = Object.assign({}, state);
+
+    var StoreHold = function (listenerToRender) {
+      var listener = new Listener(listenerToRender, StoreHold, dependencies);
+
+      return listener;
+    };
+
+    var dependencies = new Dependencies();
+    var remap = noop;
+    var mappedState;
+
+    StoreHold.getInitial = function () { return initialSate; };
+    StoreHold.get = function () { return remap(currentState); };
+    StoreHold.setPartial = function (path, value) {
+      var target = Array.isArray(currentState) ? [] : {};
+      if (path.length) {
+        target[path[0]] =
+          path.length > 1
+            ? this$1.setPartial(path.slice(1), value, currentState[path[0]])
+            : value;
+        return clone(currentState, target);
+      }
+      return value;
+    };
+    StoreHold.update = function (chunkState/* , noStrictSubs */) {
+      var keys = Object.keys(chunkState);
+      // const oldState = currentState;
+      var newState = Object.assign({}, currentState,
+        chunkState);
+      currentState = newState;
+      var newlyMappedState = StoreHold.get();
+      if (remap !== noop) {
+        for (var key in newlyMappedState) {
+          if (
+            newlyMappedState.hasOwnProperty(key)
+            && (
+              !mappedState || (
+                mappedState
+                && mappedState[key] !== newlyMappedState[key]
+                && keys.indexOf(key) < 0
+              )
+            )
+          ) {
+            keys.push(key);
+          }
+        }
+      }
+      dependencies.trigger('*', newlyMappedState, mappedState);
+      keys.forEach(function (key) { return dependencies.trigger(key, newlyMappedState, mappedState); });
+      mappedState = newlyMappedState;
+
+      clearRenderQueue();
+
+      return currentState;
+    };
+    StoreHold.dispatch = function (action) {
+      var args = [], len = arguments.length - 1;
+      while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+
+      var payload = action.apply(void 0, [ currentState ].concat( args ));
+      // console.log('dispatch', {
+      //   action: action.name,
+      //   args: args,
+      //   payload,
+      // });
+      // console.log('dispatch', action.name, payload);
+      return StoreHold.update(payload);
+    };
+    StoreHold.willDispatch = function (action) {
+      var args = [], len = arguments.length - 1;
+      while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+
+      return function () {
+        var args2 = [], len = arguments.length;
+        while ( len-- ) args2[ len ] = arguments[ len ];
+
+        return StoreHold.dispatch.apply(StoreHold, [ action ].concat( args, args2 ));
+    }    };
+    StoreHold.subscribe = function (callback/* , strict */) {
+      dependencies.add('*', callback);
+      callback(StoreHold.get(), null);
+      return StoreHold;
+    };
+    StoreHold.unsubscribe = function (subscriber) {
+      dependencies.remove('*', subscriber);
+    };
+    StoreHold.map = function (fnMap) {
+      var tempFn = remap;
+      remap = function () {
+        var args = [], len = arguments.length;
+        while ( len-- ) args[ len ] = arguments[ len ];
+
+        return fnMap(tempFn.apply(void 0, args));
+      };
+      return StoreHold;
+    };
+
+    var initialSate = extractState.call(StoreHold, state);
+
+    return StoreHold;
+  }
+
   /**
    * @typedef {Object} Mount
    * @property {Object} component
@@ -506,6 +787,10 @@
 
     if (node === undefined || node === false || node === null) {
       return document.createComment('');
+    }
+
+    if (node instanceof Listener) {
+      node = node.render();
     }
 
     if (Array.isArray(node)) {
@@ -664,248 +949,6 @@
     };
   }
 
-  function setDataInObject(source, path, data) {
-    var name = path[0];
-    var out = {};
-    out[name] = source[name];
-    var temp = out;
-    var i = 0;
-    while (i < path.length - 1) {
-      temp = temp[path[i++]];
-    }
-    temp[path[i]] = data;
-    return out;
-  }
-
-  function getDataFromObject(path, source) {
-    var i = 0;
-    while (i < path.length) {
-      if (typeof source === 'undefined') {
-        i++;
-      } else {
-        source = source[path[i++]];
-      }
-    }
-    return source;
-  }
-
-  function updateState(state, source, path, data, useUpdate, name) {
-    if ( name === void 0 ) name = '';
-
-    var payload = setDataInObject(source, path, data);
-    if (!useUpdate) {
-      var f = function () { return payload; };
-      Object.defineProperty(f, 'name', { value: name, writable: false });
-      state.dispatch(f);
-    } else {
-      state.update(payload);
-    }
-  }
-
-  function mapData(target, store, source, path) {
-    if ( path === void 0 ) path = [];
-
-    var out = {};
-    if (target && target.$loading) {
-      Object.defineProperty(out, '$loading', {
-        value: true,
-        writable: true,
-      });
-    }
-    if (!source) { source = out; }
-
-    var loop = function ( i ) {
-      var name = i;
-      if (target[i] && target[i].name === 'StoreHold') {
-        target[i] = target[i]();
-      }
-      if (typeof target[i] === 'function') {
-        out[name] = target[i].call(store, function (data, useUpdate, fnName) {
-          if ( fnName === void 0 ) fnName = '';
-
-          updateState(store, source, path.concat(name), data, useUpdate, fnName);
-        });
-      } else {
-        out[name] = target[name] && typeof target[name] === 'object'
-          && !Array.isArray(target[name])
-          ? mapData(target[name], store, source, path.concat(name))
-          : target[name];
-      }
-    };
-
-    for (var i in target) loop( i );
-
-    return out;
-  }
-
-  function Store(state) {
-    if ( state === void 0 ) state = {};
-
-    var subscriptions = [];
-    var subscriptionsStrict = [];
-    var latestStore;
-    var remap = function (e) { return e; };
-
-    function StoreOutput(fn) {
-      if ( fn === void 0 ) fn = function (e) { return e; };
-      var args = [], len = arguments.length - 1;
-      while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
-
-      // Handle rendering inside DOM
-      if (this instanceof Component) {
-        return StoreHold.render(fn);
-      }
-
-      // Handle injection into another store
-      if (this && this.name === 'StoreHold' && typeof args[0] === 'function') {
-        StoreHold.subscribe(args[0], true);
-        fn(latestStore, true);
-        return latestStore;
-      }
-
-      // Handle dom props and other 3rd party plugins
-      var lastValue;
-      function stateUpdater(update) {
-        if (typeof update === 'function') {
-          StoreHold.subscribe(function (s) {
-            var newValue = fn(s);
-            if (lastValue !== newValue) {
-              update(newValue);
-            }
-          });
-          update(lastValue = fn(latestStore), true);
-        } else {
-          var a = StoreHold.render(fn);
-          return a;
-        }
-        return lastValue;
-      }
-      stateUpdater.__radiStateUpdater = true;
-      return stateUpdater.apply(void 0, args);
-    }
-
-    function StoreHold(fn) {
-      function stateUpdater() {
-        var args = [], len = arguments.length;
-        while ( len-- ) args[ len ] = arguments[ len ];
-
-        return StoreOutput.call.apply(StoreOutput, [ this, fn ].concat( args ));
-      }
-      stateUpdater.__radiStateUpdater = true;
-      return stateUpdater;
-    }
-
-    StoreHold.getInitial = function () { return STORE; };
-    StoreHold.get = function () { return remap(latestStore); };
-    StoreHold.update = function (chunkState, noStrictSubs) {
-      var oldState = latestStore;
-      var newState = Object.assign({}, latestStore,
-        mapData(chunkState, StoreHold));
-      latestStore = newState;
-      if (!noStrictSubs) {
-        subscriptionsStrict.forEach(function (s) {
-          if (typeof s === 'function') {
-            s(remap(newState), remap(oldState));
-          }
-          return false;
-        });
-      }
-      subscriptions.forEach(function (s) {
-        if (typeof s === 'function') {
-          s(remap(newState), remap(oldState));
-        }
-        return false;
-      });
-      return latestStore;
-    };
-    StoreHold.subscribe = function (fn, strict) {
-      if (strict) {
-        subscriptionsStrict.push(fn);
-      } else {
-        subscriptions.push(fn);
-      }
-      fn(StoreHold.get(), StoreHold.get());
-      return StoreHold;
-    };
-    StoreHold.unsubscribe = function (fn) {
-      console.log('before', subscriptionsStrict.length + subscriptions.length);
-      subscriptionsStrict = subscriptionsStrict.filter(function (v) { return v !== fn; });
-      subscriptions = subscriptions.filter(function (v) { return v !== fn; });
-      console.log('after', subscriptionsStrict.length + subscriptions.length);
-    };
-    StoreHold.map = function (fn) {
-      remap = fn;
-      return StoreHold;
-    };
-    StoreHold.bind = function (path, output, input) {
-      if ( output === void 0 ) output = function (e) { return e; };
-      if ( input === void 0 ) input = function (e) { return e; };
-
-      var pathAsArray = Array.isArray(path) ? path : path.split('.');
-      var getVal = function (source) { return output(getDataFromObject(pathAsArray, source)); };
-      var setVal = function (value) { return updateState(StoreHold, latestStore, pathAsArray, input(value), false, ("Bind:" + path)); };
-
-      return {
-        model: StoreHold(getVal),
-        oninput: function (e) { return setVal(e.target.value); },
-      };
-    };
-    StoreHold.dispatch = function (fn) {
-      var args = [], len = arguments.length - 1;
-      while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
-
-      var payload = fn.apply(void 0, [ latestStore ].concat( args ));
-      // console.log('dispatch', {
-      //   action: fn.name,
-      //   args: args,
-      //   payload,
-      // });
-      // console.log('dispatch', fn.name, payload);
-      return StoreHold.update(payload);
-    };
-    StoreHold.render = function (fn) {
-      if ( fn === void 0 ) fn = function (s) { return JSON.stringify(s); };
-
-      var $parent;
-      var $pointer;
-      var newTree;
-      var oldTree;
-      var mounted = false;
-
-      function update(data) {
-        newTree = fn(data);
-        patch($parent, newTree, oldTree, 0, $pointer);
-        oldTree = newTree;
-        return data;
-      }
-
-      subscriptions.push(function (data) {
-        if (mounted) {
-          update(data);
-        }
-        return data;
-      });
-
-      function item() {
-        this.onMount = function (element, parent) {
-          mounted = true;
-          $pointer = element;
-          $parent = parent || element.parentNode;
-          update(StoreHold.get());
-        };
-        return '';
-      }
-
-      return item;
-    };
-
-    var STORE = mapData(state, StoreHold);
-
-    latestStore = STORE;
-
-    return StoreHold;
-  }
-
   /**
    * @param       {EventTarget} [target=document] [description]
    * @constructor
@@ -920,36 +963,38 @@
         var events = eventHolder.trim().split(' ');
         var eventSubscription = null;
         var staticDefaults = null;
-        var staticUpdate = null;
+        var staticStore = null;
         var state = false;
 
         if (typeof transformer !== 'function') {
           throw new Error(("[Radi.js] Subscription `" + eventHolder + "` must be transformed by function"));
         }
 
-        function updater(defaults) {
-          return function (update) {
-            state = true;
-            staticDefaults = defaults;
-            staticUpdate = update;
-            events.map(function (event) { return target.addEventListener(event,
-              eventSubscription = function () {
-                  var args = [], len = arguments.length;
-                  while ( len-- ) args[ len ] = arguments[ len ];
+        function updater(defaults, newStore) {
+          var store = newStore || new Store(defaults || {});
 
-                  return update(transformer.apply(void 0, args.concat( [event] )), false, ("Subscribe: " + event));
-              }); });
-            return defaults;
-          };
+          state = true;
+          staticDefaults = defaults;
+          staticStore = store;
+          events.forEach(function (event) { return target.addEventListener(event,
+            eventSubscription = function () {
+                var args = [], len = arguments.length;
+                while ( len-- ) args[ len ] = arguments[ len ];
+
+                return store.dispatch(function (oldStore) { return (Object.assign({}, oldStore, transformer.apply(void 0, args.concat( [event] )))); });
+            }
+          ); });
+
+          return store;
         }
 
         updater.stop = function () {
           if (state) {
-            events.map(function (event) { return target.removeEventListener(event, eventSubscription); });
+            events.forEach(function (event) { return target.removeEventListener(event, eventSubscription); });
           }
           return state = !state;
         };
-        updater.start = function () { return (!state && updater(staticDefaults)(staticUpdate)); };
+        updater.start = function () { return !state && updater(staticDefaults, staticStore); };
 
         return updater;
       },

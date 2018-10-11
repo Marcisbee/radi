@@ -5,6 +5,7 @@ import {
 } from './index';
 
 import { Component } from '../component';
+import { Listener } from '../store';
 import { mount } from '../mount';
 
 /**
@@ -19,6 +20,10 @@ export function createElement(node, $parent) {
 
   if (node === undefined || node === false || node === null) {
     return document.createComment('');
+  }
+
+  if (node instanceof Listener) {
+    node = node.render();
   }
 
   if (Array.isArray(node)) {
