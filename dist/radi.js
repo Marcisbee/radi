@@ -76,7 +76,7 @@
     var onEvent = document.createEvent('Event');
     onEvent.initEvent(type, true, true);
 
-    if (typeof $node.dispatchEvent === 'function') {
+    if ($node && typeof $node.dispatchEvent === 'function') {
       $node._eventFired = true;
       $node.dispatchEvent(onEvent);
     }
@@ -92,7 +92,9 @@
     var instance = node.__radiInstance;
     if (instance) {
       instance.trigger('destroy');
-      instance.__onDestroy();
+      if (typeof instance.__onDestroy === 'function') {
+        instance.__onDestroy();
+      }
     }
     node.__radiInstance = null;
 
@@ -263,7 +265,7 @@
       (ref = this)[name].apply(ref, args);
     }
 
-    if (typeof this.self[name] === 'function') {
+    if (this.self && typeof this.self[name] === 'function') {
       (ref$1 = this.self)[name].apply(ref$1, args);
     }
   };
@@ -312,19 +314,69 @@
     }
   }
 
-  function render(vdom, parent) {
+  /**
+   * @param  {HTMLElement} newNode
+   * @param  {HTMLElement} $reference
+   * @param  {HTMLElement} $parent
+   * @return {HTMLElement}
+   */
+  function insertAfter(newNode, $reference, $parent) {
+    if (!$parent) { $parent = $reference.parentNode; }
+
+    if (newNode instanceof Node) {
+      if ($reference === null || $reference === undefined) {
+        return $parent.insertBefore(newNode, $reference);
+      }
+
+      if ($reference instanceof Node) {
+        return $parent.insertBefore(newNode, $reference.nextSibling);
+      }
+    }
+
+    return newNode;
+  }
+
+  function render(vdom, parent, after) {
     var ref;
 
     if ( parent === void 0 ) parent = null;
-    var mount = parent ? (function (el) { return parent.appendChild(el); }) : (function (el) { return el; });
+    if ( after === void 0 ) after = null;
+    var mount = after
+    ? (function (el) { return insertAfter(el, after, parent); })
+    : parent
+      ? (function (el) { return parent.appendChild(el); })
+      : (function (el) { return el; });
     var itemToMount;
+
+    if (typeof vdom === 'function') {
+      vdom = { type: vdom, props: {}, children: [] };
+    }
+
+    if (vdom instanceof Promise) {
+      vdom = { type: 'await', props: {src: vdom}, children: [] };
+    }
+
+    if (typeof GLOBALS.CUSTOM_TAGS[vdom.type] !== 'undefined') {
+      vdom.type = GLOBALS.CUSTOM_TAGS[vdom.type].render;
+    }
+
+    if (Array.isArray(vdom)) {
+      itemToMount = vdom.map(function (item) { return render(item, parent); });
+    } else
+
     if (typeof vdom === 'string' || typeof vdom === 'number') {
       itemToMount = mount(document.createTextNode(vdom));
-    } else if (typeof vdom === 'boolean' || vdom === null || typeof vdom === 'undefined') {
+    } else
+
+    if (typeof vdom === 'boolean' || vdom === null || typeof vdom === 'undefined') {
       itemToMount = mount(document.createTextNode(''));
-    } else if (typeof vdom === 'object' && typeof vdom.type === 'function') {
+    } else
+
+    if (typeof vdom === 'object' && typeof vdom.type === 'function') {
       itemToMount = renderComponent(vdom, parent);
-    } else if (typeof vdom === 'object' && typeof vdom.type === 'string') {
+    } else
+
+    if (typeof vdom === 'object' && typeof vdom.type === 'string') {
       var dom = mount(document.createElement(vdom.type));
       for (var child of (ref = []).concat.apply(ref, vdom.children)) render(child, dom);
       for (var prop in vdom.props) { setAttribute(dom, prop, vdom.props[prop]); }
@@ -335,6 +387,7 @@
       fireEvent('mount', itemToMount);
       return itemToMount;
     }
+
     throw new Error(("Invalid VDOM: " + vdom + "."));
   }
 
@@ -352,11 +405,12 @@
     var lifecycles = new Component(vdom.type);
 
     lifecycles.update = function () { return patchComponent(lifecycles.dom, vdom, parent); };
-    lifecycles.render = function (instance) {
+    lifecycles.render = function (instance, childProps) {
       if ( instance === void 0 ) instance = lifecycles;
+      if ( childProps === void 0 ) childProps = props;
 
       return (
-      evaluate(instance, function () { return vdom.type.call(lifecycles, props); })
+      evaluate(instance, function () { return vdom.type.call(lifecycles, childProps); })
     );
     };
     lifecycles.dom = render(
@@ -402,11 +456,12 @@
     var props = Object.assign({}, vdom.props, { children: vdom.children });
     var instance = dom.__radiInstance;
     if (instance && instance.self === vdom.type) {
-      return patch(dom, instance.render(), parent);
-    } else if (instance.isPrototypeOf(vdom.type)) {
+      console.log(dom, instance.render(undefined, vdom.props), parent);
+      return instance.dom = patch(dom, instance.render(undefined, vdom.props), parent);
+    } else if (instance && instance.isPrototypeOf(vdom.type)) {
       var ndom = renderComponent(vdom, parent);
       return parent ? (parent.replaceChild(ndom, dom) && ndom) : (ndom);
-    } else if (!instance.isPrototypeOf(vdom.type)) {
+    } else if (instance && !instance.isPrototypeOf(vdom.type)) {
       return patch(dom, vdom.type(props), parent);
     }
     return null;
@@ -420,39 +475,98 @@
     return next();
   }
 
+  // const getResolver = () => {
+  //   if (state.resolver == null) {
+  //     state.resolving = true
+  //     try {
+  //       state.resolver = Promise.resolve(resolve())
+  //     } catch (err) {
+  //       state.resolver = Promise.reject(err)
+  //     }
+  //   }
+  //   return state.resolver
+  // }
+  //
+  // const resolve = () => getResolver()
+  //   .then(module => {
+  //     if (state.asyncComponents != null) {
+  //       state.asyncComponents.resolved(state.id)
+  //     }
+  //     state.module = module
+  //     state.error = null
+  //     state.resolving = false
+  //     return module
+  //   })
+  //   .catch(({ message, stack }) => {
+  //     const error = { message, stack }
+  //     if (state.asyncComponents != null) {
+  //       state.asyncComponents.failed(state.id, error)
+  //     }
+  //     state.error = error
+  //     state.resolving = false
+  //     if (!ErrorComponent) {
+  //       // eslint-disable-next-line no-console
+  //       console.error(error)
+  //     }
+  //   })
+  //   .then(result => {
+  //     if (this.unmounted) {
+  //       return undefined
+  //     }
+  //     if (
+  //       !this.context.reactAsyncBootstrapperRunning &&
+  //       env === 'browser'
+  //     ) {
+  //       this.forceUpdate()
+  //     }
+  //     return result
+  //   })
+
   function patch(dom, vdom, parent) {
     var ref, ref$1;
 
     if ( parent === void 0 ) parent = dom.parentNode;
     var replace = parent ? function (el) { return (parent.replaceChild(el, dom) && el); } : (function (el) { return el; });
+
     if (typeof vdom === 'object' && typeof vdom.type === 'function') {
       return patchComponent(dom, vdom, parent);
-    } else if (typeof vdom !== 'object' && dom instanceof Text) {
+    }
+
+    if (typeof vdom !== 'object' && dom instanceof Text) {
       return dom.textContent !== vdom ? replace(render(vdom, parent)) : dom;
-    } else if (typeof vdom === 'object' && dom instanceof Text) {
+    }
+
+    if (typeof vdom === 'object' && dom instanceof Text) {
       return replace(render(vdom, parent));
-    } else if (typeof vdom === 'object' && dom.nodeName !== vdom.type.toUpperCase()) {
+    }
+
+    if (typeof vdom === 'object' && dom.nodeName !== vdom.type.toUpperCase()) {
       return replace(render(vdom, parent));
-    } else if (typeof vdom === 'object' && dom.nodeName === vdom.type.toUpperCase()) {
+    }
+
+    if (typeof vdom === 'object' && dom.nodeName === vdom.type.toUpperCase()) {
       var pool = {};
       var active = document.activeElement;
+
       (ref = []).concat.apply(ref, dom.childNodes).filter(function (n) { return !n.__radiRemoved; }).forEach(function (child, index) {
         var key = child.__radiKey || ("__index_" + index);
         pool[key] = child;
       });
+
       (ref$1 = []).concat.apply(ref$1, vdom.children).forEach(function (child, index) {
         var key = child.props && (child.props.key || ("__index_" + index));
-        if (pool[key]) {
-          fireEvent('update', patch(pool[key], child));
-          delete pool[key];
-        } else {
+        // if (pool[key]) {
+        //   fireEvent('update', patch(pool[key], child));
+        //   delete pool[key];
+        // } else {
           var temp = pool[key] ? patch(pool[key], child) : render(child, dom);
           if (temp) {
             dom.appendChild(temp);
             delete pool[key];
           }
-        }
+        // }
       });
+
       var loop = function ( key ) {
         pool[key].__radiRemoved = true;
         beforeDestroy(pool[key], function () {
@@ -463,11 +577,15 @@
       };
 
       for (var key in pool) loop( key );
+
       for (var attr of dom.attributes) dom.removeAttribute(attr.name);
       for (var prop in vdom.props) { setAttribute(dom, prop, vdom.props[prop]); }
+
       active.focus();
+
       return dom;
     }
+
     return null;
   }
 
@@ -545,6 +663,20 @@
     });
   }
 
+  var renderQueue = [];
+
+  function addToRenderQueue(data) {
+    var fn = data.update || data;
+    if (renderQueue.indexOf(fn) < 0) {
+      renderQueue.push(fn);
+    }
+    return fn;
+  }
+
+  function clearRenderQueue() {
+    renderQueue = [];
+  }
+
   function Dependencies() {
     var this$1 = this;
 
@@ -580,11 +712,13 @@
     this.trigger = function (key, newStore, oldState) {
       if (this$1.dependencies[key]) {
         this$1.dependencies[key].forEach(function (fn) { return (
-          (fn.update ? fn.update : fn)(newStore, oldState)
+          addToRenderQueue(fn)(newStore, oldState)
         ); });
       }
     };
   }
+
+  var noop = function (e) { return e; };
 
   function Store(state, fn) {
     var this$1 = this;
@@ -592,12 +726,23 @@
     if ( fn === void 0 ) fn = function () {};
 
     var currentState = Object.assign({}, state);
-    var StoreHold = function () {
+
+    var StoreHold = function (path) {
+      if (typeof path === 'string') {
+        var arrayPath = path.split('.');
+        dependencies.fn(fn)(arrayPath);
+        return arrayPath.reduce(
+          function (source, key) { return source[key]; },
+          StoreHold.get()
+        )
+      }
+
       return proxied(StoreHold.get(), dependencies.fn(fn));
     };
 
     var dependencies = new Dependencies();
-    var remap = function (e) { return e; };
+    var remap = noop;
+    var mappedState;
 
     StoreHold.getInitial = function () { return initialSate; };
     StoreHold.get = function () { return remap(currentState); };
@@ -614,12 +759,31 @@
     };
     StoreHold.update = function (chunkState/* , noStrictSubs */) {
       var keys = Object.keys(chunkState);
-      var oldState = currentState;
       var newState = Object.assign({}, currentState,
         chunkState);
       currentState = newState;
-      dependencies.trigger('*', StoreHold.get(), oldState);
-      keys.forEach(function (key) { return dependencies.trigger(key, StoreHold.get(), oldState); });
+      var newlyMappedState = StoreHold.get();
+      if (remap !== noop) {
+        for (var key in newlyMappedState) {
+          if (
+            newlyMappedState.hasOwnProperty(key)
+            && (
+              !mappedState || (
+                mappedState
+                && mappedState[key] !== newlyMappedState[key]
+                && keys.indexOf(key) < 0
+              )
+            )
+          ) {
+            keys.push(key);
+          }
+        }
+      }
+      dependencies.trigger('*', newlyMappedState, mappedState);
+      keys.forEach(function (key) { return dependencies.trigger(key, newlyMappedState, mappedState); });
+      mappedState = newlyMappedState;
+
+      clearRenderQueue();
 
       return currentState;
     };
@@ -697,7 +861,7 @@
           state = true;
           staticDefaults = defaults;
           staticStore = store;
-          events.map(function (event) { return target.addEventListener(event,
+          events.forEach(function (event) { return target.addEventListener(event,
             eventSubscription = function () {
                 var args = [], len = arguments.length;
                 while ( len-- ) args[ len ] = arguments[ len ];
@@ -711,7 +875,7 @@
 
         updater.stop = function () {
           if (state) {
-            events.map(function (event) { return target.removeEventListener(event, eventSubscription); });
+            events.forEach(function (event) { return target.removeEventListener(event, eventSubscription); });
           }
           return state = !state;
         };
@@ -881,7 +1045,58 @@
       'form' ],
   });
 
-  // export * from './await';
+  function ensureFn(maybeFn) {
+    if (typeof maybeFn === 'function') { return maybeFn; }
+    return function (e) { return maybeFn || e; };
+  }
+
+  customTag('await',
+    function Await(promise) {
+      var src = promise.src;
+      var awaitStore = new Store({
+        status: 'placeholder',
+      });
+
+      var update = function (e, status) { return ({status: status}); };
+
+      if (src &&
+        (src instanceof Promise || src.constructor.name === 'LazyPromise')
+      ) {
+        var output = '';
+        src
+          .then(function (data) {
+            output = data;
+            awaitStore.dispatch(update, 'transform');
+          })
+          .catch(function (error) {
+            output = error;
+            awaitStore.dispatch(update, 'error');
+          });
+
+        return function AwaitContent() {
+          // this.onMount = e => {
+          //   e.__radiAsync = true;
+          // }
+
+          var status = awaitStore('status');
+          var ensured = ensureFn(promise[status])(output);
+          return {
+            type: 'div',
+            props: {},
+            children: [
+              ensured ]
+          };
+        };
+      }
+
+      // this.onMount = e => {
+      //   e.__radiAsync = true;
+      // }
+
+      return null;
+    }
+  );
+
   // export * from './errors';
   // export * from './modal';
   // export * from './portal';

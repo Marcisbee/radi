@@ -17,8 +17,8 @@ export function renderComponent(vdom, parent) {
   const lifecycles = new Component(vdom.type);
 
   lifecycles.update = () => patchComponent(lifecycles.dom, vdom, parent);
-  lifecycles.render = (instance = lifecycles) => (
-    evaluate(instance, () => vdom.type.call(lifecycles, props))
+  lifecycles.render = (instance = lifecycles, childProps = props) => (
+    evaluate(instance, () => vdom.type.call(lifecycles, childProps))
   );
   lifecycles.dom = render(
     lifecycles.render(),
@@ -61,11 +61,12 @@ export function patchComponent(dom, vdom, parent = dom.parentNode) {
   const props = Object.assign({}, vdom.props, { children: vdom.children });
   const instance = dom.__radiInstance;
   if (instance && instance.self === vdom.type) {
-    return patch(dom, instance.render(), parent);
-  } else if (instance.isPrototypeOf(vdom.type)) {
+    console.log(dom, instance.render(undefined, vdom.props), parent);
+    return instance.dom = patch(dom, instance.render(undefined, vdom.props), parent);
+  } else if (instance && instance.isPrototypeOf(vdom.type)) {
     const ndom = renderComponent(vdom, parent);
     return parent ? (parent.replaceChild(ndom, dom) && ndom) : (ndom);
-  } else if (!instance.isPrototypeOf(vdom.type)) {
+  } else if (instance && !instance.isPrototypeOf(vdom.type)) {
     return patch(dom, vdom.type(props), parent);
   }
   return null;

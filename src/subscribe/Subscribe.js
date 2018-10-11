@@ -23,7 +23,7 @@ export function Subscribe(target = document) {
         state = true;
         staticDefaults = defaults;
         staticStore = store;
-        events.map(event => target.addEventListener(event,
+        events.forEach(event => target.addEventListener(event,
           eventSubscription = (...args) =>
             store.dispatch((oldStore) => ({ ...oldStore, ...transformer(...args, event) }))
         ));
@@ -33,7 +33,7 @@ export function Subscribe(target = document) {
 
       updater.stop = () => {
         if (state) {
-          events.map(event => target.removeEventListener(event, eventSubscription));
+          events.forEach(event => target.removeEventListener(event, eventSubscription));
         }
         return state = !state;
       };

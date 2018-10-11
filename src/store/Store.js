@@ -69,6 +69,20 @@ function proxied(state, fn, path = []) {
   });
 }
 
+let renderQueue = [];
+
+function addToRenderQueue(data) {
+  const fn = data.update || data;
+  if (renderQueue.indexOf(fn) < 0) {
+    renderQueue.push(fn);
+  }
+  return fn;
+}
+
+function clearRenderQueue() {
+  renderQueue = [];
+}
+
 function Dependencies() {
   this.dependencies = {};
   this.add = (path, component) => {
@@ -102,20 +116,33 @@ function Dependencies() {
   this.trigger = (key, newStore, oldState) => {
     if (this.dependencies[key]) {
       this.dependencies[key].forEach(fn => (
-        (fn.update ? fn.update : fn)(newStore, oldState)
+        addToRenderQueue(fn)(newStore, oldState)
       ));
     }
   };
 }
 
+const noop = e => e;
+
 export function Store(state = {}, fn = () => {}) {
   let currentState = { ...state };
-  const StoreHold = function () {
+
+  const StoreHold = function (path) {
+    if (typeof path === 'string') {
+      const arrayPath = path.split('.');
+      dependencies.fn(fn)(arrayPath);
+      return arrayPath.reduce(
+        (source, key) => source[key],
+        StoreHold.get()
+      )
+    }
+
     return proxied(StoreHold.get(), dependencies.fn(fn));
   };
 
   const dependencies = new Dependencies();
-  let remap = e => e;
+  let remap = noop;
+  let mappedState;
 
   StoreHold.getInitial = () => initialSate;
   StoreHold.get = () => remap(currentState);
@@ -131,15 +158,35 @@ export function Store(state = {}, fn = () => {}) {
     return value;
   };
   StoreHold.update = (chunkState/* , noStrictSubs */) => {
-    const keys = Object.keys(chunkState);
+    let keys = Object.keys(chunkState);
     const oldState = currentState;
     const newState = {
       ...currentState,
       ...chunkState,
     };
     currentState = newState;
-    dependencies.trigger('*', StoreHold.get(), oldState);
-    keys.forEach(key => dependencies.trigger(key, StoreHold.get(), oldState));
+    const newlyMappedState = StoreHold.get();
+    if (remap !== noop) {
+      for (var key in newlyMappedState) {
+        if (
+          newlyMappedState.hasOwnProperty(key)
+          && (
+            !mappedState || (
+              mappedState
+              && mappedState[key] !== newlyMappedState[key]
+              && keys.indexOf(key) < 0
+            )
+          )
+        ) {
+          keys.push(key);
+        }
+      }
+    }
+    dependencies.trigger('*', newlyMappedState, mappedState);
+    keys.forEach(key => dependencies.trigger(key, newlyMappedState, mappedState));
+    mappedState = newlyMappedState;
+
+    clearRenderQueue();
 
     return currentState;
   };

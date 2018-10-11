@@ -8,7 +8,9 @@ export function destroyTree(node) {
   const instance = node.__radiInstance;
   if (instance) {
     instance.trigger('destroy');
-    instance.__onDestroy();
+    if (typeof instance.__onDestroy === 'function') {
+      instance.__onDestroy();
+    }
   }
   node.__radiInstance = null;
 
