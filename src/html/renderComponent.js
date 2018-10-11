@@ -40,9 +40,6 @@ export function renderComponent(vdom, parent) {
     }, false);
 
     lifecycles.on('destroy', () => {
-      lifecycles.dom = null;
-      lifecycles.self = null;
-      lifecycles.__$events = {};
       if ($styleRef instanceof Node) {
         document.head.removeChild($styleRef);
       }

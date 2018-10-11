@@ -373,9 +373,6 @@ function renderComponent(vdom, parent) {
     }, false);
 
     lifecycles.on('destroy', function () {
-      lifecycles.dom = null;
-      lifecycles.self = null;
-      lifecycles.__$events = {};
       if ($styleRef instanceof Node) {
         document.head.removeChild($styleRef);
       }
@@ -565,9 +562,9 @@ function Dependencies() {
     if (current) {
       this$1.add(path, current);
 
-      current.__onDestroy = function () {
+      current.on('destroy', function () {
         this$1.remove(path, current);
-      };
+      });
     }
     return fn(path);
   }; };

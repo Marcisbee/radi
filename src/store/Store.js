@@ -93,9 +93,9 @@ function Dependencies() {
     if (current) {
       this.add(path, current);
 
-      current.__onDestroy = () => {
+      current.on('destroy', () => {
         this.remove(path, current);
-      };
+      });
     }
     return fn(path);
   };
