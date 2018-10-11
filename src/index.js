@@ -5,10 +5,10 @@ import {
   customTag,
   html,
   patch,
-  render,
 } from './html';
 import { Store } from './store';
 import { Subscribe } from './subscribe';
+import { mount } from './mount';
 import { Validator } from './custom';
 
 const Radi = {
@@ -20,7 +20,7 @@ const Radi = {
   customTag,
   customAttribute,
   patch,
-  mount: render,
+  mount,
   service,
   Subscribe,
   Validator,
