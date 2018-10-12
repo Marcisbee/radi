@@ -1,4 +1,6 @@
-import { componentStore } from '../component';
+import { patch } from '../html/patch';
+
+let currentListener = null;
 
 function anchored(anchor, to) {
   return (newState, oldState) => {
@@ -103,7 +105,7 @@ function Dependencies() {
     }
   };
   this.fn = fn => (path) => {
-    const current = componentStore.currentComponent;
+    const current = currentListener;
     if (current) {
       this.add(path, current);
 
@@ -124,20 +126,80 @@ function Dependencies() {
 
 const noop = e => e;
 
-export function Store(state = {}, fn = () => {}) {
+export class Listener {
+  constructor(map, store, dep) {
+    this.map = map;
+    this.update = this.update.bind(this);
+    this.render = this.render.bind(this);
+    this.store = store;
+    this.dep = dep;
+  }
+
+  getValue(updater) {
+    const tempListener = currentListener;
+    currentListener = updater;
+
+    const state = proxied(this.store.get(), this.dep.fn(() => {}));
+
+    this.newTree = this.map(state);
+
+    currentListener = tempListener;
+    return this.newTree;
+  }
+
+  update() {
+    const value = this.getValue(this.update);
+
+    patch(this.$parent, this.newTree, this.oldTree, 0, this.$pointer);
+    this.oldTree = this.newTree;
+    return value;
+  }
+
+  render(state) {
+    const comp = this;
+    return function () {
+      this.onMount = (element, parent) => {
+        comp.mounted = true;
+        comp.$pointer = element;
+        comp.$parent = parent || element.parentNode;
+        comp.update(state);
+      };
+      return null;
+    };
+  }
+}
+
+function getDataFromObject(path, source) {
+  let i = 0;
+  while (i < path.length) {
+    if (typeof source === 'undefined') {
+      i++;
+    } else {
+      source = source[path[i++]];
+    }
+  }
+  return source;
+}
+
+function updateState(state, source, path, data, useUpdate, name = '') {
+  const payload = state.setPartial(path, data);
+
+  if (!useUpdate) {
+    const f = () => payload;
+    Object.defineProperty(f, 'name', { value: name, writable: false });
+    state.dispatch(f);
+  } else {
+    state.update(payload);
+  }
+}
+
+export function Store(state = {}/* , fn = () => {} */) {
   let currentState = { ...state };
 
-  const StoreHold = function (path) {
-    if (typeof path === 'string') {
-      const arrayPath = path.split('.');
-      dependencies.fn(fn)(arrayPath);
-      return arrayPath.reduce(
-        (source, key) => source[key],
-        StoreHold.get()
-      )
-    }
+  const StoreHold = function (listenerToRender) {
+    const listener = new Listener(listenerToRender, StoreHold, dependencies);
 
-    return proxied(StoreHold.get(), dependencies.fn(fn));
+    return listener;
   };
 
   const dependencies = new Dependencies();
@@ -145,7 +207,17 @@ export function Store(state = {}, fn = () => {}) {
   let mappedState;
 
   StoreHold.getInitial = () => initialSate;
-  StoreHold.get = () => remap(currentState);
+  StoreHold.get = (path) => {
+    const remappedState = remap(currentState);
+    if (path) {
+      return getDeep(
+        typeof path === 'string' ? path.split('.') : path,
+        remappedState,
+      );
+    }
+
+    return remappedState;
+  };
   StoreHold.setPartial = (path, value) => {
     const target = Array.isArray(currentState) ? [] : {};
     if (path.length) {
@@ -157,9 +229,19 @@ export function Store(state = {}, fn = () => {}) {
     }
     return value;
   };
+  StoreHold.bind = (path, output = e => e, input = e => e) => {
+    const pathAsArray = Array.isArray(path) ? path : path.split('.');
+    const getVal = (source) => output(getDataFromObject(pathAsArray, source));
+    const setVal = (value) => updateState(StoreHold, StoreHold.get(), pathAsArray, input(value), false, `Bind:${path}`);
+
+    return {
+      model: StoreHold(getVal),
+      oninput: (e) => setVal(e.target.value),
+    }
+  };
   StoreHold.update = (chunkState/* , noStrictSubs */) => {
-    let keys = Object.keys(chunkState);
-    const oldState = currentState;
+    const keys = Object.keys(chunkState);
+    // const oldState = currentState;
     const newState = {
       ...currentState,
       ...chunkState,
@@ -167,7 +249,7 @@ export function Store(state = {}, fn = () => {}) {
     currentState = newState;
     const newlyMappedState = StoreHold.get();
     if (remap !== noop) {
-      for (var key in newlyMappedState) {
+      for (const key in newlyMappedState) {
         if (
           newlyMappedState.hasOwnProperty(key)
           && (

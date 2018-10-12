@@ -29,26 +29,8 @@ customTag('await',
           awaitStore.dispatch(update, 'error');
         });
 
-      return function AwaitContent() {
-        // this.onMount = e => {
-        //   e.__radiAsync = true;
-        // }
-
-        const status = awaitStore('status');
-        const ensured = ensureFn(promise[status])(output);
-        return {
-          type: 'div',
-          props: {},
-          children: [
-            ensured,
-          ]
-        };
-      };
+      return awaitStore(({status}) => ensureFn(promise[status])(output));
     }
-
-    // this.onMount = e => {
-    //   e.__radiAsync = true;
-    // }
 
     return null;
   }

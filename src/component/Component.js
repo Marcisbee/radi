@@ -38,7 +38,7 @@ export class Component {
       this[name](...args);
     }
 
-    if (this.self && typeof this.self[name] === 'function') {
+    if (typeof this.self[name] === 'function') {
       this.self[name](...args);
     }
   }
