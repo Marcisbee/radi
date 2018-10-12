@@ -169,6 +169,30 @@ export class Listener {
   }
 }
 
+function getDataFromObject(path, source) {
+  let i = 0;
+  while (i < path.length) {
+    if (typeof source === 'undefined') {
+      i++;
+    } else {
+      source = source[path[i++]];
+    }
+  }
+  return source;
+}
+
+function updateState(state, source, path, data, useUpdate, name = '') {
+  const payload = state.setPartial(path, data);
+
+  if (!useUpdate) {
+    const f = () => payload;
+    Object.defineProperty(f, 'name', { value: name, writable: false });
+    state.dispatch(f);
+  } else {
+    state.update(payload);
+  }
+}
+
 export function Store(state = {}/* , fn = () => {} */) {
   let currentState = { ...state };
 
@@ -183,7 +207,17 @@ export function Store(state = {}/* , fn = () => {} */) {
   let mappedState;
 
   StoreHold.getInitial = () => initialSate;
-  StoreHold.get = () => remap(currentState);
+  StoreHold.get = (path) => {
+    const remappedState = remap(currentState);
+    if (path) {
+      return getDeep(
+        typeof path === 'string' ? path.split('.') : path,
+        remappedState,
+      );
+    }
+
+    return remappedState;
+  };
   StoreHold.setPartial = (path, value) => {
     const target = Array.isArray(currentState) ? [] : {};
     if (path.length) {
@@ -194,6 +228,16 @@ export function Store(state = {}/* , fn = () => {} */) {
       return clone(currentState, target);
     }
     return value;
+  };
+  StoreHold.bind = (path, output = e => e, input = e => e) => {
+    const pathAsArray = Array.isArray(path) ? path : path.split('.');
+    const getVal = (source) => output(getDataFromObject(pathAsArray, source));
+    const setVal = (value) => updateState(StoreHold, StoreHold.get(), pathAsArray, input(value), false, `Bind:${path}`);
+
+    return {
+      model: StoreHold(getVal),
+      oninput: (e) => setVal(e.target.value),
+    }
   };
   StoreHold.update = (chunkState/* , noStrictSubs */) => {
     const keys = Object.keys(chunkState);

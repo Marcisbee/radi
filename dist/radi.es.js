@@ -589,7 +589,7 @@ function Dependencies() {
     return fn(path);
   }; };
   this.trigger = function (key, newStore, oldState) {
-    if (this$1.dependencies[key]) {
+     if (this$1.dependencies[key]) {
       this$1.dependencies[key].forEach(function (fn) { return (
         addToRenderQueue(fn)(newStore, oldState)
       ); });
@@ -640,6 +640,32 @@ Listener.prototype.render = function render (state) {
   };
 };
 
+function getDataFromObject(path, source) {
+  var i = 0;
+  while (i < path.length) {
+    if (typeof source === 'undefined') {
+      i++;
+    } else {
+      source = source[path[i++]];
+    }
+  }
+  return source;
+}
+
+function updateState(state, source, path, data, useUpdate, name) {
+  if ( name === void 0 ) name = '';
+
+  var payload = state.setPartial(path, data);
+
+  if (!useUpdate) {
+    var f = function () { return payload; };
+    Object.defineProperty(f, 'name', { value: name, writable: false });
+    state.dispatch(f);
+  } else {
+    state.update(payload);
+  }
+}
+
 function Store(state/* , fn = () => {} */) {
   var this$1 = this;
   if ( state === void 0 ) state = {};
@@ -657,7 +683,17 @@ function Store(state/* , fn = () => {} */) {
   var mappedState;
 
   StoreHold.getInitial = function () { return initialSate; };
-  StoreHold.get = function () { return remap(currentState); };
+  StoreHold.get = function (path) {
+    var remappedState = remap(currentState);
+    if (path) {
+      return getDeep(
+        typeof path === 'string' ? path.split('.') : path,
+        remappedState
+      );
+    }
+
+    return remappedState;
+  };
   StoreHold.setPartial = function (path, value) {
     var target = Array.isArray(currentState) ? [] : {};
     if (path.length) {
@@ -668,6 +704,19 @@ function Store(state/* , fn = () => {} */) {
       return clone(currentState, target);
     }
     return value;
+  };
+  StoreHold.bind = function (path, output, input) {
+    if ( output === void 0 ) output = function (e) { return e; };
+    if ( input === void 0 ) input = function (e) { return e; };
+
+    var pathAsArray = Array.isArray(path) ? path : path.split('.');
+    var getVal = function (source) { return output(getDataFromObject(pathAsArray, source)); };
+    var setVal = function (value) { return updateState(StoreHold, StoreHold.get(), pathAsArray, input(value), false, ("Bind:" + path)); };
+
+    return {
+      model: StoreHold(getVal),
+      oninput: function (e) { return setVal(e.target.value); },
+    }
   };
   StoreHold.update = function (chunkState/* , noStrictSubs */) {
     var keys = Object.keys(chunkState);
