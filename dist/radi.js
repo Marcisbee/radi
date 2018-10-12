@@ -595,7 +595,7 @@
       return fn(path);
     }; };
     this.trigger = function (key, newStore, oldState) {
-       if (this$1.dependencies[key]) {
+      if (this$1.dependencies[key]) {
         this$1.dependencies[key].forEach(function (fn) { return (
           addToRenderQueue(fn)(newStore, oldState)
         ); });
