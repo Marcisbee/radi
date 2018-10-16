@@ -717,6 +717,10 @@ function render$$1(node, $parent) {
     return node.render();
   }
 
+  if (node instanceof Promise) {
+    return render$$1({ type: 'await', props: {src: node}, children: [] }, $parent);
+  }
+
   if (typeof node === 'function') {
     return render$$1(node(), $parent);
   }
@@ -882,24 +886,6 @@ function isCustomProp(name) {
 }
 
 function setProp($target, name, value) {
-  if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
-    var ref = GLOBALS.CUSTOM_ATTRIBUTES[name];
-    var allowedTags = ref.allowedTags;
-    var addToElement = ref.addToElement;
-    var caller = ref.caller;
-
-    if (!allowedTags || (
-      allowedTags
-        && allowedTags.length > 0
-        && allowedTags.indexOf($target.localName) >= 0
-    )) {
-      if (typeof caller === 'function') {
-        value = caller($target, value);
-      }
-      if (!addToElement) { return; }
-    }
-  }
-
   if (name === 'style' && typeof value !== 'string') {
     setStyles($target, value);
   } else if (isCustomProp(name)) {
@@ -926,6 +912,24 @@ function setStyles($target, styles) {
 
 function setProps($target, props) {
   (Object.keys(props || {})).forEach(function (name) {
+    if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
+      var ref = GLOBALS.CUSTOM_ATTRIBUTES[name];
+      var allowedTags = ref.allowedTags;
+      var addToElement = ref.addToElement;
+      var caller = ref.caller;
+
+      if (!allowedTags || (
+        allowedTags
+        && allowedTags.length > 0
+        && allowedTags.indexOf($target.localName) >= 0
+      )) {
+        if (typeof caller === 'function') {
+          props[name] = caller($target, props[name]);
+        }
+        if (!addToElement) { return; }
+      }
+    }
+
     autoUpdate(props[name], function (value) {
       if (name === 'model') {
         name = 'value';

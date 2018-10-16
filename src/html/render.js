@@ -70,6 +70,10 @@ export function render(node, $parent) {
     return node.render();
   }
 
+  if (node instanceof Promise) {
+    return render({ type: 'await', props: {src: node}, children: [] }, $parent);
+  }
+
   if (typeof node === 'function') {
     return render(node(), $parent);
   }
