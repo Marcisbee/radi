@@ -1,6 +1,6 @@
-import { patch } from '../html/patch';
+import { html } from '../html';
 
-let currentListener = null;
+const currentListener = null;
 
 function anchored(anchor, to) {
   return (newState, oldState) => {
@@ -34,7 +34,7 @@ function extractState(state, path = []) {
     return state.get();
   }
 
-  if (typeof state === 'object') {
+  if (state && typeof state === 'object') {
     const tempState = Array.isArray(state) ? new Array(state.length) : {};
     for (const key in state) {
       if (state.hasOwnProperty(key)) {
@@ -54,21 +54,6 @@ function clone(target, source) {
   for (const i in source) out[i] = source[i];
 
   return out;
-}
-
-function proxied(state, fn, path = []) {
-  return new Proxy(state, {
-    get(_, prop) {
-      const newPath = path.concat(prop);
-
-      if (typeof state[prop] === 'object') {
-        return proxied(state[prop], fn, newPath);
-      }
-
-      if (typeof fn === 'function') fn(newPath);
-      return state[prop];
-    },
-  });
 }
 
 let renderQueue = [];
@@ -129,43 +114,29 @@ const noop = e => e;
 export class Listener {
   constructor(map, store, dep) {
     this.map = map;
-    this.update = this.update.bind(this);
+    this.getValue = this.getValue.bind(this);
     this.render = this.render.bind(this);
     this.store = store;
     this.dep = dep;
   }
 
   getValue(updater) {
-    const tempListener = currentListener;
-    currentListener = updater;
+    const state = this.store.get();
 
-    const state = proxied(this.store.get(), this.dep.fn(() => {}));
+    if (!this.subbed) {
+      this.subbed = this.dep.add('*', updater);
+    }
 
-    this.newTree = this.map(state);
-
-    currentListener = tempListener;
-    return this.newTree;
+    return this.cached = this.map(state);
   }
 
-  update() {
-    const value = this.getValue(this.update);
+  render() {
+    const self = this;
 
-    patch(this.$parent, this.newTree, this.oldTree, 0, this.$pointer);
-    this.oldTree = this.newTree;
-    return value;
-  }
-
-  render(state) {
-    const comp = this;
-    return function () {
-      this.onMount = (element, parent) => {
-        comp.mounted = true;
-        comp.$pointer = element;
-        comp.$parent = parent || element.parentNode;
-        comp.update(state);
-      };
-      return null;
-    };
+    return html(function () {
+      const mappedState = self.getValue(this);
+      return mappedState;
+    });
   }
 }
 
@@ -210,7 +181,7 @@ export function Store(state = {}/* , fn = () => {} */) {
   StoreHold.get = (path) => {
     const remappedState = remap(currentState);
     if (path) {
-      return getDeep(
+      return getDataFromObject(
         typeof path === 'string' ? path.split('.') : path,
         remappedState,
       );
@@ -237,11 +208,10 @@ export function Store(state = {}/* , fn = () => {} */) {
     return {
       model: StoreHold(getVal),
       oninput: (e) => setVal(e.target.value),
-    }
+    };
   };
   StoreHold.update = (chunkState/* , noStrictSubs */) => {
-    const keys = Object.keys(chunkState);
-    // const oldState = currentState;
+    const keys = Object.keys(chunkState || {});
     const newState = {
       ...currentState,
       ...chunkState,

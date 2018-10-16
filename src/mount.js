@@ -1,4 +1,9 @@
-import { patch } from './html/patch';
+import {
+  fireEvent,
+  insertAfter,
+  render,
+} from './html';
+import { ensureArray } from './utils';
 
 /**
  * @typedef {Object} Mount
@@ -8,16 +13,34 @@ import { patch } from './html/patch';
  */
 
 /**
- * @param  {Object} component
+ * @param  {*|*[]} data
  * @param  {HTMLElement} container
- * @return {Mount}
+ * @param  {HTMLElement} after
+ * @return {HTMLElement[]}
  */
-export function mount(component, container) {
-  return {
-    component: component,
-    node: patch(container, component),
-    destroy: () => {
-      return patch(container, null, component);
-    },
-  };
-};
+export function mount(data, container, after) {
+  const nodes = ensureArray(data);
+
+  return ensureArray(nodes).map(node => {
+    const renderedNode = render(node, container);
+
+    if (Array.isArray(renderedNode)) {
+      return mount(renderedNode, container, after);
+    }
+    
+    if (after && after.parentNode) {
+      after = insertAfter(renderedNode, after, after.parentNode);
+      fireEvent('mount', after);
+      return after;
+    }
+
+    if (!container) {
+      console.log('[Radi] Mount canceled', container, after);
+      return nodes;
+    }
+
+    const mountedEl = container.appendChild(renderedNode);
+    fireEvent('mount', renderedNode);
+    return mountedEl;
+  });
+}
