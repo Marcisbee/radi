@@ -50,7 +50,7 @@ export function setProp($target, name, value) {
     }
   }
 
-  if (name === 'style') {
+  if (name === 'style' && typeof value !== 'string') {
     setStyles($target, value);
   } else if (isCustomProp(name)) {
     addEventListener($target, name, value);
@@ -87,7 +87,7 @@ export function setStyles($target, styles) {
 }
 
 export function setProps($target, props) {
-  Object.keys(props).forEach(name => {
+  (Object.keys(props || {})).forEach(name => {
     autoUpdate(props[name], value => {
       if (name === 'model') {
         name = 'value';

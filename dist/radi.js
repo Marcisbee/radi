@@ -37,6 +37,70 @@
   }
 
   /**
+   * @param {string} attributeName
+   * @param {function} caller
+   * @param {Object} object
+   * @returns {Object}
+   */
+  function customAttribute(attributeName, caller, ref) {
+    if ( ref === void 0 ) ref = {};
+    var allowedTags = ref.allowedTags;
+    var addToElement = ref.addToElement;
+
+    return GLOBALS.CUSTOM_ATTRIBUTES[attributeName] = {
+      name: attributeName,
+      caller: caller,
+      allowedTags: allowedTags || null,
+      addToElement: addToElement,
+    };
+  }
+
+  /**
+   * @param {string} tagName
+   * @param {function} onmount
+   * @returns {object}
+   */
+  function customTag(tagName, render) {
+    return GLOBALS.CUSTOM_TAGS[tagName] = {
+      name: tagName,
+      render: render || (function () {}),
+    };
+  }
+
+  /**
+   * @param  {HTMLElement} node
+   */
+  function destroyTree$$1(node) {
+    fireEvent('destroy', node);
+    node.__radiRef = undefined;
+
+    if (node.nodeType === 1) {
+      var curChild = node.firstChild;
+      while (curChild) {
+        destroyTree$$1(curChild);
+        curChild = curChild.nextSibling;
+      }
+    }
+  }
+
+  /**
+   * @param  {string} type
+   * @param  {HTMLElement} $node
+   * @return {HTMLElement}
+   */
+  function fireEvent(type, $node) {
+    var onEvent = document.createEvent('Event');
+    onEvent.initEvent(type, true, true);
+
+    if (typeof $node.dispatchEvent === 'function') {
+      $node._eventFired = true;
+      $node.dispatchEvent(onEvent);
+    }
+
+    return $node;
+  }
+
+  /**
    * @param {string} str
    * @returns {string}
    */
@@ -48,21 +112,16 @@
    * @param {*[]} list
    * @returns {*[]}
    */
-  function ensureArray(list) {
-    if (arguments.length === 0) { return []; }
-    if (arguments.length === 1) {
-      if (list === undefined || list === null) { return []; }
-      if (Array.isArray(list)) { return list; }
-    }
-    return Array.prototype.slice.call(arguments);
+  function flatten(list) {
+    return list.reduce(function (a, b) { return a.concat(Array.isArray(b) ? flatten(b) : b); }, []);
   }
 
   /**
    * @param {*[]} list
    * @returns {*[]}
    */
-  function flatten(list) {
-    return list.reduce(function (a, b) { return a.concat(Array.isArray(b) ? flatten(b) : b); }, []);
+  function ensureArray(list) {
+    return flatten([list]);
   }
 
   /**
@@ -131,78 +190,43 @@
     }, {});
   };
 
-  var Component = function Component(fn, name) {
-    this.self = fn;
-    this.name = name || fn.name;
-    this.__$events = {};
-  };
+  /**
+   * @typedef {Object} Node
+   * @property {*} type
+   * @property {Object} props
+   * @property {*[]} children
+   */
 
   /**
-   * @param{string} event
-   * @param{Function} fn
-   * @return {Function}
+   * @param  {*} preType
+   * @param  {Object} preProps
+   * @param  {*[]} preChildren
+   * @return {Node}
    */
-  Component.prototype.on = function on (event, fn) {
-    var e = this.__$events;
-    var name = "on" + (capitalise(event));
-    if (!e[name]) { e[name] = []; }
-    e[name].push(fn);
-    return fn;
-  };
+  function html(preType, preProps) {
+    var preChildren = [], len = arguments.length - 2;
+    while ( len-- > 0 ) preChildren[ len ] = arguments[ len + 2 ];
 
-  /**
-   * @param{string} event
-   * @param{*[]} args
-   */
-  Component.prototype.trigger = function trigger (event) {
-      var ref, ref$1;
+    var type = (typeof preType === 'number') ? ("" + preType) : preType;
+    var props = preProps || {};
+    var children = flatten(preChildren);
 
-      var args = [], len = arguments.length - 1;
-      while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
-    var name = "on" + (capitalise(event));
-
-    (this.__$events[name] || [])
-      .map(function (e) { return e.apply(void 0, args); });
-
-    if (typeof this[name] === 'function') {
-      (ref = this)[name].apply(ref, args);
+    if (type instanceof Promise || (type && type.constructor.name === 'LazyPromise')) {
+      type = 'await';
+      props = {
+        src: preType,
+      };
     }
 
-    if (typeof this.self[name] === 'function') {
-      (ref$1 = this.self)[name].apply(ref$1, args);
-    }
-  };
-
-  /**
-   * @param  {HTMLElement} node
-   */
-  function destroyTree$$1(node) {
-    fireEvent('destroy', node);
-
-    if (node.nodeType === 1) {
-      var curChild = node.firstChild;
-      while (curChild) {
-        destroyTree$$1(curChild);
-        curChild = curChild.nextSibling;
-      }
-    }
-  }
-
-  /**
-   * @param  {string} type
-   * @param  {HTMLElement} $node
-   * @return {HTMLElement}
-   */
-  function fireEvent(type, $node) {
-    var onEvent = document.createEvent('Event');
-    onEvent.initEvent(type, true, true);
-
-    if (typeof $node.dispatchEvent === 'function') {
-      $node._eventFired = true;
-      $node.dispatchEvent(onEvent);
+    if (typeof GLOBALS.CUSTOM_TAGS[type] !== 'undefined') {
+      type = GLOBALS.CUSTOM_TAGS[type].render;
     }
 
-    return $node;
+    return {
+      type: type,
+      props: props,
+      children: children,
+    };
   }
 
   /**
@@ -228,249 +252,112 @@
   }
 
   /**
-   * @param  {Node} node1
-   * @param  {Node} node2
-   * @return {boolean}
+   * @typedef {Object} Mount
+   * @property {Object} component
+   * @property {Object} node
+   * @property {function} destroy
    */
-  function nodeChanged(node1, node2) {
-    if (node1 === undefined || node2 === undefined) { return false; }
-    if (typeof node1 !== typeof node2) { return true; }
-    if ((typeof node1 === 'string' || typeof node1 === 'number')
-      && node1 !== node2) { return true; }
-    if (node1.type !== node2.type) { return true; }
-    if (node1.props) { return true; }
-
-    return false;
-  }
-
-  function autoUpdate(value, fn) {
-    if (value instanceof Listener) {
-      return fn(value.getValue(function (e) { return fn(value.map(e)); }));
-    }
-    return fn(value);
-  }
-
-  function setBooleanProp($target, name, value) {
-    if (value) {
-      $target.setAttribute(name, value);
-      $target[name] = true;
-    } else {
-      $target[name] = false;
-    }
-  }
-
-  function removeBooleanProp($target, name) {
-    $target.removeAttribute(name);
-    $target[name] = false;
-  }
-
-  function isEventProp(name) {
-    return /^on/.test(name);
-  }
-
-  function extractEventName(name) {
-    return name.slice(2).toLowerCase();
-  }
-
-  function isCustomProp(name) {
-    return isEventProp(name);
-  }
-
-  function setProp($target, name, value) {
-    if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
-      var ref = GLOBALS.CUSTOM_ATTRIBUTES[name];
-      var allowedTags = ref.allowedTags;
-      var addToElement = ref.addToElement;
-      var caller = ref.caller;
-
-      if (!allowedTags || (
-        allowedTags
-          && allowedTags.length > 0
-          && allowedTags.indexOf($target.localName) >= 0
-      )) {
-        if (typeof caller === 'function') {
-          value = caller($target, value);
-        }
-        if (!addToElement) { return; }
-      }
-    }
-
-    if (name === 'style') {
-      setStyles($target, value);
-    } else if (isCustomProp(name)) {
-      addEventListener($target, name, value);
-    } else if (name === 'className') {
-      $target.setAttribute('class', value);
-    } else if (typeof value === 'boolean') {
-      setBooleanProp($target, name, value);
-    } else {
-      if (name === 'value' && document.activeElement !== $target) {
-        $target[name] = value;
-      }
-      $target.setAttribute(name, value);
-    }
-  }
-
-  function removeProp($target, name, value) {
-    if (isCustomProp(name)) {
-
-    } else if (name === 'className') {
-      $target.removeAttribute('class');
-    } else if (typeof value === 'boolean') {
-      removeBooleanProp($target, name);
-    } else {
-      $target.removeAttribute(name);
-    }
-  }
-
-  function setStyles($target, styles) {
-    Object.keys(styles).forEach(function (name) {
-      autoUpdate(styles[name], function (value) {
-        $target.style[name] = value;
-      });
-    });
-  }
-
-  function setProps($target, props) {
-    Object.keys(props).forEach(function (name) {
-      autoUpdate(props[name], function (value) {
-        if (name === 'model') {
-          name = 'value';
-        } else
-        if (name === 'class' || name === 'className') {
-          if (Array.isArray(value)) {
-            value = value.filter(function (v) { return v && typeof v !== 'function'; }).join(' ');
-          }
-        }
-        setProp($target, name, value);
-      });
-    });
-  }
-
-  function updateProp($target, name, newVal, oldVal) {
-    if (!newVal) {
-      removeProp($target, name, oldVal);
-    } else if (!oldVal || newVal !== oldVal) {
-      setProp($target, name, newVal);
-    }
-  }
-
-  function updateProps($target, newProps, oldProps) {
-    if ( oldProps === void 0 ) oldProps = {};
-
-    var props = Object.assign({}, newProps, oldProps);
-    Object.keys(props).forEach(function (name) {
-      autoUpdate(newProps[name], function (value) {
-        if (name === 'model') {
-          name = 'value';
-        }
-        updateProp($target, name, value, oldProps[name]);
-      });
-    });
-  }
-
-  function addEventListener($target, name, value) {
-    var exceptions = ['mount', 'destroy'];
-    if (isEventProp(name)) {
-      $target.addEventListener(
-        extractEventName(name),
-        function (e) {
-          if (exceptions.indexOf(name) >= 0) {
-            if ($target === e.target) { value(e); }
-          } else
-          if (typeof value === 'function') {
-            value(e);
-          }
-        },
-        false
-      );
-    }
-  }
-
-  function beforeDestroy(node, next) {
-    if (typeof node.beforedestroy === 'function') {
-      return node.beforedestroy(next);
-    }
-
-    return next();
-  }
 
   /**
-   * @param  {HTMLElement} $parent
-   * @param  {Object|Object[]} newNode
-   * @param  {Object|Object[]} oldNode
-   * @param  {number} [index=0]
-   * @param  {HTMLElement} $pointer
-   * @return {Object[]}
+   * @param  {*|*[]} data
+   * @param  {HTMLElement} container
+   * @param  {HTMLElement} after
+   * @return {HTMLElement[]}
    */
-  function patch($parent, newNode, oldNode, index, $pointer) {
-    if ( index === void 0 ) index = 0;
+  function mount(data, container, after) {
+    var nodes = ensureArray(data);
 
-    var $output = $parent && $parent.childNodes[index];
-    if ($pointer) {
-      index = Array.prototype.indexOf.call($parent.childNodes, $pointer) + 1;
-    }
+    return ensureArray(nodes).map(function (node) {
+      var renderedNode = render$$1(node, container);
 
-    var normalNewNode = flatten(ensureArray(newNode));
-    var normalOldNode = flatten(ensureArray(oldNode));
-    var newLength = normalNewNode.length;
-    var oldLength = normalOldNode.length;
-
-    var modifier = 0;
-    var loop = function ( i ) {
-      if (normalNewNode[i] instanceof Date) { normalNewNode[i] = normalNewNode[i].toString(); }
-      if (normalOldNode[i] === false || normalOldNode[i] === undefined || normalOldNode[i] === null) {
-        $output = createElement$$1(normalNewNode[i], $parent);
-        if ($pointer) {
-          insertAfter($output, $parent.childNodes[((index + i) - 1)], $parent);
-        } else {
-          $parent.appendChild($output);
-        }
-        fireEvent('mount', $output);
-      } else
-      if (normalNewNode[i] === false || normalNewNode[i] === undefined || normalNewNode[i] === null) {
-        var $target = $parent.childNodes[index + i + modifier];
-        if ($target) {
-          beforeDestroy($target, function () {
-            // This is for async node removals
-            var $targetScoped = $parent.childNodes[index + i + modifier];
-            $parent.removeChild($targetScoped);
-            destroyTree$$1($targetScoped);
-            modifier -= 1;
-          });
-        }
-      } else
-      if (nodeChanged(normalNewNode[i], normalOldNode[i])) {
-        $parent.replaceChild(
-          $output = createElement$$1(normalNewNode[i], $parent),
-          $parent.childNodes[index + i]
-        );
-        fireEvent('mount', $output);
-      } else if (typeof normalNewNode[i].type === 'string') {
-        var childNew = normalNewNode[i];
-        var childOld = normalOldNode[i];
-        updateProps(
-          $parent.childNodes[index + i],
-          childNew.props,
-          childOld.props
-        );
-        var newLength2 = childNew.children.length;
-        var oldLength2 = childOld.children.length;
-        for (var n = 0; n < newLength2 || n < oldLength2; n++) {
-          patch(
-            $parent.childNodes[index + i],
-            childNew.children[n],
-            childOld.children[n],
-            n
-          );
-        }
+      if (Array.isArray(renderedNode)) {
+        return mount(renderedNode, container, after);
       }
-    };
+      
+      if (after && after.parentNode) {
+        after = insertAfter(renderedNode, after, after.parentNode);
+        fireEvent('mount', after);
+        return after;
+      }
 
-    for (var i = 0; i < newLength || i < oldLength; i++) loop( i );
+      if (!container) {
+        console.log('[Radi] Mount canceled', container, after);
+        return nodes;
+      }
 
-    return normalNewNode;
+      var mountedEl = container.appendChild(renderedNode);
+      fireEvent('mount', renderedNode);
+      return mountedEl;
+    });
   }
+
+  var Component = function Component(type) {
+    this.type = type;
+    this.name = type.name;
+    this.render = this.render.bind(this);
+    this.evaluate = this.evaluate.bind(this);
+    this.update = this.update.bind(this);
+    this.__$events = {};
+  };
+
+  /**
+   * @param{string} event
+   * @param{Function} fn
+   * @return {Function}
+   */
+  Component.prototype.on = function on (event, fn) {
+    var e = this.__$events;
+    var name = "on" + (capitalise(event));
+    if (!e[name]) { e[name] = []; }
+    e[name].push(fn);
+    return fn;
+  };
+
+  /**
+   * @param{string} event
+   * @param{*[]} args
+   */
+  Component.prototype.trigger = function trigger (event) {
+      var ref;
+
+      var args = [], len = arguments.length - 1;
+      while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+    var name = "on" + (capitalise(event));
+
+    (this.__$events[name] || [])
+      .map(function (e) { return e.apply(void 0, args); });
+
+    if (typeof this[name] === 'function') {
+      (ref = this)[name].apply(ref, args);
+    }
+  };
+
+  Component.prototype.evaluate = function evaluate (props, children) {
+    this.props = props;
+    this.children = children;
+
+    return this.node = this.type.call(
+      this,
+      Object.assign({}, this.props,
+        {children: this.children})
+    );
+  };
+
+  Component.prototype.render = function render$1 (props, children, parent) {
+    return this.dom = render$$1(this.evaluate(props, children), parent);
+  };
+
+  Component.prototype.update = function update (props, children) {
+      if ( props === void 0 ) props = this.props;
+      if ( children === void 0 ) children = this.children;
+
+    var oldDom = this.dom;
+
+    return this.dom = patch(
+      this.evaluate(props, children),
+      oldDom
+    );
+  };
 
   var currentListener = null;
 
@@ -509,7 +396,7 @@
       return state.get();
     }
 
-    if (typeof state === 'object') {
+    if (state && typeof state === 'object') {
       var tempState = Array.isArray(state) ? new Array(state.length) : {};
       for (var key in state) {
         if (state.hasOwnProperty(key)) {
@@ -529,23 +416,6 @@
     for (var i$1 in source) { out[i$1] = source[i$1]; }
 
     return out;
-  }
-
-  function proxied(state, fn, path) {
-    if ( path === void 0 ) path = [];
-
-    return new Proxy(state, {
-      get: function get(_, prop) {
-        var newPath = path.concat(prop);
-
-        if (typeof state[prop] === 'object') {
-          return proxied(state[prop], fn, newPath);
-        }
-
-        if (typeof fn === 'function') { fn(newPath); }
-        return state[prop];
-      },
-    });
   }
 
   var renderQueue = [];
@@ -607,43 +477,29 @@
 
   var Listener = function Listener(map, store, dep) {
     this.map = map;
-    this.update = this.update.bind(this);
+    this.getValue = this.getValue.bind(this);
     this.render = this.render.bind(this);
     this.store = store;
     this.dep = dep;
   };
 
   Listener.prototype.getValue = function getValue (updater) {
-    var tempListener = currentListener;
-    currentListener = updater;
+    var state = this.store.get();
 
-    var state = proxied(this.store.get(), this.dep.fn(function () {}));
+    if (!this.subbed) {
+      this.subbed = this.dep.add('*', updater);
+    }
 
-    this.newTree = this.map(state);
-
-    currentListener = tempListener;
-    return this.newTree;
+    return this.cached = this.map(state);
   };
 
-  Listener.prototype.update = function update () {
-    var value = this.getValue(this.update);
+  Listener.prototype.render = function render$$1 () {
+    var self = this;
 
-    patch(this.$parent, this.newTree, this.oldTree, 0, this.$pointer);
-    this.oldTree = this.newTree;
-    return value;
-  };
-
-  Listener.prototype.render = function render (state) {
-    var comp = this;
-    return function () {
-      this.onMount = function (element, parent) {
-        comp.mounted = true;
-        comp.$pointer = element;
-        comp.$parent = parent || element.parentNode;
-        comp.update(state);
-      };
-      return null;
-    };
+    return html(function () {
+      var mappedState = self.getValue(this);
+      return mappedState;
+    });
   };
 
   function getDataFromObject(path, source) {
@@ -692,7 +548,7 @@
     StoreHold.get = function (path) {
       var remappedState = remap(currentState);
       if (path) {
-        return getDeep(
+        return getDataFromObject(
           typeof path === 'string' ? path.split('.') : path,
           remappedState
         );
@@ -722,11 +578,10 @@
       return {
         model: StoreHold(getVal),
         oninput: function (e) { return setVal(e.target.value); },
-      }
+      };
     };
     StoreHold.update = function (chunkState/* , noStrictSubs */) {
-      var keys = Object.keys(chunkState);
-      // const oldState = currentState;
+      var keys = Object.keys(chunkState || {});
       var newState = Object.assign({}, currentState,
         chunkState);
       currentState = newState;
@@ -803,85 +658,42 @@
   }
 
   /**
-   * @typedef {Object} Mount
-   * @property {Object} component
-   * @property {Object} node
-   * @property {function} destroy
+   * @param {HTMLElement|HTMLElement[]} node
+   * @param {HTMLElement} $parent
+   * @returns {HTMLElement|HTMLElement[]}
    */
-
-  /**
-   * @param  {Object} component
-   * @param  {HTMLElement} container
-   * @return {Mount}
-   */
-  function mount(component, container) {
-    return {
-      component: component,
-      node: patch(container, component),
-      destroy: function () {
-        return patch(container, null, component);
-      },
-    };
-  }
-
-  /**
-   * @param  {Object} node
-   * @param  {HTMLElement} $parent
-   * @return {HTMLElement|null}
-   */
-  function createElement$$1(node, $parent) {
-    if (typeof node === 'string' || typeof node === 'number') {
-      return document.createTextNode(node);
-    }
-
-    if (node === undefined || node === false || node === null) {
-      return document.createComment('');
-    }
-
-    if (node instanceof Listener) {
-      node = node.render();
-    }
-
+  function render$$1(node, $parent) {
     if (Array.isArray(node)) {
-      var $pointer = document.createTextNode('');
+      var output = node.map(render$$1);
 
-      $pointer.addEventListener('mount', function () {
-        for (var i = 0; i < node.length; i++) {
-          mount(node[i], $parent);
-        }
-      });
+      // Always must render some element
+      // In case of empty array we simulate empty element as null
+      if (output.length === 0) { return render$$1([null], $parent); }
 
-      return $pointer;
+      return output;
     }
 
-    if (typeof node === 'function' || typeof node.type === 'function') {
-      var fn = node.type || node;
-
-      var lifecycles = new Component(fn);
-
-      var $element = createElement$$1(
-        fn.call(lifecycles, Object.assign({}, (node.props || {}),
-          {children: node.children || []})),
-        $parent
-      );
+    if (node && typeof node.type === 'function') {
+      var compNode = new Component(node.type, node.props, node.children);
+      var renderedComponent = compNode.render(node.props, node.children, $parent);
 
       var $styleRef;
 
-      if ($element && typeof $element.addEventListener === 'function') {
-        $element.addEventListener('mount', function () {
-          if (typeof lifecycles.style === 'string') {
+      if (renderedComponent && typeof renderedComponent.addEventListener === 'function') {
+        renderedComponent.addEventListener('mount', function () {
+          if (typeof compNode.style === 'string') {
             $styleRef = document.createElement('style');
-            $styleRef.innerHTML = lifecycles.style;
+            $styleRef.innerHTML = compNode.style;
             document.head.appendChild($styleRef);
           }
-          lifecycles.trigger('mount', $element, $parent);
+          compNode.trigger('mount', renderedComponent);
         }, {
           passive: true,
           once: true,
         }, false);
 
-        $element.addEventListener('destroy', function () {
-          lifecycles.trigger('destroy', $element, $parent);
+        renderedComponent.addEventListener('destroy', function () {
+          compNode.trigger('destroy', renderedComponent);
           if ($styleRef instanceof Node) {
             document.head.removeChild($styleRef);
           }
@@ -891,111 +703,265 @@
         }, false);
       }
 
-      return $element;
+      if (renderedComponent instanceof Node) {
+        renderedComponent.__radiRef = function (data, ii) {
+          if (ii && Array.isArray(compNode.dom)) {
+            return compNode.dom[ii] = data;
+          }
+          return compNode.dom = data;
+        };
+      }
+
+      return renderedComponent;
     }
 
-    if (typeof node === 'object') {
-      if (node.type) {
-        var $el;
-        if (node.type === 'svg' || $parent instanceof SVGElement) {
-          $el = document.createElementNS(
-            'http://www.w3.org/2000/svg',
-            node.type
-          );
-        } else {
-          $el = document.createElement(node.type);
+    if (node instanceof Node) {
+      return node;
+    }
+
+    if (node instanceof Listener) {
+      return node.render();
+    }
+
+    if (typeof node === 'function') {
+      return render$$1(node(), $parent);
+    }
+
+    // if the node is text, return text node
+    if (['string', 'number'].indexOf(typeof node) > -1) { return document.createTextNode(node); }
+
+    // We still have to render nodes that are hidden, to preserve
+    // node tree and ref to components
+    if (!node) {
+      return document.createComment('');
+    }
+
+    // create element
+    var element;
+    if (node.type === 'svg' || $parent instanceof SVGElement) {
+      element = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        node.type
+      );
+    } else {
+      element = document.createElement(node.type);
+    }
+    // const element = document.createElement(node.type);
+
+    // set attributes
+    setProps(element, node.props);
+
+    // build and append children
+    if (node.children) {
+      flatten(node.children || []).forEach(function (child) {
+        var childNode = child instanceof Node ? child : render$$1(child, element);
+        mount(childNode, element);
+      });
+    }
+
+    return element;
+  }
+
+  // import { fireEvent } from './fireEvent';
+  // import { nodeChanged } from './nodeChanged';
+  // import { updateProps } from './props';
+
+  function beforeDestroy(node, next) {
+    if (typeof node.beforedestroy === 'function') {
+      return node.beforedestroy(next);
+    }
+
+    return next();
+  }
+
+  /**
+   * @param  {Object|Object[]} nodes
+   * @param  {HTMLElement} dom
+   * @param  {HTMLElement} parent
+   * @param  {HTMLElement} $pointer
+   * @returns {HTMLElement|HTMLElement[]}
+   */
+  function patch(nodes, dom, parent, $pointer) {
+    if ( parent === void 0 ) parent = dom && dom.parentNode;
+    if ( $pointer === void 0 ) $pointer = null;
+
+    if (Array.isArray(nodes) || Array.isArray(dom)) {
+      var flatNodes = Array.isArray(nodes) && nodes.length === 0 ? [null] : ensureArray(nodes);
+      var flatDom = ensureArray(dom);
+      var ref = Array.isArray(dom)
+        ? dom[0] && dom[0].__radiRef
+        : dom.__radiRef;
+
+      var lastNode = dom;
+
+      var outcome = flatNodes.map(function (node, ii) {
+        var staticLastNode = lastNode;
+        var outputNode = patch(
+          node,
+          flatDom[ii],
+          (flatDom[ii] && flatDom[ii].parentNode) || parent,
+          !flatDom[ii] && staticLastNode
+        );
+
+        // Need to memoize last rendered node
+        lastNode = Array.isArray(outputNode)
+          ? outputNode[0]
+          : outputNode;
+
+        // Make nested & updated components update their refrences
+        if (typeof ref === 'function' && ii > 0) {
+          lastNode.__radiRef = function (data) { return ref(data, ii); };
         }
-        var $lastEl = null;
-        setProps($el, node.props);
-        var applyChildren = function ($child) { return function (n) {
-          var $n = createElement$$1(n, $child);
-          if ($n) {
-            if ($lastEl) {
-              insertAfter($n, $lastEl, $child);
-            } else {
-              $child.appendChild.call($el, $n);
-              fireEvent('mount', $n);
+
+        return outputNode;
+      });
+
+      // Unused nodes can be savely remove from DOM
+      if (flatDom.length > flatNodes.length) {
+        var unusedDomNodes = flatDom.slice(flatNodes.length - flatDom.length);
+        unusedDomNodes.forEach(
+          function (node) {
+            if (node && node.parentNode) {
+              node.parentNode.removeChild(node);
             }
           }
-        }; };
-        node.children.map(applyChildren($el));
-        return $el;
+        );
       }
-      return createElement$$1(JSON.stringify(node), $parent);
+
+      // Pass new nodes refrence to function containing it
+      if (typeof ref === 'function') { ref(outcome); }
+
+      return outcome;
     }
 
-    // console.error('Unhandled node', node);
-    return document.createTextNode(("" + node));
-  }
+    var newNode = render$$1(nodes, parent);
 
-  /**
-   * @param {string} attributeName
-   * @param {function} caller
-   * @param {Object} object
-   * @returns {Object}
-   */
-  function customAttribute(attributeName, caller, ref) {
-    if ( ref === void 0 ) ref = {};
-    var allowedTags = ref.allowedTags;
-    var addToElement = ref.addToElement;
-
-    return GLOBALS.CUSTOM_ATTRIBUTES[attributeName] = {
-      name: attributeName,
-      caller: caller,
-      allowedTags: allowedTags || null,
-      addToElement: addToElement,
-    };
-  }
-
-  /**
-   * @param {string} tagName
-   * @param {function} onmount
-   * @returns {object}
-   */
-  function customTag(tagName, render) {
-    return GLOBALS.CUSTOM_TAGS[tagName] = {
-      name: tagName,
-      render: render || (function () {}),
-    };
-  }
-
-  /**
-   * @typedef {Object} Node
-   * @property {*} type
-   * @property {Object} props
-   * @property {*[]} children
-   */
-
-  /**
-   * @param  {*} preType
-   * @param  {Object} preProps
-   * @param  {*[]} preChildren
-   * @return {Node}
-   */
-  function html(preType, preProps) {
-    var preChildren = [], len = arguments.length - 2;
-    while ( len-- > 0 ) preChildren[ len ] = arguments[ len + 2 ];
-
-    var type = (typeof preType === 'number') ? ("" + preType) : preType;
-    var props = preProps || {};
-    var children = flatten(preChildren);
-
-    if (type instanceof Promise || (type && type.constructor.name === 'LazyPromise')) {
-      type = 'await';
-      props = {
-        src: preType,
-      };
+    if (!dom && $pointer) {
+      var mounter = mount(newNode, dom, $pointer);
+      return mounter;
     }
 
-    if (typeof GLOBALS.CUSTOM_TAGS[type] !== 'undefined') {
-      type = GLOBALS.CUSTOM_TAGS[type].render;
+    if (dom && parent) {
+      parent.insertBefore(newNode, dom);
+
+      if (dom.__radiRef) {
+        newNode.__radiRef = dom.__radiRef;
+        newNode.__radiRef(newNode);
+      }
+
+      beforeDestroy(dom, function () {
+        // This is for async node removals
+        parent.removeChild(dom);
+        destroyTree$$1(dom);
+      });
     }
 
-    return {
-      type: type,
-      props: props,
-      children: children,
-    };
+    return newNode;
+  }
+
+  function autoUpdate(value, fn) {
+    if (value instanceof Listener) {
+      return fn(value.getValue(function (e) { return fn(value.map(e)); }));
+    }
+    return fn(value);
+  }
+
+  function setBooleanProp($target, name, value) {
+    if (value) {
+      $target.setAttribute(name, value);
+      $target[name] = true;
+    } else {
+      $target[name] = false;
+    }
+  }
+
+  function isEventProp(name) {
+    return /^on/.test(name);
+  }
+
+  function extractEventName(name) {
+    return name.slice(2).toLowerCase();
+  }
+
+  function isCustomProp(name) {
+    return isEventProp(name);
+  }
+
+  function setProp($target, name, value) {
+    if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
+      var ref = GLOBALS.CUSTOM_ATTRIBUTES[name];
+      var allowedTags = ref.allowedTags;
+      var addToElement = ref.addToElement;
+      var caller = ref.caller;
+
+      if (!allowedTags || (
+        allowedTags
+          && allowedTags.length > 0
+          && allowedTags.indexOf($target.localName) >= 0
+      )) {
+        if (typeof caller === 'function') {
+          value = caller($target, value);
+        }
+        if (!addToElement) { return; }
+      }
+    }
+
+    if (name === 'style' && typeof value !== 'string') {
+      setStyles($target, value);
+    } else if (isCustomProp(name)) {
+      addEventListener($target, name, value);
+    } else if (name === 'className') {
+      $target.setAttribute('class', value);
+    } else if (typeof value === 'boolean') {
+      setBooleanProp($target, name, value);
+    } else {
+      if (name === 'value' && document.activeElement !== $target) {
+        $target[name] = value;
+      }
+      $target.setAttribute(name, value);
+    }
+  }
+
+  function setStyles($target, styles) {
+    Object.keys(styles).forEach(function (name) {
+      autoUpdate(styles[name], function (value) {
+        $target.style[name] = value;
+      });
+    });
+  }
+
+  function setProps($target, props) {
+    (Object.keys(props || {})).forEach(function (name) {
+      autoUpdate(props[name], function (value) {
+        if (name === 'model') {
+          name = 'value';
+        } else
+        if (name === 'class' || name === 'className') {
+          if (Array.isArray(value)) {
+            value = value.filter(function (v) { return v && typeof v !== 'function'; }).join(' ');
+          }
+        }
+        setProp($target, name, value);
+      });
+    });
+  }
+
+  function addEventListener($target, name, value) {
+    var exceptions = ['mount', 'destroy'];
+    if (isEventProp(name)) {
+      $target.addEventListener(
+        extractEventName(name),
+        function (e) {
+          if (exceptions.indexOf(name) >= 0) {
+            if ($target === e.target) { value(e); }
+          } else
+          if (typeof value === 'function') {
+            value(e);
+          }
+        },
+        false
+      );
+    }
   }
 
   /**
@@ -1213,36 +1179,48 @@
   }
 
   customTag('await',
-    function Await(promise) {
-      var src = promise.src;
-      var awaitStore = new Store({
-        status: 'placeholder',
-      });
+    function Await(props) {
+      var this$1 = this;
 
-      var update = function (e, status) { return ({status: status}); };
+      var placeholderTimeout;
+      var src = props.src;
+      var waitMs = props.waitMs;
+      var transform = props.transform; if ( transform === void 0 ) transform = function (e) { return e; };
+      var error = props.error; if ( error === void 0 ) error = function (e) { return e; };
+      var placeholder = props.placeholder; if ( placeholder === void 0 ) placeholder = 'Loading..';
+      var value = props.value; if ( value === void 0 ) value = null;
+      var loaded = props.loaded; if ( loaded === void 0 ) loaded = false;
 
-      if (src &&
+      if (!(src &&
         (src instanceof Promise || src.constructor.name === 'LazyPromise')
-      ) {
-        var output = '';
-        src
-          .then(function (data) {
-            output = data;
-            awaitStore.dispatch(update, 'transform');
-          })
-          .catch(function (error) {
-            output = error;
-            awaitStore.dispatch(update, 'error');
-          });
-
-        return awaitStore(function (ref) {
-          var status = ref.status;
-
-          return ensureFn(promise[status])(output);
-        });
+      )) {
+        console.warn('[Radi] <await/> must have `src` as a Promise');
+        return null;
       }
 
-      return null;
+      if (!loaded) {
+        if (placeholder !== value) {
+          if (waitMs) {
+            placeholderTimeout = setTimeout(function () {
+              this$1.update(Object.assign({}, props, {value: placeholder}));
+            }, waitMs);
+          } else {
+            value = placeholder;
+          }
+        }
+
+        src
+          .then(function (value) {
+            clearTimeout(placeholderTimeout);
+            this$1.update(Object.assign({}, props, {value: ensureFn(transform)(value), loaded: true}));
+          })
+          .catch(function (err) {
+            clearTimeout(placeholderTimeout);
+            this$1.update(Object.assign({}, props, {value: ensureFn(error)(err), loaded: true}));
+          });
+      }
+
+      return value;
     }
   );
 

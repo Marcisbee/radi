@@ -1,4 +1,3 @@
-import { Store } from '../../store';
 import { customTag } from '../../html';
 
 function ensureFn(maybeFn) {
@@ -7,31 +6,47 @@ function ensureFn(maybeFn) {
 }
 
 customTag('await',
-  function Await(promise) {
-    const { src } = promise;
-    const awaitStore = new Store({
-      status: 'placeholder',
-    });
+  function Await(props) {
+    let placeholderTimeout;
+    let {
+      src,
+      waitMs,
+      transform = e => e,
+      error = e => e,
+      placeholder = 'Loading..',
+      value = null,
+      loaded = false
+    } = props;
 
-    const update = (e, status) => ({status});
-
-    if (src &&
+    if (!(src &&
       (src instanceof Promise || src.constructor.name === 'LazyPromise')
-    ) {
-      let output = '';
-      src
-        .then(data => {
-          output = data;
-          awaitStore.dispatch(update, 'transform');
-        })
-        .catch(error => {
-          output = error;
-          awaitStore.dispatch(update, 'error');
-        });
-
-      return awaitStore(({status}) => ensureFn(promise[status])(output));
+    )) {
+      console.warn('[Radi] <await/> must have `src` as a Promise');
+      return null;
     }
 
-    return null;
+    if (!loaded) {
+      if (placeholder !== value) {
+        if (waitMs) {
+          placeholderTimeout = setTimeout(() => {
+            this.update({ ...props, value: placeholder });
+          }, waitMs);
+        } else {
+          value = placeholder;
+        }
+      }
+
+      src
+        .then((value) => {
+          clearTimeout(placeholderTimeout);
+          this.update({ ...props, value: ensureFn(transform)(value), loaded: true });
+        })
+        .catch((err) => {
+          clearTimeout(placeholderTimeout);
+          this.update({ ...props, value: ensureFn(error)(err), loaded: true });
+        })
+    }
+
+    return value;
   }
 );

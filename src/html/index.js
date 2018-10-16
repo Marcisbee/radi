@@ -1,4 +1,3 @@
-export * from './createElement';
 export * from './customAttribute';
 export * from './customTag';
 export * from './destroyTree';
@@ -8,3 +7,4 @@ export * from './insertAfter';
 export * from './nodeChanged';
 export * from './patch';
 export * from './props';
+export * from './render';

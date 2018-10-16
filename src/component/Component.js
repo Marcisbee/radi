@@ -1,13 +1,19 @@
+import {
+  patch,
+  render,
+} from '../html';
 import { capitalise } from '../utils';
 
 export class Component {
   /**
    * @param {Function} fn
-   * @param {string} name
    */
-  constructor(fn, name) {
-    this.self = fn;
-    this.name = name || fn.name;
+  constructor(type) {
+    this.type = type;
+    this.name = type.name;
+    this.render = this.render.bind(this);
+    this.evaluate = this.evaluate.bind(this);
+    this.update = this.update.bind(this);
     this.__$events = {};
   }
 
@@ -37,9 +43,31 @@ export class Component {
     if (typeof this[name] === 'function') {
       this[name](...args);
     }
+  }
 
-    if (typeof this.self[name] === 'function') {
-      this.self[name](...args);
-    }
+  evaluate(props, children) {
+    this.props = props;
+    this.children = children;
+
+    return this.node = this.type.call(
+      this,
+      {
+        ...this.props,
+        children: this.children,
+      }
+    );
+  }
+
+  render(props, children, parent) {
+    return this.dom = render(this.evaluate(props, children), parent);
+  }
+
+  update(props = this.props, children = this.children) {
+    const oldDom = this.dom;
+
+    return this.dom = patch(
+      this.evaluate(props, children),
+      oldDom
+    );
   }
 }
