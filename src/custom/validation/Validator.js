@@ -51,6 +51,24 @@ export class Validator {
     })
   }
 
+  includes(include) {
+    return this.register({
+      type: 'includes',
+      validate: value => value === '' ||
+        (Array.isArray(value) && value.indexOf(include) >= 0),
+      error: 'Field must include ' + include,
+    })
+  }
+
+  excludes(exclude) {
+    return this.register({
+      type: 'excludes',
+      validate: value => value === '' ||
+        (Array.isArray(value) && value.indexOf(exclude) < 0),
+      error: 'Field must exclude ' + exclude,
+    })
+  }
+
   equal(equal) {
     return this.register({
       type: 'equal',

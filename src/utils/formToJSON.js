@@ -46,18 +46,24 @@ const getSelectValues = options =>
 export const formToJSON = (elements, transform = (e, v) => v) =>
   [].reduce.call(elements, (data, element) => {
   // Make sure the element has the required properties and should be added.
-    if (isValidElement(element) && isValidValue(element)) {
+    if (isValidElement(element)) {
     /*
      * Some fields allow for more than one value, so we need to check if this
      * is one of those fields and, if so, store the values as an array.
      */
       if (isCheckbox(element)) {
-        data[element.name] = (data[element.name] || [])
-          .concat(transform(element, element.value));
-      } else if (isMultiSelect(element)) {
-        data[element.name] = transform(element, getSelectValues(element));
-      } else {
-        data[element.name] = transform(element, element.value);
+        if (typeof data[element.name] === 'undefined') data[element.name] = [];
+        if (isValidValue(element)) {
+          data[element.name] = data[element.name]
+            .concat(transform(element, element.value));
+        }
+      } else
+      if (isValidValue(element)) {
+        if (isMultiSelect(element)) {
+          data[element.name] = transform(element, getSelectValues(element));
+        } else {
+          data[element.name] = transform(element, element.value);
+        }
       }
     }
 

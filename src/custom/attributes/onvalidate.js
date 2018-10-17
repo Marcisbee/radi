@@ -8,12 +8,24 @@ const setErrors = (state, name, errors) => ({
   [name]: errors,
 });
 
+function extractValue(value) {
+  return Array.isArray(value)
+    ? value.map((arr) => arr.value)
+    : value.value;
+}
+
+function extractTouched(value, elements) {
+  return Array.isArray(value)
+    ? [].reduce.call(elements, (acc, val) => (val.touched && true) || acc, false)
+    : value.touched;
+}
+
 function fullValidate(elements, rules, update) {
   let values = formToJSON(elements, ({touched}, value) => ({touched, value}));
   let plainValues = Object.keys(values)
     .reduce((acc, key) => ({
       ...acc,
-      [key]: values[key].value,
+      [key]: extractValue(values[key]),
     }), {});
   let errors = [];
 
@@ -21,7 +33,7 @@ function fullValidate(elements, rules, update) {
     const value = values[name];
 
     if (typeof rules[name] === 'function') {
-      const result = rules[name](value.value, plainValues);
+      const result = rules[name](extractValue(value), plainValues);
       const valid = (
           result
           && typeof result.check === 'function'
@@ -32,7 +44,7 @@ function fullValidate(elements, rules, update) {
 
       if (valid !== true) errors.push({
         field: name,
-        touched: Boolean(value.touched),
+        touched: Boolean(extractTouched(value, elements[name])),
         error: valid,
       });
     }

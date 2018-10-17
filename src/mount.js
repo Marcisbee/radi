@@ -35,7 +35,7 @@ export function mount(data, container, after) {
     }
 
     if (!container) {
-      console.log('[Radi] Mount canceled', container, after);
+      console.log('[Radi] Mount canceled');
       return nodes;
     }
 

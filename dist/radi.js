@@ -171,18 +171,24 @@
 
       return [].reduce.call(elements, function (data, element) {
     // Make sure the element has the required properties and should be added.
-      if (isValidElement(element) && isValidValue(element)) {
+      if (isValidElement(element)) {
       /*
        * Some fields allow for more than one value, so we need to check if this
        * is one of those fields and, if so, store the values as an array.
        */
         if (isCheckbox(element)) {
-          data[element.name] = (data[element.name] || [])
-            .concat(transform(element, element.value));
-        } else if (isMultiSelect(element)) {
-          data[element.name] = transform(element, getSelectValues(element));
-        } else {
-          data[element.name] = transform(element, element.value);
+          if (typeof data[element.name] === 'undefined') { data[element.name] = []; }
+          if (isValidValue(element)) {
+            data[element.name] = data[element.name]
+              .concat(transform(element, element.value));
+          }
+        } else
+        if (isValidValue(element)) {
+          if (isMultiSelect(element)) {
+            data[element.name] = transform(element, getSelectValues(element));
+          } else {
+            data[element.name] = transform(element, element.value);
+          }
         }
       }
 
@@ -281,7 +287,7 @@
       }
 
       if (!container) {
-        console.log('[Radi] Mount canceled', container, after);
+        console.log('[Radi] Mount canceled');
         return nodes;
       }
 
@@ -1068,6 +1074,18 @@
     ( obj = {}, obj[name] = errors, obj)));
   };
 
+  function extractValue(value) {
+    return Array.isArray(value)
+      ? value.map(function (arr) { return arr.value; })
+      : value.value;
+  }
+
+  function extractTouched(value, elements) {
+    return Array.isArray(value)
+      ? [].reduce.call(elements, function (acc, val) { return (val.touched && true) || acc; }, false)
+      : value.touched;
+  }
+
   function fullValidate(elements, rules, update) {
     var values = formToJSON(elements, function (ref, value) {
       var touched = ref.touched;
@@ -1079,7 +1097,7 @@
         var obj;
 
         return (Object.assign({}, acc,
-        ( obj = {}, obj[key] = values[key].value, obj)));
+        ( obj = {}, obj[key] = extractValue(values[key]), obj)));
     }, {});
     var errors = [];
 
@@ -1087,7 +1105,7 @@
       var value = values[name];
 
       if (typeof rules[name] === 'function') {
-        var result = rules[name](value.value, plainValues);
+        var result = rules[name](extractValue(value), plainValues);
         var valid = (
             result
             && typeof result.check === 'function'
@@ -1098,7 +1116,7 @@
 
         if (valid !== true) { errors.push({
           field: name,
-          touched: Boolean(value.touched),
+          touched: Boolean(extractTouched(value, elements[name])),
           error: valid,
         }); }
       }
@@ -1383,6 +1401,24 @@
       type: 'test',
       validate: function (value) { return value === '' || regexp.test(value); },
       error: 'Field must be valid',
+    })
+  };
+
+  Validator.prototype.includes = function includes (include) {
+    return this.register({
+      type: 'includes',
+      validate: function (value) { return value === '' ||
+        (Array.isArray(value) && value.indexOf(include) >= 0); },
+      error: 'Field must include ' + include,
+    })
+  };
+
+  Validator.prototype.excludes = function excludes (exclude) {
+    return this.register({
+      type: 'excludes',
+      validate: function (value) { return value === '' ||
+        (Array.isArray(value) && value.indexOf(exclude) < 0); },
+      error: 'Field must exclude ' + exclude,
     })
   };
 
