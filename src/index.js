@@ -1,5 +1,5 @@
 import GLOBALS from './consts/GLOBALS';
-import { service } from './service';
+import { Service } from './service';
 import {
   customAttribute,
   customTag,
@@ -21,7 +21,7 @@ const Radi = {
   customAttribute,
   patch,
   mount,
-  service,
+  Service: new Service(),
   Subscribe,
   Validator,
 };

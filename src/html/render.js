@@ -71,7 +71,7 @@ export function render(node, $parent) {
   }
 
   if (node instanceof Promise) {
-    return render({ type: 'await', props: {src: node}, children: [] }, $parent);
+    return render({ type: 'await', props: { src: node }, children: [] }, $parent);
   }
 
   if (typeof node === 'function') {

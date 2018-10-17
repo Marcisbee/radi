@@ -12,31 +12,6 @@
   };
 
   /**
-   * @param  {string}   name
-   * @param  {Function} fn
-   * @param  {*[]}   args
-   * @return {Function}
-   */
-  function service(name, fn) {
-    var args = [], len = arguments.length - 2;
-    while ( len-- > 0 ) args[ len ] = arguments[ len + 2 ];
-
-    if (typeof name !== 'string') {
-      throw new Error('[Radi.js] Service first argument has to be string');
-    }
-
-    if (typeof fn !== 'function') {
-      throw new Error('[Radi.js] Service second argument has to be function');
-    }
-
-    var mounted = fn.apply(void 0, args);
-
-    service.prototype[name] = mounted;
-
-    return GLOBALS.SERVICES[name] = mounted;
-  }
-
-  /**
    * @param {string} attributeName
    * @param {function} caller
    * @param {Object} object
@@ -296,74 +271,6 @@
       return mountedEl;
     });
   }
-
-  var Component = function Component(type) {
-    this.type = type;
-    this.name = type.name;
-    this.render = this.render.bind(this);
-    this.evaluate = this.evaluate.bind(this);
-    this.update = this.update.bind(this);
-    this.__$events = {};
-  };
-
-  /**
-   * @param{string} event
-   * @param{Function} fn
-   * @return {Function}
-   */
-  Component.prototype.on = function on (event, fn) {
-    var e = this.__$events;
-    var name = "on" + (capitalise(event));
-    if (!e[name]) { e[name] = []; }
-    e[name].push(fn);
-    return fn;
-  };
-
-  /**
-   * @param{string} event
-   * @param{*[]} args
-   */
-  Component.prototype.trigger = function trigger (event) {
-      var ref;
-
-      var args = [], len = arguments.length - 1;
-      while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
-    var name = "on" + (capitalise(event));
-
-    (this.__$events[name] || [])
-      .map(function (e) { return e.apply(void 0, args); });
-
-    if (typeof this[name] === 'function') {
-      (ref = this)[name].apply(ref, args);
-    }
-  };
-
-  Component.prototype.evaluate = function evaluate (props, children) {
-    this.props = props;
-    this.children = children;
-
-    return this.node = this.type.call(
-      this,
-      Object.assign({}, this.props,
-        {children: this.children})
-    );
-  };
-
-  Component.prototype.render = function render$1 (props, children, parent) {
-    return this.dom = render$$1(this.evaluate(props, children), parent);
-  };
-
-  Component.prototype.update = function update (props, children) {
-      if ( props === void 0 ) props = this.props;
-      if ( children === void 0 ) children = this.children;
-
-    var oldDom = this.dom;
-
-    return this.dom = patch(
-      this.evaluate(props, children),
-      oldDom
-    );
-  };
 
   var currentListener = null;
 
@@ -730,7 +637,7 @@
     }
 
     if (node instanceof Promise) {
-      return render$$1({ type: 'await', props: {src: node}, children: [] }, $parent);
+      return render$$1({ type: 'await', props: { src: node }, children: [] }, $parent);
     }
 
     if (typeof node === 'function') {
@@ -973,6 +880,99 @@
       );
     }
   }
+
+  var Component = function Component(type) {
+    this.type = type;
+    this.name = type.name;
+    this.render = this.render.bind(this);
+    this.evaluate = this.evaluate.bind(this);
+    this.update = this.update.bind(this);
+    this.__$events = {};
+  };
+
+  /**
+   * @param{string} event
+   * @param{Function} fn
+   * @return {Function}
+   */
+  Component.prototype.on = function on (event, fn) {
+    var e = this.__$events;
+    var name = "on" + (capitalise(event));
+    if (!e[name]) { e[name] = []; }
+    e[name].push(fn);
+    return fn;
+  };
+
+  /**
+   * @param{string} event
+   * @param{*[]} args
+   */
+  Component.prototype.trigger = function trigger (event) {
+      var ref;
+
+      var args = [], len = arguments.length - 1;
+      while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+    var name = "on" + (capitalise(event));
+
+    (this.__$events[name] || [])
+      .map(function (e) { return e.apply(void 0, args); });
+
+    if (typeof this[name] === 'function') {
+      (ref = this)[name].apply(ref, args);
+    }
+  };
+
+  Component.prototype.evaluate = function evaluate (props, children) {
+    this.props = props;
+    this.children = children;
+
+    return this.node = this.type.call(
+      this,
+      Object.assign({}, this.props,
+        {children: this.children})
+    );
+  };
+
+  Component.prototype.render = function render$1 (props, children, parent) {
+    return this.dom = render$$1(this.evaluate(props, children), parent);
+  };
+
+  Component.prototype.update = function update (props, children) {
+      if ( props === void 0 ) props = this.props;
+      if ( children === void 0 ) children = this.children;
+
+    var oldDom = this.dom;
+
+    return this.dom = patch(
+      this.evaluate(props, children),
+      oldDom
+    );
+  };
+
+  var Service = function Service () {};
+
+  Service.prototype.add = function add (name, fn) {
+      var args = [], len = arguments.length - 2;
+      while ( len-- > 0 ) args[ len ] = arguments[ len + 2 ];
+
+    if (typeof name !== 'string') {
+      throw new Error('[Radi.js] Service first argument has to be string');
+    }
+
+    if (typeof this[name] !== 'undefined' || typeof Component.prototype[name] !== 'undefined') {
+      throw new Error('[Radi.js] Service "' + name + '" is already in use');
+    }
+
+    if (typeof fn !== 'function') {
+      throw new Error('[Radi.js] Service second argument has to be function');
+    }
+
+    var mounted = fn.apply(void 0, args);
+
+    Component.prototype[name] = this[name] = mounted;
+
+    return GLOBALS.SERVICES[name] = mounted;
+  };
 
   /**
    * @param       {EventTarget} [target=document] [description]
@@ -1274,24 +1274,6 @@
     return (( obj = {}, obj[name] = false, obj));
   };
 
-  var switchModal = function (store, name, type) {
-    var obj;
-
-    return (( obj = {}, obj[name] = type, obj));
-  };
-
-  var ModalService = service('modal', function () {
-    var args = [], len = arguments.length;
-    while ( len-- ) args[ len ] = arguments[ len ];
-
-    return {
-      open: function (name) { return ModalStore.dispatch(switchModal, name, true); },
-      close: function (name) { return ModalStore.dispatch(switchModal, name, false); },
-      onOpen: function (name, fn) { return ModalStore.subscribe(function (n, p) { return n[name] === true && n[name] !== p[name] && fn(); }); },
-      onClose: function (name, fn) { return ModalStore.subscribe(function (n, p) { return n[name] === false && n[name] !== p[name] && fn(); }); },
-    };
-  });
-
   customTag('modal',
     function Modal(ref) {
       var name = ref.name; if ( name === void 0 ) name = 'default';
@@ -1472,7 +1454,7 @@
     customAttribute: customAttribute,
     patch: patch,
     mount: mount,
-    service: service,
+    Service: new Service(),
     Subscribe: Subscribe,
     Validator: Validator,
   };
