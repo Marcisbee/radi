@@ -229,6 +229,36 @@
   }
 
   /**
+   * @param  {HTMLElement} node
+   * @param  {function} next
+   */
+  function beforeDestroy(node, next) {
+    if (typeof node.beforedestroy === 'function') {
+      return node.beforedestroy(next);
+    }
+
+    return next();
+  }
+
+  /**
+   * @param  {*|*[]} data
+   */
+  function destroy(data) {
+    var nodes = ensureArray(data);
+
+    nodes.map(function (node) {
+      var parent = node.parentNode;
+      if (node instanceof Node && parent instanceof Node) {
+        beforeDestroy(node, function () {
+          // This is for async node removals
+          parent.removeChild(node);
+          destroyTree$$1(node);
+        });
+      }
+    });
+  }
+
+  /**
    * @typedef {Object} Mount
    * @property {Object} component
    * @property {Object} node
@@ -244,7 +274,7 @@
   function mount(data, container, after) {
     var nodes = ensureArray(data);
 
-    return ensureArray(nodes).map(function (node) {
+    return nodes.map(function (node) {
       var renderedNode = render$$1(node, container);
 
       if (Array.isArray(renderedNode)) {
@@ -253,7 +283,7 @@
       
       if (after && after.parentNode) {
         after = insertAfter(renderedNode, after, after.parentNode);
-        fireEvent('mount', after);
+        fireEvent('mount', renderedNode);
         return after;
       }
 
@@ -573,7 +603,7 @@
    */
   function render$$1(node, $parent) {
     if (Array.isArray(node)) {
-      var output = node.map(render$$1);
+      var output = node.map(function (n) { return render$$1(n, $parent); });
 
       // Always must render some element
       // In case of empty array we simulate empty element as null
@@ -586,7 +616,7 @@
       return render$$1(node.default, $parent);
     }
 
-    if (node && typeof node.type === 'function' || typeof node === 'function') {
+    if ((node && typeof node.type === 'function') || typeof node === 'function') {
       var componentFn = node.type || node;
       var compNode = new Component(componentFn, node.props, node.children);
       var renderedComponent = compNode.render(node.props, node.children, $parent);
@@ -594,7 +624,7 @@
       var $styleRef;
 
       if (renderedComponent && typeof renderedComponent.addEventListener === 'function') {
-        renderedComponent.addEventListener('mount', function (event) {
+        renderedComponent.addEventListener('mount', function () {
           if (typeof compNode.style === 'string') {
             $styleRef = document.createElement('style');
             $styleRef.innerHTML = compNode.style;
@@ -641,10 +671,6 @@
       return render$$1({ type: 'await', props: { src: node }, children: [] }, $parent);
     }
 
-    if (typeof node === 'function') {
-      return render$$1(node(), $parent);
-    }
-
     // if the node is text, return text node
     if (['string', 'number'].indexOf(typeof node) > -1) { return document.createTextNode(node); }
 
@@ -677,7 +703,6 @@
     } else {
       element = document.createElement(node.type);
     }
-    // const element = document.createElement(node.type);
 
     // set attributes
     setProps(element, node.props);
@@ -697,13 +722,6 @@
   // import { nodeChanged } from './nodeChanged';
   // import { updateProps } from './props';
 
-  function beforeDestroy(node, next) {
-    if (typeof node.beforedestroy === 'function') {
-      return node.beforedestroy(next);
-    }
-
-    return next();
-  }
 
   /**
    * @param  {Object|Object[]} nodes
@@ -742,6 +760,7 @@
         // Make nested & updated components update their refrences
         if (typeof ref === 'function' && ii > 0) {
           lastNode.__radiRef = function (data) { return ref(data, ii); };
+          lastNode.__radiRef(lastNode);
         }
 
         return outputNode;
@@ -780,11 +799,7 @@
         newNode.__radiRef(newNode);
       }
 
-      beforeDestroy(dom, function () {
-        // This is for async node removals
-        parent.removeChild(dom);
-        destroyTree$$1(dom);
-      });
+      destroy(dom);
     }
 
     return newNode;
@@ -957,7 +972,7 @@
 
     var oldDom = this.dom;
 
-    return this.dom = patch(
+    return patch(
       this.evaluate(props, children),
       oldDom
     );
@@ -987,6 +1002,8 @@
 
     return GLOBALS.SERVICES[name] = mounted;
   };
+
+  var service = new Service();
 
   /**
    * @param       {EventTarget} [target=document] [description]
@@ -1066,7 +1083,8 @@
   });
 
   customAttribute('loadfocus', function (el) {
-    el.addEventListener('mount', function () { return el.focus(); });
+    el.addEventListener('mount', function () { return setTimeout(function () { return el.focus(); }, 0); }
+    );
   });
 
   customAttribute('onsubmit', function (el, fn) {
@@ -1288,6 +1306,21 @@
     return (( obj = {}, obj[name] = false, obj));
   };
 
+  var switchModal = function (store, name, type) {
+    var obj;
+
+    return (( obj = {}, obj[name] = type, obj));
+  };
+
+  var ModalService = service.add('modal', function () {
+    return {
+      open: function (name) { return ModalStore.dispatch(switchModal, name, true); },
+      close: function (name) { return ModalStore.dispatch(switchModal, name, false); },
+      onOpen: function (name, fn) { return ModalStore.subscribe(function (n, p) { return n[name] === true && n[name] !== p[name] && fn(); }); },
+      onClose: function (name, fn) { return ModalStore.subscribe(function (n, p) { return n[name] === false && n[name] !== p[name] && fn(); }); },
+    };
+  });
+
   customTag('modal',
     function Modal(ref) {
       var name = ref.name; if ( name === void 0 ) name = 'default';
@@ -1318,23 +1351,16 @@
 
   customTag('portal',
     function Portal(data) {
+      var children = data.children; if ( children === void 0 ) children = [];
+      var parent = data.parent; if ( parent === void 0 ) parent = data.on || document.body;
       var $ref;
-      var $parent;
-      var toRender = data.children || [];
 
-      this.onMount = function ($element) {
-        mount(function () {
-          this.onMount = function ($el, $p) {
-            $ref = $el;
-            $parent = $p;
-          };
-
-          return function () { return toRender; };
-        }, data.on || document.body);
+      this.onMount = function () {
+        $ref = mount(html('radi-portal', {}, children), parent);
       };
 
-      this.onDestroy = function (el, parent) {
-        patch($parent, null, toRender, 0, $ref || el);
+      this.onDestroy = function () {
+        destroy($ref);
       };
 
       return null;
@@ -1466,9 +1492,11 @@
     Store: Store,
     customTag: customTag,
     customAttribute: customAttribute,
+    destroy: destroy,
     patch: patch,
     mount: mount,
-    Service: new Service(),
+    service: service,
+    Service: service,
     Subscribe: Subscribe,
     Validator: Validator,
   };

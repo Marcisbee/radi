@@ -1,7 +1,7 @@
 import GLOBALS from './consts/GLOBALS';
 import { Component } from './component';
 
-export class Service {
+class Service {
   /**
    * @param  {string}   name
    * @param  {Function} fn
@@ -28,3 +28,5 @@ export class Service {
     return GLOBALS.SERVICES[name] = mounted;
   }
 }
+
+export const service = new Service();

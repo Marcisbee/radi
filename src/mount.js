@@ -21,7 +21,7 @@ import { ensureArray } from './utils';
 export function mount(data, container, after) {
   const nodes = ensureArray(data);
 
-  return ensureArray(nodes).map(node => {
+  return nodes.map(node => {
     const renderedNode = render(node, container);
 
     if (Array.isArray(renderedNode)) {
@@ -30,7 +30,7 @@ export function mount(data, container, after) {
     
     if (after && after.parentNode) {
       after = insertAfter(renderedNode, after, after.parentNode);
-      fireEvent('mount', after);
+      fireEvent('mount', renderedNode);
       return after;
     }
 

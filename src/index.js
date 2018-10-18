@@ -1,5 +1,5 @@
 import GLOBALS from './consts/GLOBALS';
-import { Service } from './service';
+import { service } from './service';
 import {
   customAttribute,
   customTag,
@@ -9,6 +9,7 @@ import {
 import { Store } from './store';
 import { Subscribe } from './subscribe';
 import { mount } from './mount';
+import { destroy } from './destroy';
 import { Validator } from './custom';
 
 const Radi = {
@@ -19,9 +20,11 @@ const Radi = {
   Store,
   customTag,
   customAttribute,
+  destroy,
   patch,
   mount,
-  Service: new Service(),
+  service,
+  Service: service,
   Subscribe,
   Validator,
 };

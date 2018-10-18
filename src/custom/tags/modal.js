@@ -1,4 +1,4 @@
-import { Service } from '../../service';
+import { service } from '../../service';
 import { html, customTag } from '../../html';
 import { Store } from '../../store';
 
@@ -14,7 +14,7 @@ const switchModal = (store, name, type) => ({
   [name]: type,
 });
 
-export const ModalService = Service('modal', (...args) => {
+export const ModalService = service.add('modal', () => {
   return {
     open: (name) => ModalStore.dispatch(switchModal, name, true),
     close: (name) => ModalStore.dispatch(switchModal, name, false),

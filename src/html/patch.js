@@ -1,4 +1,4 @@
-import { destroyTree } from './destroyTree';
+import { destroy } from '../destroy';
 import { ensureArray } from '../utils';
 import { mount } from '../mount';
 import { render } from './render';
@@ -6,13 +6,6 @@ import { render } from './render';
 // import { nodeChanged } from './nodeChanged';
 // import { updateProps } from './props';
 
-function beforeDestroy(node, next) {
-  if (typeof node.beforedestroy === 'function') {
-    return node.beforedestroy(next);
-  }
-
-  return next();
-}
 
 /**
  * @param  {Object|Object[]} nodes
@@ -48,6 +41,7 @@ export function patch(nodes, dom, parent = dom && dom.parentNode, $pointer = nul
       // Make nested & updated components update their refrences
       if (typeof ref === 'function' && ii > 0) {
         lastNode.__radiRef = (data) => ref(data, ii);
+        lastNode.__radiRef(lastNode);
       }
 
       return outputNode;
@@ -86,11 +80,7 @@ export function patch(nodes, dom, parent = dom && dom.parentNode, $pointer = nul
       newNode.__radiRef(newNode);
     }
 
-    beforeDestroy(dom, () => {
-      // This is for async node removals
-      parent.removeChild(dom);
-      destroyTree(dom);
-    });
+    destroy(dom);
   }
 
   return newNode;

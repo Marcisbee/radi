@@ -1,5 +1,5 @@
-import GLOBALS from '../consts/GLOBALS';
 import { Component } from '../component';
+import GLOBALS from '../consts/GLOBALS';
 import { Listener } from '../store';
 import { flatten } from '../utils';
 import { mount } from '../mount';
@@ -12,7 +12,7 @@ import { setProps } from '../html';
  */
 export function render(node, $parent) {
   if (Array.isArray(node)) {
-    const output = node.map(render);
+    const output = node.map(n => render(n, $parent));
 
     // Always must render some element
     // In case of empty array we simulate empty element as null
@@ -25,7 +25,7 @@ export function render(node, $parent) {
     return render(node.default, $parent);
   }
 
-  if (node && typeof node.type === 'function' || typeof node === 'function') {
+  if ((node && typeof node.type === 'function') || typeof node === 'function') {
     const componentFn = node.type || node;
     const compNode = new Component(componentFn, node.props, node.children);
     const renderedComponent = compNode.render(node.props, node.children, $parent);
@@ -33,7 +33,7 @@ export function render(node, $parent) {
     let $styleRef;
 
     if (renderedComponent && typeof renderedComponent.addEventListener === 'function') {
-      renderedComponent.addEventListener('mount', (event) => {
+      renderedComponent.addEventListener('mount', () => {
         if (typeof compNode.style === 'string') {
           $styleRef = document.createElement('style');
           $styleRef.innerHTML = compNode.style;
@@ -80,10 +80,6 @@ export function render(node, $parent) {
     return render({ type: 'await', props: { src: node }, children: [] }, $parent);
   }
 
-  if (typeof node === 'function') {
-    return render(node(), $parent);
-  }
-
   // if the node is text, return text node
   if (['string', 'number'].indexOf(typeof node) > -1) { return document.createTextNode(node); }
 
@@ -118,7 +114,6 @@ export function render(node, $parent) {
   } else {
     element = document.createElement(node.type);
   }
-  // const element = document.createElement(node.type);
 
   // set attributes
   setProps(element, node.props);
