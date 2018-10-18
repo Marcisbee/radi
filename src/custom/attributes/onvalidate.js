@@ -71,7 +71,7 @@ customAttribute('onvalidate', (el, rules) => {
 
   el.addEventListener('mount', e => {
     const validate = rules(e);
-    const elements = e.target.elements;
+    const elements = el.elements;
     if (validate && typeof validate === 'object'
       && elements) {
 

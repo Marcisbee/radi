@@ -1,3 +1,4 @@
+import GLOBALS from '../consts/GLOBALS';
 import { Component } from '../component';
 import { Listener } from '../store';
 import { flatten } from '../utils';
@@ -20,14 +21,19 @@ export function render(node, $parent) {
     return output;
   }
 
-  if (node && typeof node.type === 'function') {
-    const compNode = new Component(node.type, node.props, node.children);
+  if (node && node.__esModule && node.default) {
+    return render(node.default, $parent);
+  }
+
+  if (node && typeof node.type === 'function' || typeof node === 'function') {
+    const componentFn = node.type || node;
+    const compNode = new Component(componentFn, node.props, node.children);
     const renderedComponent = compNode.render(node.props, node.children, $parent);
 
     let $styleRef;
 
     if (renderedComponent && typeof renderedComponent.addEventListener === 'function') {
-      renderedComponent.addEventListener('mount', () => {
+      renderedComponent.addEventListener('mount', (event) => {
         if (typeof compNode.style === 'string') {
           $styleRef = document.createElement('style');
           $styleRef.innerHTML = compNode.style;
@@ -85,6 +91,21 @@ export function render(node, $parent) {
   // node tree and ref to components
   if (!node) {
     return document.createComment('');
+  }
+
+  if (!(
+    typeof node.type !== 'undefined'
+    && typeof node.props !== 'undefined'
+    && typeof node.children !== 'undefined'
+  )) {
+    return document.createTextNode(JSON.stringify(node));
+  }
+
+  if (typeof GLOBALS.CUSTOM_TAGS[node.type] !== 'undefined') {
+    return render({
+      ...node,
+      type: GLOBALS.CUSTOM_TAGS[node.type].render,
+    }, $parent);
   }
 
   // create element

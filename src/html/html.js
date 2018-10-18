@@ -1,4 +1,3 @@
-import GLOBALS from '../consts/GLOBALS';
 import { flatten } from '../utils';
 
 /**
@@ -24,10 +23,6 @@ export function html(preType, preProps, ...preChildren) {
     props = {
       src: preType,
     };
-  }
-
-  if (typeof GLOBALS.CUSTOM_TAGS[type] !== 'undefined') {
-    type = GLOBALS.CUSTOM_TAGS[type].render;
   }
 
   return {
