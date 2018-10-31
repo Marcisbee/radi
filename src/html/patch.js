@@ -41,7 +41,7 @@ export function patch(nodes, dom, parent = dom && dom.parentNode, $pointer = nul
       // Make nested & updated components update their refrences
       if (typeof ref === 'function' && ii > 0) {
         lastNode.__radiRef = (data) => ref(data, ii);
-        lastNode.__radiRef(lastNode);
+        lastNode.__radiRef(lastNode, ii);
       }
 
       return outputNode;
@@ -50,13 +50,7 @@ export function patch(nodes, dom, parent = dom && dom.parentNode, $pointer = nul
     // Unused nodes can be savely remove from DOM
     if (flatDom.length > flatNodes.length) {
       const unusedDomNodes = flatDom.slice(flatNodes.length - flatDom.length);
-      unusedDomNodes.forEach(
-        node => {
-          if (node && node.parentNode) {
-            node.parentNode.removeChild(node);
-          }
-        }
-      );
+      unusedDomNodes.forEach(destroy);
     }
 
     // Pass new nodes refrence to function containing it
@@ -73,7 +67,7 @@ export function patch(nodes, dom, parent = dom && dom.parentNode, $pointer = nul
   }
 
   if (dom && parent) {
-    parent.insertBefore(newNode, dom);
+    mount(newNode, parent, dom);
 
     if (dom.__radiRef) {
       newNode.__radiRef = dom.__radiRef;

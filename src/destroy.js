@@ -20,6 +20,8 @@ export function destroy(data) {
   const nodes = ensureArray(data);
 
   nodes.map(node => {
+    if (!(node instanceof Node)) return;
+
     const parent = node.parentNode;
     if (node instanceof Node && parent instanceof Node) {
       beforeDestroy(node, () => {
