@@ -1,4 +1,4 @@
-import { html } from '../html';
+import GLOBALS from '../consts/GLOBALS'
 
 const currentListener = null;
 
@@ -47,15 +47,6 @@ function extractState(state, path = []) {
   return state;
 }
 
-function clone(target, source) {
-  const out = Array.isArray(target) ? [] : {};
-
-  for (const i in target) out[i] = target[i];
-  for (const i in source) out[i] = source[i];
-
-  return out;
-}
-
 let renderQueue = [];
 
 function addToRenderQueue(data) {
@@ -77,9 +68,17 @@ function Dependencies() {
     if (typeof this.dependencies[key] === 'undefined') this.dependencies[key] = [];
 
     if (this.dependencies[key].indexOf(component) < 0) {
-      // console.log('addDependency', key, component)
+      // console.log('addDependency', key, component, this.dependencies[key])
       this.dependencies[key].push(component);
     }
+
+    this.dependencies[key] = this.dependencies[key].filter(c => {
+      if (c.dom instanceof Node) {
+        return c.dom.isConnected;
+      }
+
+      return true;
+    });
   };
   this.remove = (path, component) => {
     const key = path[0];
@@ -88,6 +87,16 @@ function Dependencies() {
       // console.log('removeDependency', key, component)
       this.dependencies[key].splice(index, 1);
     }
+  };
+  this.component = (path, component) => {
+    if (component) {
+      this.add(path, component);
+
+      component.__onDestroy = () => {
+        this.remove(path, component);
+      };
+    }
+    return component;
   };
   this.fn = fn => (path) => {
     const current = currentListener;
@@ -133,7 +142,7 @@ export class Listener {
   render() {
     const self = this;
 
-    return html(function () {
+    return (function () {
       const mappedState = self.getValue(this);
       return mappedState;
     });
@@ -164,10 +173,26 @@ function updateState(state, source, path, data, useUpdate, name = '') {
   }
 }
 
-export function Store(state = {}/* , fn = () => {} */) {
-  let currentState = { ...state };
+function getClonedState(state, chunk) {
+  if (Array.isArray(state)) {
+    return [ ...state, ...chunk ];
+  }
 
-  const StoreHold = function (listenerToRender) {
+  if (state && typeof state === 'object') {
+    return { ...state, ...chunk };
+  }
+
+  if (typeof chunk !== 'undefined') {
+    return chunk;
+  }
+
+  return state;
+}
+
+export function Store(state = {}/* , fn = () => {} */) {
+  let currentState = getClonedState(state);
+
+  const StoreHold = function (listenerToRender = e => e) {
     const listener = new Listener(listenerToRender, StoreHold, dependencies);
 
     return listener;
@@ -177,6 +202,14 @@ export function Store(state = {}/* , fn = () => {} */) {
   let remap = noop;
   let mappedState;
 
+  Object.defineProperty(StoreHold, 'state', {
+    get: function () {
+      if (GLOBALS.CURRENT_COMPONENT) {
+        dependencies.component('*', GLOBALS.CURRENT_COMPONENT);
+      }
+      return StoreHold.get();
+    },
+  });
   StoreHold.getInitial = () => initialSate;
   StoreHold.get = (path) => {
     const remappedState = remap(currentState);
@@ -196,7 +229,7 @@ export function Store(state = {}/* , fn = () => {} */) {
         path.length > 1
           ? this.setPartial(path.slice(1), value, currentState[path[0]])
           : value;
-      return clone(currentState, target);
+      return getClonedState(currentState, target);
     }
     return value;
   };
@@ -211,31 +244,28 @@ export function Store(state = {}/* , fn = () => {} */) {
     };
   };
   StoreHold.update = (chunkState/* , noStrictSubs */) => {
-    const keys = Object.keys(chunkState || {});
-    const newState = {
-      ...currentState,
-      ...chunkState,
-    };
+    // const keys = Object.keys(chunkState || {});
+    const newState = getClonedState(currentState, chunkState);
     currentState = newState;
     const newlyMappedState = StoreHold.get();
-    if (remap !== noop) {
-      for (const key in newlyMappedState) {
-        if (
-          newlyMappedState.hasOwnProperty(key)
-          && (
-            !mappedState || (
-              mappedState
-              && mappedState[key] !== newlyMappedState[key]
-              && keys.indexOf(key) < 0
-            )
-          )
-        ) {
-          keys.push(key);
-        }
-      }
-    }
+    // if (remap !== noop) {
+    //   for (const key in newlyMappedState) {
+    //     if (
+    //       newlyMappedState.hasOwnProperty(key)
+    //       && (
+    //         !mappedState || (
+    //           mappedState
+    //           && mappedState[key] !== newlyMappedState[key]
+    //           && keys.indexOf(key) < 0
+    //         )
+    //       )
+    //     ) {
+    //       keys.push(key);
+    //     }
+    //   }
+    // }
     dependencies.trigger('*', newlyMappedState, mappedState);
-    keys.forEach(key => dependencies.trigger(key, newlyMappedState, mappedState));
+    // keys.forEach(key => dependencies.trigger(key, newlyMappedState, mappedState));
     mappedState = newlyMappedState;
 
     clearRenderQueue();
@@ -267,6 +297,14 @@ export function Store(state = {}/* , fn = () => {} */) {
     remap = (...args) => fnMap(tempFn(...args));
     return StoreHold;
   };
+  Object.defineProperty(StoreHold, 'interface', {
+    get: () => [
+      StoreHold.state,
+      StoreHold.dispatch,
+      StoreHold.subscribe,
+      StoreHold.unsubscribe,
+    ],
+  });
 
   const initialSate = extractState.call(StoreHold, state);
 

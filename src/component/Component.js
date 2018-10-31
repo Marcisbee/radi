@@ -65,7 +65,7 @@ export class Component {
   update(props = this.props, children = this.children) {
     const oldDom = this.dom;
 
-    return patch(
+    return this.dom = patch(
       this.evaluate(props, children),
       oldDom
     );

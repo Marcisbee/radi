@@ -42,6 +42,7 @@ customTag('await',
           this.update({ ...props, value: ensureFn(transform)(value), loaded: true });
         })
         .catch((err) => {
+          console.error(err);
           clearTimeout(placeholderTimeout);
           this.update({ ...props, value: ensureFn(error)(err), loaded: true });
         })

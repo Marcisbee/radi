@@ -6,7 +6,7 @@
  */
 export function fireEvent(type, $node) {
   const onEvent = document.createEvent('Event');
-  onEvent.initEvent(type, true, true);
+  onEvent.initEvent(type, false, true);
 
   if (typeof $node.dispatchEvent === 'function') {
     $node._eventFired = true;

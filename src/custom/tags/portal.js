@@ -10,11 +10,16 @@ customTag('portal',
     } = data;
     let $ref;
 
-    this.onMount = () => {
-      $ref = mount(html('radi-portal', {}, children), parent);
+    this.onMount = (e) => {
+      mount(function () {
+        this.onMount = (e) => {
+          $ref = this.dom;
+        }
+        return html('portal-body', {}, children)
+      }, parent);
     };
 
-    this.onDestroy = () => {
+    this.onDestroy = (e) => {
       destroy($ref);
     };
 

@@ -1,7 +1,9 @@
 var GLOBALS = {
   VERSION: '0.5.0',
+  CURRENT_COMPONENT: null,
   CUSTOM_ATTRIBUTES: {},
   CUSTOM_TAGS: {},
+  IS_UPDATE: false,
   SERVICES: {},
 };
 
@@ -59,7 +61,7 @@ function destroyTree$$1(node) {
  */
 function fireEvent(type, $node) {
   var onEvent = document.createEvent('Event');
-  onEvent.initEvent(type, true, true);
+  onEvent.initEvent(type, false, true);
 
   if (typeof $node.dispatchEvent === 'function') {
     $node._eventFired = true;
@@ -241,6 +243,8 @@ function destroy(data) {
   var nodes = ensureArray(data);
 
   nodes.map(function (node) {
+    if (!(node instanceof Node)) { return; }
+
     var parent = node.parentNode;
     if (node instanceof Node && parent instanceof Node) {
       beforeDestroy(node, function () {
@@ -342,15 +346,6 @@ function extractState(state, path) {
   return state;
 }
 
-function clone(target, source) {
-  var out = Array.isArray(target) ? [] : {};
-
-  for (var i in target) { out[i] = target[i]; }
-  for (var i$1 in source) { out[i$1] = source[i$1]; }
-
-  return out;
-}
-
 var renderQueue = [];
 
 function addToRenderQueue(data) {
@@ -374,9 +369,17 @@ function Dependencies() {
     if (typeof this$1.dependencies[key] === 'undefined') { this$1.dependencies[key] = []; }
 
     if (this$1.dependencies[key].indexOf(component) < 0) {
-      // console.log('addDependency', key, component)
+      // console.log('addDependency', key, component, this.dependencies[key])
       this$1.dependencies[key].push(component);
     }
+
+    this$1.dependencies[key] = this$1.dependencies[key].filter(function (c) {
+      if (c.dom instanceof Node) {
+        return c.dom.isConnected;
+      }
+
+      return true;
+    });
   };
   this.remove = function (path, component) {
     var key = path[0];
@@ -385,6 +388,16 @@ function Dependencies() {
       // console.log('removeDependency', key, component)
       this$1.dependencies[key].splice(index, 1);
     }
+  };
+  this.component = function (path, component) {
+    if (component) {
+      this$1.add(path, component);
+
+      component.__onDestroy = function () {
+        this$1.remove(path, component);
+      };
+    }
+    return component;
   };
   this.fn = function (fn) { return function (path) {
     var current = currentListener;
@@ -426,10 +439,10 @@ Listener.prototype.getValue = function getValue (updater) {
   return this.cached = this.map(state);
 };
 
-Listener.prototype.render = function render$$1 () {
+Listener.prototype.render = function render () {
   var self = this;
 
-  return html(function () {
+  return (function () {
     var mappedState = self.getValue(this);
     return mappedState;
   });
@@ -461,13 +474,31 @@ function updateState(state, source, path, data, useUpdate, name) {
   }
 }
 
+function getClonedState(state, chunk) {
+  if (Array.isArray(state)) {
+    return state.concat( chunk );
+  }
+
+  if (state && typeof state === 'object') {
+    return Object.assign({}, state, chunk);
+  }
+
+  if (typeof chunk !== 'undefined') {
+    return chunk;
+  }
+
+  return state;
+}
+
 function Store(state/* , fn = () => {} */) {
   var this$1 = this;
   if ( state === void 0 ) state = {};
 
-  var currentState = Object.assign({}, state);
+  var currentState = getClonedState(state);
 
   var StoreHold = function (listenerToRender) {
+    if ( listenerToRender === void 0 ) listenerToRender = function (e) { return e; };
+
     var listener = new Listener(listenerToRender, StoreHold, dependencies);
 
     return listener;
@@ -477,6 +508,14 @@ function Store(state/* , fn = () => {} */) {
   var remap = noop;
   var mappedState;
 
+  Object.defineProperty(StoreHold, 'state', {
+    get: function () {
+      if (GLOBALS.CURRENT_COMPONENT) {
+        dependencies.component('*', GLOBALS.CURRENT_COMPONENT);
+      }
+      return StoreHold.get();
+    },
+  });
   StoreHold.getInitial = function () { return initialSate; };
   StoreHold.get = function (path) {
     var remappedState = remap(currentState);
@@ -496,7 +535,7 @@ function Store(state/* , fn = () => {} */) {
         path.length > 1
           ? this$1.setPartial(path.slice(1), value, currentState[path[0]])
           : value;
-      return clone(currentState, target);
+      return getClonedState(currentState, target);
     }
     return value;
   };
@@ -514,29 +553,28 @@ function Store(state/* , fn = () => {} */) {
     };
   };
   StoreHold.update = function (chunkState/* , noStrictSubs */) {
-    var keys = Object.keys(chunkState || {});
-    var newState = Object.assign({}, currentState,
-      chunkState);
+    // const keys = Object.keys(chunkState || {});
+    var newState = getClonedState(currentState, chunkState);
     currentState = newState;
     var newlyMappedState = StoreHold.get();
-    if (remap !== noop) {
-      for (var key in newlyMappedState) {
-        if (
-          newlyMappedState.hasOwnProperty(key)
-          && (
-            !mappedState || (
-              mappedState
-              && mappedState[key] !== newlyMappedState[key]
-              && keys.indexOf(key) < 0
-            )
-          )
-        ) {
-          keys.push(key);
-        }
-      }
-    }
+    // if (remap !== noop) {
+    //   for (const key in newlyMappedState) {
+    //     if (
+    //       newlyMappedState.hasOwnProperty(key)
+    //       && (
+    //         !mappedState || (
+    //           mappedState
+    //           && mappedState[key] !== newlyMappedState[key]
+    //           && keys.indexOf(key) < 0
+    //         )
+    //       )
+    //     ) {
+    //       keys.push(key);
+    //     }
+    //   }
+    // }
     dependencies.trigger('*', newlyMappedState, mappedState);
-    keys.forEach(function (key) { return dependencies.trigger(key, newlyMappedState, mappedState); });
+    // keys.forEach(key => dependencies.trigger(key, newlyMappedState, mappedState));
     mappedState = newlyMappedState;
 
     clearRenderQueue();
@@ -584,6 +622,13 @@ function Store(state/* , fn = () => {} */) {
     };
     return StoreHold;
   };
+  Object.defineProperty(StoreHold, 'interface', {
+    get: function () { return [
+      StoreHold.state,
+      StoreHold.dispatch,
+      StoreHold.subscribe,
+      StoreHold.unsubscribe ]; },
+  });
 
   var initialSate = extractState.call(StoreHold, state);
 
@@ -597,7 +642,7 @@ function Store(state/* , fn = () => {} */) {
  */
 function render$$1(node, $parent) {
   if (Array.isArray(node)) {
-    var output = node.map(function (n) { return render$$1(n, $parent); });
+    var output = flatten(node).map(function (n) { return render$$1(n, $parent); });
 
     // Always must render some element
     // In case of empty array we simulate empty element as null
@@ -613,6 +658,8 @@ function render$$1(node, $parent) {
   if ((node && typeof node.type === 'function') || typeof node === 'function') {
     var componentFn = node.type || node;
     var compNode = new Component(componentFn, node.props, node.children);
+    var tempComponent = GLOBALS.CURRENT_COMPONENT;
+    GLOBALS.CURRENT_COMPONENT = compNode;
     var renderedComponent = compNode.render(node.props, node.children, $parent);
 
     var $styleRef;
@@ -641,14 +688,47 @@ function render$$1(node, $parent) {
       }, false);
     }
 
-    if (renderedComponent instanceof Node) {
-      renderedComponent.__radiRef = function (data, ii) {
-        if (ii && Array.isArray(compNode.dom)) {
-          return compNode.dom[ii] = data;
+    if (Array.isArray(renderedComponent)) {
+      renderedComponent.forEach(function (compItem) {
+        if (compItem && typeof compItem.addEventListener === 'function') {
+          compItem.addEventListener('mount', function () {
+            if (typeof compNode.style === 'string') {
+              $styleRef = document.createElement('style');
+              $styleRef.innerHTML = compNode.style;
+              document.head.appendChild($styleRef);
+            }
+            compNode.trigger('mount', compItem);
+          }, {
+            passive: true,
+            once: true,
+          }, false);
+
+          compItem.addEventListener('destroy', function () {
+            compNode.trigger('destroy', compItem);
+            if ($styleRef instanceof Node) {
+              document.head.removeChild($styleRef);
+            }
+          }, {
+            passive: true,
+            once: true,
+          }, false);
         }
-        return compNode.dom = data;
-      };
+      });
     }
+
+    function refFactory(data, ii) {
+      if (ii && Array.isArray(compNode.dom)) {
+        return compNode.dom[ii] = data;
+      }
+      return compNode.dom = data;
+    }
+
+    if (Array.isArray(renderedComponent)) {
+      renderedComponent[0].__radiRef = refFactory;
+    } else {
+      renderedComponent.__radiRef = refFactory;
+    }
+    GLOBALS.CURRENT_COMPONENT = tempComponent;
 
     return renderedComponent;
   }
@@ -754,7 +834,7 @@ function patch(nodes, dom, parent, $pointer) {
       // Make nested & updated components update their refrences
       if (typeof ref === 'function' && ii > 0) {
         lastNode.__radiRef = function (data) { return ref(data, ii); };
-        lastNode.__radiRef(lastNode);
+        lastNode.__radiRef(lastNode, ii);
       }
 
       return outputNode;
@@ -763,13 +843,7 @@ function patch(nodes, dom, parent, $pointer) {
     // Unused nodes can be savely remove from DOM
     if (flatDom.length > flatNodes.length) {
       var unusedDomNodes = flatDom.slice(flatNodes.length - flatDom.length);
-      unusedDomNodes.forEach(
-        function (node) {
-          if (node && node.parentNode) {
-            node.parentNode.removeChild(node);
-          }
-        }
-      );
+      unusedDomNodes.forEach(destroy);
     }
 
     // Pass new nodes refrence to function containing it
@@ -786,7 +860,7 @@ function patch(nodes, dom, parent, $pointer) {
   }
 
   if (dom && parent) {
-    parent.insertBefore(newNode, dom);
+    mount(newNode, parent, dom);
 
     if (dom.__radiRef) {
       newNode.__radiRef = dom.__radiRef;
@@ -966,7 +1040,7 @@ Component.prototype.update = function update (props, children) {
 
   var oldDom = this.dom;
 
-  return patch(
+  return this.dom = patch(
     this.evaluate(props, children),
     oldDom
   );
@@ -1021,7 +1095,7 @@ function Subscribe(target) {
       }
 
       function updater(defaults, newStore) {
-        var store = newStore || new Store(defaults || {});
+        var store = typeof newStore !== 'undefined' ? newStore : new Store(defaults);
 
         state = true;
         staticDefaults = defaults;
@@ -1031,7 +1105,7 @@ function Subscribe(target) {
               var args = [], len = arguments.length;
               while ( len-- ) args[ len ] = arguments[ len ];
 
-              return store.dispatch(function (oldStore) { return (Object.assign({}, oldStore, transformer.apply(void 0, args.concat( [event] )))); });
+              return store.dispatch(function () { return transformer.apply(void 0, args.concat( [event] )); });
           }
         ); });
 
@@ -1263,6 +1337,7 @@ customTag('await',
           this$1.update(Object.assign({}, props, {value: ensureFn(transform)(value), loaded: true}));
         })
         .catch(function (err) {
+          console.error(err);
           clearTimeout(placeholderTimeout);
           this$1.update(Object.assign({}, props, {value: ensureFn(error)(err), loaded: true}));
         });
@@ -1275,7 +1350,7 @@ customTag('await',
 customTag('errors',
   function Errors(ref) {
     var name = ref.name;
-    var onrender = ref.onrender;
+    var onrender = ref.onrender; if ( onrender === void 0 ) onrender = function (e) { return (e); };
 
     if (typeof name === 'undefined') {
       console.warn('[Radi.js] Warn: Every <errors> tag needs to have `name` attribute!');
@@ -1284,8 +1359,7 @@ customTag('errors',
       console.warn('[Radi.js] Warn: Every <errors> tag needs to have `onrender` attribute!');
     }
 
-    return errorsStore(function (state) { return (
-      state[name] && onrender(state[name])
+    return errorsStore(function (state) { return html(function () { return state[name] && onrender(state[name]); }
     ); })
   }
 );
@@ -1349,11 +1423,18 @@ customTag('portal',
     var parent = data.parent; if ( parent === void 0 ) parent = data.on || document.body;
     var $ref;
 
-    this.onMount = function () {
-      $ref = mount(html('radi-portal', {}, children), parent);
+    this.onMount = function (e) {
+      mount(function () {
+        var this$1 = this;
+
+        this.onMount = function (e) {
+          $ref = this$1.dom;
+        };
+        return html('portal-body', {}, children)
+      }, parent);
     };
 
-    this.onDestroy = function () {
+    this.onDestroy = function (e) {
       destroy($ref);
     };
 

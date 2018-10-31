@@ -12,7 +12,7 @@ import { setProps } from '../html';
  */
 export function render(node, $parent) {
   if (Array.isArray(node)) {
-    const output = node.map(n => render(n, $parent));
+    const output = flatten(node).map(n => render(n, $parent));
 
     // Always must render some element
     // In case of empty array we simulate empty element as null
@@ -28,6 +28,8 @@ export function render(node, $parent) {
   if ((node && typeof node.type === 'function') || typeof node === 'function') {
     const componentFn = node.type || node;
     const compNode = new Component(componentFn, node.props, node.children);
+    const tempComponent = GLOBALS.CURRENT_COMPONENT;
+    GLOBALS.CURRENT_COMPONENT = compNode;
     const renderedComponent = compNode.render(node.props, node.children, $parent);
 
     let $styleRef;
@@ -56,14 +58,47 @@ export function render(node, $parent) {
       }, false);
     }
 
-    if (renderedComponent instanceof Node) {
-      renderedComponent.__radiRef = (data, ii) => {
-        if (ii && Array.isArray(compNode.dom)) {
-          return compNode.dom[ii] = data;
+    if (Array.isArray(renderedComponent)) {
+      renderedComponent.forEach((compItem) => {
+        if (compItem && typeof compItem.addEventListener === 'function') {
+          compItem.addEventListener('mount', () => {
+            if (typeof compNode.style === 'string') {
+              $styleRef = document.createElement('style');
+              $styleRef.innerHTML = compNode.style;
+              document.head.appendChild($styleRef);
+            }
+            compNode.trigger('mount', compItem);
+          }, {
+            passive: true,
+            once: true,
+          }, false);
+
+          compItem.addEventListener('destroy', () => {
+            compNode.trigger('destroy', compItem);
+            if ($styleRef instanceof Node) {
+              document.head.removeChild($styleRef);
+            }
+          }, {
+            passive: true,
+            once: true,
+          }, false);
         }
-        return compNode.dom = data;
-      };
+      });
     }
+
+    function refFactory(data, ii) {
+      if (ii && Array.isArray(compNode.dom)) {
+        return compNode.dom[ii] = data;
+      }
+      return compNode.dom = data;
+    }
+
+    if (Array.isArray(renderedComponent)) {
+      renderedComponent[0].__radiRef = refFactory;
+    } else {
+      renderedComponent.__radiRef = refFactory;
+    }
+    GLOBALS.CURRENT_COMPONENT = tempComponent;
 
     return renderedComponent;
   }

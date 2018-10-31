@@ -18,14 +18,14 @@ export function Subscribe(target = document) {
       }
 
       function updater(defaults, newStore) {
-        const store = newStore || new Store(defaults || {});
+        const store = typeof newStore !== 'undefined' ? newStore : new Store(defaults);
 
         state = true;
         staticDefaults = defaults;
         staticStore = store;
         events.forEach(event => target.addEventListener(event,
           eventSubscription = (...args) =>
-            store.dispatch((oldStore) => ({ ...oldStore, ...transformer(...args, event) }))
+            store.dispatch(() => transformer(...args, event))
         ));
 
         return store;
