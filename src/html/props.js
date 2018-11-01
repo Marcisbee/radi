@@ -102,8 +102,12 @@ export function setProps($target, props) {
   });
 }
 
+function isRemovableProp(value) {
+  return typeof value === 'undefined' || value === false || value === null;
+}
+
 export function updateProp($target, name, newVal, oldVal) {
-  if (!newVal) {
+  if (isRemovableProp(newVal)) {
     removeProp($target, name, oldVal);
   } else if (!oldVal || newVal !== oldVal) {
     setProp($target, name, newVal);

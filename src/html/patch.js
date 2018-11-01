@@ -4,6 +4,7 @@ import { mount } from '../mount';
 import { render } from './render';
 // import { nodeChanged } from './nodeChanged';
 import { updateProps } from './props';
+import { fireEvent } from './fireEvent';
 
 /**
  * @param  {Object|Object[]} nodes
@@ -95,14 +96,23 @@ export function patch(nodes, dom, parent = dom && dom.parentNode, $pointer = nul
 }
 
 function nodeChanged(node1, node2) {
-  if (node1.nodeType === 3 && node2.nodeType === 3) return true;
+  if (node1.nodeType === 3 && node2.nodeType === 3 && node1.__radiRef) return true;
   if (node1.nodeType === node2.nodeType) return false;
   if (node1.nodeName === node2.nodeName) return false;
 
   return true;
 }
 
+function attributesToObject(value) {
+  return [].reduce.call(value, (acc, obj) => ({
+    ...acc,
+    [obj.name]: obj.value,
+  }), {})
+}
+
 function patchDomRecursively(oldDom, newDom, parent, pointer) {
+  const active = document.activeElement;
+
   if (!oldDom && (pointer || parent)) {
     const mounter = mount(newDom, parent, pointer);
     return mounter;
@@ -116,11 +126,12 @@ function patchDomRecursively(oldDom, newDom, parent, pointer) {
   if (oldDom && parent) {
     if (!nodeChanged(oldDom, newDom)) {
 
-      /* TODO: implement text change */
-      // if (oldDom.nodeType === 3 && newDom.nodeType === 3
-      //   && oldDom.textContent !== newDom.textContent) {
-      //   oldDom.textContent = newDom.textContent;
-      // }
+      if (oldDom.nodeType === 3 && newDom.nodeType === 3
+        && oldDom.textContent !== newDom.textContent) {
+        oldDom.textContent = newDom.textContent;
+
+        fireEvent('mount', newDom, oldDom);
+      }
 
       if (oldDom.childNodes || newDom.childNodes) {
         const length = Math.max(oldDom.childNodes.length, newDom.childNodes.length);
@@ -132,15 +143,19 @@ function patchDomRecursively(oldDom, newDom, parent, pointer) {
         }
       }
 
-      // TODO: Extract attributes
-      // if (oldDom.nodeType === 1 && newDom.nodeType === 1) {
-      //   updateProps(oldDom, newDom.attributes, oldDom.attributes);
-      // }
+      // TODO: After we have structured objects not dom nodes,
+      // should use props from there
+      if (oldDom.nodeType === 1 && newDom.nodeType === 1) {
+        const oldAttrs = attributesToObject(oldDom.attributes);
+        const newAttrs = attributesToObject(newDom.attributes);
+        updateProps(oldDom, newAttrs, oldAttrs);
+      }
 
       if (oldDom.__radiRef) {
         oldDom.__radiRef(oldDom);
       }
 
+      active.focus();
       return oldDom;
     }
 
@@ -154,5 +169,6 @@ function patchDomRecursively(oldDom, newDom, parent, pointer) {
     destroy(oldDom);
   }
 
+  active.focus();
   return newDom;
 }

@@ -65,13 +65,15 @@
    * @param  {HTMLElement} $node
    * @return {HTMLElement}
    */
-  function fireEvent(type, $node) {
+  function fireEvent(type, $node, $element) {
+    if ( $element === void 0 ) $element = $node;
+
     var onEvent = document.createEvent('Event');
     onEvent.initEvent(type, false, true);
 
     if (typeof $node.dispatchEvent === 'function') {
       $node._eventFired = true;
-      $node.dispatchEvent(onEvent);
+      $node.dispatchEvent(onEvent, $element);
     }
 
     return $node;
@@ -814,6 +816,11 @@
     }
   }
 
+  function removeBooleanProp($target, name) {
+    $target.removeAttribute(name);
+    $target[name] = false;
+  }
+
   function isEventProp(name) {
     return /^on/.test(name);
   }
@@ -840,6 +847,18 @@
         $target[name] = value;
       }
       $target.setAttribute(name, value);
+    }
+  }
+
+  function removeProp($target, name, value) {
+    if (isCustomProp(name)) {
+
+    } else if (name === 'className') {
+      $target.removeAttribute('class');
+    } else if (typeof value === 'boolean') {
+      removeBooleanProp($target, name);
+    } else {
+      $target.removeAttribute(name);
     }
   }
 
@@ -881,6 +900,32 @@
           }
         }
         setProp($target, name, value);
+      });
+    });
+  }
+
+  function isRemovableProp(value) {
+    return typeof value === 'undefined' || value === false || value === null;
+  }
+
+  function updateProp($target, name, newVal, oldVal) {
+    if (isRemovableProp(newVal)) {
+      removeProp($target, name, oldVal);
+    } else if (!oldVal || newVal !== oldVal) {
+      setProp($target, name, newVal);
+    }
+  }
+
+  function updateProps($target, newProps, oldProps) {
+    if ( oldProps === void 0 ) oldProps = {};
+
+    var props = Object.assign({}, newProps, oldProps);
+    Object.keys(props).forEach(function (name) {
+      autoUpdate(newProps[name], function (value) {
+        if (name === 'model') {
+          name = 'value';
+        }
+        updateProp($target, name, value, oldProps[name]);
       });
     });
   }
@@ -996,14 +1041,25 @@
   }
 
   function nodeChanged$1(node1, node2) {
-    if (node1.nodeType === 3 && node2.nodeType === 3) { return true; }
+    if (node1.nodeType === 3 && node2.nodeType === 3 && node1.__radiRef) { return true; }
     if (node1.nodeType === node2.nodeType) { return false; }
     if (node1.nodeName === node2.nodeName) { return false; }
 
     return true;
   }
 
+  function attributesToObject(value) {
+    return [].reduce.call(value, function (acc, obj) {
+      var obj$1;
+
+      return (Object.assign({}, acc,
+      ( obj$1 = {}, obj$1[obj.name] = obj.value, obj$1)));
+    }, {})
+  }
+
   function patchDomRecursively(oldDom, newDom, parent, pointer) {
+    var active = document.activeElement;
+
     if (!oldDom && (pointer || parent)) {
       var mounter = mount(newDom, parent, pointer);
       return mounter;
@@ -1017,11 +1073,12 @@
     if (oldDom && parent) {
       if (!nodeChanged$1(oldDom, newDom)) {
 
-        /* TODO: implement text change */
-        // if (oldDom.nodeType === 3 && newDom.nodeType === 3
-        //   && oldDom.textContent !== newDom.textContent) {
-        //   oldDom.textContent = newDom.textContent;
-        // }
+        if (oldDom.nodeType === 3 && newDom.nodeType === 3
+          && oldDom.textContent !== newDom.textContent) {
+          oldDom.textContent = newDom.textContent;
+
+          fireEvent('mount', newDom, oldDom);
+        }
 
         if (oldDom.childNodes || newDom.childNodes) {
           var length = Math.max(oldDom.childNodes.length, newDom.childNodes.length);
@@ -1033,15 +1090,19 @@
           }
         }
 
-        // TODO: Extract attributes
-        // if (oldDom.nodeType === 1 && newDom.nodeType === 1) {
-        //   updateProps(oldDom, newDom.attributes, oldDom.attributes);
-        // }
+        // TODO: After we have structured objects not dom nodes,
+        // should use props from there
+        if (oldDom.nodeType === 1 && newDom.nodeType === 1) {
+          var oldAttrs = attributesToObject(oldDom.attributes);
+          var newAttrs = attributesToObject(newDom.attributes);
+          updateProps(oldDom, newAttrs, oldAttrs);
+        }
 
         if (oldDom.__radiRef) {
           oldDom.__radiRef(oldDom);
         }
 
+        active.focus();
         return oldDom;
       }
 
@@ -1055,6 +1116,7 @@
       destroy(oldDom);
     }
 
+    active.focus();
     return newDom;
   }
 
