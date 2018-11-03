@@ -1,88 +1,5 @@
 import GLOBALS from '../consts/GLOBALS';
 
-/**
- * @typedef {Object} Dependencies
- * @property {{}} dependencies
- * @property {Function} add
- * @property {Function} remove
- * @property {Function} component
- * @property {Function} fn
- * @property {Function} trigger
- */
-
-/**
- * @typedef {Object} Store
- * @property {*} state
- * @property {Function} getInitial
- * @property {Function} get
- * @property {Function} setPartial
- * @property {Function} bind
- * @property {Function} update
- * @property {Function} dispatch
- * @property {Function} willDispatch
- * @property {Function} subscribe
- * @property {Function} unsubscribe
- * @property {Function} map
- * @property {Function} interface
- */
-
-const currentListener = null;
-
-/**
- * @param {Store[]} anchor
- * @param {Store} to
- * @returns {Function}
- */
-function anchored(anchor, to) {
-  return (newState, oldState) => {
-    if (anchor[0] === newState) return false;
-    if (newState !== oldState) {
-      anchor[0] = newState;
-      to.dispatch(() => newState);
-    }
-    return true;
-  };
-}
-
-/**
- * @param {Store} state
- * @param {string[]} path
- * @returns {{}}
- */
-function extractState(state, path = []) {
-  if (!state) return state;
-
-  if (this && state && typeof state.subscribe === 'function') {
-    const anchor = [];
-    if (path.length > 0) {
-      state.subscribe((newState, oldState) => {
-        if (anchor[0] === newState) return false;
-        if (newState !== oldState) {
-          this.dispatch(() => this.setPartial(path, newState));
-          anchor[0] = newState;
-        }
-        return true;
-      });
-    } else {
-      this.subscribe(anchored(anchor, state));
-      state.subscribe(anchored(anchor, this));
-    }
-    return state.get();
-  }
-
-  if (state && typeof state === 'object') {
-    const tempState = Array.isArray(state) ? new Array(state.length) : {};
-    for (const key in state) {
-      if (state.hasOwnProperty(key)) {
-        tempState[key] = extractState.call(this, state[key], path.concat(key));
-      }
-    }
-    return tempState;
-  }
-
-  return state;
-}
-
 let renderQueue = [];
 
 /**
@@ -101,17 +18,19 @@ function clearRenderQueue() {
   renderQueue = [];
 }
 
-/**
- * @constructor
- */
-function Dependencies() {
-  this.dependencies = {};
+class Dependencies {
+  /**
+   * @constructor
+   */
+  constructor() {
+    this.dependencies = {};
+  }
 
   /**
    * @param {string[]} path
    * @param {Function} component
    */
-  this.add = (path, component) => {
+  add(path, component) {
     const key = path[0];
     if (typeof this.dependencies[key] === 'undefined') this.dependencies[key] = [];
 
@@ -127,26 +46,26 @@ function Dependencies() {
 
       return true;
     });
-  };
+  }
 
   /**
    * @param {string[]} path
    * @param {Function} component
    */
-  this.remove = (path, component) => {
+  remove(path, component) {
     const key = path[0];
     const index = (this.dependencies[key] || []).indexOf(component);
     if (index >= 0) {
       // console.log('removeDependency', key, component)
       this.dependencies[key].splice(index, 1);
     }
-  };
+  }
 
   /**
    * @param {string[]} path
    * @param {Function} component
    */
-  this.component = (path, component) => {
+  component(path, component) {
     if (component) {
       this.add(path, component);
 
@@ -155,35 +74,20 @@ function Dependencies() {
       };
     }
     return component;
-  };
-
-  /**
-   * @param {string[]} path
-   */
-  this.fn = fn => (path) => {
-    const current = currentListener;
-    if (current) {
-      this.add(path, current);
-
-      current.__onDestroy = () => {
-        this.remove(path, current);
-      };
-    }
-    return fn(path);
-  };
+  }
 
   /**
    * @param {string} key
-   * @param {{}} newStore
-   * @param {{}} oldState
+   * @param {*} newStore
+   * @param {*} oldState
    */
-  this.trigger = (key, newStore, oldState) => {
+  trigger(key, newStore, oldState) {
     if (this.dependencies[key]) {
       this.dependencies[key].forEach(fn => (
         addToRenderQueue(fn)(newStore, oldState)
       ));
     }
-  };
+  }
 }
 
 /**
@@ -199,12 +103,12 @@ export class Listener {
    * @param {Dependencies} dep
    * @constructor
    */
-  constructor(map, store, dep) {
+  constructor(map, store) {
     this.map = map;
     this.getValue = this.getValue.bind(this);
     this.render = this.render.bind(this);
     this.store = store;
-    this.dep = dep;
+    this.dep = store.event;
   }
 
   /**
@@ -235,241 +139,180 @@ export class Listener {
 }
 
 /**
- * @param {string[]} path
- * @param {Store} source
- * @returns {*}
+ * @param {*} value
+ * @returns {boolean}
  */
-function getDataFromObject(path, source) {
-  let i = 0;
-  while (i < path.length) {
-    if (typeof source === 'undefined') {
-      i++;
-    } else {
-      source = source[path[i++]];
-    }
-  }
-  return source;
+function isObject(value) {
+  return value && (
+    value.constructor === Object
+    || value.constructor === Array
+  );
 }
 
 /**
+ * @param {Store} store
  * @param {Store} state
- * @param {Store} source
  * @param {string[]} path
- * @param {*} data
- * @param {boolean} useUpdate
- * @param {string} name
+ * @returns {*} New state
  */
-function updateState(state, source, path, data, useUpdate, name = '') {
-  const payload = state.setPartial(path, data);
+function evalState(store, state, path = []) {
+  if (state) {
+    if (isObject(state)) {
+      const newState = Array.isArray(state) ? [] : {};
+      for (const key in state) {
+        newState[key] = evalState(store, state[key], path.concat(key));
+      }
+      return newState;
+    }
 
-  if (!useUpdate) {
-    const f = () => payload;
-    Object.defineProperty(f, 'name', { value: name, writable: false });
-    state.dispatch(f);
-  } else {
-    state.update(payload);
-  }
-}
-
-/**
- * @param {*} state
- * @param {*} chunk
- * @returns {*}
- */
-function getClonedState(state, chunk) {
-  if (Array.isArray(state)) {
-    return [...state, ...chunk];
-  }
-
-  if (state && typeof state === 'object') {
-    return { ...state, ...chunk };
-  }
-
-  if (typeof chunk !== 'undefined') {
-    return chunk;
+    if (state instanceof Store) {
+      state.subscribe.call(state, (newValue) => {
+        store.update(store.setPartial(path, newValue));
+      });
+      return state.get();
+    }
   }
 
   return state;
 }
 
 /**
- * @param {*} state
- * @returns {Store}
+ * @param {Store} state
+ * @param {string|number} key
+ * @param {*} value
+ * @returns {*} New state
  */
-export function Store(state = null/* , fn = () => {} */) {
-  let currentState = getClonedState(state);
+function mapState(state, key, value) {
+  if (state && isObject(state)) {
+    const output = Array.isArray(state)
+      ? [...state]
+      : { ...state };
+    output[key] = value;
+    return output;
+  }
+
+  return state;
+}
+
+export class Store {
+  /**
+   * @param {*} state
+   * @constructor
+   */
+  constructor(state) {
+    this.dependencies = new Dependencies();
+    this.transform = noop;
+    this.willDispatch = this.willDispatch.bind(this);
+    this.dispatch = this.dispatch.bind(this);
+    this.subscribe = this.subscribe.bind(this);
+    this.update = this.update.bind(this);
+    this.get = this.get.bind(this);
+    this.storedState = evalState(this, state);
+  }
 
   /**
-   * @param {Function} listenerToRender
-   * @constructor Store
+   * @returns {*} Stored state
    */
-  const StoreHold = function (listenerToRender = e => e) {
-    const listener = new Listener(listenerToRender, StoreHold, dependencies);
-
-    return listener;
-  };
-
-  const dependencies = new Dependencies();
-  let remap = noop;
-  let mappedState;
-
-  Object.defineProperty(StoreHold, 'state', {
-    get() {
-      if (GLOBALS.CURRENT_COMPONENT) {
-        dependencies.component('*', GLOBALS.CURRENT_COMPONENT);
-      }
-      return StoreHold.get();
-    },
-  });
-  StoreHold.getInitial = () => initialSate;
-
-  /**
-   * @param {string[]} path
-   * @returns {*}
-   */
-  StoreHold.get = (path = null) => {
-    const remappedState = remap(currentState);
-    if (path) {
-      return getDataFromObject(
-        typeof path === 'string' ? path.split('.') : path,
-        remappedState,
-      );
+  get state() {
+    if (GLOBALS.CURRENT_COMPONENT) {
+      this.dependencies.component('*', GLOBALS.CURRENT_COMPONENT);
     }
 
-    return remappedState;
-  };
+    return this.get();
+  }
+
+  /**
+   * @returns {*} Transformed state
+   */
+  get() {
+    return this.transform(this.storedState);
+  }
+
+  /**
+   * @param {Function} transform
+   * @returns {Store}
+   */
+  map(transform) {
+    const last = this.transform;
+    this.transform = (data) => transform(last(data));
+    return this;
+  }
 
   /**
    * @param {string[]} path
-   * @param {*} value
-   * @returns {*}
+   * @param {*} newValue
+   * @param {*} source Stored state
+   * @returns {*} Mapped state
    */
-  StoreHold.setPartial = (path, value) => {
-    const target = Array.isArray(currentState) ? [] : {};
-    if (path.length) {
-      target[path[0]] =
-        path.length > 1
-          ? this.setPartial(path.slice(1), value, currentState[path[0]])
-          : value;
-      return getClonedState(currentState, target);
+  setPartial(path, newValue, source = this.storedState) {
+    if (source && path && path.length) {
+      const [current, ...nextPath] = path;
+      return mapState(source, current, this.setPartial(nextPath, newValue, source[current]));
     }
-    return value;
-  };
+
+    return newValue;
+  }
 
   /**
-   * @param {string[]} path
-   * @param {Function} output Output transformer
-   * @param {Function} input Input transformer
-   * @returns {{
-   *    model: Store;
-   *    oninput: Function;
-   * }}
+   * @param {*} newState
+   * @returns {*} Mapped state
    */
-  StoreHold.bind = (path, output = e => e, input = e => e) => {
-    const pathAsArray = Array.isArray(path) ? path : path.split('.');
-    const getVal = (source) => output(getDataFromObject(pathAsArray, source));
-    const setVal = (value) => updateState(StoreHold, StoreHold.get(), pathAsArray, input(value), false, `Bind:${path}`);
-
-    return {
-      model: StoreHold(getVal),
-      oninput: (e) => setVal(e.target.value),
-    };
-  };
-
-  /**
-   * @param {*} chunkState
-   * @returns {*}
-   */
-  StoreHold.update = (chunkState/* , noStrictSubs */) => {
-    // const keys = Object.keys(chunkState || {});
-    const newState = getClonedState(currentState, chunkState);
-    currentState = newState;
-    const newlyMappedState = StoreHold.get();
-    // if (remap !== noop) {
-    //   for (const key in newlyMappedState) {
-    //     if (
-    //       newlyMappedState.hasOwnProperty(key)
-    //       && (
-    //         !mappedState || (
-    //           mappedState
-    //           && mappedState[key] !== newlyMappedState[key]
-    //           && keys.indexOf(key) < 0
-    //         )
-    //       )
-    //     ) {
-    //       keys.push(key);
-    //     }
-    //   }
-    // }
-    dependencies.trigger('*', newlyMappedState, mappedState);
-    // keys.forEach(key => dependencies.trigger(key, newlyMappedState, mappedState));
-    mappedState = newlyMappedState;
-
+  update(newState) {
+    const parsedState = evalState(this, newState);
+    const oldStore = this.get();
+    this.storedState = parsedState;
+    this.dependencies.trigger('*', this.get(), oldStore);
     clearRenderQueue();
+    return this.get();
+  }
 
-    return currentState;
-  };
+  /**
+   * @param {Function} callback
+   * @returns {Store}
+   */
+  subscribe(callback) {
+    this.dependencies.add('*', callback);
+    callback(this.get(), null);
+    return this;
+  }
+
+  /**
+   * @param {Function} subscriber
+   */
+  unsubscribe(subscriber) {
+    this.dependencies.remove('*', subscriber);
+  }
 
   /**
    * @param {Function} action
    * @param {*[]} args
-   * @returns {*}
+   * @returns {*} Mapped state
    */
-  StoreHold.dispatch = (action, ...args) => {
-    const payload = action(currentState, ...args);
+  dispatch(action, ...args) {
+    const payload = action(this.storedState, ...args);
     // console.log('dispatch', {
     //   action: action.name,
     //   args: args,
     //   payload,
     // });
     // console.log('dispatch', action.name, payload);
-    return StoreHold.update(payload);
-  };
+    return this.update(payload);
+  }
 
   /**
    * @param {Function} action
    * @param {*[]} args
-   * @returns {Function}
+   * @returns {Function} Store.dispatch
    */
-  StoreHold.willDispatch = (action, ...args) => (...args2) =>
-    StoreHold.dispatch(action, ...args, ...args2);
+  willDispatch(action, ...args) {
+    return (...args2) => this.dispatch(action, ...args, ...args2);
+  }
 
   /**
-   * @param {Function} callback
-   * @returns {Store}
+   * @param {Function} listenerToRender
+   * @returns {Listener}
    */
-  StoreHold.subscribe = (callback/* , strict */) => {
-    dependencies.add('*', callback);
-    callback(StoreHold.get(), null);
-    return StoreHold;
-  };
-
-  /**
-   * @param {Function} subscriber
-   */
-  StoreHold.unsubscribe = (subscriber) => {
-    dependencies.remove('*', subscriber);
-  };
-
-  /**
-   * @param {Function} fnMap
-   * @returns {Store}
-   */
-  StoreHold.map = (fnMap) => {
-    const tempFn = remap;
-    remap = (...args) => fnMap(tempFn(...args));
-    return StoreHold;
-  };
-  Object.defineProperty(StoreHold, 'interface', {
-    get: () => [
-      StoreHold.state,
-      StoreHold.dispatch,
-      StoreHold.subscribe,
-      StoreHold.unsubscribe,
-    ],
-  });
-
-  const initialSate = extractState.call(StoreHold, state);
-
-  return StoreHold;
+  listener(listenerToRender = e => e) {
+    return new Listener(listenerToRender, this);
+  }
 }

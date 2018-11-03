@@ -29,7 +29,7 @@ customTag('await',
       if (placeholder !== value) {
         if (waitMs) {
           placeholderTimeout = setTimeout(() => {
-            this.update({ ...props, value: placeholder });
+            this.updateWithProps({ ...props, value: placeholder });
           }, waitMs);
         } else {
           value = placeholder;
@@ -39,12 +39,12 @@ customTag('await',
       src
         .then((value) => {
           clearTimeout(placeholderTimeout);
-          this.update({ ...props, value: ensureFn(transform)(value), loaded: true });
+          this.updateWithProps({ ...props, value: ensureFn(transform)(value), loaded: true });
         })
         .catch((err) => {
           console.error(err);
           clearTimeout(placeholderTimeout);
-          this.update({ ...props, value: ensureFn(error)(err), loaded: true });
+          this.updateWithProps({ ...props, value: ensureFn(error)(err), loaded: true });
         })
     }
 

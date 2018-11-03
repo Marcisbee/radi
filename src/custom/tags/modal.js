@@ -7,10 +7,12 @@ const h = html;
 export const ModalStore = new Store({});
 
 const registerModal = (store, name) => ({
+  ...store,
   [name]: false,
 });
 
 const switchModal = (store, name, type) => ({
+  ...store,
   [name]: type,
 });
 
@@ -25,28 +27,32 @@ export const ModalService = service.add('modal', () => {
   };
 });
 
+// TODO: Figure out a different approach to modal
 customTag('modal',
   function Modal({name = 'default', children}) {
+    const modal = ModalStore.state;
+
     if (typeof name === 'undefined') {
       console.warn('[Radi.js] Warn: Every <modal> tag needs to have `name` attribute!');
     }
 
-    this.onMount = el => ModalStore.dispatch(registerModal, name);
+    this.onMount = el => {
+      if (!modal[name])
+      ModalStore.dispatch(registerModal, name);
+    }
 
     return h('portal', {},
-      ModalStore(data => (
-        data[name] && h('div',
-          { class: 'radi-modal', name },
-          h('div', {
-            class: 'radi-modal-backdrop',
-            onclick: () => service.modal.close(name),
-          }),
-          h('div',
-            { class: 'radi-modal-content' },
-            ...(children.slice())
-          )
+      modal[name] && h('div',
+        { class: 'radi-modal', name },
+        h('div', {
+          class: 'radi-modal-backdrop',
+          onclick: () => service.modal.close(name),
+        }),
+        h('div',
+          { class: 'radi-modal-content' },
+          ...(children.slice())
         )
-      ))
+      )
     );
   }
 );

@@ -304,92 +304,6 @@
     });
   }
 
-  /**
-   * @typedef {Object} Dependencies
-   * @property {{}} dependencies
-   * @property {Function} add
-   * @property {Function} remove
-   * @property {Function} component
-   * @property {Function} fn
-   * @property {Function} trigger
-   */
-
-  /**
-   * @typedef {Object} Store
-   * @property {*} state
-   * @property {Function} getInitial
-   * @property {Function} get
-   * @property {Function} setPartial
-   * @property {Function} bind
-   * @property {Function} update
-   * @property {Function} dispatch
-   * @property {Function} willDispatch
-   * @property {Function} subscribe
-   * @property {Function} unsubscribe
-   * @property {Function} map
-   * @property {Function} interface
-   */
-
-  var currentListener = null;
-
-  /**
-   * @param {Store[]} anchor
-   * @param {Store} to
-   * @returns {Function}
-   */
-  function anchored(anchor, to) {
-    return function (newState, oldState) {
-      if (anchor[0] === newState) { return false; }
-      if (newState !== oldState) {
-        anchor[0] = newState;
-        to.dispatch(function () { return newState; });
-      }
-      return true;
-    };
-  }
-
-  /**
-   * @param {Store} state
-   * @param {string[]} path
-   * @returns {{}}
-   */
-  function extractState(state, path) {
-    var this$1 = this;
-    if ( path === void 0 ) path = [];
-
-    if (!state) { return state; }
-
-    if (this && state && typeof state.subscribe === 'function') {
-      var anchor = [];
-      if (path.length > 0) {
-        state.subscribe(function (newState, oldState) {
-          if (anchor[0] === newState) { return false; }
-          if (newState !== oldState) {
-            this$1.dispatch(function () { return this$1.setPartial(path, newState); });
-            anchor[0] = newState;
-          }
-          return true;
-        });
-      } else {
-        this.subscribe(anchored(anchor, state));
-        state.subscribe(anchored(anchor, this));
-      }
-      return state.get();
-    }
-
-    if (state && typeof state === 'object') {
-      var tempState = Array.isArray(state) ? new Array(state.length) : {};
-      for (var key in state) {
-        if (state.hasOwnProperty(key)) {
-          tempState[key] = extractState.call(this$1, state[key], path.concat(key));
-        }
-      }
-      return tempState;
-    }
-
-    return state;
-  }
-
   var renderQueue = [];
 
   /**
@@ -408,92 +322,74 @@
     renderQueue = [];
   }
 
-  /**
-   * @constructor
-   */
-  function Dependencies() {
-    var this$1 = this;
-
+  var Dependencies = function Dependencies() {
     this.dependencies = {};
+  };
 
-    /**
-     * @param {string[]} path
-     * @param {Function} component
-     */
-    this.add = function (path, component) {
-      var key = path[0];
-      if (typeof this$1.dependencies[key] === 'undefined') { this$1.dependencies[key] = []; }
+  /**
+   * @param {string[]} path
+   * @param {Function} component
+   */
+  Dependencies.prototype.add = function add (path, component) {
+    var key = path[0];
+    if (typeof this.dependencies[key] === 'undefined') { this.dependencies[key] = []; }
 
-      if (this$1.dependencies[key].indexOf(component) < 0) {
-        // console.log('addDependency', key, component, this.dependencies[key])
-        this$1.dependencies[key].push(component);
+    if (this.dependencies[key].indexOf(component) < 0) {
+      // console.log('addDependency', key, component, this.dependencies[key])
+      this.dependencies[key].push(component);
+    }
+
+    this.dependencies[key] = this.dependencies[key].filter(function (c) {
+      if (c.dom instanceof Node) {
+        return c.dom.isConnected;
       }
 
-      this$1.dependencies[key] = this$1.dependencies[key].filter(function (c) {
-        if (c.dom instanceof Node) {
-          return c.dom.isConnected;
-        }
+      return true;
+    });
+  };
 
-        return true;
-      });
-    };
+  /**
+   * @param {string[]} path
+   * @param {Function} component
+   */
+  Dependencies.prototype.remove = function remove (path, component) {
+    var key = path[0];
+    var index = (this.dependencies[key] || []).indexOf(component);
+    if (index >= 0) {
+      // console.log('removeDependency', key, component)
+      this.dependencies[key].splice(index, 1);
+    }
+  };
 
-    /**
-     * @param {string[]} path
-     * @param {Function} component
-     */
-    this.remove = function (path, component) {
-      var key = path[0];
-      var index = (this$1.dependencies[key] || []).indexOf(component);
-      if (index >= 0) {
-        // console.log('removeDependency', key, component)
-        this$1.dependencies[key].splice(index, 1);
-      }
-    };
+  /**
+   * @param {string[]} path
+   * @param {Function} component
+   */
+  Dependencies.prototype.component = function component (path, component$1) {
+      var this$1 = this;
 
-    /**
-     * @param {string[]} path
-     * @param {Function} component
-     */
-    this.component = function (path, component) {
-      if (component) {
-        this$1.add(path, component);
+    if (component$1) {
+      this.add(path, component$1);
 
-        component.__onDestroy = function () {
-          this$1.remove(path, component);
-        };
-      }
-      return component;
-    };
+      component$1.__onDestroy = function () {
+        this$1.remove(path, component$1);
+      };
+    }
+    return component$1;
+  };
 
-    /**
-     * @param {string[]} path
-     */
-    this.fn = function (fn) { return function (path) {
-      var current = currentListener;
-      if (current) {
-        this$1.add(path, current);
-
-        current.__onDestroy = function () {
-          this$1.remove(path, current);
-        };
-      }
-      return fn(path);
-    }; };
-
-    /**
-     * @param {string} key
-     * @param {{}} newStore
-     * @param {{}} oldState
-     */
-    this.trigger = function (key, newStore, oldState) {
-      if (this$1.dependencies[key]) {
-        this$1.dependencies[key].forEach(function (fn) { return (
-          addToRenderQueue(fn)(newStore, oldState)
-        ); });
-      }
-    };
-  }
+  /**
+   * @param {string} key
+   * @param {*} newStore
+   * @param {*} oldState
+   */
+  Dependencies.prototype.trigger = function trigger (key, newStore, oldState) {
+    if (this.dependencies[key]) {
+      this.dependencies[key].forEach(function (fn) { return (
+        addToRenderQueue(fn)(newStore, oldState)
+      ); });
+    }
+  };
 
   /**
    * @param {*} key
@@ -501,12 +397,12 @@
    */
   var noop = function (e) { return e; };
 
-  var Listener = function Listener(map, store, dep) {
+  var Listener = function Listener(map, store) {
     this.map = map;
     this.getValue = this.getValue.bind(this);
     this.render = this.render.bind(this);
     this.store = store;
-    this.dep = dep;
+    this.dep = store.event;
   };
 
   /**
@@ -536,270 +432,275 @@
   };
 
   /**
-   * @param {string[]} path
-   * @param {Store} source
-   * @returns {*}
+   * @param {*} value
+   * @returns {boolean}
    */
-  function getDataFromObject(path, source) {
-    var i = 0;
-    while (i < path.length) {
-      if (typeof source === 'undefined') {
-        i++;
-      } else {
-        source = source[path[i++]];
-      }
-    }
-    return source;
+  function isObject(value) {
+    return value && (
+      value.constructor === Object
+      || value.constructor === Array
+    );
   }
 
   /**
+   * @param {Store} store
    * @param {Store} state
-   * @param {Store} source
    * @param {string[]} path
-   * @param {*} data
-   * @param {boolean} useUpdate
-   * @param {string} name
+   * @returns {*} New state
    */
-  function updateState(state, source, path, data, useUpdate, name) {
-    if ( name === void 0 ) name = '';
+  function evalState(store, state, path) {
+    if ( path === void 0 ) path = [];
 
-    var payload = state.setPartial(path, data);
+    if (state) {
+      if (isObject(state)) {
+        var newState = Array.isArray(state) ? [] : {};
+        for (var key in state) {
+          newState[key] = evalState(store, state[key], path.concat(key));
+        }
+        return newState;
+      }
 
-    if (!useUpdate) {
-      var f = function () { return payload; };
-      Object.defineProperty(f, 'name', { value: name, writable: false });
-      state.dispatch(f);
-    } else {
-      state.update(payload);
-    }
-  }
-
-  /**
-   * @param {*} state
-   * @param {*} chunk
-   * @returns {*}
-   */
-  function getClonedState(state, chunk) {
-    if (Array.isArray(state)) {
-      return state.concat( chunk);
-    }
-
-    if (state && typeof state === 'object') {
-      return Object.assign({}, state, chunk);
-    }
-
-    if (typeof chunk !== 'undefined') {
-      return chunk;
+      if (state instanceof Store) {
+        state.subscribe.call(state, function (newValue) {
+          store.update(store.setPartial(path, newValue));
+        });
+        return state.get();
+      }
     }
 
     return state;
   }
 
   /**
-   * @param {*} state
+   * @param {Store} state
+   * @param {string|number} key
+   * @param {*} value
+   * @returns {*} New state
+   */
+  function mapState(state, key, value) {
+    if (state && isObject(state)) {
+      var output = Array.isArray(state)
+        ? [].concat( state )
+        : Object.assign({}, state);
+      output[key] = value;
+      return output;
+    }
+
+    return state;
+  }
+
+  var Store = function Store(state) {
+    this.dependencies = new Dependencies();
+    this.transform = noop;
+    this.willDispatch = this.willDispatch.bind(this);
+    this.dispatch = this.dispatch.bind(this);
+    this.subscribe = this.subscribe.bind(this);
+    this.update = this.update.bind(this);
+    this.get = this.get.bind(this);
+    this.storedState = evalState(this, state);
+  };
+
+  var prototypeAccessors = { state: { configurable: true } };
+
+  /**
+   * @returns {*} Stored state
+   */
+  prototypeAccessors.state.get = function () {
+    if (GLOBALS.CURRENT_COMPONENT) {
+      this.dependencies.component('*', GLOBALS.CURRENT_COMPONENT);
+    }
+
+    return this.get();
+  };
+
+  /**
+   * @returns {*} Transformed state
+   */
+  Store.prototype.get = function get () {
+    return this.transform(this.storedState);
+  };
+
+  /**
+   * @param {Function} transform
    * @returns {Store}
    */
-  function Store(state/* , fn = () => {} */) {
-    var this$1 = this;
-    if ( state === void 0 ) state = null;
+  Store.prototype.map = function map (transform) {
+    var last = this.transform;
+    this.transform = function (data) { return transform(last(data)); };
+    return this;
+  };
 
-    var currentState = getClonedState(state);
+  /**
+   * @param {string[]} path
+   * @param {*} newValue
+   * @param {*} source Stored state
+   * @returns {*} Mapped state
+   */
+  Store.prototype.setPartial = function setPartial (path, newValue, source) {
+      if ( source === void 0 ) source = this.storedState;
 
-    /**
-     * @param {Function} listenerToRender
-     * @constructor Store
-     */
-    var StoreHold = function (listenerToRender) {
-      if ( listenerToRender === void 0 ) listenerToRender = function (e) { return e; };
+    if (source && path && path.length) {
+      var current = path[0];
+        var nextPath = path.slice(1);
+      return mapState(source, current, this.setPartial(nextPath, newValue, source[current]));
+    }
 
-      var listener = new Listener(listenerToRender, StoreHold, dependencies);
+    return newValue;
+  };
 
-      return listener;
-    };
+  /**
+   * @param {*} newState
+   * @returns {*} Mapped state
+   */
+  Store.prototype.update = function update (newState) {
+    var parsedState = evalState(this, newState);
+    var oldStore = this.get();
+    this.storedState = parsedState;
+    this.dependencies.trigger('*', this.get(), oldStore);
+    clearRenderQueue();
+    return this.get();
+  };
 
-    var dependencies = new Dependencies();
-    var remap = noop;
-    var mappedState;
+  /**
+   * @param {Function} callback
+   * @returns {Store}
+   */
+  Store.prototype.subscribe = function subscribe (callback) {
+    this.dependencies.add('*', callback);
+    callback(this.get(), null);
+    return this;
+  };
 
-    Object.defineProperty(StoreHold, 'state', {
-      get: function get() {
-        if (GLOBALS.CURRENT_COMPONENT) {
-          dependencies.component('*', GLOBALS.CURRENT_COMPONENT);
-        }
-        return StoreHold.get();
-      },
-    });
-    StoreHold.getInitial = function () { return initialSate; };
+  /**
+   * @param {Function} subscriber
+   */
+  Store.prototype.unsubscribe = function unsubscribe (subscriber) {
+    this.dependencies.remove('*', subscriber);
+  };
 
-    /**
-     * @param {string[]} path
-     * @returns {*}
-     */
-    StoreHold.get = function (path) {
-      if ( path === void 0 ) path = null;
-
-      var remappedState = remap(currentState);
-      if (path) {
-        return getDataFromObject(
-          typeof path === 'string' ? path.split('.') : path,
-          remappedState
-        );
-      }
-
-      return remappedState;
-    };
-
-    /**
-     * @param {string[]} path
-     * @param {*} value
-     * @returns {*}
-     */
-    StoreHold.setPartial = function (path, value) {
-      var target = Array.isArray(currentState) ? [] : {};
-      if (path.length) {
-        target[path[0]] =
-          path.length > 1
-            ? this$1.setPartial(path.slice(1), value, currentState[path[0]])
-            : value;
-        return getClonedState(currentState, target);
-      }
-      return value;
-    };
-
-    /**
-     * @param {string[]} path
-     * @param {Function} output Output transformer
-     * @param {Function} input Input transformer
-     * @returns {{
-     *    model: Store;
-     *    oninput: Function;
-     * }}
-     */
-    StoreHold.bind = function (path, output, input) {
-      if ( output === void 0 ) output = function (e) { return e; };
-      if ( input === void 0 ) input = function (e) { return e; };
-
-      var pathAsArray = Array.isArray(path) ? path : path.split('.');
-      var getVal = function (source) { return output(getDataFromObject(pathAsArray, source)); };
-      var setVal = function (value) { return updateState(StoreHold, StoreHold.get(), pathAsArray, input(value), false, ("Bind:" + path)); };
-
-      return {
-        model: StoreHold(getVal),
-        oninput: function (e) { return setVal(e.target.value); },
-      };
-    };
-
-    /**
-     * @param {*} chunkState
-     * @returns {*}
-     */
-    StoreHold.update = function (chunkState/* , noStrictSubs */) {
-      // const keys = Object.keys(chunkState || {});
-      var newState = getClonedState(currentState, chunkState);
-      currentState = newState;
-      var newlyMappedState = StoreHold.get();
-      // if (remap !== noop) {
-      //   for (const key in newlyMappedState) {
-      //     if (
-      //       newlyMappedState.hasOwnProperty(key)
-      //       && (
-      //         !mappedState || (
-      //           mappedState
-      //           && mappedState[key] !== newlyMappedState[key]
-      //           && keys.indexOf(key) < 0
-      //         )
-      //       )
-      //     ) {
-      //       keys.push(key);
-      //     }
-      //   }
-      // }
-      dependencies.trigger('*', newlyMappedState, mappedState);
-      // keys.forEach(key => dependencies.trigger(key, newlyMappedState, mappedState));
-      mappedState = newlyMappedState;
-
-      clearRenderQueue();
-
-      return currentState;
-    };
-
-    /**
-     * @param {Function} action
-     * @param {*[]} args
-     * @returns {*}
-     */
-    StoreHold.dispatch = function (action) {
+  /**
+   * @param {Function} action
+   * @param {*[]} args
+   * @returns {*} Mapped state
+   */
+  Store.prototype.dispatch = function dispatch (action) {
       var args = [], len = arguments.length - 1;
       while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
 
-      var payload = action.apply(void 0, [ currentState ].concat( args ));
-      // console.log('dispatch', {
-      //   action: action.name,
-      //   args: args,
-      //   payload,
-      // });
-      // console.log('dispatch', action.name, payload);
-      return StoreHold.update(payload);
-    };
+    var payload = action.apply(void 0, [ this.storedState ].concat( args ));
+    // console.log('dispatch', {
+    // action: action.name,
+    // args: args,
+    // payload,
+    // });
+    // console.log('dispatch', action.name, payload);
+    return this.update(payload);
+  };
 
-    /**
-     * @param {Function} action
-     * @param {*[]} args
-     * @returns {Function}
-     */
-    StoreHold.willDispatch = function (action) {
+  /**
+   * @param {Function} action
+   * @param {*[]} args
+   * @returns {Function} Store.dispatch
+   */
+  Store.prototype.willDispatch = function willDispatch (action) {
+      var this$1 = this;
       var args = [], len = arguments.length - 1;
       while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
 
-      return function () {
+    return function () {
+        var ref;
+
         var args2 = [], len = arguments.length;
         while ( len-- ) args2[ len ] = arguments[ len ];
-
-        return StoreHold.dispatch.apply(StoreHold, [ action ].concat( args, args2 ));
-    }    };
-
-    /**
-     * @param {Function} callback
-     * @returns {Store}
-     */
-    StoreHold.subscribe = function (callback/* , strict */) {
-      dependencies.add('*', callback);
-      callback(StoreHold.get(), null);
-      return StoreHold;
-    };
-
-    /**
-     * @param {Function} subscriber
-     */
-    StoreHold.unsubscribe = function (subscriber) {
-      dependencies.remove('*', subscriber);
-    };
-
-    /**
-     * @param {Function} fnMap
-     * @returns {Store}
-     */
-    StoreHold.map = function (fnMap) {
-      var tempFn = remap;
-      remap = function () {
-        var args = [], len = arguments.length;
-        while ( len-- ) args[ len ] = arguments[ len ];
-
-        return fnMap(tempFn.apply(void 0, args));
+        return (ref = this$1).dispatch.apply(ref, [ action ].concat( args, args2 ));
       };
-      return StoreHold;
+  };
+
+  /**
+   * @param {Function} listenerToRender
+   * @returns {Listener}
+   */
+  Store.prototype.listener = function listener (listenerToRender) {
+      if ( listenerToRender === void 0 ) listenerToRender = function (e) { return e; };
+
+    return new Listener(listenerToRender, this);
+  };
+
+  Object.defineProperties( Store.prototype, prototypeAccessors );
+
+  function Fetcher(resolver, success, error) {
+    return function (defaults) {
+      var fetcherStore = new Store(defaults);
+
+      if (typeof resolver === 'function') {
+        resolver()
+          .then(success || (function (returned) {
+            fetcherStore.dispatch(function () { return returned; });
+          }))
+          .catch(error || (function (err) {
+            console.error(err);
+          }));
+      }
+
+      return fetcherStore;
     };
-    Object.defineProperty(StoreHold, 'interface', {
-      get: function () { return [
-        StoreHold.state,
-        StoreHold.dispatch,
-        StoreHold.subscribe,
-        StoreHold.unsubscribe ]; },
-    });
+  }
 
-    var initialSate = extractState.call(StoreHold, state);
+  /**
+   * @param       {EventTarget} [target=document]
+   * @constructor
+   */
+  function Subscribe(target) {
+    if ( target === void 0 ) target = document;
 
-    return StoreHold;
+    return {
+      /**
+       * @param {string} eventHolder
+       * @param {Function} transformer
+       * @returns {Store}
+       */
+      on: function (eventHolder, transformer) {
+        if ( transformer === void 0 ) transformer = function (e) { return e; };
+
+        var events = eventHolder.trim().split(' ');
+        var eventSubscription = null;
+        var staticDefaults = null;
+        var staticStore = null;
+        var state = false;
+
+        if (typeof transformer !== 'function') {
+          throw new Error(("[Radi.js] Subscription `" + eventHolder + "` must be transformed by function"));
+        }
+
+        function updater(defaults, newStore) {
+          var store = typeof newStore !== 'undefined' ? newStore : new Store(defaults);
+
+          state = true;
+          staticDefaults = defaults;
+          staticStore = store;
+          events.forEach(function (event) { return target.addEventListener(event,
+            eventSubscription = function () {
+                var args = [], len = arguments.length;
+                while ( len-- ) args[ len ] = arguments[ len ];
+
+                return store.dispatch(function () { return transformer.apply(void 0, args.concat( [event] )); });
+            }
+          ); });
+
+          return store;
+        }
+
+        updater.stop = function () {
+          if (state) {
+            events.forEach(function (event) { return target.removeEventListener(event, eventSubscription); });
+          }
+          return state = !state;
+        };
+        updater.start = function () { return !state && updater(staticDefaults, staticStore); };
+
+        return updater;
+      },
+    };
   }
 
   /**
@@ -1374,6 +1275,7 @@
     this.render = this.render.bind(this);
     this.evaluate = this.evaluate.bind(this);
     this.update = this.update.bind(this);
+    this.updateWithProps = this.updateWithProps.bind(this);
     this.__$events = {};
   };
 
@@ -1434,19 +1336,29 @@
   };
 
   /**
-   * @param{{}} props
-   * @param{*[]} children
+   * @returns {HTMLElement}
    */
-  Component.prototype.update = function update (props, children) {
-      if ( props === void 0 ) props = this.props;
-      if ( children === void 0 ) children = this.children;
-
+  Component.prototype.update = function update () {
     var oldDom = this.dom;
 
     return this.dom = patch(
-      this.evaluate(props, children),
+      this.evaluate(this.props, this.children),
       oldDom
     );
+  };
+
+  /**
+   * @param{{}} props
+   * @param{*[]} children
+   * @returns {HTMLElement}
+   */
+  Component.prototype.updateWithProps = function updateWithProps (props, children) {
+      if ( props === void 0 ) props = this.props;
+      if ( children === void 0 ) children = this.children;
+
+    this.props = props;
+    this.children = children;
+    return this.update();
   };
 
   var Service = function Service () {};
@@ -1475,63 +1387,6 @@
   };
 
   var service = new Service();
-
-  /**
-   * @param       {EventTarget} [target=document]
-   * @constructor
-   */
-  function Subscribe(target) {
-    if ( target === void 0 ) target = document;
-
-    return {
-      /**
-       * @param {string} eventHolder
-       * @param {Function} transformer
-       * @returns {Store}
-       */
-      on: function (eventHolder, transformer) {
-        if ( transformer === void 0 ) transformer = function (e) { return e; };
-
-        var events = eventHolder.trim().split(' ');
-        var eventSubscription = null;
-        var staticDefaults = null;
-        var staticStore = null;
-        var state = false;
-
-        if (typeof transformer !== 'function') {
-          throw new Error(("[Radi.js] Subscription `" + eventHolder + "` must be transformed by function"));
-        }
-
-        function updater(defaults, newStore) {
-          var store = typeof newStore !== 'undefined' ? newStore : new Store(defaults);
-
-          state = true;
-          staticDefaults = defaults;
-          staticStore = store;
-          events.forEach(function (event) { return target.addEventListener(event,
-            eventSubscription = function () {
-                var args = [], len = arguments.length;
-                while ( len-- ) args[ len ] = arguments[ len ];
-
-                return store.dispatch(function () { return transformer.apply(void 0, args.concat( [event] )); });
-            }
-          ); });
-
-          return store;
-        }
-
-        updater.stop = function () {
-          if (state) {
-            events.forEach(function (event) { return target.removeEventListener(event, eventSubscription); });
-          }
-          return state = !state;
-        };
-        updater.start = function () { return !state && updater(staticDefaults, staticStore); };
-
-        return updater;
-      },
-    };
-  }
 
   var animate = function (target, type, opts, done) {
     var direct = opts[type];
@@ -1732,7 +1587,7 @@
         if (placeholder !== value) {
           if (waitMs) {
             placeholderTimeout = setTimeout(function () {
-              this$1.update(Object.assign({}, props, {value: placeholder}));
+              this$1.updateWithProps(Object.assign({}, props, {value: placeholder}));
             }, waitMs);
           } else {
             value = placeholder;
@@ -1742,12 +1597,12 @@
         src
           .then(function (value) {
             clearTimeout(placeholderTimeout);
-            this$1.update(Object.assign({}, props, {value: ensureFn(transform)(value), loaded: true}));
+            this$1.updateWithProps(Object.assign({}, props, {value: ensureFn(transform)(value), loaded: true}));
           })
           .catch(function (err) {
             console.error(err);
             clearTimeout(placeholderTimeout);
-            this$1.update(Object.assign({}, props, {value: ensureFn(error)(err), loaded: true}));
+            this$1.updateWithProps(Object.assign({}, props, {value: ensureFn(error)(err), loaded: true}));
           });
       }
 
@@ -1760,6 +1615,8 @@
       var name = ref.name;
       var onrender = ref.onrender; if ( onrender === void 0 ) onrender = function (e) { return (e); };
 
+      var state = errorsStore.state;
+
       if (typeof name === 'undefined') {
         console.warn('[Radi.js] Warn: Every <errors> tag needs to have `name` attribute!');
       }
@@ -1767,8 +1624,7 @@
         console.warn('[Radi.js] Warn: Every <errors> tag needs to have `onrender` attribute!');
       }
 
-      return errorsStore(function (state) { return html(function () { return state[name] && onrender(state[name]); }
-      ); })
+      return html(function () { return state[name] && onrender(state[name]); });
     }
   );
 
@@ -1779,13 +1635,15 @@
   var registerModal = function (store, name) {
     var obj;
 
-    return (( obj = {}, obj[name] = false, obj));
+    return (Object.assign({}, store,
+    ( obj = {}, obj[name] = false, obj)));
   };
 
   var switchModal = function (store, name, type) {
     var obj;
 
-    return (( obj = {}, obj[name] = type, obj));
+    return (Object.assign({}, store,
+    ( obj = {}, obj[name] = type, obj)));
   };
 
   var ModalService = service.add('modal', function () {
@@ -1797,30 +1655,34 @@
     };
   });
 
+  // TODO: Figure out a different approach to modal
   customTag('modal',
     function Modal(ref) {
       var name = ref.name; if ( name === void 0 ) name = 'default';
       var children = ref.children;
 
+      var modal = ModalStore.state;
+
       if (typeof name === 'undefined') {
         console.warn('[Radi.js] Warn: Every <modal> tag needs to have `name` attribute!');
       }
 
-      this.onMount = function (el) { return ModalStore.dispatch(registerModal, name); };
+      this.onMount = function (el) {
+        if (!modal[name])
+        { ModalStore.dispatch(registerModal, name); }
+      };
 
       return h('portal', {},
-        ModalStore(function (data) { return (
-          data[name] && h('div',
-            { class: 'radi-modal', name: name },
-            h('div', {
-              class: 'radi-modal-backdrop',
-              onclick: function () { return service.modal.close(name); },
-            }),
-            h.apply(void 0, [ 'div',
-              { class: 'radi-modal-content' } ].concat( (children.slice()) )
-            )
+        modal[name] && h('div',
+          { class: 'radi-modal', name: name },
+          h('div', {
+            class: 'radi-modal-backdrop',
+            onclick: function () { return service.modal.close(name); },
+          }),
+          h.apply(void 0, [ 'div',
+            { class: 'radi-modal-content' } ].concat( (children.slice()) )
           )
-        ); })
+        )
       );
     }
   );
@@ -1972,6 +1834,7 @@
     version: GLOBALS.VERSION,
     h: html,
     html: html,
+    Fetcher: Fetcher,
     Store: Store,
     customTag: customTag,
     customAttribute: customAttribute,

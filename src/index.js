@@ -6,8 +6,11 @@ import {
   html,
   patch,
 } from './html';
-import { Store } from './store';
-import { Subscribe } from './subscribe';
+import {
+  Fetcher,
+  Store,
+  Subscribe,
+} from './store';
 import { mount } from './mount';
 import { destroy } from './destroy';
 import { Validator } from './custom';
@@ -17,6 +20,7 @@ const Radi = {
   version: GLOBALS.VERSION,
   h: html,
   html,
+  Fetcher,
   Store,
   customTag,
   customAttribute,

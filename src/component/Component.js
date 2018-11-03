@@ -14,6 +14,7 @@ export class Component {
     this.render = this.render.bind(this);
     this.evaluate = this.evaluate.bind(this);
     this.update = this.update.bind(this);
+    this.updateWithProps = this.updateWithProps.bind(this);
     this.__$events = {};
   }
 
@@ -72,15 +73,25 @@ export class Component {
   }
 
   /**
-   * @param  {{}} props
-   * @param  {*[]} children
+   * @returns {HTMLElement}
    */
-  update(props = this.props, children = this.children) {
+  update() {
     const oldDom = this.dom;
 
     return this.dom = patch(
-      this.evaluate(props, children),
+      this.evaluate(this.props, this.children),
       oldDom
     );
+  }
+
+  /**
+   * @param  {{}} props
+   * @param  {*[]} children
+   * @returns {HTMLElement}
+   */
+  updateWithProps(props = this.props, children = this.children) {
+    this.props = props;
+    this.children = children;
+    return this.update();
   }
 }
