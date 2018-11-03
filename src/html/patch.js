@@ -1,13 +1,12 @@
 import { destroy } from '../destroy';
 import { ensureArray } from '../utils';
+import { fireEvent } from './fireEvent';
 import { mount } from '../mount';
 import { render } from './render';
-// import { nodeChanged } from './nodeChanged';
 import { updateProps } from './props';
-import { fireEvent } from './fireEvent';
 
 /**
- * @param  {Object|Object[]} nodes
+ * @param  {Node|Node[]} nodes
  * @param  {HTMLElement} dom
  * @param  {HTMLElement} parent
  * @param  {HTMLElement} $pointer
@@ -95,6 +94,11 @@ export function patch(nodes, dom, parent = dom && dom.parentNode, $pointer = nul
   return patchDomRecursively(dom, newNode, parent, $pointer);
 }
 
+/**
+ * @param {HTMLElement} node1
+ * @param {HTMLElement} node2
+ * @returns {boolean}
+ */
 function nodeChanged(node1, node2) {
   if (node1.nodeType === 3 && node2.nodeType === 3 && node1.__radiRef) return true;
   if (node1.nodeType === node2.nodeType) return false;
@@ -103,13 +107,24 @@ function nodeChanged(node1, node2) {
   return true;
 }
 
+/**
+ * @param {NamedNodeMap} value
+ * @returns {{}}
+ */
 function attributesToObject(value) {
   return [].reduce.call(value, (acc, obj) => ({
     ...acc,
     [obj.name]: obj.value,
-  }), {})
+  }), {});
 }
 
+/**
+ * @param {HTMLElement} oldDom
+ * @param {HTMLElement} newDom
+ * @param {HTMLElement} parent
+ * @param {HTMLElement} pointer
+ * @returns {HTMLElement}
+ */
 function patchDomRecursively(oldDom, newDom, parent, pointer) {
   const active = document.activeElement;
 
@@ -125,7 +140,6 @@ function patchDomRecursively(oldDom, newDom, parent, pointer) {
 
   if (oldDom && parent) {
     if (!nodeChanged(oldDom, newDom)) {
-
       if (oldDom.nodeType === 3 && newDom.nodeType === 3
         && oldDom.textContent !== newDom.textContent) {
         oldDom.textContent = newDom.textContent;
@@ -139,7 +153,11 @@ function patchDomRecursively(oldDom, newDom, parent, pointer) {
         /* We should always run patch childnodes in reverse from last to first
         because if node is removed, it removes whole element in array */
         for (let ii = length - 1; ii >= 0; ii--) {
-          patchDomRecursively(oldDom.childNodes[ii], newDom.childNodes[ii] && newDom.childNodes[ii], oldDom)
+          patchDomRecursively(
+            oldDom.childNodes[ii],
+            newDom.childNodes[ii] && newDom.childNodes[ii],
+            oldDom
+          );
         }
       }
 

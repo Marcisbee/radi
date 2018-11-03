@@ -2,14 +2,14 @@ import { flatten } from '../utils';
 
 /**
  * @typedef {Object} Node
- * @property {*} type
- * @property {Object} props
+ * @property {string|function} type
+ * @property {{}} props
  * @property {*[]} children
  */
 
 /**
  * @param  {*} preType
- * @param  {Object} preProps
+ * @param  {{}} preProps
  * @param  {*[]} preChildren
  * @return {Node}
  */

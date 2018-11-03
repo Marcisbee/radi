@@ -4,7 +4,7 @@ export * from './destroyTree';
 export * from './fireEvent';
 export * from './html';
 export * from './insertAfter';
-export * from './nodeChanged';
+// export * from './nodeChanged';
 export * from './patch';
 export * from './props';
 export * from './render';

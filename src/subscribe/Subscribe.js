@@ -1,11 +1,16 @@
 import { Store } from '../store';
 
 /**
- * @param       {EventTarget} [target=document] [description]
+ * @param       {EventTarget} [target=document]
  * @constructor
  */
 export function Subscribe(target = document) {
   return {
+    /**
+     * @param {string} eventHolder
+     * @param {Function} transformer
+     * @returns {Store}
+     */
     on: (eventHolder, transformer = e => e) => {
       const events = eventHolder.trim().split(' ');
       let eventSubscription = null;

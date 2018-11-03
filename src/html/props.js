@@ -1,6 +1,11 @@
 import GLOBALS from '../consts/GLOBALS';
 import { Listener } from '../store';
 
+/**
+ * @param {*} value
+ * @param {Function} fn
+ * @returns {*}
+ */
 function autoUpdate(value, fn) {
   if (value instanceof Listener) {
     return fn(value.getValue(e => fn(value.map(e))));
@@ -8,6 +13,11 @@ function autoUpdate(value, fn) {
   return fn(value);
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {string} name
+ * @param {*} value
+ */
 function setBooleanProp($target, name, value) {
   if (value) {
     $target.setAttribute(name, value);
@@ -17,23 +27,44 @@ function setBooleanProp($target, name, value) {
   }
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {string} name
+ */
 function removeBooleanProp($target, name) {
   $target.removeAttribute(name);
   $target[name] = false;
 }
 
+/**
+ * @param {string} name
+ * @returns {boolean}
+ */
 function isEventProp(name) {
   return /^on/.test(name);
 }
 
+/**
+ * @param {string} name
+ * @returns {string}
+ */
 function extractEventName(name) {
   return name.slice(2).toLowerCase();
 }
 
+/**
+ * @param {string} name
+ * @returns {boolean}
+ */
 function isCustomProp(name) {
   return isEventProp(name);
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {string} name
+ * @param {*} value
+ */
 export function setProp($target, name, value) {
   if (name === 'style' && typeof value !== 'string') {
     setStyles($target, value);
@@ -51,6 +82,11 @@ export function setProp($target, name, value) {
   }
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {string} name
+ * @param {*} value
+ */
 export function removeProp($target, name, value) {
   if (isCustomProp(name)) {
 
@@ -63,6 +99,10 @@ export function removeProp($target, name, value) {
   }
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {{}} styles
+ */
 export function setStyles($target, styles) {
   Object.keys(styles).forEach(name => {
     autoUpdate(styles[name], value => {
@@ -71,6 +111,10 @@ export function setStyles($target, styles) {
   });
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {{}} props
+ */
 export function setProps($target, props) {
   (Object.keys(props || {})).forEach(name => {
     if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
@@ -102,10 +146,20 @@ export function setProps($target, props) {
   });
 }
 
+/**
+ * @param {*} value
+ * @returns {boolean}
+ */
 function isRemovableProp(value) {
   return typeof value === 'undefined' || value === false || value === null;
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {string} name
+ * @param {*} newVal
+ * @param {*} oldVal
+ */
 export function updateProp($target, name, newVal, oldVal) {
   if (isRemovableProp(newVal)) {
     removeProp($target, name, oldVal);
@@ -114,6 +168,11 @@ export function updateProp($target, name, newVal, oldVal) {
   }
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {{}} newProps
+ * @param {{}} oldProps = {}
+ */
 export function updateProps($target, newProps, oldProps = {}) {
   const props = Object.assign({}, newProps, oldProps);
   Object.keys(props).forEach(name => {
@@ -126,6 +185,11 @@ export function updateProps($target, newProps, oldProps = {}) {
   });
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {string} name
+ * @param {*} value
+ */
 export function addEventListener($target, name, value) {
   const exceptions = ['mount', 'destroy'];
   if (isEventProp(name)) {

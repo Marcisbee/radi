@@ -45,6 +45,10 @@ export class Component {
     }
   }
 
+  /**
+   * @param  {{}} props
+   * @param  {*[]} children
+   */
   evaluate(props, children) {
     this.props = props;
     this.children = children;
@@ -58,10 +62,19 @@ export class Component {
     );
   }
 
+  /**
+   * @param  {string} props
+   * @param  {*[]} children
+   * @param  {HTMLElement} parent
+   */
   render(props, children, parent) {
     return this.dom = render(this.evaluate(props, children), parent);
   }
 
+  /**
+   * @param  {{}} props
+   * @param  {*[]} children
+   */
   update(props = this.props, children = this.children) {
     const oldDom = this.dom;
 

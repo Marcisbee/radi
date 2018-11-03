@@ -171,14 +171,14 @@ var formToJSON = function (elements, transform) {
 
 /**
  * @typedef {Object} Node
- * @property {*} type
- * @property {Object} props
+ * @property {string|function} type
+ * @property {{}} props
  * @property {*[]} children
  */
 
 /**
  * @param  {*} preType
- * @param  {Object} preProps
+ * @param  {{}} preProps
  * @param  {*[]} preChildren
  * @return {Node}
  */
@@ -298,8 +298,39 @@ function mount(data, container, after) {
   });
 }
 
+/**
+ * @typedef {Object} Dependencies
+ * @property {{}} dependencies
+ * @property {Function} add
+ * @property {Function} remove
+ * @property {Function} component
+ * @property {Function} fn
+ * @property {Function} trigger
+ */
+
+/**
+ * @typedef {Object} Store
+ * @property {*} state
+ * @property {Function} getInitial
+ * @property {Function} get
+ * @property {Function} setPartial
+ * @property {Function} bind
+ * @property {Function} update
+ * @property {Function} dispatch
+ * @property {Function} willDispatch
+ * @property {Function} subscribe
+ * @property {Function} unsubscribe
+ * @property {Function} map
+ * @property {Function} interface
+ */
+
 var currentListener = null;
 
+/**
+ * @param {Store[]} anchor
+ * @param {Store} to
+ * @returns {Function}
+ */
 function anchored(anchor, to) {
   return function (newState, oldState) {
     if (anchor[0] === newState) { return false; }
@@ -311,6 +342,11 @@ function anchored(anchor, to) {
   };
 }
 
+/**
+ * @param {Store} state
+ * @param {string[]} path
+ * @returns {{}}
+ */
 function extractState(state, path) {
   var this$1 = this;
   if ( path === void 0 ) path = [];
@@ -350,6 +386,10 @@ function extractState(state, path) {
 
 var renderQueue = [];
 
+/**
+ * @param {Function} data
+ * @returns {Function}
+ */
 function addToRenderQueue(data) {
   var fn = data.update || data;
   if (renderQueue.indexOf(fn) < 0) {
@@ -362,10 +402,18 @@ function clearRenderQueue() {
   renderQueue = [];
 }
 
+/**
+ * @constructor
+ */
 function Dependencies() {
   var this$1 = this;
 
   this.dependencies = {};
+
+  /**
+   * @param {string[]} path
+   * @param {Function} component
+   */
   this.add = function (path, component) {
     var key = path[0];
     if (typeof this$1.dependencies[key] === 'undefined') { this$1.dependencies[key] = []; }
@@ -383,6 +431,11 @@ function Dependencies() {
       return true;
     });
   };
+
+  /**
+   * @param {string[]} path
+   * @param {Function} component
+   */
   this.remove = function (path, component) {
     var key = path[0];
     var index = (this$1.dependencies[key] || []).indexOf(component);
@@ -391,6 +444,11 @@ function Dependencies() {
       this$1.dependencies[key].splice(index, 1);
     }
   };
+
+  /**
+   * @param {string[]} path
+   * @param {Function} component
+   */
   this.component = function (path, component) {
     if (component) {
       this$1.add(path, component);
@@ -401,6 +459,10 @@ function Dependencies() {
     }
     return component;
   };
+
+  /**
+   * @param {string[]} path
+   */
   this.fn = function (fn) { return function (path) {
     var current = currentListener;
     if (current) {
@@ -412,6 +474,12 @@ function Dependencies() {
     }
     return fn(path);
   }; };
+
+  /**
+   * @param {string} key
+   * @param {{}} newStore
+   * @param {{}} oldState
+   */
   this.trigger = function (key, newStore, oldState) {
     if (this$1.dependencies[key]) {
       this$1.dependencies[key].forEach(function (fn) { return (
@@ -421,6 +489,10 @@ function Dependencies() {
   };
 }
 
+/**
+ * @param {*} key
+ * @returns {Function}
+ */
 var noop = function (e) { return e; };
 
 var Listener = function Listener(map, store, dep) {
@@ -431,6 +503,10 @@ var Listener = function Listener(map, store, dep) {
   this.dep = dep;
 };
 
+/**
+ * @param {Function} updater
+ * @returns {*} Cached state
+ */
 Listener.prototype.getValue = function getValue (updater) {
   var state = this.store.get();
 
@@ -441,6 +517,9 @@ Listener.prototype.getValue = function getValue (updater) {
   return this.cached = this.map(state);
 };
 
+/**
+ * @returns {Function} That returns mapped state
+ */
 Listener.prototype.render = function render () {
   var self = this;
 
@@ -450,6 +529,11 @@ Listener.prototype.render = function render () {
   });
 };
 
+/**
+ * @param {string[]} path
+ * @param {Store} source
+ * @returns {*}
+ */
 function getDataFromObject(path, source) {
   var i = 0;
   while (i < path.length) {
@@ -462,6 +546,14 @@ function getDataFromObject(path, source) {
   return source;
 }
 
+/**
+ * @param {Store} state
+ * @param {Store} source
+ * @param {string[]} path
+ * @param {*} data
+ * @param {boolean} useUpdate
+ * @param {string} name
+ */
 function updateState(state, source, path, data, useUpdate, name) {
   if ( name === void 0 ) name = '';
 
@@ -476,9 +568,14 @@ function updateState(state, source, path, data, useUpdate, name) {
   }
 }
 
+/**
+ * @param {*} state
+ * @param {*} chunk
+ * @returns {*}
+ */
 function getClonedState(state, chunk) {
   if (Array.isArray(state)) {
-    return state.concat( chunk );
+    return state.concat( chunk);
   }
 
   if (state && typeof state === 'object') {
@@ -492,12 +589,20 @@ function getClonedState(state, chunk) {
   return state;
 }
 
+/**
+ * @param {*} state
+ * @returns {Store}
+ */
 function Store(state/* , fn = () => {} */) {
   var this$1 = this;
-  if ( state === void 0 ) state = {};
+  if ( state === void 0 ) state = null;
 
   var currentState = getClonedState(state);
 
+  /**
+   * @param {Function} listenerToRender
+   * @constructor Store
+   */
   var StoreHold = function (listenerToRender) {
     if ( listenerToRender === void 0 ) listenerToRender = function (e) { return e; };
 
@@ -511,7 +616,7 @@ function Store(state/* , fn = () => {} */) {
   var mappedState;
 
   Object.defineProperty(StoreHold, 'state', {
-    get: function () {
+    get: function get() {
       if (GLOBALS.CURRENT_COMPONENT) {
         dependencies.component('*', GLOBALS.CURRENT_COMPONENT);
       }
@@ -519,7 +624,14 @@ function Store(state/* , fn = () => {} */) {
     },
   });
   StoreHold.getInitial = function () { return initialSate; };
+
+  /**
+   * @param {string[]} path
+   * @returns {*}
+   */
   StoreHold.get = function (path) {
+    if ( path === void 0 ) path = null;
+
     var remappedState = remap(currentState);
     if (path) {
       return getDataFromObject(
@@ -530,6 +642,12 @@ function Store(state/* , fn = () => {} */) {
 
     return remappedState;
   };
+
+  /**
+   * @param {string[]} path
+   * @param {*} value
+   * @returns {*}
+   */
   StoreHold.setPartial = function (path, value) {
     var target = Array.isArray(currentState) ? [] : {};
     if (path.length) {
@@ -541,6 +659,16 @@ function Store(state/* , fn = () => {} */) {
     }
     return value;
   };
+
+  /**
+   * @param {string[]} path
+   * @param {Function} output Output transformer
+   * @param {Function} input Input transformer
+   * @returns {{
+   *    model: Store;
+   *    oninput: Function;
+   * }}
+   */
   StoreHold.bind = function (path, output, input) {
     if ( output === void 0 ) output = function (e) { return e; };
     if ( input === void 0 ) input = function (e) { return e; };
@@ -554,6 +682,11 @@ function Store(state/* , fn = () => {} */) {
       oninput: function (e) { return setVal(e.target.value); },
     };
   };
+
+  /**
+   * @param {*} chunkState
+   * @returns {*}
+   */
   StoreHold.update = function (chunkState/* , noStrictSubs */) {
     // const keys = Object.keys(chunkState || {});
     var newState = getClonedState(currentState, chunkState);
@@ -583,6 +716,12 @@ function Store(state/* , fn = () => {} */) {
 
     return currentState;
   };
+
+  /**
+   * @param {Function} action
+   * @param {*[]} args
+   * @returns {*}
+   */
   StoreHold.dispatch = function (action) {
     var args = [], len = arguments.length - 1;
     while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
@@ -596,6 +735,12 @@ function Store(state/* , fn = () => {} */) {
     // console.log('dispatch', action.name, payload);
     return StoreHold.update(payload);
   };
+
+  /**
+   * @param {Function} action
+   * @param {*[]} args
+   * @returns {Function}
+   */
   StoreHold.willDispatch = function (action) {
     var args = [], len = arguments.length - 1;
     while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
@@ -606,14 +751,28 @@ function Store(state/* , fn = () => {} */) {
 
       return StoreHold.dispatch.apply(StoreHold, [ action ].concat( args, args2 ));
   }    };
+
+  /**
+   * @param {Function} callback
+   * @returns {Store}
+   */
   StoreHold.subscribe = function (callback/* , strict */) {
     dependencies.add('*', callback);
     callback(StoreHold.get(), null);
     return StoreHold;
   };
+
+  /**
+   * @param {Function} subscriber
+   */
   StoreHold.unsubscribe = function (subscriber) {
     dependencies.remove('*', subscriber);
   };
+
+  /**
+   * @param {Function} fnMap
+   * @returns {Store}
+   */
   StoreHold.map = function (fnMap) {
     var tempFn = remap;
     remap = function () {
@@ -635,6 +794,19 @@ function Store(state/* , fn = () => {} */) {
   var initialSate = extractState.call(StoreHold, state);
 
   return StoreHold;
+}
+
+/**
+ * @param {Component} compNode
+ * @returns {Function<HTMLElement|HTMLElement[]>}
+ */
+function refFactory(compNode) {
+  return function (data, ii) {
+    if (ii && Array.isArray(compNode.dom)) {
+      return compNode.dom[ii] = data;
+    }
+    return compNode.dom = data;
+  };
 }
 
 /**
@@ -718,17 +890,10 @@ function render$$1(node, $parent) {
       });
     }
 
-    function refFactory(data, ii) {
-      if (ii && Array.isArray(compNode.dom)) {
-        return compNode.dom[ii] = data;
-      }
-      return compNode.dom = data;
-    }
-
     if (Array.isArray(renderedComponent)) {
-      renderedComponent[0].__radiRef = refFactory;
+      renderedComponent[0].__radiRef = refFactory(compNode);
     } else {
-      renderedComponent.__radiRef = refFactory;
+      renderedComponent.__radiRef = refFactory(compNode);
     }
     GLOBALS.CURRENT_COMPONENT = tempComponent;
 
@@ -794,6 +959,11 @@ function render$$1(node, $parent) {
   return element;
 }
 
+/**
+ * @param {*} value
+ * @param {Function} fn
+ * @returns {*}
+ */
 function autoUpdate(value, fn) {
   if (value instanceof Listener) {
     return fn(value.getValue(function (e) { return fn(value.map(e)); }));
@@ -801,6 +971,11 @@ function autoUpdate(value, fn) {
   return fn(value);
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {string} name
+ * @param {*} value
+ */
 function setBooleanProp($target, name, value) {
   if (value) {
     $target.setAttribute(name, value);
@@ -810,23 +985,44 @@ function setBooleanProp($target, name, value) {
   }
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {string} name
+ */
 function removeBooleanProp($target, name) {
   $target.removeAttribute(name);
   $target[name] = false;
 }
 
+/**
+ * @param {string} name
+ * @returns {boolean}
+ */
 function isEventProp(name) {
   return /^on/.test(name);
 }
 
+/**
+ * @param {string} name
+ * @returns {string}
+ */
 function extractEventName(name) {
   return name.slice(2).toLowerCase();
 }
 
+/**
+ * @param {string} name
+ * @returns {boolean}
+ */
 function isCustomProp(name) {
   return isEventProp(name);
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {string} name
+ * @param {*} value
+ */
 function setProp($target, name, value) {
   if (name === 'style' && typeof value !== 'string') {
     setStyles($target, value);
@@ -844,6 +1040,11 @@ function setProp($target, name, value) {
   }
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {string} name
+ * @param {*} value
+ */
 function removeProp($target, name, value) {
   if (isCustomProp(name)) {
 
@@ -856,6 +1057,10 @@ function removeProp($target, name, value) {
   }
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {{}} styles
+ */
 function setStyles($target, styles) {
   Object.keys(styles).forEach(function (name) {
     autoUpdate(styles[name], function (value) {
@@ -864,6 +1069,10 @@ function setStyles($target, styles) {
   });
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {{}} props
+ */
 function setProps($target, props) {
   (Object.keys(props || {})).forEach(function (name) {
     if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
@@ -898,10 +1107,20 @@ function setProps($target, props) {
   });
 }
 
+/**
+ * @param {*} value
+ * @returns {boolean}
+ */
 function isRemovableProp(value) {
   return typeof value === 'undefined' || value === false || value === null;
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {string} name
+ * @param {*} newVal
+ * @param {*} oldVal
+ */
 function updateProp($target, name, newVal, oldVal) {
   if (isRemovableProp(newVal)) {
     removeProp($target, name, oldVal);
@@ -910,6 +1129,11 @@ function updateProp($target, name, newVal, oldVal) {
   }
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {{}} newProps
+ * @param {{}} oldProps = {}
+ */
 function updateProps($target, newProps, oldProps) {
   if ( oldProps === void 0 ) oldProps = {};
 
@@ -924,6 +1148,11 @@ function updateProps($target, newProps, oldProps) {
   });
 }
 
+/**
+ * @param {HTMLElement} $target
+ * @param {string} name
+ * @param {*} value
+ */
 function addEventListener($target, name, value) {
   var exceptions = ['mount', 'destroy'];
   if (isEventProp(name)) {
@@ -943,7 +1172,7 @@ function addEventListener($target, name, value) {
 }
 
 /**
- * @param  {Object|Object[]} nodes
+ * @param  {Node|Node[]} nodes
  * @param  {HTMLElement} dom
  * @param  {HTMLElement} parent
  * @param  {HTMLElement} $pointer
@@ -1034,7 +1263,12 @@ function patch(nodes, dom, parent, $pointer) {
   return patchDomRecursively(dom, newNode, parent, $pointer);
 }
 
-function nodeChanged$1(node1, node2) {
+/**
+ * @param {HTMLElement} node1
+ * @param {HTMLElement} node2
+ * @returns {boolean}
+ */
+function nodeChanged(node1, node2) {
   if (node1.nodeType === 3 && node2.nodeType === 3 && node1.__radiRef) { return true; }
   if (node1.nodeType === node2.nodeType) { return false; }
   if (node1.nodeName === node2.nodeName) { return false; }
@@ -1042,15 +1276,26 @@ function nodeChanged$1(node1, node2) {
   return true;
 }
 
+/**
+ * @param {NamedNodeMap} value
+ * @returns {{}}
+ */
 function attributesToObject(value) {
   return [].reduce.call(value, function (acc, obj) {
     var obj$1;
 
     return (Object.assign({}, acc,
     ( obj$1 = {}, obj$1[obj.name] = obj.value, obj$1)));
-  }, {})
+  }, {});
 }
 
+/**
+ * @param {HTMLElement} oldDom
+ * @param {HTMLElement} newDom
+ * @param {HTMLElement} parent
+ * @param {HTMLElement} pointer
+ * @returns {HTMLElement}
+ */
 function patchDomRecursively(oldDom, newDom, parent, pointer) {
   var active = document.activeElement;
 
@@ -1065,8 +1310,7 @@ function patchDomRecursively(oldDom, newDom, parent, pointer) {
   }
 
   if (oldDom && parent) {
-    if (!nodeChanged$1(oldDom, newDom)) {
-
+    if (!nodeChanged(oldDom, newDom)) {
       if (oldDom.nodeType === 3 && newDom.nodeType === 3
         && oldDom.textContent !== newDom.textContent) {
         oldDom.textContent = newDom.textContent;
@@ -1080,7 +1324,11 @@ function patchDomRecursively(oldDom, newDom, parent, pointer) {
         /* We should always run patch childnodes in reverse from last to first
         because if node is removed, it removes whole element in array */
         for (var ii = length - 1; ii >= 0; ii--) {
-          patchDomRecursively(oldDom.childNodes[ii], newDom.childNodes[ii] && newDom.childNodes[ii], oldDom);
+          patchDomRecursively(
+            oldDom.childNodes[ii],
+            newDom.childNodes[ii] && newDom.childNodes[ii],
+            oldDom
+          );
         }
       }
 
@@ -1155,6 +1403,10 @@ Component.prototype.trigger = function trigger (event) {
   }
 };
 
+/**
+ * @param{{}} props
+ * @param{*[]} children
+ */
 Component.prototype.evaluate = function evaluate (props, children) {
   this.props = props;
   this.children = children;
@@ -1166,10 +1418,19 @@ Component.prototype.evaluate = function evaluate (props, children) {
   );
 };
 
+/**
+ * @param{string} props
+ * @param{*[]} children
+ * @param{HTMLElement} parent
+ */
 Component.prototype.render = function render$1 (props, children, parent) {
   return this.dom = render$$1(this.evaluate(props, children), parent);
 };
 
+/**
+ * @param{{}} props
+ * @param{*[]} children
+ */
 Component.prototype.update = function update (props, children) {
     if ( props === void 0 ) props = this.props;
     if ( children === void 0 ) children = this.children;
@@ -1210,13 +1471,18 @@ Service.prototype.add = function add (name, fn) {
 var service = new Service();
 
 /**
- * @param       {EventTarget} [target=document] [description]
+ * @param       {EventTarget} [target=document]
  * @constructor
  */
 function Subscribe(target) {
   if ( target === void 0 ) target = document;
 
   return {
+    /**
+     * @param {string} eventHolder
+     * @param {Function} transformer
+     * @returns {Store}
+     */
     on: function (eventHolder, transformer) {
       if ( transformer === void 0 ) transformer = function (e) { return e; };
 

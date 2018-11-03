@@ -6,6 +6,19 @@ import { mount } from '../mount';
 import { setProps } from '../html';
 
 /**
+ * @param {Component} compNode
+ * @returns {Function<HTMLElement|HTMLElement[]>}
+ */
+function refFactory(compNode) {
+  return (data, ii) => {
+    if (ii && Array.isArray(compNode.dom)) {
+      return compNode.dom[ii] = data;
+    }
+    return compNode.dom = data;
+  };
+}
+
+/**
  * @param {HTMLElement|HTMLElement[]} node
  * @param {HTMLElement} $parent
  * @returns {HTMLElement|HTMLElement[]}
@@ -86,17 +99,10 @@ export function render(node, $parent) {
       });
     }
 
-    function refFactory(data, ii) {
-      if (ii && Array.isArray(compNode.dom)) {
-        return compNode.dom[ii] = data;
-      }
-      return compNode.dom = data;
-    }
-
     if (Array.isArray(renderedComponent)) {
-      renderedComponent[0].__radiRef = refFactory;
+      renderedComponent[0].__radiRef = refFactory(compNode);
     } else {
-      renderedComponent.__radiRef = refFactory;
+      renderedComponent.__radiRef = refFactory(compNode);
     }
     GLOBALS.CURRENT_COMPONENT = tempComponent;
 
