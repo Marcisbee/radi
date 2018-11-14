@@ -97,48 +97,6 @@ class Dependencies {
  */
 const noop = e => e;
 
-export class Listener {
-  /**
-   * @param {Function} map
-   * @param {Store} store
-   * @param {Dependencies} dep
-   * @constructor
-   */
-  constructor(map, store) {
-    this.map = map;
-    this.getValue = this.getValue.bind(this);
-    this.render = this.render.bind(this);
-    this.store = store;
-    this.dep = store.event;
-  }
-
-  /**
-   * @param {Function} updater
-   * @returns {*} Cached state
-   */
-  getValue(updater) {
-    const state = this.store.get();
-
-    if (!this.subbed) {
-      this.subbed = this.dep.add('*', updater);
-    }
-
-    return this.cached = this.map(state);
-  }
-
-  /**
-   * @returns {Function} That returns mapped state
-   */
-  render() {
-    const self = this;
-
-    return (function () {
-      const mappedState = self.getValue(this);
-      return mappedState;
-    });
-  }
-}
-
 /**
  * @param {*} value
  * @returns {boolean}
@@ -307,13 +265,5 @@ export class Store {
    */
   willDispatch(action, ...args) {
     return (...args2) => this.dispatch(action, ...args, ...args2);
-  }
-
-  /**
-   * @param {Function} listenerToRender
-   * @returns {Listener}
-   */
-  listener(listenerToRender = e => e) {
-    return new Listener(listenerToRender, this);
   }
 }

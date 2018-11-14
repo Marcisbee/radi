@@ -1,50 +1,17 @@
 import { Store } from './Store';
 
 /**
- * @param       {EventTarget} [target=document]
- * @constructor
+ * @param {Function} subscriber
+ * @returns {Store}
  */
-export function Subscribe(target = document) {
-  return {
-    /**
-     * @param {string} eventHolder
-     * @param {Function} transformer
-     * @returns {Store}
-     */
-    on: (eventHolder, transformer = e => e) => {
-      const events = eventHolder.trim().split(' ');
-      let eventSubscription = null;
-      let staticDefaults = null;
-      let staticStore = null;
-      let state = false;
+export function Subscribe(subscriber) {
+  const subStore = new Store(null);
 
-      if (typeof transformer !== 'function') {
-        throw new Error(`[Radi.js] Subscription \`${eventHolder}\` must be transformed by function`);
-      }
+  function caller(value) {
+    subStore.update(value);
+    subscriber(value, caller);
+    return subStore;
+  }
 
-      function updater(defaults, newStore) {
-        const store = typeof newStore !== 'undefined' ? newStore : new Store(defaults);
-
-        state = true;
-        staticDefaults = defaults;
-        staticStore = store;
-        events.forEach(event => target.addEventListener(event,
-          eventSubscription = (...args) =>
-            store.dispatch(() => transformer(...args, event))
-        ));
-
-        return store;
-      }
-
-      updater.stop = () => {
-        if (state) {
-          events.forEach(event => target.removeEventListener(event, eventSubscription));
-        }
-        return state = !state;
-      };
-      updater.start = () => !state && updater(staticDefaults, staticStore);
-
-      return updater;
-    },
-  };
+  return caller;
 }

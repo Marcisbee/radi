@@ -7,6 +7,7 @@ import {
   patch,
 } from './html';
 import {
+  Event,
   Fetcher,
   Store,
   Subscribe,
@@ -14,7 +15,10 @@ import {
 import { mount } from './mount';
 import { destroy } from './destroy';
 import {
+  Await,
   Errors,
+  Modal,
+  Portal,
 } from './custom';
 
 const Radi = {
@@ -22,8 +26,6 @@ const Radi = {
   version: GLOBALS.VERSION,
   h: html,
   html,
-  Fetcher,
-  Store,
   customTag,
   customAttribute,
   destroy,
@@ -31,8 +33,14 @@ const Radi = {
   mount,
   service,
   Service: service,
+  Event,
+  Fetcher,
+  Store,
   Subscribe,
+  Await,
   Errors,
+  Modal,
+  Portal,
 };
 
 // Pass Radi instance to plugins
