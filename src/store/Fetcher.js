@@ -4,8 +4,8 @@ export function Fetcher(resolver, success, error) {
   return (defaults) => {
     const fetcherStore = new Store(defaults);
 
-    if (typeof resolver === 'function') {
-      resolver()
+    if (resolver instanceof Promise) {
+      resolver
         .then(success || ((returned) => {
           fetcherStore.dispatch(() => returned);
         }))

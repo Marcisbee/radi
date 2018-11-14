@@ -61,25 +61,6 @@
   }
 
   /**
-   * @param  {string} type
-   * @param  {HTMLElement} $node
-   * @return {HTMLElement}
-   */
-  function fireEvent(type, $node, $element) {
-    if ( $element === void 0 ) $element = $node;
-
-    var onEvent = document.createEvent('Event');
-    onEvent.initEvent(type, false, true);
-
-    if (typeof $node.dispatchEvent === 'function') {
-      $node._eventFired = true;
-      $node.dispatchEvent(onEvent, $element);
-    }
-
-    return $node;
-  }
-
-  /**
    * @param {string} str
    * @returns {string}
    */
@@ -175,39 +156,10 @@
     }, {});
   };
 
-  /**
-   * @typedef {Object} Node
-   * @property {string|function} type
-   * @property {{}} props
-   * @property {*[]} children
-   */
-
-  /**
-   * @param  {*} preType
-   * @param  {{}} preProps
-   * @param  {*[]} preChildren
-   * @return {Node}
-   */
-  function html(preType, preProps) {
-    var preChildren = [], len = arguments.length - 2;
-    while ( len-- > 0 ) preChildren[ len ] = arguments[ len + 2 ];
-
-    var type = (typeof preType === 'number') ? ("" + preType) : preType;
-    var props = preProps || {};
-    var children = flatten(preChildren);
-
-    if (type instanceof Promise || (type && type.constructor.name === 'LazyPromise')) {
-      type = 'await';
-      props = {
-        src: preType,
-      };
-    }
-
-    return {
-      type: type,
-      props: props,
-      children: children,
-    };
+  var TYPE = {
+    NODE: 0,
+    TEXT: 1,
+    COMPONENT: 2,
   }
 
   /**
@@ -233,6 +185,155 @@
   }
 
   /**
+   * @param  {string} type
+   * @param  {HTMLElement} $node
+   * @return {HTMLElement}
+   */
+  function fireEvent(type, $node, $element) {
+    if ( $element === void 0 ) $element = $node;
+
+    var onEvent = document.createEvent('Event');
+    onEvent.initEvent(type, false, true);
+
+    if (typeof $node.dispatchEvent === 'function') {
+      $node._eventFired = true;
+      $node.dispatchEvent(onEvent, $element);
+    }
+
+    return $node;
+  }
+
+  function mount(node, container) {
+    var nodes = flatten([evaluate(node)]);
+    var dom = render$$1(nodes, container);
+
+    dom.forEach(function (item) {
+      container.appendChild(item);
+      fireEvent('mount', item);
+    });
+
+    return {
+      nodes: nodes,
+      dom: dom,
+    };
+  }
+
+  // /**
+  //  * @typedef {Object} Mount
+  //  * @property {Object} component
+  //  * @property {Object} node
+  //  * @property {function} destroy
+  //  */
+
+  // /**
+  //  * @param  {*|*[]} data
+  //  * @param  {HTMLElement} container
+  //  * @param  {HTMLElement} after
+  //  * @return {HTMLElement[]}
+  //  */
+  // export function mount(data, container, after) {
+  //   const nodes = ensureArray(data);
+
+  //   return nodes.map(node => {
+  //     const renderedNode = render(node, container);
+
+  //     if (Array.isArray(renderedNode)) {
+  //       return mount(renderedNode, container, after);
+  //     }
+      
+  //     if (after && after.parentNode) {
+  //       after = insertAfter(renderedNode, after, after.parentNode);
+  //       fireEvent('mount', renderedNode);
+  //       return after;
+  //     }
+
+  //     if (!container) {
+  //       console.log('[Radi] Mount canceled');
+  //       return nodes;
+  //     }
+
+  //     const mountedEl = container.appendChild(renderedNode);
+  //     fireEvent('mount', renderedNode);
+  //     return mountedEl;
+  //   });
+  // }
+
+  // TODO: use Component class
+
+  function render$$1(node, parent) {
+    if (Array.isArray(node)) {
+      return node.map(function (item) { return render$$1(item, parent); });
+    }
+
+    if (node.type === TYPE.TEXT) {
+      return document.createTextNode(node.query);
+    }
+
+    if (node.type === TYPE.NODE) {
+      var element;
+      if (node.query === 'svg' || parent instanceof SVGElement) {
+        element = document.createElementNS(
+          'http://www.w3.org/2000/svg',
+          node.query
+        );
+      } else {
+        element = document.createElement(node.query);
+      }
+
+      mount(node.children, element);
+
+      // set attributes
+      setProps(element, node.props);
+
+      return element;
+    }
+
+    if (node.type === TYPE.COMPONENT) {
+      var tempComponent = GLOBALS.CURRENT_COMPONENT;
+      GLOBALS.CURRENT_COMPONENT = node;
+      if (!node.pointer) {
+        node.pointer = document.createTextNode('');
+        node.pointer.__radiPoint = node;
+      }
+
+      var $styleRef;
+
+      node.pointer.addEventListener('mount', function (e) {
+        if (typeof node.style === 'string') {
+          $styleRef = document.createElement('style');
+          $styleRef.innerHTML = node.style;
+          document.head.appendChild($styleRef);
+        }
+        var tempComponent = GLOBALS.CURRENT_COMPONENT;
+        GLOBALS.CURRENT_COMPONENT = node;
+        node.update();
+        node.mounted = true;
+        GLOBALS.CURRENT_COMPONENT = tempComponent;
+        // TODO: Component mounted
+      }, {
+        passive: true,
+        once: true,
+      }, false);
+
+      node.pointer.addEventListener('destroy', function (e) {
+        if ($styleRef instanceof Node) {
+          document.head.removeChild($styleRef);
+        }
+        node.mounted = false;
+      }, {
+        passive: true,
+        once: true,
+      }, false);
+
+      node.mounted = true;
+      GLOBALS.CURRENT_COMPONENT = tempComponent;
+      return node.pointer;
+    }
+
+    return document.createTextNode(node.toString());
+  }
+
+  /**
    * @param  {HTMLElement} node
    * @param  {function} next
    */
@@ -250,8 +351,12 @@
   function destroy(data) {
     var nodes = ensureArray(data);
 
-    nodes.map(function (node) {
+    nodes.forEach(function (node) {
       if (!(node instanceof Node)) { return; }
+
+      if (node.__radiPoint && node.__radiPoint.dom && node.__radiPoint.dom.length > 0) {
+        node.__radiPoint.dom.forEach(destroy);
+      }
 
       var parent = node.parentNode;
       if (node instanceof Node && parent instanceof Node) {
@@ -264,46 +369,6 @@
     });
   }
 
-  /**
-   * @typedef {Object} Mount
-   * @property {Object} component
-   * @property {Object} node
-   * @property {function} destroy
-   */
-
-  /**
-   * @param  {*|*[]} data
-   * @param  {HTMLElement} container
-   * @param  {HTMLElement} after
-   * @return {HTMLElement[]}
-   */
-  function mount(data, container, after) {
-    var nodes = ensureArray(data);
-
-    return nodes.map(function (node) {
-      var renderedNode = render$$1(node, container);
-
-      if (Array.isArray(renderedNode)) {
-        return mount(renderedNode, container, after);
-      }
-      
-      if (after && after.parentNode) {
-        after = insertAfter(renderedNode, after, after.parentNode);
-        fireEvent('mount', renderedNode);
-        return after;
-      }
-
-      if (!container) {
-        console.log('[Radi] Mount canceled');
-        return nodes;
-      }
-
-      var mountedEl = container.appendChild(renderedNode);
-      fireEvent('mount', renderedNode);
-      return mountedEl;
-    });
-  }
-
   var renderQueue = [];
 
   /**
@@ -311,7 +376,7 @@
    * @returns {Function}
    */
   function addToRenderQueue(data) {
-    var fn = data.update || data;
+    var fn = (data.update && (function () { return data.update(); })) || data;
     if (renderQueue.indexOf(fn) < 0) {
       renderQueue.push(fn);
     }
@@ -334,18 +399,19 @@
     var key = path[0];
     if (typeof this.dependencies[key] === 'undefined') { this.dependencies[key] = []; }
 
+    this.dependencies[key] = this.dependencies[key].filter(function (c) {
+      if (c === GLOBALS.CURRENT_COMPONENT.query || c.query === GLOBALS.CURRENT_COMPONENT.query) { return true; }
+      if (c.pointer instanceof Node) {
+        if (c.mounted) { return true; }
+        return c.pointer.isConnected;
+      }
+      return true;
+    });
+
     if (this.dependencies[key].indexOf(component) < 0) {
       // console.log('addDependency', key, component, this.dependencies[key])
       this.dependencies[key].push(component);
     }
-
-    this.dependencies[key] = this.dependencies[key].filter(function (c) {
-      if (c.dom instanceof Node) {
-        return c.dom.isConnected;
-      }
-
-      return true;
-    });
   };
 
   /**
@@ -632,8 +698,8 @@
     return function (defaults) {
       var fetcherStore = new Store(defaults);
 
-      if (typeof resolver === 'function') {
-        resolver()
+      if (resolver instanceof Promise) {
+        resolver
           .then(success || (function (returned) {
             fetcherStore.dispatch(function () { return returned; });
           }))
@@ -704,169 +770,6 @@
   }
 
   /**
-   * @param {Component} compNode
-   * @returns {Function<HTMLElement|HTMLElement[]>}
-   */
-  function refFactory(compNode) {
-    return function (data, ii) {
-      if (ii && Array.isArray(compNode.dom)) {
-        return compNode.dom[ii] = data;
-      }
-      return compNode.dom = data;
-    };
-  }
-
-  /**
-   * @param {HTMLElement|HTMLElement[]} node
-   * @param {HTMLElement} $parent
-   * @returns {HTMLElement|HTMLElement[]}
-   */
-  function render$$1(node, $parent) {
-    if (Array.isArray(node)) {
-      var output = flatten(node).map(function (n) { return render$$1(n, $parent); });
-
-      // Always must render some element
-      // In case of empty array we simulate empty element as null
-      if (output.length === 0) { return render$$1([null], $parent); }
-
-      return output;
-    }
-
-    if (node && node.__esModule && node.default) {
-      return render$$1(node.default, $parent);
-    }
-
-    if ((node && typeof node.type === 'function') || typeof node === 'function') {
-      var componentFn = node.type || node;
-      var compNode = new Component(componentFn, node.props, node.children);
-      var tempComponent = GLOBALS.CURRENT_COMPONENT;
-      GLOBALS.CURRENT_COMPONENT = compNode;
-      var renderedComponent = compNode.render(node.props, node.children, $parent);
-
-      var $styleRef;
-
-      if (renderedComponent && typeof renderedComponent.addEventListener === 'function') {
-        renderedComponent.addEventListener('mount', function () {
-          if (typeof compNode.style === 'string') {
-            $styleRef = document.createElement('style');
-            $styleRef.innerHTML = compNode.style;
-            document.head.appendChild($styleRef);
-          }
-          compNode.trigger('mount', renderedComponent);
-        }, {
-          passive: true,
-          once: true,
-        }, false);
-
-        renderedComponent.addEventListener('destroy', function () {
-          compNode.trigger('destroy', renderedComponent);
-          if ($styleRef instanceof Node) {
-            document.head.removeChild($styleRef);
-          }
-        }, {
-          passive: true,
-          once: true,
-        }, false);
-      }
-
-      if (Array.isArray(renderedComponent)) {
-        renderedComponent.forEach(function (compItem) {
-          if (compItem && typeof compItem.addEventListener === 'function') {
-            compItem.addEventListener('mount', function () {
-              if (typeof compNode.style === 'string') {
-                $styleRef = document.createElement('style');
-                $styleRef.innerHTML = compNode.style;
-                document.head.appendChild($styleRef);
-              }
-              compNode.trigger('mount', compItem);
-            }, {
-              passive: true,
-              once: true,
-            }, false);
-
-            compItem.addEventListener('destroy', function () {
-              compNode.trigger('destroy', compItem);
-              if ($styleRef instanceof Node) {
-                document.head.removeChild($styleRef);
-              }
-            }, {
-              passive: true,
-              once: true,
-            }, false);
-          }
-        });
-      }
-
-      if (Array.isArray(renderedComponent)) {
-        renderedComponent[0].__radiRef = refFactory(compNode);
-      } else {
-        renderedComponent.__radiRef = refFactory(compNode);
-      }
-      GLOBALS.CURRENT_COMPONENT = tempComponent;
-
-      return renderedComponent;
-    }
-
-    if (node instanceof Node) {
-      return node;
-    }
-
-    if (node instanceof Listener) {
-      return node.render();
-    }
-
-    if (node instanceof Promise) {
-      return render$$1({ type: 'await', props: { src: node }, children: [] }, $parent);
-    }
-
-    // if the node is text, return text node
-    if (['string', 'number'].indexOf(typeof node) > -1) { return document.createTextNode(node); }
-
-    // We still have to render nodes that are hidden, to preserve
-    // node tree and ref to components
-    if (!node) {
-      return document.createComment('');
-    }
-
-    if (!(
-      typeof node.type !== 'undefined'
-      && typeof node.props !== 'undefined'
-      && typeof node.children !== 'undefined'
-    )) {
-      return document.createTextNode(JSON.stringify(node));
-    }
-
-    if (typeof GLOBALS.CUSTOM_TAGS[node.type] !== 'undefined') {
-      return render$$1(Object.assign({}, node,
-        {type: GLOBALS.CUSTOM_TAGS[node.type].render}), $parent);
-    }
-
-    // create element
-    var element;
-    if (node.type === 'svg' || $parent instanceof SVGElement) {
-      element = document.createElementNS(
-        'http://www.w3.org/2000/svg',
-        node.type
-      );
-    } else {
-      element = document.createElement(node.type);
-    }
-
-    // set attributes
-    setProps(element, node.props);
-
-    // build and append children
-    if (node.children) {
-      flatten(node.children || []).forEach(function (child) {
-        var childNode = child instanceof Node ? child : render$$1(child, element);
-        mount(childNode, element);
-      });
-    }
-
-    return element;
-  }
-
-  /**
    * @param {*} value
    * @param {Function} fn
    * @returns {*}
@@ -914,7 +817,7 @@
    * @returns {string}
    */
   function extractEventName(name) {
-    return name.slice(2).toLowerCase();
+    return name.replace(/^on/, '').toLowerCase();
   }
 
   /**
@@ -1045,6 +948,15 @@
     if ( oldProps === void 0 ) oldProps = {};
 
     var props = Object.assign({}, newProps, oldProps);
+
+    if (typeof $target.__radiHandlers !== 'undefined') {
+      $target.__radiHandlers.forEach(function (event) {
+        $target.removeEventListener.apply($target, event);
+      });
+
+      $target.__radiHandlers = [];
+    }
+
     Object.keys(props).forEach(function (name) {
       autoUpdate(newProps[name], function (value) {
         if (name === 'model') {
@@ -1063,7 +975,10 @@
   function addEventListener($target, name, value) {
     var exceptions = ['mount', 'destroy'];
     if (isEventProp(name)) {
-      $target.addEventListener(
+      if (typeof $target.__radiHandlers === 'undefined') {
+        $target.__radiHandlers = [];
+      }
+      var event = [
         extractEventName(name),
         function (e) {
           if (exceptions.indexOf(name) >= 0) {
@@ -1072,115 +987,14 @@
           if (typeof value === 'function') {
             value(e);
           }
-        },
+        } ];
+      $target.__radiHandlers.push(event);
+      $target.addEventListener(
+        event[0],
+        event[1],
         false
       );
     }
-  }
-
-  /**
-   * @param  {Node|Node[]} nodes
-   * @param  {HTMLElement} dom
-   * @param  {HTMLElement} parent
-   * @param  {HTMLElement} $pointer
-   * @returns {HTMLElement|HTMLElement[]}
-   */
-  function patch(nodes, dom, parent, $pointer) {
-    if ( parent === void 0 ) parent = dom && dom.parentNode;
-    if ( $pointer === void 0 ) $pointer = null;
-
-    if (Array.isArray(nodes) || Array.isArray(dom)) {
-      var flatNodes = Array.isArray(nodes) && nodes.length === 0 ? [null] : ensureArray(nodes);
-      var flatDom = ensureArray(dom);
-      var ref = Array.isArray(dom)
-        ? dom[0] && dom[0].__radiRef
-        : dom.__radiRef;
-
-      var lastNode = dom;
-
-      var outcome = flatNodes.map(function (node, ii) {
-        var staticLastNode = lastNode;
-        var outputNode = patch(
-          node,
-          flatDom[ii],
-          (flatDom[ii] && flatDom[ii].parentNode) || parent,
-          !flatDom[ii] && staticLastNode
-        );
-
-        // Need to memoize last rendered node
-        lastNode = Array.isArray(outputNode)
-          ? outputNode[0]
-          : outputNode;
-
-        // Make nested & updated components update their refrences
-        if (typeof ref === 'function' && ii > 0) {
-          lastNode.__radiRef = function (data) { return ref(data, ii); };
-          lastNode.__radiRef(lastNode, ii);
-        }
-
-        return outputNode;
-      });
-
-      // Unused nodes can be savely remove from DOM
-      if (flatDom.length > flatNodes.length) {
-        var unusedDomNodes = flatDom.slice(flatNodes.length - flatDom.length);
-        unusedDomNodes.forEach(destroy);
-      }
-
-      // Pass new nodes refrence to function containing it
-      if (typeof ref === 'function') { ref(outcome); }
-
-      return outcome;
-    }
-
-    /*
-      TODO: Make dom structure in before making HTMLElement
-      so that we can diff that structure with existing DOM
-
-      Preferrably it would look like this:
-
-      ```
-      {
-        type: 0,
-        query: function Component() {},
-        props: {},
-        children: [
-          {
-            type: 1,
-            query: 'button',
-            props: {
-              onclick: function dispatch() {}
-            },
-            children: [
-              {
-                type: 2,
-                query: 'Click me'
-              }
-            ]
-          }
-        ]
-      }
-      ```
-    */
-
-    /* Currently we'll render HTMLElements and diff them with real dom */
-
-    var newNode = render$$1(nodes, parent);
-
-    return patchDomRecursively(dom, newNode, parent, $pointer);
-  }
-
-  /**
-   * @param {HTMLElement} node1
-   * @param {HTMLElement} node2
-   * @returns {boolean}
-   */
-  function nodeChanged(node1, node2) {
-    if (node1.nodeType === 3 && node2.nodeType === 3 && node1.__radiRef) { return true; }
-    if (node1.nodeType === node2.nodeType) { return false; }
-    if (node1.nodeName === node2.nodeName) { return false; }
-
-    return true;
   }
 
   /**
@@ -1196,77 +1010,261 @@
     }, {});
   }
 
+  function withoutInnerChilds(dom) {
+    var childrenOfComponents = Array.prototype.filter.call(
+      dom.childNodes,
+      function (d) { return typeof d.__radiPoint !== 'undefined'; }
+    )
+      .reduce(function (acc, d) { return acc.concat( d.__radiPoint.dom); }, []);
+
+    return Array.prototype.filter.call(
+      dom.childNodes,
+      function (d) { return childrenOfComponents.indexOf(d) < 0; }
+    );
+  }
+
   /**
-   * @param {HTMLElement} oldDom
-   * @param {HTMLElement} newDom
-   * @param {HTMLElement} parent
-   * @param {HTMLElement} pointer
-   * @returns {HTMLElement}
+   * @param  {Structure} structure
+   * @param  {HTMLElement} dom
+   * @param  {HTMLElement} parent
+   * @param  {HTMLElement} last
+   * @returns {{ newDom: HTMLElement, newStucture: Structure, last: HTMLElement }}
    */
-  function patchDomRecursively(oldDom, newDom, parent, pointer) {
-    var active = document.activeElement;
+  function patch(structure, dom, parent, last) {
+    var newStucture;
+    var newDom;
+    if (!dom) {
+      // add
+      last = newDom = fireEvent('mount', insertAfter(render$$1(newStucture = structure), last, parent));
+    } else
+      if (!structure) {
+        // remove
+        destroy(dom);
+      } else {
+        // replace
+        if (structure.type === TYPE.NODE) {
+          var patchNewDom = structure;
+          var patchOldDom = dom;
+          var patchOldDomChildren = withoutInnerChilds(dom);
 
-    if (!oldDom && (pointer || parent)) {
-      var mounter = mount(newDom, parent, pointer);
-      return mounter;
-    }
+          if (patchOldDom.nodeName === patchNewDom.query.toUpperCase()) {
+            var oldAttrs = attributesToObject(patchOldDom.attributes);
 
-    if (typeof newDom === 'undefined') {
-      destroy(oldDom);
-      return oldDom;
-    }
+            if (patchOldDomChildren || patchNewDom.children) {
+              var length = Math.max(patchOldDomChildren.length, patchNewDom.children.length);
 
-    if (oldDom && parent) {
-      if (!nodeChanged(oldDom, newDom)) {
-        if (oldDom.nodeType === 3 && newDom.nodeType === 3
-          && oldDom.textContent !== newDom.textContent) {
-          oldDom.textContent = newDom.textContent;
+              /* We should always run patch childnodes in reverse from last to first
+              because if node is removed, it removes whole element in array */
+              for (var ii = length - 1; ii >= 0; ii--) {
+                patch(
+                  patchNewDom.children[ii],
+                  patchOldDomChildren[ii],
+                  patchOldDom
+                );
+              }
+            }
 
-          fireEvent('mount', newDom, oldDom);
-        }
+            updateProps(patchOldDom, patchNewDom.props, oldAttrs);
 
-        if (oldDom.childNodes || newDom.childNodes) {
-          var length = Math.max(oldDom.childNodes.length, newDom.childNodes.length);
-
-          /* We should always run patch childnodes in reverse from last to first
-          because if node is removed, it removes whole element in array */
-          for (var ii = length - 1; ii >= 0; ii--) {
-            patchDomRecursively(
-              oldDom.childNodes[ii],
-              newDom.childNodes[ii] && newDom.childNodes[ii],
-              oldDom
-            );
+            newStucture = structure;
+            newDom = dom;
+            return { newDom: newDom, newStucture: newStucture, last: last };
           }
         }
 
-        // TODO: After we have structured objects not dom nodes,
-        // should use props from there
-        if (oldDom.nodeType === 1 && newDom.nodeType === 1) {
-          var oldAttrs = attributesToObject(oldDom.attributes);
-          var newAttrs = attributesToObject(newDom.attributes);
-          updateProps(oldDom, newAttrs, oldAttrs);
+        if (structure.type === TYPE.TEXT && dom.nodeType === 3 && !dom.__radiPoint) {
+
+          if (dom.textContent != structure.query) {
+            dom.textContent = structure.query;
+
+            newStucture = structure;
+            newDom = dom;
+            return { newDom: newDom, newStucture: newStucture, last: last };
+          }
         }
 
-        if (oldDom.__radiRef) {
-          oldDom.__radiRef(oldDom);
+        if (structure.type === TYPE.COMPONENT) {
+
+          if (dom.__radiPoint && dom.__radiPoint.query === structure.query) {
+            dom.__radiPoint.update(structure.props, structure.children);
+
+            newStucture = dom.__radiPoint;
+            newDom = dom;
+            return { newDom: newDom, newStucture: newStucture, last: last };
+          }
         }
 
-        active.focus();
-        return oldDom;
+        last = newDom = fireEvent('mount', insertAfter(render$$1(newStucture = structure), dom, parent));
+        if (last.__radiPoint && last.__radiPoint && last.__radiPoint.dom) {
+          last = last.__radiPoint.dom[last.__radiPoint.dom.length - 1];
+        }
+        destroy(dom);
       }
 
-      mount(newDom, parent, oldDom);
+    return { newDom: newDom, newStucture: newStucture, last: last };
+  }
 
-      if (oldDom.__radiRef) {
-        newDom.__radiRef = oldDom.__radiRef;
-        newDom.__radiRef(newDom);
-      }
+  /**
+   * @param {{}} props
+   * @param {[]} children
+   * @returns {HTMLElement}
+   */
+  function renderComponent(props, children) {
+    var this$1 = this;
+    if ( props === void 0 ) props = this.props;
+    if ( children === void 0 ) children = this.children;
 
-      destroy(oldDom);
+    if (props) { this.props = props; }
+    if (children) { this.children = children; }
+    var component = flatten([evaluate(
+      this.query.call(this, Object.assign({}, this.props,
+        {children: this.children}))
+    )]);
+
+    if (!this.dom) {
+      var rendered = render$$1(this.domStructure = component);
+
+      return this.dom = rendered
+        .reverse()
+        .map(function (item) { return fireEvent('mount', insertAfter(item, this$1.pointer)); })
+        .reverse();
+    }
+
+    var active = document.activeElement;
+
+    if (this.pointer.parentNode === null) { return this.dom; }
+
+    var length = Math.max(this.dom.length, component.length);
+    var last = this.pointer;
+    var newDom = [];
+    var newStucture = [];
+    for (var i = 0; i <= length - 1; i++) {
+      var output = patch(component[i], this$1.dom[i], this$1.pointer.parentNode, last);
+      if (output.last) { last = output.last; }
+      if (output.newDom) { newDom[i] = output.newDom; }
+      if (output.newStucture) { newStucture[i] = output.newStucture; }
     }
 
     active.focus();
-    return newDom;
+
+    this.domStructure = newStucture;
+    return this.dom = newDom;
+  }
+
+  function isNode(value) {
+    return value && typeof value === 'object'
+      && typeof value.query !== 'undefined'
+      && typeof value.props !== 'undefined'
+      && typeof value.children !== 'undefined';
+  }
+
+  function updater(comp) {
+    return function () {
+      var args = [], len = arguments.length;
+      while ( len-- ) args[ len ] = arguments[ len ];
+
+      var tempComponent = GLOBALS.CURRENT_COMPONENT;
+      GLOBALS.CURRENT_COMPONENT = comp;
+      var output = renderComponent.call.apply(renderComponent, [ comp ].concat( args ));
+
+      GLOBALS.CURRENT_COMPONENT = tempComponent;
+      return output
+    }
+  }
+
+  function evaluate(node) {
+    if (Array.isArray(node)) {
+      return flatten(node).map(evaluate);
+    }
+
+    if (typeof node === 'function') {
+      return evaluate(node());
+    }
+
+    if (node instanceof Promise || (node && node.constructor.name === 'LazyPromise')) {
+      return evaluate({
+        query: 'await',
+        props: {
+          src: node,
+        },
+        children: [],
+      });
+    }
+
+    if (node && typeof node.type === 'number') { return node; }
+    if (isNode(node)) {
+
+      if (typeof node.query === 'function') {
+        var comp = Object.assign({}, node,
+          {type: TYPE.COMPONENT,
+          pointer: null,
+          dom: null});
+        comp.update = updater(comp);
+        return comp;
+      }
+
+      if (typeof GLOBALS.CUSTOM_TAGS[node.query] !== 'undefined') {
+        var comp$1 = Object.assign({}, node,
+          {query: GLOBALS.CUSTOM_TAGS[node.query].render,
+          type: TYPE.COMPONENT,
+          pointer: null,
+          dom: null});
+        comp$1.update = updater(comp$1);
+        return comp$1;
+      }
+
+      return Object.assign({}, node,
+        {type: TYPE.NODE,
+        children: evaluate(flatten(node.children))})
+    }
+
+    if (!node && typeof node !== 'string' && typeof node !== 'number') {
+      return {
+        // query: node,
+        query: '',
+        type: TYPE.TEXT,
+      }
+    }
+
+    return {
+      query: node.toString(),
+      type: TYPE.TEXT,
+    }
+  }
+
+  /**
+   * @typedef {Object} Node
+   * @property {string|function} query
+   * @property {{}} props
+   * @property {*[]} children
+   */
+
+  /**
+   * @param  {*} preQuery
+   * @param  {{}} preProps
+   * @param  {*[]} preChildren
+   * @return {Node}
+   */
+  function html(preQuery, preProps) {
+    var preChildren = [], len = arguments.length - 2;
+    while ( len-- > 0 ) preChildren[ len ] = arguments[ len + 2 ];
+
+    var query = (typeof preQuery === 'number') ? ("" + preQuery) : preQuery;
+    var props = preProps || {};
+    var children = flatten(preChildren);
+
+    if (query instanceof Promise || (query && query.constructor.name === 'LazyPromise')) {
+      query = 'await';
+      props = {
+        src: preQuery,
+      };
+    }
+
+    return {
+      query: query,
+      props: props,
+      children: children,
+    };
   }
 
   var Component = function Component(type) {
@@ -1315,7 +1313,7 @@
    * @param{{}} props
    * @param{*[]} children
    */
-  Component.prototype.evaluate = function evaluate (props, children) {
+  Component.prototype.evaluate = function evaluate$$1 (props, children) {
     this.props = props;
     this.children = children;
 
@@ -1429,7 +1427,7 @@
     addToElement: true,
   });
 
-  var errorsStore = new Store({}, 'errorStore');
+  var errorsStore = new Store({});
   var setErrors = function (state, name, errors) {
     var obj;
 
@@ -1587,7 +1585,7 @@
         if (placeholder !== value) {
           if (waitMs) {
             placeholderTimeout = setTimeout(function () {
-              this$1.updateWithProps(Object.assign({}, props, {value: placeholder}));
+              this$1.update(Object.assign({}, props, {value: placeholder}));
             }, waitMs);
           } else {
             value = placeholder;
@@ -1596,13 +1594,17 @@
 
         src
           .then(function (value) {
+            if (value && typeof value === 'object' && typeof value.default === 'function') {
+              value = html(value.default);
+            }
+
             clearTimeout(placeholderTimeout);
-            this$1.updateWithProps(Object.assign({}, props, {value: ensureFn(transform)(value), loaded: true}));
+            this$1.update(Object.assign({}, props, {value: ensureFn(transform)(value), loaded: true}));
           })
           .catch(function (err) {
             console.error(err);
             clearTimeout(placeholderTimeout);
-            this$1.updateWithProps(Object.assign({}, props, {value: ensureFn(error)(err), loaded: true}));
+            this$1.update(Object.assign({}, props, {value: ensureFn(error)(err), loaded: true}));
           });
       }
 
@@ -1610,23 +1612,25 @@
     }
   );
 
-  customTag('errors',
-    function Errors(ref) {
-      var name = ref.name;
-      var onrender = ref.onrender; if ( onrender === void 0 ) onrender = function (e) { return (e); };
+  function Errors(ref) {
+    var name = ref.name;
+    var onrender = ref.onrender; if ( onrender === void 0 ) onrender = function (e) { return (e); };
 
-      var state = errorsStore.state;
+    var state = errorsStore.state;
 
-      if (typeof name === 'undefined') {
-        console.warn('[Radi.js] Warn: Every <errors> tag needs to have `name` attribute!');
-      }
-      if (typeof onrender !== 'function') {
-        console.warn('[Radi.js] Warn: Every <errors> tag needs to have `onrender` attribute!');
-      }
-
-      return html(function () { return state[name] && onrender(state[name]); });
+    if (typeof name === 'undefined') {
+      console.warn('[Radi.js] Warn: Every <errors> tag needs to have `name` attribute!');
     }
-  );
+    if (typeof onrender !== 'function') {
+      console.warn('[Radi.js] Warn: Every <errors> tag needs to have `onrender` attribute!');
+    }
+
+    if (!state[name]) {
+      return null;
+    }
+
+    return onrender(state[name]);
+  }
 
   var h = html;
 
@@ -1712,123 +1716,6 @@
     }
   );
 
-  var validValue = function (value) { return (
-    typeof value === 'string'
-      || typeof value === 'number'
-      || value
-  ); };
-
-  var Validator = function Validator(value) {
-    this.value = value;
-    this.rules = [];
-  };
-
-  Validator.prototype.register = function register (ref) {
-      var this$1 = this;
-      var type = ref.type;
-      var validate = ref.validate;
-      var error = ref.error;
-
-    var nn = this.rules.push({
-      type: type,
-      validate: function (value) { return (validValue(value) && validate(value)); },
-      error: error || 'Invalid field',
-    });
-
-    this.error = function (text) {
-      this$1.rules[nn - 1].error = text || error;
-      return this$1;
-    };
-
-    return this;
-  };
-
-  Validator.prototype.check = function check (newValue) {
-      var this$1 = this;
-
-    if (typeof newValue !== 'undefined') {
-      this.value = newValue;
-    }
-
-    return this.rules.reduce(function (acc, value) { return (
-      typeof acc === 'string' ? acc : (!value.validate(this$1.value) && value.error) || acc
-    ); }, true)
-  };
-
-  Validator.prototype.required = function required () {
-    return this.register({
-      type: 'required',
-      validate: function (value) { return value !== ''; },
-      error: 'Field is required',
-    })
-  };
-
-  Validator.prototype.test = function test (regexp) {
-    return this.register({
-      type: 'test',
-      validate: function (value) { return value === '' || regexp.test(value); },
-      error: 'Field must be valid',
-    })
-  };
-
-  Validator.prototype.includes = function includes (include) {
-    return this.register({
-      type: 'includes',
-      validate: function (value) { return value === '' ||
-        (Array.isArray(value) && value.indexOf(include) >= 0); },
-      error: 'Field must include ' + include,
-    })
-  };
-
-  Validator.prototype.excludes = function excludes (exclude) {
-    return this.register({
-      type: 'excludes',
-      validate: function (value) { return value === '' ||
-        (Array.isArray(value) && value.indexOf(exclude) < 0); },
-      error: 'Field must exclude ' + exclude,
-    })
-  };
-
-  Validator.prototype.equal = function equal (equal$1) {
-    return this.register({
-      type: 'equal',
-      validate: function (value) { return value === '' || value === equal$1; },
-      error: 'Field must be equal to ' + equal$1,
-    })
-  };
-
-  Validator.prototype.notEqual = function notEqual (equal) {
-    return this.register({
-      type: 'notEqual',
-      validate: function (value) { return value === '' || value !== equal; },
-      error: 'Field must not be equal to ' + equal,
-    })
-  };
-
-  Validator.prototype.min = function min (num) {
-    return this.register({
-      type: 'min',
-      validate: function (value) { return value.length >= num; },
-      error: 'Min char length is ' + num,
-    })
-  };
-
-  Validator.prototype.max = function max (num) {
-    return this.register({
-      type: 'max',
-      validate: function (value) { return value.length < num; },
-      error: 'Max char length is ' + num,
-    })
-  };
-
-  Validator.prototype.email = function email () {
-    return this.register({
-      type: 'email',
-      validate: function (value) { return value === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); },
-      error: 'Email is not valid',
-    })
-  };
-
   var Radi = {
     v: GLOBALS.VERSION,
     version: GLOBALS.VERSION,
@@ -1844,7 +1731,7 @@
     service: service,
     Service: service,
     Subscribe: Subscribe,
-    Validator: Validator,
+    Errors: Errors,
   };
 
   // Pass Radi instance to plugins

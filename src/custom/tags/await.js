@@ -1,4 +1,4 @@
-import { customTag } from '../../html';
+import { customTag, html } from '../../html';
 
 function ensureFn(maybeFn) {
   if (typeof maybeFn === 'function') return maybeFn;
@@ -29,7 +29,7 @@ customTag('await',
       if (placeholder !== value) {
         if (waitMs) {
           placeholderTimeout = setTimeout(() => {
-            this.updateWithProps({ ...props, value: placeholder });
+            this.update({ ...props, value: placeholder });
           }, waitMs);
         } else {
           value = placeholder;
@@ -38,13 +38,17 @@ customTag('await',
 
       src
         .then((value) => {
+          if (value && typeof value === 'object' && typeof value.default === 'function') {
+            value = html(value.default);
+          }
+
           clearTimeout(placeholderTimeout);
-          this.updateWithProps({ ...props, value: ensureFn(transform)(value), loaded: true });
+          this.update({ ...props, value: ensureFn(transform)(value), loaded: true });
         })
         .catch((err) => {
           console.error(err);
           clearTimeout(placeholderTimeout);
-          this.updateWithProps({ ...props, value: ensureFn(error)(err), loaded: true });
+          this.update({ ...props, value: ensureFn(error)(err), loaded: true });
         })
     }
 

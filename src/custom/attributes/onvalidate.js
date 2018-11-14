@@ -2,7 +2,7 @@ import { formToJSON } from '../../utils';
 import { customAttribute } from '../../html/customAttribute';
 import { Store } from '../../store';
 
-export const errorsStore = new Store({}, 'errorStore');
+export const errorsStore = new Store({});
 const setErrors = (state, name, errors) => ({
   ...state,
   [name]: errors,

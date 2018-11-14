@@ -7,7 +7,7 @@ let renderQueue = [];
  * @returns {Function}
  */
 function addToRenderQueue(data) {
-  const fn = data.update || data;
+  const fn = (data.update && (() => data.update())) || data;
   if (renderQueue.indexOf(fn) < 0) {
     renderQueue.push(fn);
   }
@@ -34,18 +34,19 @@ class Dependencies {
     const key = path[0];
     if (typeof this.dependencies[key] === 'undefined') this.dependencies[key] = [];
 
+    this.dependencies[key] = this.dependencies[key].filter(c => {
+      if (c === GLOBALS.CURRENT_COMPONENT.query || c.query === GLOBALS.CURRENT_COMPONENT.query) return true;
+      if (c.pointer instanceof Node) {
+        if (c.mounted) return true;
+        return c.pointer.isConnected;
+      }
+      return true;
+    });
+
     if (this.dependencies[key].indexOf(component) < 0) {
       // console.log('addDependency', key, component, this.dependencies[key])
       this.dependencies[key].push(component);
     }
-
-    this.dependencies[key] = this.dependencies[key].filter(c => {
-      if (c.dom instanceof Node) {
-        return c.dom.isConnected;
-      }
-
-      return true;
-    });
   }
 
   /**

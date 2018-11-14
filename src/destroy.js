@@ -19,8 +19,12 @@ export function beforeDestroy(node, next) {
 export function destroy(data) {
   const nodes = ensureArray(data);
 
-  nodes.map(node => {
+  nodes.forEach(node => {
     if (!(node instanceof Node)) return;
+
+    if (node.__radiPoint && node.__radiPoint.dom && node.__radiPoint.dom.length > 0) {
+      node.__radiPoint.dom.forEach(destroy);
+    }
 
     const parent = node.parentNode;
     if (node instanceof Node && parent instanceof Node) {

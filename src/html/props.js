@@ -49,7 +49,7 @@ function isEventProp(name) {
  * @returns {string}
  */
 function extractEventName(name) {
-  return name.slice(2).toLowerCase();
+  return name.replace(/^on/, '').toLowerCase();
 }
 
 /**
@@ -175,6 +175,15 @@ export function updateProp($target, name, newVal, oldVal) {
  */
 export function updateProps($target, newProps, oldProps = {}) {
   const props = Object.assign({}, newProps, oldProps);
+
+  if (typeof $target.__radiHandlers !== 'undefined') {
+    $target.__radiHandlers.forEach((event) => {
+      $target.removeEventListener(...event);
+    });
+
+    $target.__radiHandlers = [];
+  }
+
   Object.keys(props).forEach(name => {
     autoUpdate(newProps[name], value => {
       if (name === 'model') {
@@ -193,7 +202,10 @@ export function updateProps($target, newProps, oldProps = {}) {
 export function addEventListener($target, name, value) {
   const exceptions = ['mount', 'destroy'];
   if (isEventProp(name)) {
-    $target.addEventListener(
+    if (typeof $target.__radiHandlers === 'undefined') {
+      $target.__radiHandlers = [];
+    }
+    const event = [
       extractEventName(name),
       (e) => {
         if (exceptions.indexOf(name) >= 0) {
@@ -203,6 +215,11 @@ export function addEventListener($target, name, value) {
           value(e);
         }
       },
+    ];
+    $target.__radiHandlers.push(event);
+    $target.addEventListener(
+      event[0],
+      event[1],
       false
     );
   }

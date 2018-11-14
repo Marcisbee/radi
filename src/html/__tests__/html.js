@@ -5,23 +5,23 @@ import { html } from '../html'; // eslint-disable-line
 /** @jsx html **/
 describe('r.js', () => {
   it('returns plain object', () => {
-    expect(<div></div>).toEqual({ children: [], props: {}, type: 'div' });
+    expect(<div></div>).toEqual({ children: [], props: {}, query: 'div' });
   });
 
   it('returns transforms number to string', () => {
-    expect(html(2)).toEqual({ children: [], props: {}, type: '2' });
+    expect(html(2)).toEqual({ children: [], props: {}, query: '2' });
   });
 
   describe('when promise', () => {
     const MyPromise = new Promise(e => e());
 
-    it('returns `await` as `type`', () => {
+    it('returns `await` as `query`', () => {
       expect(<MyPromise />).toEqual({
         children: [],
         props: {
           src: MyPromise,
         },
-        type: 'await',
+        query: 'await',
       });
     });
   });
@@ -31,8 +31,8 @@ describe('r.js', () => {
       return;
     }
 
-    it('returns function as `type`', () => {
-      expect(<App />).toEqual({ children: [], props: {}, type: App });
+    it('returns function as `query`', () => {
+      expect(<App />).toEqual({ children: [], props: {}, query: App });
     });
 
     it('returns `props`', () => {
@@ -41,7 +41,7 @@ describe('r.js', () => {
         props: {
           foo: 'bar',
         },
-        type: App,
+        query: App,
       });
     });
 
@@ -49,10 +49,10 @@ describe('r.js', () => {
       expect(<App>Foo<div></div></App>).toEqual({
         children: [
           'Foo',
-          { children: [], props: {}, type: 'div' },
+          { children: [], props: {}, query: 'div' },
         ],
         props: {},
-        type: App,
+        query: App,
       });
     });
 
@@ -63,7 +63,7 @@ describe('r.js', () => {
           'Bar',
         ],
         props: {},
-        type: App,
+        query: App,
       });
     });
   });

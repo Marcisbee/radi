@@ -13,7 +13,9 @@ import {
 } from './store';
 import { mount } from './mount';
 import { destroy } from './destroy';
-import { Validator } from './custom';
+import {
+  Errors,
+} from './custom';
 
 const Radi = {
   v: GLOBALS.VERSION,
@@ -30,7 +32,7 @@ const Radi = {
   service,
   Service: service,
   Subscribe,
-  Validator,
+  Errors,
 };
 
 // Pass Radi instance to plugins

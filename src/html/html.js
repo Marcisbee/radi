@@ -2,31 +2,31 @@ import { flatten } from '../utils';
 
 /**
  * @typedef {Object} Node
- * @property {string|function} type
+ * @property {string|function} query
  * @property {{}} props
  * @property {*[]} children
  */
 
 /**
- * @param  {*} preType
+ * @param  {*} preQuery
  * @param  {{}} preProps
  * @param  {*[]} preChildren
  * @return {Node}
  */
-export function html(preType, preProps, ...preChildren) {
-  let type = (typeof preType === 'number') ? `${preType}` : preType;
+export function html(preQuery, preProps, ...preChildren) {
+  let query = (typeof preQuery === 'number') ? `${preQuery}` : preQuery;
   let props = preProps || {};
   const children = flatten(preChildren);
 
-  if (type instanceof Promise || (type && type.constructor.name === 'LazyPromise')) {
-    type = 'await';
+  if (query instanceof Promise || (query && query.constructor.name === 'LazyPromise')) {
+    query = 'await';
     props = {
-      src: preType,
+      src: preQuery,
     };
   }
 
   return {
-    type,
+    query,
     props,
     children,
   };

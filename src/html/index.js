@@ -1,10 +1,11 @@
 export * from './customAttribute';
 export * from './customTag';
 export * from './destroyTree';
+export * from './evaluate';
 export * from './fireEvent';
 export * from './html';
 export * from './insertAfter';
-// export * from './nodeChanged';
 export * from './patch';
 export * from './props';
 export * from './render';
+export * from './renderComponent';
