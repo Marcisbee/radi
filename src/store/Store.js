@@ -183,6 +183,16 @@ export class Store {
   /**
    * @returns {*} Transformed state
    */
+  get bind() {
+    return {
+      value: this.get(),
+      onInput: (e) => this.update(e.target.value),
+    };
+  }
+
+  /**
+   * @returns {*} Transformed state
+   */
   get() {
     return this.transform(this.storedState);
   }

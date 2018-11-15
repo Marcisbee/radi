@@ -14,53 +14,6 @@
   };
 
   /**
-   * @param {string} attributeName
-   * @param {function} caller
-   * @param {Object} object
-   * @returns {Object}
-   */
-  function customAttribute(attributeName, caller, ref) {
-    if ( ref === void 0 ) ref = {};
-    var allowedTags = ref.allowedTags;
-    var addToElement = ref.addToElement;
-
-    return GLOBALS.CUSTOM_ATTRIBUTES[attributeName] = {
-      name: attributeName,
-      caller: caller,
-      allowedTags: allowedTags || null,
-      addToElement: addToElement,
-    };
-  }
-
-  /**
-   * @param {string} tagName
-   * @param {function} onmount
-   * @returns {object}
-   */
-  function customTag(tagName, render) {
-    return GLOBALS.CUSTOM_TAGS[tagName] = {
-      name: tagName,
-      render: render || (function () {}),
-    };
-  }
-
-  /**
-   * @param  {HTMLElement} node
-   */
-  function destroyTree$$1(node) {
-    fireEvent('destroy', node);
-    node.__radiRef = undefined;
-
-    if (node.nodeType === 1) {
-      var curChild = node.firstChild;
-      while (curChild) {
-        destroyTree$$1(curChild);
-        curChild = curChild.nextSibling;
-      }
-    }
-  }
-
-  /**
    * @param {string} str
    * @returns {string}
    */
@@ -155,6 +108,120 @@
       return data;
     }, {});
   };
+
+  var Component = function Component(node) {
+    this.type = node.type;
+    this.name = node.type.name;
+    this.pointer = node.pointer;
+    this.update = node.update;
+    this.__$events = {};
+  };
+
+  /**
+   * @param{string} event
+   * @param{Function} fn
+   * @return {Function}
+   */
+  Component.prototype.on = function on (event, fn) {
+    var e = this.__$events;
+    var name = "on" + (capitalise(event));
+    if (!e[name]) { e[name] = []; }
+    e[name].push(fn);
+    return fn;
+  };
+
+  /**
+   * @param{string} event
+   * @param{*[]} args
+   */
+  Component.prototype.trigger = function trigger (event) {
+      var ref;
+
+      var args = [], len = arguments.length - 1;
+      while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+    var name = "on" + (capitalise(event));
+
+    (this.__$events[name] || [])
+      .map(function (e) { return e.apply(void 0, args); });
+
+    if (typeof this[name] === 'function') {
+      (ref = this)[name].apply(ref, args);
+    }
+  };
+
+  var Service = function Service () {};
+
+  Service.prototype.add = function add (name, fn) {
+      var args = [], len = arguments.length - 2;
+      while ( len-- > 0 ) args[ len ] = arguments[ len + 2 ];
+
+    if (typeof name !== 'string') {
+      throw new Error('[Radi.js] Service first argument has to be string');
+    }
+
+    if (typeof this[name] !== 'undefined' || typeof Component.prototype[name] !== 'undefined') {
+      throw new Error('[Radi.js] Service "' + name + '" is already in use');
+    }
+
+    if (typeof fn !== 'function') {
+      throw new Error('[Radi.js] Service second argument has to be function');
+    }
+
+    var mounted = fn.apply(void 0, args);
+
+    Component.prototype[name] = this[name] = mounted;
+
+    return GLOBALS.SERVICES[name] = mounted;
+  };
+
+  var service = new Service();
+
+  /**
+   * @param {string} attributeName
+   * @param {function} caller
+   * @param {Object} object
+   * @returns {Object}
+   */
+  function customAttribute(attributeName, caller, ref) {
+    if ( ref === void 0 ) ref = {};
+    var allowedTags = ref.allowedTags;
+    var addToElement = ref.addToElement;
+
+    return GLOBALS.CUSTOM_ATTRIBUTES[attributeName] = {
+      name: attributeName,
+      caller: caller,
+      allowedTags: allowedTags || null,
+      addToElement: addToElement,
+    };
+  }
+
+  /**
+   * @param {string} tagName
+   * @param {function} onmount
+   * @returns {object}
+   */
+  function customTag(tagName, render) {
+    return GLOBALS.CUSTOM_TAGS[tagName] = {
+      name: tagName,
+      render: render || (function () {}),
+    };
+  }
+
+  /**
+   * @param  {HTMLElement} node
+   */
+  function destroyTree$$1(node) {
+    fireEvent('destroy', node);
+    node.__radiRef = undefined;
+
+    if (node.nodeType === 1) {
+      var curChild = node.firstChild;
+      while (curChild) {
+        destroyTree$$1(curChild);
+        curChild = curChild.nextSibling;
+      }
+    }
+  }
 
   var TYPE = {
     NODE: 0,
@@ -254,12 +321,12 @@
     }
 
     if (node.type === TYPE.COMPONENT) {
-      var tempComponent = GLOBALS.CURRENT_COMPONENT;
-      GLOBALS.CURRENT_COMPONENT = node;
       if (!node.pointer) {
         node.pointer = document.createTextNode('');
         node.pointer.__radiPoint = node;
       }
+
+      node.source = new Component(node);
 
       var $styleRef;
 
@@ -269,18 +336,16 @@
           $styleRef.innerHTML = node.style;
           document.head.appendChild($styleRef);
         }
-        var tempComponent = GLOBALS.CURRENT_COMPONENT;
-        GLOBALS.CURRENT_COMPONENT = node;
         node.update();
+        node.source.trigger('mount', e);
         node.mounted = true;
-        GLOBALS.CURRENT_COMPONENT = tempComponent;
-        // TODO: Component mounted
       }, {
         passive: true,
         once: true,
       }, false);
 
       node.pointer.addEventListener('destroy', function (e) {
+        node.source.trigger('destroy', e);
         if ($styleRef instanceof Node) {
           document.head.removeChild($styleRef);
         }
@@ -290,8 +355,6 @@
         once: true,
       }, false);
 
-      node.mounted = true;
-      GLOBALS.CURRENT_COMPONENT = tempComponent;
       return node.pointer;
     }
 
@@ -327,8 +390,8 @@
       if (node instanceof Node && parent instanceof Node) {
         beforeDestroy(node, function () {
           // This is for async node removals
-          parent.removeChild(node);
           destroyTree$$1(node);
+          parent.removeChild(node);
         });
       }
     });
@@ -638,11 +701,11 @@
 
           if (dom.textContent != structure.query) {
             dom.textContent = structure.query;
-
-            newStucture = structure;
-            newDom = dom;
-            return { newDom: newDom, newStucture: newStucture, last: last };
           }
+
+          newStucture = structure;
+          newDom = dom;
+          return { newDom: newDom, newStucture: newStucture, last: last };
         }
 
         if (structure.type === TYPE.COMPONENT) {
@@ -679,7 +742,7 @@
     if (props) { this.props = props; }
     if (children) { this.children = children; }
     var component = flatten([evaluate(
-      this.query.call(this, Object.assign({}, this.props,
+      this.query.call(this.source, Object.assign({}, this.props,
         {children: this.children}))
     )]);
 
@@ -828,125 +891,6 @@
       children: children,
     };
   }
-
-  var Component = function Component(type) {
-    this.type = type;
-    this.name = type.name;
-    this.render = this.render.bind(this);
-    this.evaluate = this.evaluate.bind(this);
-    this.update = this.update.bind(this);
-    this.updateWithProps = this.updateWithProps.bind(this);
-    this.__$events = {};
-  };
-
-  /**
-   * @param{string} event
-   * @param{Function} fn
-   * @return {Function}
-   */
-  Component.prototype.on = function on (event, fn) {
-    var e = this.__$events;
-    var name = "on" + (capitalise(event));
-    if (!e[name]) { e[name] = []; }
-    e[name].push(fn);
-    return fn;
-  };
-
-  /**
-   * @param{string} event
-   * @param{*[]} args
-   */
-  Component.prototype.trigger = function trigger (event) {
-      var ref;
-
-      var args = [], len = arguments.length - 1;
-      while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
-    var name = "on" + (capitalise(event));
-
-    (this.__$events[name] || [])
-      .map(function (e) { return e.apply(void 0, args); });
-
-    if (typeof this[name] === 'function') {
-      (ref = this)[name].apply(ref, args);
-    }
-  };
-
-  /**
-   * @param{{}} props
-   * @param{*[]} children
-   */
-  Component.prototype.evaluate = function evaluate$$1 (props, children) {
-    this.props = props;
-    this.children = children;
-
-    return this.node = this.type.call(
-      this,
-      Object.assign({}, this.props,
-        {children: this.children})
-    );
-  };
-
-  /**
-   * @param{string} props
-   * @param{*[]} children
-   * @param{HTMLElement} parent
-   */
-  Component.prototype.render = function render$1 (props, children, parent) {
-    return this.dom = render$$1(this.evaluate(props, children), parent);
-  };
-
-  /**
-   * @returns {HTMLElement}
-   */
-  Component.prototype.update = function update () {
-    var oldDom = this.dom;
-
-    return this.dom = patch(
-      this.evaluate(this.props, this.children),
-      oldDom
-    );
-  };
-
-  /**
-   * @param{{}} props
-   * @param{*[]} children
-   * @returns {HTMLElement}
-   */
-  Component.prototype.updateWithProps = function updateWithProps (props, children) {
-      if ( props === void 0 ) props = this.props;
-      if ( children === void 0 ) children = this.children;
-
-    this.props = props;
-    this.children = children;
-    return this.update();
-  };
-
-  var Service = function Service () {};
-
-  Service.prototype.add = function add (name, fn) {
-      var args = [], len = arguments.length - 2;
-      while ( len-- > 0 ) args[ len ] = arguments[ len + 2 ];
-
-    if (typeof name !== 'string') {
-      throw new Error('[Radi.js] Service first argument has to be string');
-    }
-
-    if (typeof this[name] !== 'undefined' || typeof Component.prototype[name] !== 'undefined') {
-      throw new Error('[Radi.js] Service "' + name + '" is already in use');
-    }
-
-    if (typeof fn !== 'function') {
-      throw new Error('[Radi.js] Service second argument has to be function');
-    }
-
-    var mounted = fn.apply(void 0, args);
-
-    Component.prototype[name] = this[name] = mounted;
-
-    return GLOBALS.SERVICES[name] = mounted;
-  };
-
-  var service = new Service();
 
   var renderQueue = [];
 
@@ -1111,7 +1055,7 @@
     this.storedState = evalState(this, state);
   };
 
-  var prototypeAccessors = { state: { configurable: true } };
+  var prototypeAccessors = { state: { configurable: true },bind: { configurable: true } };
 
   /**
    * @returns {*} Stored state
@@ -1122,6 +1066,18 @@
     }
 
     return this.get();
+  };
+
+  /**
+   * @returns {*} Transformed state
+   */
+  prototypeAccessors.bind.get = function () {
+      var this$1 = this;
+
+    return {
+      value: this.get(),
+      onInput: function (e) { return this$1.update(e.target.value); },
+    };
   };
 
   /**
@@ -1668,23 +1624,25 @@
   customTag('modal', Modal);
 
   function Portal(data) {
-    var children = data.children; if ( children === void 0 ) children = [];
+    var children = data.children;
     var parent = data.parent; if ( parent === void 0 ) parent = data.on || document.body;
-    var $ref;
-
+    if (this.pointer && this.pointer.__radiUpdateChild) {
+      this.pointer.__radiUpdateChild(undefined, children);
+    }
     this.onMount = function (e) {
-      mount(function () {
+      mount(html(function (props) {
         var this$1 = this;
 
-        this.onMount = function (e) {
-          $ref = this$1.dom;
+        this.onMount = function (ev) {
+          e.target.__radiUpdateChild = this$1.update;
+          e.target.__radiPoint.dom[0].__radiRef = ev.target.__radiPoint;
         };
-        return html('portal-body', {}, children)
-      }, parent);
+        return props.children.length > 0 ? props.children : children;
+      }), parent);
     };
 
     this.onDestroy = function (e) {
-      destroy($ref);
+      destroy(e.target.__radiPoint.dom[0].__radiRef.dom);
     };
 
     return null;

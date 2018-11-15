@@ -1,20 +1,14 @@
-import {
-  patch,
-  render,
-} from '../html';
 import { capitalise } from '../utils';
 
 export class Component {
   /**
    * @param {Function} fn
    */
-  constructor(type) {
-    this.type = type;
-    this.name = type.name;
-    this.render = this.render.bind(this);
-    this.evaluate = this.evaluate.bind(this);
-    this.update = this.update.bind(this);
-    this.updateWithProps = this.updateWithProps.bind(this);
+  constructor(node) {
+    this.type = node.type;
+    this.name = node.type.name;
+    this.pointer = node.pointer;
+    this.update = node.update;
     this.__$events = {};
   }
 
@@ -44,54 +38,5 @@ export class Component {
     if (typeof this[name] === 'function') {
       this[name](...args);
     }
-  }
-
-  /**
-   * @param  {{}} props
-   * @param  {*[]} children
-   */
-  evaluate(props, children) {
-    this.props = props;
-    this.children = children;
-
-    return this.node = this.type.call(
-      this,
-      {
-        ...this.props,
-        children: this.children,
-      }
-    );
-  }
-
-  /**
-   * @param  {string} props
-   * @param  {*[]} children
-   * @param  {HTMLElement} parent
-   */
-  render(props, children, parent) {
-    return this.dom = render(this.evaluate(props, children), parent);
-  }
-
-  /**
-   * @returns {HTMLElement}
-   */
-  update() {
-    const oldDom = this.dom;
-
-    return this.dom = patch(
-      this.evaluate(this.props, this.children),
-      oldDom
-    );
-  }
-
-  /**
-   * @param  {{}} props
-   * @param  {*[]} children
-   * @returns {HTMLElement}
-   */
-  updateWithProps(props = this.props, children = this.children) {
-    this.props = props;
-    this.children = children;
-    return this.update();
   }
 }

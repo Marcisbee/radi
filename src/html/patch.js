@@ -82,11 +82,11 @@ export function patch(structure, dom, parent, last) {
 
         if (dom.textContent != structure.query) {
           dom.textContent = structure.query;
-
-          newStucture = structure;
-          newDom = dom;
-          return { newDom, newStucture, last };
         }
+
+        newStucture = structure;
+        newDom = dom;
+        return { newDom, newStucture, last };
       }
 
       if (structure.type === TYPE.COMPONENT) {

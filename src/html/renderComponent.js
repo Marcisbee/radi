@@ -14,7 +14,7 @@ export function renderComponent(props = this.props, children = this.children) {
   if (props) this.props = props;
   if (children) this.children = children;
   const component = flatten([evaluate(
-    this.query.call(this, {
+    this.query.call(this.source, {
       ...this.props,
       children: this.children,
     })

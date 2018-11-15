@@ -4,22 +4,24 @@ import { customTag, html } from '../../html';
 
 export function Portal(data) {
   const {
-    children = [],
+    children,
     parent = data.on || document.body,
   } = data;
-  let $ref;
-
+  if (this.pointer && this.pointer.__radiUpdateChild) {
+    this.pointer.__radiUpdateChild(undefined, children);
+  }
   this.onMount = (e) => {
-    mount(function () {
-      this.onMount = (e) => {
-        $ref = this.dom;
+    mount(html(function (props) {
+      this.onMount = (ev) => {
+        e.target.__radiUpdateChild = this.update;
+        e.target.__radiPoint.dom[0].__radiRef = ev.target.__radiPoint;
       }
-      return html('portal-body', {}, children)
-    }, parent);
+      return props.children.length > 0 ? props.children : children;
+    }), parent);
   };
 
   this.onDestroy = (e) => {
-    destroy($ref);
+    destroy(e.target.__radiPoint.dom[0].__radiRef.dom);
   };
 
   return null;

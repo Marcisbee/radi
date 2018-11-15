@@ -34,12 +34,12 @@ export function render(node, parent) {
   }
 
   if (node.type === TYPE.COMPONENT) {
-    const tempComponent = GLOBALS.CURRENT_COMPONENT;
-    GLOBALS.CURRENT_COMPONENT = node;
     if (!node.pointer) {
       node.pointer = document.createTextNode('');
       node.pointer.__radiPoint = node;
     }
+
+    node.source = new Component(node);
 
     let $styleRef;
 
@@ -49,18 +49,16 @@ export function render(node, parent) {
         $styleRef.innerHTML = node.style;
         document.head.appendChild($styleRef);
       }
-      const tempComponent = GLOBALS.CURRENT_COMPONENT;
-      GLOBALS.CURRENT_COMPONENT = node;
       node.update();
+      node.source.trigger('mount', e);
       node.mounted = true;
-      GLOBALS.CURRENT_COMPONENT = tempComponent;
-      // TODO: Component mounted
     }, {
       passive: true,
       once: true,
     }, false);
 
     node.pointer.addEventListener('destroy', (e) => {
+      node.source.trigger('destroy', e);
       if ($styleRef instanceof Node) {
         document.head.removeChild($styleRef);
       }
@@ -70,8 +68,6 @@ export function render(node, parent) {
       once: true,
     }, false);
 
-    node.mounted = true;
-    GLOBALS.CURRENT_COMPONENT = tempComponent;
     return node.pointer;
   }
 

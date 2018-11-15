@@ -30,8 +30,8 @@ export function destroy(data) {
     if (node instanceof Node && parent instanceof Node) {
       beforeDestroy(node, () => {
         // This is for async node removals
-        parent.removeChild(node);
         destroyTree(node);
+        parent.removeChild(node);
       });
     }
   });
