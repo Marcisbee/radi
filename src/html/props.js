@@ -1,4 +1,5 @@
 import GLOBALS from '../consts/GLOBALS';
+import { Listener } from '../store/Store';
 
 /**
  * @param {*} value
@@ -6,6 +7,10 @@ import GLOBALS from '../consts/GLOBALS';
  * @returns {*}
  */
 function autoUpdate(value, fn) {
+  if (value instanceof Listener) {
+    return fn(value.getValue(e => fn(value.map(e))));
+  }
+
   return fn(value);
 }
 

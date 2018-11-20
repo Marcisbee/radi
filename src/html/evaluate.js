@@ -2,6 +2,7 @@ import { flatten } from '../utils';
 import TYPE from '../consts/types';
 import { renderComponent } from './renderComponent';
 import GLOBALS from '../consts/GLOBALS';
+import { Listener } from '../store/Store';
 
 export function isNode(value) {
   return value && typeof value === 'object'
@@ -36,6 +37,14 @@ export function evaluate(node) {
       props: {
         src: node,
       },
+      children: [],
+    });
+  }
+
+  if (node instanceof Listener) {
+    return evaluate({
+      query: node.update,
+      props: {},
       children: [],
     });
   }

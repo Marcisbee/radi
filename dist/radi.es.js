@@ -391,12 +391,350 @@ function destroy(data) {
   });
 }
 
+var renderQueue = [];
+
+/**
+ * @param {Function} data
+ * @returns {Function}
+ */
+function addToRenderQueue(data) {
+  var fn = (data.update && (function () { return data.update(); })) || data;
+  if (renderQueue.indexOf(fn) < 0) {
+    renderQueue.push(fn);
+  }
+  return fn;
+}
+
+function clearRenderQueue() {
+  renderQueue = [];
+}
+
+var Dependencies = function Dependencies() {
+  this.dependencies = {};
+};
+
+/**
+ * @param {string[]} path
+ * @param {Function} component
+ */
+Dependencies.prototype.add = function add (path, component) {
+  var key = path[0];
+  if (typeof this.dependencies[key] === 'undefined') { this.dependencies[key] = []; }
+
+  this.dependencies[key] = this.dependencies[key].filter(function (c) {
+    if (c === GLOBALS.CURRENT_COMPONENT.query || c.query === GLOBALS.CURRENT_COMPONENT.query) { return true; }
+    if (c.pointer instanceof Node) {
+      if (c.mounted) { return true; }
+      return c.pointer.isConnected;
+    }
+    return true;
+  });
+
+  if (this.dependencies[key].indexOf(component) < 0) {
+    // console.log('addDependency', key, component, this.dependencies[key])
+    this.dependencies[key].push(component);
+  }
+};
+
+/**
+ * @param {string[]} path
+ * @param {Function} component
+ */
+Dependencies.prototype.remove = function remove (path, component) {
+  var key = path[0];
+  var index = (this.dependencies[key] || []).indexOf(component);
+  if (index >= 0) {
+    // console.log('removeDependency', key, component)
+    this.dependencies[key].splice(index, 1);
+  }
+};
+
+/**
+ * @param {string[]} path
+ * @param {Function} component
+ */
+Dependencies.prototype.component = function component (path, component$1) {
+    var this$1 = this;
+
+  if (component$1) {
+    this.add(path, component$1);
+
+    component$1.__onDestroy = function () {
+      this$1.remove(path, component$1);
+    };
+  }
+  return component$1;
+};
+
+/**
+ * @param {string} key
+ * @param {*} newStore
+ * @param {*} oldState
+ */
+Dependencies.prototype.trigger = function trigger (key, newStore, oldState) {
+  if (this.dependencies[key]) {
+    this.dependencies[key].forEach(function (fn) { return (
+      addToRenderQueue(fn)(newStore, oldState)
+    ); });
+  }
+};
+
+/**
+ * @param {*} key
+ * @returns {Function}
+ */
+var noop = function (e) { return e; };
+
+var Listener = function Listener(map, store) {
+  this.map = map;
+  this.getValue = this.getValue.bind(this);
+  this.update = this.update.bind(this);
+  this.store = store;
+  this.dep = store.event;
+};
+
+/**
+ * @param {Function} updater
+ * @returns {*} Cached state
+ */
+Listener.prototype.getValue = function getValue (updater) {
+  var state = this.store.get();
+
+  if (!this.subbed) {
+    this.subbed = this.store.subscribe(updater);
+  }
+
+  return this.cached = this.map(state);
+};
+
+/**
+ * @returns {*} Cached state
+ */
+Listener.prototype.update = function update () {
+  var state = this.store.get();
+  return this.cached = this.map(state);
+};
+
+/**
+ * @param {*} value
+ * @returns {boolean}
+ */
+function isObject(value) {
+  return value && (
+    value.constructor === Object
+    || value.constructor === Array
+  );
+}
+
+/**
+ * @param {Store} store
+ * @param {Store} state
+ * @param {string[]} path
+ * @returns {*} New state
+ */
+function evalState(store, state, path) {
+  if ( path === void 0 ) path = [];
+
+  if (state) {
+    if (isObject(state)) {
+      var newState = Array.isArray(state) ? [] : {};
+      for (var key in state) {
+        newState[key] = evalState(store, state[key], path.concat(key));
+      }
+      return newState;
+    }
+
+    if (state instanceof Store) {
+      state.subscribe.call(state, function (newValue) {
+        store.update(store.setPartial(path, newValue));
+      });
+      return state.get();
+    }
+  }
+
+  return state;
+}
+
+/**
+ * @param {Store} state
+ * @param {string|number} key
+ * @param {*} value
+ * @returns {*} New state
+ */
+function mapState(state, key, value) {
+  if (state && isObject(state)) {
+    var output = Array.isArray(state)
+      ? [].concat( state )
+      : Object.assign({}, state);
+    output[key] = value;
+    return output;
+  }
+
+  return state;
+}
+
+var Store = function Store(state) {
+  this.dependencies = new Dependencies();
+  this.transform = noop;
+  this.willDispatch = this.willDispatch.bind(this);
+  this.dispatch = this.dispatch.bind(this);
+  this.subscribe = this.subscribe.bind(this);
+  this.update = this.update.bind(this);
+  this.get = this.get.bind(this);
+  this.listener = this.listener.bind(this);
+  this.storedState = evalState(this, state);
+};
+
+var prototypeAccessors = { state: { configurable: true },bind: { configurable: true } };
+
+/**
+ * @returns {*} Stored state
+ */
+prototypeAccessors.state.get = function () {
+  if (GLOBALS.CURRENT_COMPONENT) {
+    this.dependencies.component('*', GLOBALS.CURRENT_COMPONENT);
+  }
+
+  return this.get();
+};
+
+/**
+ * @returns {*} Transformed state
+ */
+prototypeAccessors.bind.get = function () {
+    var this$1 = this;
+
+  return {
+    value: this.get(),
+    onInput: function (e) { return this$1.update(e.target.value); },
+  };
+};
+
+/**
+ * @returns {*} Transformed state
+ */
+Store.prototype.get = function get () {
+  return this.transform(this.storedState);
+};
+
+/**
+ * @param {Function} transform
+ * @returns {Store}
+ */
+Store.prototype.map = function map (transform) {
+  var last = this.transform;
+  this.transform = function (data) { return transform(last(data)); };
+  return this;
+};
+
+/**
+ * @param {string[]} path
+ * @param {*} newValue
+ * @param {*} source Stored state
+ * @returns {*} Mapped state
+ */
+Store.prototype.setPartial = function setPartial (path, newValue, source) {
+    if ( source === void 0 ) source = this.storedState;
+
+  if (source && path && path.length) {
+    var current = path[0];
+      var nextPath = path.slice(1);
+    return mapState(source, current, this.setPartial(nextPath, newValue, source[current]));
+  }
+
+  return newValue;
+};
+
+/**
+ * @param {*} newState
+ * @returns {*} Mapped state
+ */
+Store.prototype.update = function update (newState) {
+  var parsedState = evalState(this, newState);
+  var oldStore = this.get();
+  this.storedState = parsedState;
+  this.dependencies.trigger('*', this.get(), oldStore);
+  clearRenderQueue();
+  return this.get();
+};
+
+/**
+ * @param {Function} callback
+ * @returns {Store}
+ */
+Store.prototype.subscribe = function subscribe (callback) {
+  this.dependencies.add('*', callback);
+  callback(this.get(), null);
+  return this;
+};
+
+/**
+ * @param {Function} subscriber
+ */
+Store.prototype.unsubscribe = function unsubscribe (subscriber) {
+  this.dependencies.remove('*', subscriber);
+};
+
+/**
+ * @param {Function} action
+ * @param {*[]} args
+ * @returns {*} Mapped state
+ */
+Store.prototype.dispatch = function dispatch (action) {
+    var args = [], len = arguments.length - 1;
+    while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+
+  var payload = action.apply(void 0, [ this.storedState ].concat( args ));
+  // console.log('dispatch', {
+  // action: action.name,
+  // args: args,
+  // payload,
+  // });
+  // console.log('dispatch', action.name, payload);
+  return this.update(payload);
+};
+
+/**
+ * @param {Function} action
+ * @param {*[]} args
+ * @returns {Function} Store.dispatch
+ */
+Store.prototype.willDispatch = function willDispatch (action) {
+    var this$1 = this;
+    var args = [], len = arguments.length - 1;
+    while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+
+  return function () {
+      var ref;
+
+      var args2 = [], len = arguments.length;
+      while ( len-- ) args2[ len ] = arguments[ len ];
+      return (ref = this$1).dispatch.apply(ref, [ action ].concat( args, args2 ));
+    };
+};
+
+/**
+ * @param {Function} listenerToRender
+ * @returns {Listener}
+ */
+Store.prototype.listener = function listener (listenerToRender) {
+    if ( listenerToRender === void 0 ) listenerToRender = function (e) { return e; };
+
+  return new Listener(listenerToRender, this);
+};
+
+Object.defineProperties( Store.prototype, prototypeAccessors );
+
 /**
  * @param {*} value
  * @param {Function} fn
  * @returns {*}
  */
 function autoUpdate(value, fn) {
+  if (value instanceof Listener) {
+    return fn(value.getValue(function (e) { return fn(value.map(e)); }));
+  }
+
   return fn(value);
 }
 
@@ -810,6 +1148,14 @@ function evaluate(node) {
     });
   }
 
+  if (node instanceof Listener) {
+    return evaluate({
+      query: node.update,
+      props: {},
+      children: [],
+    });
+  }
+
   if (node && typeof node.type === 'number') { return node; }
   if (isNode(node)) {
 
@@ -885,299 +1231,6 @@ function html(preQuery, preProps) {
     children: children,
   };
 }
-
-var renderQueue = [];
-
-/**
- * @param {Function} data
- * @returns {Function}
- */
-function addToRenderQueue(data) {
-  var fn = (data.update && (function () { return data.update(); })) || data;
-  if (renderQueue.indexOf(fn) < 0) {
-    renderQueue.push(fn);
-  }
-  return fn;
-}
-
-function clearRenderQueue() {
-  renderQueue = [];
-}
-
-var Dependencies = function Dependencies() {
-  this.dependencies = {};
-};
-
-/**
- * @param {string[]} path
- * @param {Function} component
- */
-Dependencies.prototype.add = function add (path, component) {
-  var key = path[0];
-  if (typeof this.dependencies[key] === 'undefined') { this.dependencies[key] = []; }
-
-  this.dependencies[key] = this.dependencies[key].filter(function (c) {
-    if (c === GLOBALS.CURRENT_COMPONENT.query || c.query === GLOBALS.CURRENT_COMPONENT.query) { return true; }
-    if (c.pointer instanceof Node) {
-      if (c.mounted) { return true; }
-      return c.pointer.isConnected;
-    }
-    return true;
-  });
-
-  if (this.dependencies[key].indexOf(component) < 0) {
-    // console.log('addDependency', key, component, this.dependencies[key])
-    this.dependencies[key].push(component);
-  }
-};
-
-/**
- * @param {string[]} path
- * @param {Function} component
- */
-Dependencies.prototype.remove = function remove (path, component) {
-  var key = path[0];
-  var index = (this.dependencies[key] || []).indexOf(component);
-  if (index >= 0) {
-    // console.log('removeDependency', key, component)
-    this.dependencies[key].splice(index, 1);
-  }
-};
-
-/**
- * @param {string[]} path
- * @param {Function} component
- */
-Dependencies.prototype.component = function component (path, component$1) {
-    var this$1 = this;
-
-  if (component$1) {
-    this.add(path, component$1);
-
-    component$1.__onDestroy = function () {
-      this$1.remove(path, component$1);
-    };
-  }
-  return component$1;
-};
-
-/**
- * @param {string} key
- * @param {*} newStore
- * @param {*} oldState
- */
-Dependencies.prototype.trigger = function trigger (key, newStore, oldState) {
-  if (this.dependencies[key]) {
-    this.dependencies[key].forEach(function (fn) { return (
-      addToRenderQueue(fn)(newStore, oldState)
-    ); });
-  }
-};
-
-/**
- * @param {*} key
- * @returns {Function}
- */
-var noop = function (e) { return e; };
-
-/**
- * @param {*} value
- * @returns {boolean}
- */
-function isObject(value) {
-  return value && (
-    value.constructor === Object
-    || value.constructor === Array
-  );
-}
-
-/**
- * @param {Store} store
- * @param {Store} state
- * @param {string[]} path
- * @returns {*} New state
- */
-function evalState(store, state, path) {
-  if ( path === void 0 ) path = [];
-
-  if (state) {
-    if (isObject(state)) {
-      var newState = Array.isArray(state) ? [] : {};
-      for (var key in state) {
-        newState[key] = evalState(store, state[key], path.concat(key));
-      }
-      return newState;
-    }
-
-    if (state instanceof Store) {
-      state.subscribe.call(state, function (newValue) {
-        store.update(store.setPartial(path, newValue));
-      });
-      return state.get();
-    }
-  }
-
-  return state;
-}
-
-/**
- * @param {Store} state
- * @param {string|number} key
- * @param {*} value
- * @returns {*} New state
- */
-function mapState(state, key, value) {
-  if (state && isObject(state)) {
-    var output = Array.isArray(state)
-      ? [].concat( state )
-      : Object.assign({}, state);
-    output[key] = value;
-    return output;
-  }
-
-  return state;
-}
-
-var Store = function Store(state) {
-  this.dependencies = new Dependencies();
-  this.transform = noop;
-  this.willDispatch = this.willDispatch.bind(this);
-  this.dispatch = this.dispatch.bind(this);
-  this.subscribe = this.subscribe.bind(this);
-  this.update = this.update.bind(this);
-  this.get = this.get.bind(this);
-  this.storedState = evalState(this, state);
-};
-
-var prototypeAccessors = { state: { configurable: true },bind: { configurable: true } };
-
-/**
- * @returns {*} Stored state
- */
-prototypeAccessors.state.get = function () {
-  if (GLOBALS.CURRENT_COMPONENT) {
-    this.dependencies.component('*', GLOBALS.CURRENT_COMPONENT);
-  }
-
-  return this.get();
-};
-
-/**
- * @returns {*} Transformed state
- */
-prototypeAccessors.bind.get = function () {
-    var this$1 = this;
-
-  return {
-    value: this.get(),
-    onInput: function (e) { return this$1.update(e.target.value); },
-  };
-};
-
-/**
- * @returns {*} Transformed state
- */
-Store.prototype.get = function get () {
-  return this.transform(this.storedState);
-};
-
-/**
- * @param {Function} transform
- * @returns {Store}
- */
-Store.prototype.map = function map (transform) {
-  var last = this.transform;
-  this.transform = function (data) { return transform(last(data)); };
-  return this;
-};
-
-/**
- * @param {string[]} path
- * @param {*} newValue
- * @param {*} source Stored state
- * @returns {*} Mapped state
- */
-Store.prototype.setPartial = function setPartial (path, newValue, source) {
-    if ( source === void 0 ) source = this.storedState;
-
-  if (source && path && path.length) {
-    var current = path[0];
-      var nextPath = path.slice(1);
-    return mapState(source, current, this.setPartial(nextPath, newValue, source[current]));
-  }
-
-  return newValue;
-};
-
-/**
- * @param {*} newState
- * @returns {*} Mapped state
- */
-Store.prototype.update = function update (newState) {
-  var parsedState = evalState(this, newState);
-  var oldStore = this.get();
-  this.storedState = parsedState;
-  this.dependencies.trigger('*', this.get(), oldStore);
-  clearRenderQueue();
-  return this.get();
-};
-
-/**
- * @param {Function} callback
- * @returns {Store}
- */
-Store.prototype.subscribe = function subscribe (callback) {
-  this.dependencies.add('*', callback);
-  callback(this.get(), null);
-  return this;
-};
-
-/**
- * @param {Function} subscriber
- */
-Store.prototype.unsubscribe = function unsubscribe (subscriber) {
-  this.dependencies.remove('*', subscriber);
-};
-
-/**
- * @param {Function} action
- * @param {*[]} args
- * @returns {*} Mapped state
- */
-Store.prototype.dispatch = function dispatch (action) {
-    var args = [], len = arguments.length - 1;
-    while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
-
-  var payload = action.apply(void 0, [ this.storedState ].concat( args ));
-  // console.log('dispatch', {
-  // action: action.name,
-  // args: args,
-  // payload,
-  // });
-  // console.log('dispatch', action.name, payload);
-  return this.update(payload);
-};
-
-/**
- * @param {Function} action
- * @param {*[]} args
- * @returns {Function} Store.dispatch
- */
-Store.prototype.willDispatch = function willDispatch (action) {
-    var this$1 = this;
-    var args = [], len = arguments.length - 1;
-    while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
-
-  return function () {
-      var ref;
-
-      var args2 = [], len = arguments.length;
-      while ( len-- ) args2[ len ] = arguments[ len ];
-      return (ref = this$1).dispatch.apply(ref, [ action ].concat( args, args2 ));
-    };
-};
-
-Object.defineProperties( Store.prototype, prototypeAccessors );
 
 /**
  * @param {Function} subscriber
