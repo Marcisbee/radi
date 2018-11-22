@@ -116,6 +116,17 @@ export class Listener {
    * @param {Function} updater
    * @returns {*} Cached state
    */
+  link(updater) {
+    if (!this.subbed) {
+      this.subbed = this.store.subscribe(updater);
+    }
+    return this.subbed;
+  }
+
+  /**
+   * @param {Function} updater
+   * @returns {*} Cached state
+   */
   getValue(updater) {
     const state = this.store.get();
 
@@ -191,12 +202,14 @@ function mapState(state, key, value) {
   return state;
 }
 
+let storeMiddleware = noop;
+
 export class Store {
   /**
    * @param {*} state
    * @constructor
    */
-  constructor(state) {
+  constructor(state, name) {
     this.dependencies = new Dependencies();
     this.transform = noop;
     this.willDispatch = this.willDispatch.bind(this);
@@ -206,6 +219,7 @@ export class Store {
     this.get = this.get.bind(this);
     this.listener = this.listener.bind(this);
     this.storedState = evalState(this, state);
+    this.name = name;
   }
 
   /**
@@ -298,7 +312,17 @@ export class Store {
    */
   dispatch(action, ...args) {
     const payload = action(this.storedState, ...args);
+
+    if (this.name && action.name) {
+      storeMiddleware({
+        store: this,
+        action: action.name,
+        args: args,
+        payload,
+      });
+    }
     // console.log('dispatch', {
+    //   store: this.name,
     //   action: action.name,
     //   args: args,
     //   payload,
@@ -322,5 +346,13 @@ export class Store {
    */
   listener(listenerToRender = e => e) {
     return new Listener(listenerToRender, this);
+  }
+
+  /**
+   * @param {Function} fn
+   * @returns {Function}
+   */
+  static middleware(fn) {
+    return storeMiddleware = fn;
   }
 }

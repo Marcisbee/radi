@@ -16,7 +16,7 @@ export function Fetcher(resolver, success, error, instant = false) {
     throw new Error(`[Radi.js] Fetcher first parameter must be function that returns promise`);
   }
 
-  function promiseSubscriber(value, next) {
+  function factory(value, next) {
     trigger = next;
     if (instant && !init) {
       init = true;
@@ -24,8 +24,14 @@ export function Fetcher(resolver, success, error, instant = false) {
     }
   }
 
+  Object.defineProperty(factory, 'name', {
+    value: resolver.name
+      ? 'fetcher:' + resolver.name
+      : 'fetcher',
+  });
+
   function CustomSubscribe(defaultValue) {
-    return Subscribe(promiseSubscriber)(defaultValue);
+    return Subscribe(factory)(defaultValue);
   }
 
   CustomSubscribe.fetch = function fetch(...args) {

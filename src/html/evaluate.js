@@ -42,11 +42,21 @@ export function evaluate(node) {
   }
 
   if (node instanceof Listener) {
-    return evaluate({
+    const comp = {
       query: node.update,
+      type: TYPE.COMPONENT,
       props: {},
       children: [],
-    });
+      pointer: null,
+      dom: null,
+    };
+    comp.update = updater(comp);
+
+    node.link(() => (
+      comp.dom !== null && comp.update()
+    ));
+
+    return comp;
   }
 
   if (node && typeof node.type === 'number') return node;

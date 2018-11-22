@@ -28,12 +28,18 @@ export function Event(target = document, name, transformer = e => e) {
 
   startListener();
 
-  function eventSubscriber(value, next) {
+  function factory(value, next) {
     updater = next;
   }
 
+  Object.defineProperty(factory, 'name', {
+    value: name
+      ? 'event:' + name
+      : 'event',
+  });
+
   function CustomSubscribe(defaultValue) {
-    return Subscribe(eventSubscriber)(defaultValue);
+    return Subscribe(factory)(defaultValue);
   }
 
   CustomSubscribe.on = function on() {

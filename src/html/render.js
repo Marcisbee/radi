@@ -44,12 +44,12 @@ export function render(node, parent) {
     let $styleRef;
 
     node.pointer.addEventListener('mount', (e) => {
-      if (typeof node.style === 'string') {
+      node.update();
+      if (typeof node.source.style === 'string') {
         $styleRef = document.createElement('style');
-        $styleRef.innerHTML = node.style;
+        $styleRef.innerHTML = node.source.style;
         document.head.appendChild($styleRef);
       }
-      node.update();
       node.source.trigger('mount', e);
       node.mounted = true;
     }, {

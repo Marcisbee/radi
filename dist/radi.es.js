@@ -325,12 +325,12 @@ function render$$1(node, parent) {
     var $styleRef;
 
     node.pointer.addEventListener('mount', function (e) {
-      if (typeof node.style === 'string') {
+      node.update();
+      if (typeof node.source.style === 'string') {
         $styleRef = document.createElement('style');
-        $styleRef.innerHTML = node.style;
+        $styleRef.innerHTML = node.source.style;
         document.head.appendChild($styleRef);
       }
-      node.update();
       node.source.trigger('mount', e);
       node.mounted = true;
     }, {
@@ -497,6 +497,17 @@ var Listener = function Listener(map, store) {
  * @param {Function} updater
  * @returns {*} Cached state
  */
+Listener.prototype.link = function link (updater) {
+  if (!this.subbed) {
+    this.subbed = this.store.subscribe(updater);
+  }
+  return this.subbed;
+};
+
+/**
+ * @param {Function} updater
+ * @returns {*} Cached state
+ */
 Listener.prototype.getValue = function getValue (updater) {
   var state = this.store.get();
 
@@ -573,7 +584,9 @@ function mapState(state, key, value) {
   return state;
 }
 
-var Store = function Store(state) {
+var storeMiddleware = noop;
+
+var Store = function Store(state, name) {
   this.dependencies = new Dependencies();
   this.transform = noop;
   this.willDispatch = this.willDispatch.bind(this);
@@ -583,6 +596,7 @@ var Store = function Store(state) {
   this.get = this.get.bind(this);
   this.listener = this.listener.bind(this);
   this.storedState = evalState(this, state);
+  this.name = name;
 };
 
 var prototypeAccessors = { state: { configurable: true },bind: { configurable: true } };
@@ -685,7 +699,17 @@ Store.prototype.dispatch = function dispatch (action) {
     while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
 
   var payload = action.apply(void 0, [ this.storedState ].concat( args ));
+
+  if (this.name && action.name) {
+    storeMiddleware({
+      store: this,
+      action: action.name,
+      args: args,
+      payload: payload,
+    });
+  }
   // console.log('dispatch', {
+  // store: this.name,
   // action: action.name,
   // args: args,
   // payload,
@@ -721,6 +745,14 @@ Store.prototype.listener = function listener (listenerToRender) {
     if ( listenerToRender === void 0 ) listenerToRender = function (e) { return e; };
 
   return new Listener(listenerToRender, this);
+};
+
+/**
+ * @param {Function} fn
+ * @returns {Function}
+ */
+Store.middleware = function middleware (fn) {
+  return storeMiddleware = fn;
 };
 
 Object.defineProperties( Store.prototype, prototypeAccessors );
@@ -1149,33 +1181,43 @@ function evaluate(node) {
   }
 
   if (node instanceof Listener) {
-    return evaluate({
+    var comp = {
       query: node.update,
+      type: TYPE.COMPONENT,
       props: {},
       children: [],
-    });
+      pointer: null,
+      dom: null,
+    };
+    comp.update = updater(comp);
+
+    node.link(function () { return (
+      comp.dom !== null && comp.update()
+    ); });
+
+    return comp;
   }
 
   if (node && typeof node.type === 'number') { return node; }
   if (isNode(node)) {
 
     if (typeof node.query === 'function') {
-      var comp = Object.assign({}, node,
-        {type: TYPE.COMPONENT,
-        pointer: null,
-        dom: null});
-      comp.update = updater(comp);
-      return comp;
-    }
-
-    if (typeof GLOBALS.CUSTOM_TAGS[node.query] !== 'undefined') {
       var comp$1 = Object.assign({}, node,
-        {query: GLOBALS.CUSTOM_TAGS[node.query].render,
-        type: TYPE.COMPONENT,
+        {type: TYPE.COMPONENT,
         pointer: null,
         dom: null});
       comp$1.update = updater(comp$1);
       return comp$1;
+    }
+
+    if (typeof GLOBALS.CUSTOM_TAGS[node.query] !== 'undefined') {
+      var comp$2 = Object.assign({}, node,
+        {query: GLOBALS.CUSTOM_TAGS[node.query].render,
+        type: TYPE.COMPONENT,
+        pointer: null,
+        dom: null});
+      comp$2.update = updater(comp$2);
+      return comp$2;
     }
 
     return Object.assign({}, node,
@@ -1234,13 +1276,22 @@ function html(preQuery, preProps) {
 
 /**
  * @param {Function} subscriber
+ * @param {string} name
  * @returns {Store}
  */
-function Subscribe(subscriber) {
-  var subStore = new Store(null);
+function Subscribe(subscriber, name) {
+  if ( name === void 0 ) name = subscriber.name;
+
+  var factory = function (state, value) { return value; };
+
+  Object.defineProperty(factory, 'name', {
+    value: name,
+  });
+
+  var subStore = new Store(null, 'Subscriber');
 
   function caller(value) {
-    subStore.update(value);
+    subStore.dispatch(factory, value);
     subscriber(value, caller);
     return subStore;
   }
@@ -1282,12 +1333,18 @@ function Event(target, name, transformer) {
 
   startListener();
 
-  function eventSubscriber(value, next) {
+  function factory(value, next) {
     updater = next;
   }
 
+  Object.defineProperty(factory, 'name', {
+    value: name
+      ? 'event:' + name
+      : 'event',
+  });
+
   function CustomSubscribe(defaultValue) {
-    return Subscribe(eventSubscriber)(defaultValue);
+    return Subscribe(factory)(defaultValue);
   }
 
   CustomSubscribe.on = function on() {
@@ -1331,7 +1388,7 @@ function Fetcher(resolver, success, error, instant) {
     throw new Error("[Radi.js] Fetcher first parameter must be function that returns promise");
   }
 
-  function promiseSubscriber(value, next) {
+  function factory(value, next) {
     trigger = next;
     if (instant && !init) {
       init = true;
@@ -1339,8 +1396,14 @@ function Fetcher(resolver, success, error, instant) {
     }
   }
 
+  Object.defineProperty(factory, 'name', {
+    value: resolver.name
+      ? 'fetcher:' + resolver.name
+      : 'fetcher',
+  });
+
   function CustomSubscribe(defaultValue) {
-    return Subscribe(promiseSubscriber)(defaultValue);
+    return Subscribe(factory)(defaultValue);
   }
 
   CustomSubscribe.fetch = function fetch() {
