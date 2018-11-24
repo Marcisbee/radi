@@ -4,6 +4,7 @@ import { insertAfter } from './insertAfter';
 import { fireEvent } from './fireEvent';
 import { render } from './render';
 import { patch } from './patch';
+import GLOBALS from '../consts/GLOBALS';
 
 /**
  * @param {{}} props
@@ -27,6 +28,12 @@ export function renderComponent(props = this.props, children = this.children) {
       .reverse()
       .map((item) => fireEvent('mount', insertAfter(item, this.pointer)))
       .reverse();
+  }
+
+  if (GLOBALS.USE_CACHE) {
+    GLOBALS.USE_CACHE = false;
+
+    return this.dom;
   }
 
   const active = document.activeElement;

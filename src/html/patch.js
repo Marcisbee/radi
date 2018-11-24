@@ -3,6 +3,7 @@ import { fireEvent } from './fireEvent';
 import { render } from './render';
 import { updateProps } from './props';
 import TYPE from './../consts/types';
+import GLOBALS from './../consts/GLOBALS';
 import { insertAfter } from './insertAfter';
 
 /**
@@ -90,6 +91,13 @@ export function patch(structure, dom, parent, last) {
       }
 
       if (structure.type === TYPE.COMPONENT) {
+
+        if (dom && dom.__radiPoint && structure.query.name === dom.__radiPoint.query.name) {
+          GLOBALS.USE_CACHE = true;
+
+          structure.pointer = dom.__radiPoint.pointer;
+          structure.dom = dom.__radiPoint.dom;
+        }
 
         if (dom.__radiPoint && dom.__radiPoint.query === structure.query) {
           dom.__radiPoint.update(structure.props, structure.children);

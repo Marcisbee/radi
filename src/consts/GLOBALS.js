@@ -5,6 +5,7 @@ const GLOBALS = {
   CUSTOM_TAGS: {},
   IS_UPDATE: false,
   SERVICES: {},
+  USE_CACHE: false,
 };
 
 export default GLOBALS;

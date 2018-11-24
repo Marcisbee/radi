@@ -11,6 +11,7 @@
     CUSTOM_TAGS: {},
     IS_UPDATE: false,
     SERVICES: {},
+    USE_CACHE: false,
   };
 
   /**
@@ -1110,6 +1111,13 @@
 
         if (structure.type === TYPE.COMPONENT) {
 
+          if (dom && dom.__radiPoint && structure.query.name === dom.__radiPoint.query.name) {
+            GLOBALS.USE_CACHE = true;
+
+            structure.pointer = dom.__radiPoint.pointer;
+            structure.dom = dom.__radiPoint.dom;
+          }
+
           if (dom.__radiPoint && dom.__radiPoint.query === structure.query) {
             dom.__radiPoint.update(structure.props, structure.children);
 
@@ -1153,6 +1161,12 @@
         .reverse()
         .map(function (item) { return fireEvent('mount', insertAfter(item, this$1.pointer)); })
         .reverse();
+    }
+
+    if (GLOBALS.USE_CACHE) {
+      GLOBALS.USE_CACHE = false;
+
+      return this.dom;
     }
 
     var active = document.activeElement;
@@ -1633,7 +1647,7 @@
     return function (e) { return maybeFn || e; };
   }
 
-  var localPlaceholder = 'Loading..';
+  var sharedPlaceholder;
 
   function Await(props) {
     var this$1 = this;
@@ -1643,7 +1657,7 @@
     var waitMs = props.waitMs;
     var transform = props.transform; if ( transform === void 0 ) transform = function (e) { return e; };
     var error = props.error; if ( error === void 0 ) error = function (e) { return e; };
-    var placeholder = props.placeholder; if ( placeholder === void 0 ) placeholder = localPlaceholder;
+    var placeholder = props.placeholder; if ( placeholder === void 0 ) placeholder = sharedPlaceholder;
     var value = props.value; if ( value === void 0 ) value = null;
     var loaded = props.loaded; if ( loaded === void 0 ) loaded = false;
 
@@ -1673,12 +1687,12 @@
 
           clearTimeout(placeholderTimeout);
 
-          var tempPlaceholder = localPlaceholder;
-          localPlaceholder = placeholder;
+          var tempPlaceholder = sharedPlaceholder;
+          sharedPlaceholder = placeholder;
 
           this$1.update(Object.assign({}, props, {value: ensureFn(transform)(value), loaded: true}));
 
-          localPlaceholder = tempPlaceholder;
+          sharedPlaceholder = tempPlaceholder;
         })
         .catch(function (err) {
           console.error(err);
