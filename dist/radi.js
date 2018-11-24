@@ -1111,7 +1111,9 @@
 
         if (structure.type === TYPE.COMPONENT) {
 
-          if (dom && dom.__radiPoint && structure.query.name === dom.__radiPoint.query.name) {
+          if (dom && dom.__radiPoint
+            && structure.query.name === dom.__radiPoint.query.name
+            && dom.__radiPoint.source.cached === true) {
             GLOBALS.USE_CACHE = true;
 
             structure.pointer = dom.__radiPoint.pointer;
@@ -1660,6 +1662,8 @@
     var placeholder = props.placeholder; if ( placeholder === void 0 ) placeholder = sharedPlaceholder;
     var value = props.value; if ( value === void 0 ) value = null;
     var loaded = props.loaded; if ( loaded === void 0 ) loaded = false;
+
+    this.cached = true;
 
     if (!(src &&
       (src instanceof Promise || src.constructor.name === 'LazyPromise')

@@ -19,6 +19,8 @@ export function Await(props) {
     loaded = false
   } = props;
 
+  this.cached = true;
+
   if (!(src &&
     (src instanceof Promise || src.constructor.name === 'LazyPromise')
   )) {

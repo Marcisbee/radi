@@ -92,7 +92,9 @@ export function patch(structure, dom, parent, last) {
 
       if (structure.type === TYPE.COMPONENT) {
 
-        if (dom && dom.__radiPoint && structure.query.name === dom.__radiPoint.query.name) {
+        if (dom && dom.__radiPoint
+          && structure.query.name === dom.__radiPoint.query.name
+          && dom.__radiPoint.source.cached === true) {
           GLOBALS.USE_CACHE = true;
 
           structure.pointer = dom.__radiPoint.pointer;
