@@ -5,14 +5,14 @@ import { Store } from './Store';
  * @param {string} name
  * @returns {Store}
  */
-export function Subscribe(subscriber, name = subscriber.name) {
+export function Subscribe(subscriber, name) {
   let factory = (state, value) => value;
 
   Object.defineProperty(factory, 'name', {
-    value: name,
+    value: subscriber.name || 'update',
   });
 
-  const subStore = new Store(null, 'Subscriber');
+  const subStore = new Store(null, name || 'Subscribe');
 
   function caller(value) {
     subStore.dispatch(factory, value);

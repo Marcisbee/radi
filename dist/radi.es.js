@@ -589,10 +589,12 @@ var storeListMiddleware = noop;
 var storeList = [];
 
 function addStoreToList(store) {
-  var index = storeList.push(store);
+  var index = storeList.push(store) - 1;
+  store.id = index;
+
   storeListMiddleware(storeList);
 
-  return index - 1;
+  return index;
 }
 
 var Store = function Store(state, name) {
@@ -608,7 +610,7 @@ var Store = function Store(state, name) {
   this.name = name;
 
   if (name !== false) {
-    this.id = addStoreToList(this);
+    addStoreToList(this);
   }
 };
 
@@ -713,7 +715,7 @@ Store.prototype.dispatch = function dispatch (action) {
 
   var payload = action.apply(void 0, [ this.storedState ].concat( args ));
 
-  if (this.name !== false && action.name) {
+  if (this.name !== false) {
     storeDispatchMiddleware({
       store: this,
       action: action.name,
@@ -1308,15 +1310,13 @@ function html(preQuery, preProps) {
  * @returns {Store}
  */
 function Subscribe(subscriber, name) {
-  if ( name === void 0 ) name = subscriber.name;
-
   var factory = function (state, value) { return value; };
 
   Object.defineProperty(factory, 'name', {
-    value: name,
+    value: subscriber.name || 'update',
   });
 
-  var subStore = new Store(null, 'Subscriber');
+  var subStore = new Store(null, name || 'Subscribe');
 
   function caller(value) {
     subStore.dispatch(factory, value);
@@ -1366,13 +1366,11 @@ function Event(target, name, transformer) {
   }
 
   Object.defineProperty(factory, 'name', {
-    value: name
-      ? 'event:' + name
-      : 'event',
+    value: name || 'update',
   });
 
   function CustomSubscribe(defaultValue) {
-    return Subscribe(factory)(defaultValue);
+    return Subscribe(factory, 'Event')(defaultValue);
   }
 
   CustomSubscribe.on = function on() {
@@ -1425,13 +1423,11 @@ function Fetcher(resolver, success, error, instant) {
   }
 
   Object.defineProperty(factory, 'name', {
-    value: resolver.name
-      ? 'fetcher:' + resolver.name
-      : 'fetcher',
+    value: resolver.name || 'update',
   });
 
   function CustomSubscribe(defaultValue) {
-    return Subscribe(factory)(defaultValue);
+    return Subscribe(factory, 'Fetcher')(defaultValue);
   }
 
   CustomSubscribe.fetch = function fetch() {
@@ -1497,7 +1493,7 @@ customAttribute('onsubmit', function (el, fn) {
   addToElement: true,
 });
 
-var errorsStore = new Store({});
+var errorsStore = new Store({}, null);
 var setErrors = function (state, name, errors) {
   var obj;
 
@@ -1631,6 +1627,8 @@ function ensureFn(maybeFn) {
   return function (e) { return maybeFn || e; };
 }
 
+var localPlaceholder = 'Loading..';
+
 function Await(props) {
   var this$1 = this;
 
@@ -1639,7 +1637,7 @@ function Await(props) {
   var waitMs = props.waitMs;
   var transform = props.transform; if ( transform === void 0 ) transform = function (e) { return e; };
   var error = props.error; if ( error === void 0 ) error = function (e) { return e; };
-  var placeholder = props.placeholder; if ( placeholder === void 0 ) placeholder = 'Loading..';
+  var placeholder = props.placeholder; if ( placeholder === void 0 ) placeholder = localPlaceholder;
   var value = props.value; if ( value === void 0 ) value = null;
   var loaded = props.loaded; if ( loaded === void 0 ) loaded = false;
 
@@ -1668,7 +1666,13 @@ function Await(props) {
         }
 
         clearTimeout(placeholderTimeout);
+
+        var tempPlaceholder = localPlaceholder;
+        localPlaceholder = placeholder;
+
         this$1.update(Object.assign({}, props, {value: ensureFn(transform)(value), loaded: true}));
+
+        localPlaceholder = tempPlaceholder;
       })
       .catch(function (err) {
         console.error(err);
@@ -1704,7 +1708,7 @@ function Errors(ref) {
 
 var h = html;
 
-var ModalStore = new Store({});
+var ModalStore = new Store({}, null);
 
 var registerModal = function (store, name) {
   var obj;

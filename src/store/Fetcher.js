@@ -25,13 +25,11 @@ export function Fetcher(resolver, success, error, instant = false) {
   }
 
   Object.defineProperty(factory, 'name', {
-    value: resolver.name
-      ? 'fetcher:' + resolver.name
-      : 'fetcher',
+    value: resolver.name || 'update',
   });
 
   function CustomSubscribe(defaultValue) {
-    return Subscribe(factory)(defaultValue);
+    return Subscribe(factory, 'Fetcher')(defaultValue);
   }
 
   CustomSubscribe.fetch = function fetch(...args) {

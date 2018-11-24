@@ -5,6 +5,8 @@ function ensureFn(maybeFn) {
   return (e) => maybeFn || e;
 }
 
+let localPlaceholder = 'Loading..';
+
 export function Await(props) {
   let placeholderTimeout;
   let {
@@ -12,7 +14,7 @@ export function Await(props) {
     waitMs,
     transform = e => e,
     error = e => e,
-    placeholder = 'Loading..',
+    placeholder = localPlaceholder,
     value = null,
     loaded = false
   } = props;
@@ -42,7 +44,13 @@ export function Await(props) {
         }
 
         clearTimeout(placeholderTimeout);
+
+        const tempPlaceholder = localPlaceholder;
+        localPlaceholder = placeholder;
+
         this.update({ ...props, value: ensureFn(transform)(value), loaded: true });
+
+        localPlaceholder = tempPlaceholder;
       })
       .catch((err) => {
         console.error(err);

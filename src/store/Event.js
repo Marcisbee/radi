@@ -33,13 +33,11 @@ export function Event(target = document, name, transformer = e => e) {
   }
 
   Object.defineProperty(factory, 'name', {
-    value: name
-      ? 'event:' + name
-      : 'event',
+    value: name || 'update',
   });
 
   function CustomSubscribe(defaultValue) {
-    return Subscribe(factory)(defaultValue);
+    return Subscribe(factory, 'Event')(defaultValue);
   }
 
   CustomSubscribe.on = function on() {

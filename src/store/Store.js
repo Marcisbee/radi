@@ -207,10 +207,12 @@ let storeListMiddleware = noop;
 let storeList = [];
 
 function addStoreToList(store) {
-  const index = storeList.push(store);
+  const index = storeList.push(store) - 1;
+  store.id = index;
+
   storeListMiddleware(storeList);
 
-  return index - 1;
+  return index;
 }
 
 export class Store {
@@ -231,7 +233,7 @@ export class Store {
     this.name = name;
 
     if (name !== false) {
-      this.id = addStoreToList(this);
+      addStoreToList(this);
     }
   }
 
@@ -326,7 +328,7 @@ export class Store {
   dispatch(action, ...args) {
     const payload = action(this.storedState, ...args);
 
-    if (this.name !== false && action.name) {
+    if (this.name !== false) {
       storeDispatchMiddleware({
         store: this,
         action: action.name,

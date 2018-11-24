@@ -4,7 +4,7 @@ import { Store } from '../../store';
 
 const h = html;
 
-export const ModalStore = new Store({});
+export const ModalStore = new Store({}, null);
 
 const registerModal = (store, name) => ({
   ...store,
