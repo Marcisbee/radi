@@ -584,7 +584,16 @@ function mapState(state, key, value) {
   return state;
 }
 
-var storeMiddleware = noop;
+var storeDispatchMiddleware = noop;
+var storeListMiddleware = noop;
+var storeList = [];
+
+function addStoreToList(store) {
+  var index = storeList.push(store);
+  storeListMiddleware(storeList);
+
+  return index - 1;
+}
 
 var Store = function Store(state, name) {
   this.dependencies = new Dependencies();
@@ -597,6 +606,10 @@ var Store = function Store(state, name) {
   this.listener = this.listener.bind(this);
   this.storedState = evalState(this, state);
   this.name = name;
+
+  if (name !== false) {
+    this.id = addStoreToList(this);
+  }
 };
 
 var prototypeAccessors = { state: { configurable: true },bind: { configurable: true } };
@@ -700,8 +713,8 @@ Store.prototype.dispatch = function dispatch (action) {
 
   var payload = action.apply(void 0, [ this.storedState ].concat( args ));
 
-  if (this.name && action.name) {
-    storeMiddleware({
+  if (this.name !== false && action.name) {
+    storeDispatchMiddleware({
       store: this,
       action: action.name,
       args: args,
@@ -748,11 +761,26 @@ Store.prototype.listener = function listener (listenerToRender) {
 };
 
 /**
- * @param {Function} fn
+ * @param {Function} dispatch
  * @returns {Function}
  */
-Store.middleware = function middleware (fn) {
-  return storeMiddleware = fn;
+Store.middleware = function middleware (
+  stores,
+  dispatch,
+  freeze,
+  resume
+) {
+    if ( stores === void 0 ) stores = noop;
+    if ( dispatch === void 0 ) dispatch = noop;
+    if ( freeze === void 0 ) freeze = noop;
+    if ( resume === void 0 ) resume = noop;
+
+  // @TODO: Add middleware to:
+  // - freeze updates
+  // - resume updates
+  storeListMiddleware = stores;
+  storeDispatchMiddleware = dispatch;
+  storeListMiddleware(storeList);
 };
 
 Object.defineProperties( Store.prototype, prototypeAccessors );

@@ -202,7 +202,16 @@ function mapState(state, key, value) {
   return state;
 }
 
-let storeMiddleware = noop;
+let storeDispatchMiddleware = noop;
+let storeListMiddleware = noop;
+let storeList = [];
+
+function addStoreToList(store) {
+  const index = storeList.push(store);
+  storeListMiddleware(storeList);
+
+  return index - 1;
+}
 
 export class Store {
   /**
@@ -220,6 +229,10 @@ export class Store {
     this.listener = this.listener.bind(this);
     this.storedState = evalState(this, state);
     this.name = name;
+
+    if (name !== false) {
+      this.id = addStoreToList(this);
+    }
   }
 
   /**
@@ -313,8 +326,8 @@ export class Store {
   dispatch(action, ...args) {
     const payload = action(this.storedState, ...args);
 
-    if (this.name && action.name) {
-      storeMiddleware({
+    if (this.name !== false && action.name) {
+      storeDispatchMiddleware({
         store: this,
         action: action.name,
         args: args,
@@ -349,10 +362,20 @@ export class Store {
   }
 
   /**
-   * @param {Function} fn
+   * @param {Function} dispatch
    * @returns {Function}
    */
-  static middleware(fn) {
-    return storeMiddleware = fn;
+  static middleware(
+    stores = noop,
+    dispatch = noop,
+    freeze = noop,
+    resume = noop,
+  ) {
+    // @TODO: Add middleware to:
+    // - freeze updates
+    // - resume updates
+    storeListMiddleware = stores;
+    storeDispatchMiddleware = dispatch;
+    storeListMiddleware(storeList);
   }
 }
