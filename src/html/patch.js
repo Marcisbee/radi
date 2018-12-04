@@ -1,10 +1,10 @@
+import GLOBALS from '../consts/GLOBALS';
+import TYPE from '../consts/types';
 import { destroy } from '../destroy';
 import { fireEvent } from './fireEvent';
+import { insertAfter } from './insertAfter';
 import { render } from './render';
 import { updateProps } from './props';
-import TYPE from './../consts/types';
-import GLOBALS from './../consts/GLOBALS';
-import { insertAfter } from './insertAfter';
 
 /**
  * @param {NamedNodeMap} value
@@ -42,80 +42,80 @@ export function patch(structure, dom, parent, last) {
   let newDom;
   if (!dom) {
     // add
-    last = newDom = fireEvent('mount', insertAfter(render(newStucture = structure), last, parent));
+    newDom = fireEvent('mount', insertAfter(render(newStucture = structure), last, parent));
+    last = newDom;
   } else
-    if (!structure) {
-      // remove
-      destroy(dom);
-    } else {
-      // replace
-      if (structure.type === TYPE.NODE) {
-        const patchNewDom = structure;
-        const patchOldDom = dom;
-        const patchOldDomChildren = withoutInnerChilds(dom);
+  if (!structure) {
+    // remove
+    destroy(dom);
+  } else {
+    // replace
+    if (structure.type === TYPE.NODE) {
+      const patchNewDom = structure;
+      const patchOldDom = dom;
+      const patchOldDomChildren = withoutInnerChilds(dom);
 
-        if (patchOldDom.nodeName === patchNewDom.query.toUpperCase()) {
-          const oldAttrs = attributesToObject(patchOldDom.attributes);
+      if (patchOldDom.nodeName === patchNewDom.query.toUpperCase()) {
+        const oldAttrs = attributesToObject(patchOldDom.attributes);
 
-          if (patchOldDomChildren || patchNewDom.children) {
-            const length = Math.max(patchOldDomChildren.length, patchNewDom.children.length);
+        if (patchOldDomChildren || patchNewDom.children) {
+          const length = Math.max(patchOldDomChildren.length, patchNewDom.children.length);
 
-            /* We should always run patch childnodes in reverse from last to first
+          /* We should always run patch childnodes in reverse from last to first
             because if node is removed, it removes whole element in array */
-            for (let ii = length - 1; ii >= 0; ii--) {
-              patch(
-                patchNewDom.children[ii],
-                patchOldDomChildren[ii],
-                patchOldDom
-              );
-            }
+          for (let ii = length - 1; ii >= 0; ii--) {
+            patch(
+              patchNewDom.children[ii],
+              patchOldDomChildren[ii],
+              patchOldDom
+            );
           }
-
-          updateProps(patchOldDom, patchNewDom.props, oldAttrs);
-
-          newStucture = structure;
-          newDom = dom;
-          return { newDom, newStucture, last };
         }
-      }
 
-      if (structure.type === TYPE.TEXT && dom.nodeType === 3 && !dom.__radiPoint) {
-
-        if (dom.textContent != structure.query) {
-          dom.textContent = structure.query;
-        }
+        updateProps(patchOldDom, patchNewDom.props, oldAttrs);
 
         newStucture = structure;
         newDom = dom;
         return { newDom, newStucture, last };
       }
+    }
 
-      if (structure.type === TYPE.COMPONENT) {
+    if (structure.type === TYPE.TEXT && dom.nodeType === 3 && !dom.__radiPoint) {
+      if (dom.textContent !== structure.query) {
+        dom.textContent = structure.query;
+      }
 
-        if (dom && dom.__radiPoint
+      newStucture = structure;
+      newDom = dom;
+      return { newDom, newStucture, last };
+    }
+
+    if (structure.type === TYPE.COMPONENT) {
+      if (dom && dom.__radiPoint
           && structure.query.name === dom.__radiPoint.query.name
           && dom.__radiPoint.source.cached === true) {
-          GLOBALS.USE_CACHE = true;
+        GLOBALS.USE_CACHE = true;
 
-          structure.pointer = dom.__radiPoint.pointer;
-          structure.dom = dom.__radiPoint.dom;
-        }
-
-        if (dom.__radiPoint && dom.__radiPoint.query === structure.query) {
-          dom.__radiPoint.update(structure.props, structure.children);
-
-          newStucture = dom.__radiPoint;
-          newDom = dom;
-          return { newDom, newStucture, last };
-        }
+        structure.pointer = dom.__radiPoint.pointer;
+        structure.dom = dom.__radiPoint.dom;
       }
 
-      last = newDom = fireEvent('mount', insertAfter(render(newStucture = structure), dom, parent));
-      if (last.__radiPoint && last.__radiPoint && last.__radiPoint.dom) {
-        last = last.__radiPoint.dom[last.__radiPoint.dom.length - 1];
+      if (dom.__radiPoint && dom.__radiPoint.query === structure.query) {
+        dom.__radiPoint.update(structure.props, structure.children);
+
+        newStucture = dom.__radiPoint;
+        newDom = dom;
+        return { newDom, newStucture, last };
       }
-      destroy(dom);
     }
+
+    newDom = fireEvent('mount', insertAfter(render(newStucture = structure), dom, parent));
+    last = newDom;
+    if (last.__radiPoint && last.__radiPoint && last.__radiPoint.dom) {
+      last = last.__radiPoint.dom[last.__radiPoint.dom.length - 1];
+    }
+    destroy(dom);
+  }
 
   return { newDom, newStucture, last };
 }

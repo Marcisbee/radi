@@ -1,5 +1,5 @@
-import nodeResolve from 'rollup-plugin-node-resolve';
 import buble from 'rollup-plugin-buble';
+import nodeResolve from 'rollup-plugin-node-resolve';
 
 export default {
   plugins: [
@@ -9,7 +9,7 @@ export default {
       transforms: {
         forOf: false,
       },
-      objectAssign: 'Object.assign'
-    })
-  ]
+      objectAssign: 'Object.assign',
+    }),
+  ],
 };

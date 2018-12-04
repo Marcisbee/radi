@@ -72,42 +72,45 @@
    * @return {Array}                          an array of selected option values
    */
   var getSelectValues = function (options) { return [].reduce.call(options, function (values, option) { return option.selected
-        ? values.concat(option.value)
-        : values; }, []); };
+    ? values.concat(option.value)
+    : values; }, []); };
 
   /**
    * Retrieves input data from a form and returns it as a JSON object.
    * @param  {HTMLFormControlsCollection} elements  the form elements
    * @return {Object}                               form data as an object literal
    */
-  var formToJSON = function (elements, transform) {
-      if ( transform === void 0 ) transform = function (e, v) { return v; };
+  var formToJSON = function (
+    elements,
+    transform
+  ) {
+    if ( transform === void 0 ) transform = function (e, v) { return v; };
 
-      return [].reduce.call(elements, function (data, element) {
+    return [].reduce.call(elements, function (data, element) {
     // Make sure the element has the required properties and should be added.
-      if (isValidElement(element)) {
+    if (isValidElement(element)) {
       /*
        * Some fields allow for more than one value, so we need to check if this
        * is one of those fields and, if so, store the values as an array.
        */
-        if (isCheckbox(element)) {
-          if (typeof data[element.name] === 'undefined') { data[element.name] = []; }
-          if (isValidValue(element)) {
-            data[element.name] = data[element.name]
-              .concat(transform(element, element.value));
-          }
-        } else
+      if (isCheckbox(element)) {
+        if (typeof data[element.name] === 'undefined') { data[element.name] = []; }
         if (isValidValue(element)) {
-          if (isMultiSelect(element)) {
-            data[element.name] = transform(element, getSelectValues(element));
-          } else {
-            data[element.name] = transform(element, element.value);
-          }
+          data[element.name] = data[element.name]
+            .concat(transform(element, element.value));
+        }
+      } else
+      if (isValidValue(element)) {
+        if (isMultiSelect(element)) {
+          data[element.name] = transform(element, getSelectValues(element));
+        } else {
+          data[element.name] = transform(element, element.value);
         }
       }
+    }
 
-      return data;
-    }, {});
+    return data;
+  }, {});
   };
 
   var Component = function Component(node) {
@@ -150,9 +153,9 @@
     }
   };
 
-  var Service = function Service () {};
+  var RadiService = function RadiService () {};
 
-  Service.prototype.add = function add (name, fn) {
+  RadiService.prototype.add = function add (name, fn) {
       var args = [], len = arguments.length - 2;
       while ( len-- > 0 ) args[ len ] = arguments[ len + 2 ];
 
@@ -175,7 +178,7 @@
     return GLOBALS.SERVICES[name] = mounted;
   };
 
-  var service = new Service();
+  var Service = new RadiService();
 
   /**
    * @param {string} attributeName
@@ -197,18 +200,6 @@
   }
 
   /**
-   * @param {string} tagName
-   * @param {function} onmount
-   * @returns {object}
-   */
-  function customTag(tagName, render) {
-    return GLOBALS.CUSTOM_TAGS[tagName] = {
-      name: tagName,
-      render: render || (function () {}),
-    };
-  }
-
-  /**
    * @param  {HTMLElement} node
    */
   function destroyTree$$1(node) {
@@ -224,179 +215,110 @@
     }
   }
 
-  var TYPE = {
-    NODE: 0,
-    TEXT: 1,
-    COMPONENT: 2,
+  function ensureFn(maybeFn) {
+    if (typeof maybeFn === 'function') { return maybeFn; }
+    return function (e) { return maybeFn || e; };
   }
 
-  /**
-   * @param  {HTMLElement} newNode
-   * @param  {HTMLElement} $reference
-   * @param  {HTMLElement} $parent
-   * @return {HTMLElement}
-   */
-  function insertAfter(newNode, $reference, $parent) {
-    if (!$parent) { $parent = $reference.parentNode; }
+  var sharedPlaceholder;
 
-    if (newNode instanceof Node) {
-      if ($reference === null || $reference === undefined) {
-        return $parent.insertBefore(newNode, $reference);
-      }
+  function Await(props) {
+    var this$1 = this;
 
-      if ($reference instanceof Node) {
-        return $parent.insertBefore(newNode, $reference.nextSibling);
-      }
+    var placeholderTimeout;
+    var src = props.src;
+    var waitMs = props.waitMs;
+    var transform = props.transform; if ( transform === void 0 ) transform = function (e) { return e; };
+    var error = props.error; if ( error === void 0 ) error = function (e) { return e; };
+    var placeholder = props.placeholder; if ( placeholder === void 0 ) placeholder = sharedPlaceholder;
+    var value = props.value; if ( value === void 0 ) value = null;
+    var loaded = props.loaded; if ( loaded === void 0 ) loaded = false;
+
+    this.cached = true;
+
+    if (!(src &&
+      (src instanceof Promise || src.constructor.name === 'LazyPromise')
+    )) {
+      console.warn('[Radi] <Await/> must have `src` as a Promise');
+      return null;
     }
 
-    return newNode;
-  }
-
-  /**
-   * @param  {string} type
-   * @param  {HTMLElement} $node
-   * @return {HTMLElement}
-   */
-  function fireEvent(type, $node, $element) {
-    if ( $element === void 0 ) $element = $node;
-
-    var onEvent = document.createEvent('Event');
-    onEvent.initEvent(type, false, true);
-
-    if (typeof $node.dispatchEvent === 'function') {
-      $node._eventFired = true;
-      $node.dispatchEvent(onEvent, $element);
-    }
-
-    return $node;
-  }
-
-  /**
-   * @param  {*} node
-   * @param  {HTMLElement} container
-   * @returns {{nodes: Structure[], dom: HTMLElement[]}}
-   */
-  function mount(node, container) {
-    var nodes = flatten([evaluate(node)]);
-    var dom = render$$1(nodes, container);
-
-    dom.forEach(function (item) {
-      container.appendChild(item);
-      fireEvent('mount', item);
-    });
-
-    return {
-      nodes: nodes,
-      dom: dom,
-    };
-  }
-
-  // TODO: use Component class
-
-  function render$$1(node, parent) {
-    if (Array.isArray(node)) {
-      return node.map(function (item) { return render$$1(item, parent); });
-    }
-
-    if (node.type === TYPE.TEXT) {
-      return document.createTextNode(node.query);
-    }
-
-    if (node.type === TYPE.NODE) {
-      var element;
-      if (node.query === 'svg' || parent instanceof SVGElement) {
-        element = document.createElementNS(
-          'http://www.w3.org/2000/svg',
-          node.query
-        );
-      } else {
-        element = document.createElement(node.query);
-      }
-
-      mount(node.children, element);
-
-      // set attributes
-      setProps(element, node.props);
-
-      return element;
-    }
-
-    if (node.type === TYPE.COMPONENT) {
-      if (!node.pointer) {
-        node.pointer = document.createTextNode('');
-        node.pointer.__radiPoint = node;
-      }
-
-      node.source = new Component(node);
-
-      var $styleRef;
-
-      node.pointer.addEventListener('mount', function (e) {
-        node.update();
-        if (typeof node.source.style === 'string') {
-          $styleRef = document.createElement('style');
-          $styleRef.innerHTML = node.source.style;
-          document.head.appendChild($styleRef);
+    if (!loaded) {
+      if (placeholder !== value) {
+        if (waitMs) {
+          placeholderTimeout = setTimeout(function () {
+            this$1.update(Object.assign({}, props, {value: placeholder}));
+          }, waitMs);
+        } else {
+          value = placeholder;
         }
-        node.source.trigger('mount', e);
-        node.mounted = true;
-      }, {
-        passive: true,
-        once: true,
-      }, false);
-
-      node.pointer.addEventListener('destroy', function (e) {
-        node.source.trigger('destroy', e);
-        if ($styleRef instanceof Node) {
-          document.head.removeChild($styleRef);
-        }
-        node.mounted = false;
-      }, {
-        passive: true,
-        once: true,
-      }, false);
-
-      return node.pointer;
-    }
-
-    return document.createTextNode(node.toString());
-  }
-
-  /**
-   * @param  {HTMLElement} node
-   * @param  {function} next
-   */
-  function beforeDestroy(node, next) {
-    if (typeof node.beforedestroy === 'function') {
-      return node.beforedestroy(next);
-    }
-
-    return next();
-  }
-
-  /**
-   * @param  {*|*[]} data
-   */
-  function destroy(data) {
-    var nodes = ensureArray(data);
-
-    nodes.forEach(function (node) {
-      if (!(node instanceof Node)) { return; }
-
-      if (node.__radiPoint && node.__radiPoint.dom && node.__radiPoint.dom.length > 0) {
-        node.__radiPoint.dom.forEach(destroy);
       }
 
-      var parent = node.parentNode;
-      if (node instanceof Node && parent instanceof Node) {
-        beforeDestroy(node, function () {
-          // This is for async node removals
-          destroyTree$$1(node);
-          parent.removeChild(node);
+      src
+        .then(function (value) {
+          if (value && typeof value === 'object' && typeof value.default === 'function') {
+            value = html(value.default);
+          }
+
+          clearTimeout(placeholderTimeout);
+
+          var tempPlaceholder = sharedPlaceholder;
+          sharedPlaceholder = placeholder;
+
+          this$1.update(Object.assign({}, props, {value: ensureFn(transform)(value), loaded: true}));
+
+          sharedPlaceholder = tempPlaceholder;
+        })
+        .catch(function (err) {
+          console.error(err);
+          clearTimeout(placeholderTimeout);
+          this$1.update(Object.assign({}, props, {value: ensureFn(error)(err), loaded: true}));
         });
+    }
+
+    return value;
+  }
+
+  var animate = function (target, type, opts, done) {
+    var direct = opts[type];
+    if (typeof direct !== 'function') {
+      console.warn(("[Radi.js] Animation `" + type + "` for node `" + (target.nodeName.toLowerCase) + "` should be function"));
+      return;
+    }
+
+    return direct(target, done);
+  };
+
+  customAttribute('animation', function (el, value) {
+    animate(el, 'in', value, function () {});
+    el.beforedestroy = function (done) { return animate(el, 'out', value, done); };
+  });
+
+  customAttribute('html', function (el, value) {
+    el.addEventListener('mount', function () {
+      if (el.escape) {
+        el.textContent = value;
+      } else {
+        el.innerHTML = value;
       }
     });
-  }
+  });
+
+  customAttribute('loadfocus', function (el) {
+    el.addEventListener('mount', function () { return setTimeout(function () { return el.focus(); }, 0); }
+    );
+  });
+
+  customAttribute('onsubmit', function (el, fn) {
+    return function(e) {
+      if (el.prevent) { e.preventDefault(); }
+      fn(e, formToJSON(el.elements || {}));
+    }
+  }, {
+    allowedTags: [
+      'form' ],
+    addToElement: true,
+  });
 
   var renderQueue = [];
 
@@ -429,7 +351,11 @@
     if (typeof this.dependencies[key] === 'undefined') { this.dependencies[key] = []; }
 
     this.dependencies[key] = this.dependencies[key].filter(function (c) {
-      if (c === GLOBALS.CURRENT_COMPONENT.query || c.query === GLOBALS.CURRENT_COMPONENT.query) { return true; }
+      if (GLOBALS.CURRENT_COMPONENT
+        && (
+          c === GLOBALS.CURRENT_COMPONENT.query
+          || c.query === GLOBALS.CURRENT_COMPONENT.query
+        )) { return true; }
       if (c.pointer instanceof Node) {
         if (c.mounted) { return true; }
         return c.pointer.isConnected;
@@ -775,14 +701,12 @@
    */
   Store.middleware = function middleware (
     stores,
-    dispatch,
-    freeze,
-    resume
+    dispatch
+    // freeze = noop,
+    // resume = noop,
   ) {
       if ( stores === void 0 ) stores = noop;
       if ( dispatch === void 0 ) dispatch = noop;
-      if ( freeze === void 0 ) freeze = noop;
-      if ( resume === void 0 ) resume = noop;
 
     // @TODO: Add middleware to:
     // - freeze updates
@@ -793,538 +717,6 @@
   };
 
   Object.defineProperties( Store.prototype, prototypeAccessors );
-
-  /**
-   * @param {*} value
-   * @param {Function} fn
-   * @returns {*}
-   */
-  function autoUpdate(value, fn) {
-    if (value instanceof Listener) {
-      return fn(value.getValue(function (e) { return fn(value.map(e)); }));
-    }
-
-    return fn(value);
-  }
-
-  /**
-   * @param {HTMLElement} $target
-   * @param {string} name
-   * @param {*} value
-   */
-  function setBooleanProp($target, name, value) {
-    if (value) {
-      $target.setAttribute(name, value);
-      $target[name] = true;
-    } else {
-      $target[name] = false;
-    }
-  }
-
-  /**
-   * @param {HTMLElement} $target
-   * @param {string} name
-   */
-  function removeBooleanProp($target, name) {
-    $target.removeAttribute(name);
-    $target[name] = false;
-  }
-
-  /**
-   * @param {string} name
-   * @returns {boolean}
-   */
-  function isEventProp(name) {
-    return /^on/.test(name);
-  }
-
-  /**
-   * @param {string} name
-   * @returns {string}
-   */
-  function extractEventName(name) {
-    return name.replace(/^on/, '').toLowerCase();
-  }
-
-  /**
-   * @param {string} name
-   * @returns {boolean}
-   */
-  function isCustomProp(name) {
-    return isEventProp(name);
-  }
-
-  /**
-   * @param {HTMLElement} $target
-   * @param {string} name
-   * @param {*} value
-   */
-  function setProp($target, name, value) {
-    if (name === 'style' && typeof value !== 'string') {
-      setStyles($target, value);
-    } else if (isCustomProp(name)) {
-      addEventListener($target, name, value);
-    } else if (name === 'className') {
-      $target.setAttribute('class', value);
-    } else if (typeof value === 'boolean') {
-      setBooleanProp($target, name, value);
-    } else {
-      if (name === 'value' && document.activeElement !== $target) {
-        $target[name] = value;
-      }
-      $target.setAttribute(name, value);
-    }
-  }
-
-  /**
-   * @param {HTMLElement} $target
-   * @param {string} name
-   * @param {*} value
-   */
-  function removeProp($target, name, value) {
-    if (isCustomProp(name)) {
-
-    } else if (name === 'className') {
-      $target.removeAttribute('class');
-    } else if (typeof value === 'boolean') {
-      removeBooleanProp($target, name);
-    } else {
-      $target.removeAttribute(name);
-    }
-  }
-
-  /**
-   * @param {HTMLElement} $target
-   * @param {{}} styles
-   */
-  function setStyles($target, styles) {
-    Object.keys(styles).forEach(function (name) {
-      autoUpdate(styles[name], function (value) {
-        $target.style[name] = value;
-      });
-    });
-  }
-
-  /**
-   * @param {HTMLElement} $target
-   * @param {{}} props
-   */
-  function setProps($target, props) {
-    (Object.keys(props || {})).forEach(function (name) {
-      if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
-        var ref = GLOBALS.CUSTOM_ATTRIBUTES[name];
-        var allowedTags = ref.allowedTags;
-        var addToElement = ref.addToElement;
-        var caller = ref.caller;
-
-        if (!allowedTags || (
-          allowedTags
-          && allowedTags.length > 0
-          && allowedTags.indexOf($target.localName) >= 0
-        )) {
-          if (typeof caller === 'function') {
-            props[name] = caller($target, props[name]);
-          }
-          if (!addToElement) { return; }
-        }
-      }
-
-      autoUpdate(props[name], function (value) {
-        if (name === 'model') {
-          name = 'value';
-        } else
-        if (name === 'class' || name === 'className') {
-          if (Array.isArray(value)) {
-            value = value.filter(function (v) { return v && typeof v !== 'function'; }).join(' ');
-          }
-        }
-        setProp($target, name, value);
-      });
-    });
-  }
-
-  /**
-   * @param {*} value
-   * @returns {boolean}
-   */
-  function isRemovableProp(value) {
-    return typeof value === 'undefined' || value === false || value === null;
-  }
-
-  /**
-   * @param {HTMLElement} $target
-   * @param {string} name
-   * @param {*} newVal
-   * @param {*} oldVal
-   */
-  function updateProp($target, name, newVal, oldVal) {
-    if (isRemovableProp(newVal)) {
-      removeProp($target, name, oldVal);
-    } else if (!oldVal || newVal !== oldVal) {
-      setProp($target, name, newVal);
-    }
-  }
-
-  /**
-   * @param {HTMLElement} $target
-   * @param {{}} newProps
-   * @param {{}} oldProps = {}
-   */
-  function updateProps($target, newProps, oldProps) {
-    if ( oldProps === void 0 ) oldProps = {};
-
-    var props = Object.assign({}, newProps, oldProps);
-
-    if (typeof $target.__radiHandlers !== 'undefined') {
-      $target.__radiHandlers.forEach(function (event) {
-        $target.removeEventListener.apply($target, event);
-      });
-
-      $target.__radiHandlers = [];
-    }
-
-    Object.keys(props).forEach(function (name) {
-      autoUpdate(newProps[name], function (value) {
-        if (name === 'model') {
-          name = 'value';
-        }
-        updateProp($target, name, value, oldProps[name]);
-      });
-    });
-  }
-
-  /**
-   * @param {HTMLElement} $target
-   * @param {string} name
-   * @param {*} value
-   */
-  function addEventListener($target, name, value) {
-    var exceptions = ['mount', 'destroy'];
-    if (isEventProp(name)) {
-      if (typeof $target.__radiHandlers === 'undefined') {
-        $target.__radiHandlers = [];
-      }
-      var event = [
-        extractEventName(name),
-        function (e) {
-          if (exceptions.indexOf(name) >= 0) {
-            if ($target === e.target) { value(e); }
-          } else
-          if (typeof value === 'function') {
-            value(e);
-          }
-        } ];
-      $target.__radiHandlers.push(event);
-      $target.addEventListener(
-        event[0],
-        event[1],
-        false
-      );
-    }
-  }
-
-  /**
-   * @param {NamedNodeMap} value
-   * @returns {{}}
-   */
-  function attributesToObject(value) {
-    return [].reduce.call(value, function (acc, obj) {
-      var obj$1;
-
-      return (Object.assign({}, acc,
-      ( obj$1 = {}, obj$1[obj.name] = obj.value, obj$1)));
-    }, {});
-  }
-
-  function withoutInnerChilds(dom) {
-    var childrenOfComponents = Array.prototype.filter.call(
-      dom.childNodes,
-      function (d) { return typeof d.__radiPoint !== 'undefined'; }
-    )
-      .reduce(function (acc, d) { return acc.concat( d.__radiPoint.dom); }, []);
-
-    return Array.prototype.filter.call(
-      dom.childNodes,
-      function (d) { return childrenOfComponents.indexOf(d) < 0; }
-    );
-  }
-
-  /**
-   * @param  {Structure} structure
-   * @param  {HTMLElement} dom
-   * @param  {HTMLElement} parent
-   * @param  {HTMLElement} last
-   * @returns {{ newDom: HTMLElement, newStucture: Structure, last: HTMLElement }}
-   */
-  function patch(structure, dom, parent, last) {
-    var newStucture;
-    var newDom;
-    if (!dom) {
-      // add
-      last = newDom = fireEvent('mount', insertAfter(render$$1(newStucture = structure), last, parent));
-    } else
-      if (!structure) {
-        // remove
-        destroy(dom);
-      } else {
-        // replace
-        if (structure.type === TYPE.NODE) {
-          var patchNewDom = structure;
-          var patchOldDom = dom;
-          var patchOldDomChildren = withoutInnerChilds(dom);
-
-          if (patchOldDom.nodeName === patchNewDom.query.toUpperCase()) {
-            var oldAttrs = attributesToObject(patchOldDom.attributes);
-
-            if (patchOldDomChildren || patchNewDom.children) {
-              var length = Math.max(patchOldDomChildren.length, patchNewDom.children.length);
-
-              /* We should always run patch childnodes in reverse from last to first
-              because if node is removed, it removes whole element in array */
-              for (var ii = length - 1; ii >= 0; ii--) {
-                patch(
-                  patchNewDom.children[ii],
-                  patchOldDomChildren[ii],
-                  patchOldDom
-                );
-              }
-            }
-
-            updateProps(patchOldDom, patchNewDom.props, oldAttrs);
-
-            newStucture = structure;
-            newDom = dom;
-            return { newDom: newDom, newStucture: newStucture, last: last };
-          }
-        }
-
-        if (structure.type === TYPE.TEXT && dom.nodeType === 3 && !dom.__radiPoint) {
-
-          if (dom.textContent != structure.query) {
-            dom.textContent = structure.query;
-          }
-
-          newStucture = structure;
-          newDom = dom;
-          return { newDom: newDom, newStucture: newStucture, last: last };
-        }
-
-        if (structure.type === TYPE.COMPONENT) {
-
-          if (dom && dom.__radiPoint
-            && structure.query.name === dom.__radiPoint.query.name
-            && dom.__radiPoint.source.cached === true) {
-            GLOBALS.USE_CACHE = true;
-
-            structure.pointer = dom.__radiPoint.pointer;
-            structure.dom = dom.__radiPoint.dom;
-          }
-
-          if (dom.__radiPoint && dom.__radiPoint.query === structure.query) {
-            dom.__radiPoint.update(structure.props, structure.children);
-
-            newStucture = dom.__radiPoint;
-            newDom = dom;
-            return { newDom: newDom, newStucture: newStucture, last: last };
-          }
-        }
-
-        last = newDom = fireEvent('mount', insertAfter(render$$1(newStucture = structure), dom, parent));
-        if (last.__radiPoint && last.__radiPoint && last.__radiPoint.dom) {
-          last = last.__radiPoint.dom[last.__radiPoint.dom.length - 1];
-        }
-        destroy(dom);
-      }
-
-    return { newDom: newDom, newStucture: newStucture, last: last };
-  }
-
-  /**
-   * @param {{}} props
-   * @param {[]} children
-   * @returns {HTMLElement}
-   */
-  function renderComponent(props, children) {
-    var this$1 = this;
-    if ( props === void 0 ) props = this.props;
-    if ( children === void 0 ) children = this.children;
-
-    if (props) { this.props = props; }
-    if (children) { this.children = children; }
-    var component = flatten([evaluate(
-      this.query.call(this.source, Object.assign({}, this.props,
-        {children: this.children}))
-    )]);
-
-    if (!this.dom) {
-      var rendered = render$$1(this.domStructure = component);
-
-      return this.dom = rendered
-        .reverse()
-        .map(function (item) { return fireEvent('mount', insertAfter(item, this$1.pointer)); })
-        .reverse();
-    }
-
-    if (GLOBALS.USE_CACHE) {
-      GLOBALS.USE_CACHE = false;
-
-      return this.dom;
-    }
-
-    var active = document.activeElement;
-
-    if (this.pointer.parentNode === null) { return this.dom; }
-
-    var length = Math.max(this.dom.length, component.length);
-    var last = this.pointer;
-    var newDom = [];
-    var newStucture = [];
-    for (var i = 0; i <= length - 1; i++) {
-      var output = patch(component[i], this$1.dom[i], this$1.pointer.parentNode, last);
-      if (output.last) { last = output.last; }
-      if (output.newDom) { newDom[i] = output.newDom; }
-      if (output.newStucture) { newStucture[i] = output.newStucture; }
-    }
-
-    active.focus();
-
-    this.domStructure = newStucture;
-    return this.dom = newDom;
-  }
-
-  function isNode(value) {
-    return value && typeof value === 'object'
-      && typeof value.query !== 'undefined'
-      && typeof value.props !== 'undefined'
-      && typeof value.children !== 'undefined';
-  }
-
-  function updater(comp) {
-    return function () {
-      var args = [], len = arguments.length;
-      while ( len-- ) args[ len ] = arguments[ len ];
-
-      var tempComponent = GLOBALS.CURRENT_COMPONENT;
-      GLOBALS.CURRENT_COMPONENT = comp;
-      var output = renderComponent.call.apply(renderComponent, [ comp ].concat( args ));
-
-      GLOBALS.CURRENT_COMPONENT = tempComponent;
-      return output
-    }
-  }
-
-  function evaluate(node) {
-    if (Array.isArray(node)) {
-      return flatten(node).map(evaluate);
-    }
-
-    if (typeof node === 'function') {
-      return evaluate(node());
-    }
-
-    if (node instanceof Promise || (node && node.constructor.name === 'LazyPromise')) {
-      return evaluate({
-        query: 'await',
-        props: {
-          src: node,
-        },
-        children: [],
-      });
-    }
-
-    if (node instanceof Listener) {
-      var comp = {
-        query: node.update,
-        type: TYPE.COMPONENT,
-        props: {},
-        children: [],
-        pointer: null,
-        dom: null,
-      };
-      comp.update = updater(comp);
-
-      node.link(function () { return (
-        comp.dom !== null && comp.update()
-      ); });
-
-      return comp;
-    }
-
-    if (node && typeof node.type === 'number') { return node; }
-    if (isNode(node)) {
-
-      if (typeof node.query === 'function') {
-        var comp$1 = Object.assign({}, node,
-          {type: TYPE.COMPONENT,
-          pointer: null,
-          dom: null});
-        comp$1.update = updater(comp$1);
-        return comp$1;
-      }
-
-      if (typeof GLOBALS.CUSTOM_TAGS[node.query] !== 'undefined') {
-        var comp$2 = Object.assign({}, node,
-          {query: GLOBALS.CUSTOM_TAGS[node.query].render,
-          type: TYPE.COMPONENT,
-          pointer: null,
-          dom: null});
-        comp$2.update = updater(comp$2);
-        return comp$2;
-      }
-
-      return Object.assign({}, node,
-        {type: TYPE.NODE,
-        children: evaluate(flatten(node.children))})
-    }
-
-    if (!node && typeof node !== 'string' && typeof node !== 'number') {
-      return {
-        // query: node,
-        query: '',
-        type: TYPE.TEXT,
-      }
-    }
-
-    return {
-      query: node.toString(),
-      type: TYPE.TEXT,
-    }
-  }
-
-  /**
-   * @typedef {Object} Node
-   * @property {string|function} query
-   * @property {{}} props
-   * @property {*[]} children
-   */
-
-  /**
-   * @param  {*} preQuery
-   * @param  {{}} preProps
-   * @param  {*[]} preChildren
-   * @return {Node}
-   */
-  function html(preQuery, preProps) {
-    var preChildren = [], len = arguments.length - 2;
-    while ( len-- > 0 ) preChildren[ len ] = arguments[ len + 2 ];
-
-    var query = (typeof preQuery === 'number') ? ("" + preQuery) : preQuery;
-    var props = preProps || {};
-    var children = flatten(preChildren);
-
-    if (query instanceof Promise || (query && query.constructor.name === 'LazyPromise')) {
-      query = 'await';
-      props = {
-        src: preQuery,
-      };
-    }
-
-    return {
-      query: query,
-      props: props,
-      children: children,
-    };
-  }
 
   /**
    * @param {Function} subscriber
@@ -1425,15 +817,17 @@
    * @param {boolean} instant
    * @returns {Store}
    */
-  function Fetcher(resolver, success, error, instant) {
+  function Fetch(resolver, success, error, instant) {
     if ( instant === void 0 ) instant = false;
 
     var init = false;
     var trigger = function () {};
-    var data = null;
+    var data = {};
+
+    var loading = new Store(false, null);
 
     if (typeof resolver !== 'function') {
-      throw new Error("[Radi.js] Fetcher first parameter must be function that returns promise");
+      throw new Error('[Radi.js] Fetch first parameter must be function that returns promise');
     }
 
     function factory(value, next) {
@@ -1449,78 +843,82 @@
     });
 
     function CustomSubscribe(defaultValue) {
-      return Subscribe(factory, 'Fetcher')(defaultValue);
+      return Subscribe(factory, 'Fetch')(defaultValue);
     }
+
+    CustomSubscribe.loading = loading;
+    CustomSubscribe.cache = true;
 
     CustomSubscribe.fetch = function fetch() {
       var args = [], len = arguments.length;
       while ( len-- ) args[ len ] = arguments[ len ];
 
-      if (data !== null) { return; }
+      var id = JSON.stringify(args);
+      if (CustomSubscribe.cache && typeof data[id] !== 'undefined') {
+        trigger(data[id]);
+        return Promise.resolve();
+      }
 
-      trigger({loading: true});
+      loading.update(true);
 
-      resolver.apply(void 0, args)
-        .then(success || (function (output) {
-          data = output;
-          trigger(output);
+      return resolver.apply(void 0, args)
+        .then((function (output) {
+          var outputData = typeof success === 'function'
+            ? success(output)
+            : output;
+          data[id] = outputData;
+          trigger(outputData);
+          loading.update(false);
         }))
-        .catch(error || (function (error) {
-          trigger({ error: error });
-          console.error(error);
+        .catch((function (err) {
+          var errorData = typeof error === 'function'
+            ? error(err)
+            : err;
+          // trigger({ error: data });
+          loading.update(false);
+          console.error(errorData);
         }));
     };
 
     return CustomSubscribe;
   }
 
-  var animate = function (target, type, opts, done) {
-    var direct = opts[type];
-    if (typeof direct !== 'function') {
-      console.warn(("[Radi.js] Animation `" + type + "` for node `" + (target.nodeName.toLowerCase) + "` should be function"));
-      return;
+  /**
+   * @param {WebSocket} ws
+   * @param {Function} transformer
+   * @returns {Store}
+   */
+  function Socket(ws, transformer) {
+    if ( transformer === void 0 ) transformer = function (data) { return data; };
+
+    var name = ws.url;
+    var updater = function () {};
+
+    if (typeof transformer !== 'function') {
+      throw new Error(("[Radi.js] Socket `" + name + "` must be transformed by function"));
     }
 
-    return direct(target, done);
-  };
+    ws.onmessage = function (e) { return updater(transformer(e.data)); };
 
-  customAttribute('animation', function (el, value) {
-    animate(el, 'in', value, function () {});
-    el.beforedestroy = function (done) { return animate(el, 'out', value, done); };
-  });
+    function factory(value, next) {
+      updater = next;
+    }
 
-  customAttribute('html', function (el, value) {
-    el.addEventListener('mount', function () {
-      if (el.escape) {
-        el.textContent = value;
-      } else {
-        el.innerHTML = value;
-      }
+    Object.defineProperty(factory, 'name', {
+      value: name || 'onmessage',
     });
-  });
 
-  customAttribute('loadfocus', function (el) {
-    el.addEventListener('mount', function () { return setTimeout(function () { return el.focus(); }, 0); }
-    );
-  });
-
-  customAttribute('onsubmit', function (el, fn) {
-    return function(e) {
-      if (el.prevent) { e.preventDefault(); }
-      fn(e, formToJSON(el.elements || {}));
-    }
-  }, {
-    allowedTags: [
-      'form' ],
-    addToElement: true,
-  });
+    return function CustomSubscribe(defaultValue) {
+      return Subscribe(factory, 'Socket')(defaultValue);
+    };
+  }
 
   var errorsStore = new Store({}, null);
   var setErrors = function (state, name, errors) {
     var obj;
 
     return (Object.assign({}, state,
-    ( obj = {}, obj[name] = errors, obj)));
+    ( obj = {}, obj[name] = errors, obj )));
   };
 
   function extractValue(value) {
@@ -1546,7 +944,7 @@
         var obj;
 
         return (Object.assign({}, acc,
-        ( obj = {}, obj[key] = extractValue(values[key]), obj)));
+        ( obj = {}, obj[key] = extractValue(values[key]), obj )));
     }, {});
     var errors = [];
 
@@ -1576,9 +974,15 @@
 
   var formCount = 0;
 
+  var ruleMemo = {};
+
   customAttribute('onvalidate', function (el, rules) {
-    var formName = el.name || 'defaultForm' + (formCount++);
+    var formName = el.getAttribute('name') || 'defaultForm' + (formCount++);
     var submit;
+
+    if (typeof rules === 'function') {
+      ruleMemo[formName] = rules;
+    }
 
     function update(errors) {
       errorsStore.dispatch(setErrors, formName, errors);
@@ -1591,7 +995,9 @@
     });
 
     el.addEventListener('mount', function (e) {
-      var validate = rules(e);
+      var rule = ruleMemo[formName];
+      if (typeof rule !== 'function') { return; }
+      var validate = rule(e);
       var elements = el.elements;
       if (validate && typeof validate === 'object'
         && elements) {
@@ -1644,72 +1050,6 @@
       'form' ],
   });
 
-  function ensureFn(maybeFn) {
-    if (typeof maybeFn === 'function') { return maybeFn; }
-    return function (e) { return maybeFn || e; };
-  }
-
-  var sharedPlaceholder;
-
-  function Await(props) {
-    var this$1 = this;
-
-    var placeholderTimeout;
-    var src = props.src;
-    var waitMs = props.waitMs;
-    var transform = props.transform; if ( transform === void 0 ) transform = function (e) { return e; };
-    var error = props.error; if ( error === void 0 ) error = function (e) { return e; };
-    var placeholder = props.placeholder; if ( placeholder === void 0 ) placeholder = sharedPlaceholder;
-    var value = props.value; if ( value === void 0 ) value = null;
-    var loaded = props.loaded; if ( loaded === void 0 ) loaded = false;
-
-    this.cached = true;
-
-    if (!(src &&
-      (src instanceof Promise || src.constructor.name === 'LazyPromise')
-    )) {
-      console.warn('[Radi] <await/> must have `src` as a Promise');
-      return null;
-    }
-
-    if (!loaded) {
-      if (placeholder !== value) {
-        if (waitMs) {
-          placeholderTimeout = setTimeout(function () {
-            this$1.update(Object.assign({}, props, {value: placeholder}));
-          }, waitMs);
-        } else {
-          value = placeholder;
-        }
-      }
-
-      src
-        .then(function (value) {
-          if (value && typeof value === 'object' && typeof value.default === 'function') {
-            value = html(value.default);
-          }
-
-          clearTimeout(placeholderTimeout);
-
-          var tempPlaceholder = sharedPlaceholder;
-          sharedPlaceholder = placeholder;
-
-          this$1.update(Object.assign({}, props, {value: ensureFn(transform)(value), loaded: true}));
-
-          sharedPlaceholder = tempPlaceholder;
-        })
-        .catch(function (err) {
-          console.error(err);
-          clearTimeout(placeholderTimeout);
-          this$1.update(Object.assign({}, props, {value: ensureFn(error)(err), loaded: true}));
-        });
-    }
-
-    return value;
-  }
-
-  customTag('await', Await);
-
   function Errors(ref) {
     var name = ref.name;
     var onrender = ref.onrender; if ( onrender === void 0 ) onrender = function (e) { return (e); };
@@ -1730,6 +1070,29 @@
     return onrender(state[name]);
   }
 
+  function areAnyLoading(src) {
+    if (Array.isArray(src)) {
+      return src.reduce(
+        function (acc, data) { return areAnyLoading(data) || acc; },
+        false
+      );
+    }
+
+    return src && src.loading && src.loading.state
+  }
+
+  function Loading(ref) {
+    var src = ref.src;
+    var children = ref.children;
+    var placeholder = ref.placeholder; if ( placeholder === void 0 ) placeholder = children;
+    var isLoading = ref.isLoading; if ( isLoading === void 0 ) isLoading = areAnyLoading(src);
+
+    if (!src) { return children; }
+    if (isLoading) { return placeholder; }
+
+    return children;
+  }
+
   var h = html;
 
   var ModalStore = new Store({}, null);
@@ -1738,24 +1101,15 @@
     var obj;
 
     return (Object.assign({}, store,
-    ( obj = {}, obj[name] = false, obj)));
+    ( obj = {}, obj[name] = false, obj )));
   };
 
   var switchModal = function (store, name, type) {
     var obj;
 
     return (Object.assign({}, store,
-    ( obj = {}, obj[name] = type, obj)));
+    ( obj = {}, obj[name] = type, obj )));
   };
-
-  var ModalService = service.add('modal', function () {
-    return {
-      open: function (name) { return ModalStore.dispatch(switchModal, name, true); },
-      close: function (name) { return ModalStore.dispatch(switchModal, name, false); },
-      onOpen: function (name, fn) { return ModalStore.subscribe(function (n, p) { return n[name] === true && n[name] !== p[name] && fn(); }); },
-      onClose: function (name, fn) { return ModalStore.subscribe(function (n, p) { return n[name] === false && n[name] !== p[name] && fn(); }); },
-    };
-  });
 
   function Modal(ref) {
     var name = ref.name; if ( name === void 0 ) name = 'default';
@@ -1772,22 +1126,82 @@
         { ModalStore.dispatch(registerModal, name); }
     };
 
-    return h('portal', {},
-      modal[name] && h('div',
-        { class: 'radi-modal', name: name },
-        h('div', {
-          class: 'radi-modal-backdrop',
-          onclick: function () { return service.modal.close(name); },
-        }),
-        h.apply(void 0, [ 'div',
-          { class: 'radi-modal-content' } ].concat( (children.slice()) )
-        )
+    return modal[name] && h('div',
+      { class: 'radi-modal', name: name },
+      h('div', {
+        class: 'radi-modal-backdrop',
+        onclick: function () { return ModalService.close(name); },
+      }),
+      h.apply(void 0, [ 'div',
+        { class: 'radi-modal-content' } ].concat( (children.slice()) )
       )
     );
   }
 
-  // TODO: Figure out a different approach to modal
-  customTag('modal', Modal);
+  var ModalService = Service.add('Modal', function () {
+    return {
+      open: function (name) { return ModalStore.dispatch(switchModal, name, true); },
+      close: function (name) { return ModalStore.dispatch(switchModal, name, false); },
+      onOpen: function (name, fn) { return ModalStore.subscribe(function (n, p) { return n[name] === true && n[name] !== p[name] && fn(); }); },
+      onClose: function (name, fn) { return ModalStore.subscribe(function (n, p) { return n[name] === false && n[name] !== p[name] && fn(); }); },
+    };
+  });
+
+  /**
+   * @param  {HTMLElement} node
+   * @param  {function} next
+   */
+  function beforeDestroy(node, next) {
+    if (typeof node.beforedestroy === 'function') {
+      return node.beforedestroy(next);
+    }
+
+    return next();
+  }
+
+  /**
+   * @param  {*|*[]} data
+   */
+  function destroy(data) {
+    var nodes = ensureArray(data);
+
+    nodes.forEach(function (node) {
+      if (!(node instanceof Node)) { return; }
+
+      if (node.__radiPoint && node.__radiPoint.dom && node.__radiPoint.dom.length > 0) {
+        node.__radiPoint.dom.forEach(destroy);
+      }
+
+      var parent = node.parentNode;
+      if (node instanceof Node && parent instanceof Node) {
+        beforeDestroy(node, function () {
+          // This is for async node removals
+          destroyTree$$1(node);
+          parent.removeChild(node);
+        });
+      }
+    });
+  }
+
+  /**
+   * @param  {*} node
+   * @param  {HTMLElement} container
+   * @returns {{nodes: Structure[], dom: HTMLElement[]}}
+   */
+  function mount(node, container) {
+    var nodes = flatten([evaluate(node)]);
+    var dom = render$$1(nodes, container);
+
+    dom.forEach(function (item) {
+      container.appendChild(item);
+      fireEvent('mount', item);
+    });
+
+    return {
+      nodes: nodes,
+      dom: dom,
+    };
+  }
 
   function Portal(data) {
     var children = data.children;
@@ -1814,28 +1228,687 @@
     return null;
   }
 
-  customTag('portal', Portal);
+  var TYPE = {
+    NODE: 0,
+    TEXT: 1,
+    COMPONENT: 2,
+  };
+
+  /**
+   * @param  {string} type
+   * @param  {HTMLElement} $node
+   * @return {HTMLElement}
+   */
+  function fireEvent(type, $node, $element) {
+    if ( $element === void 0 ) $element = $node;
+
+    var onEvent = document.createEvent('Event');
+    onEvent.initEvent(type, false, true);
+
+    if (typeof $node.dispatchEvent === 'function') {
+      $node._eventFired = true;
+      $node.dispatchEvent(onEvent, $element);
+    }
+
+    return $node;
+  }
+
+  /**
+   * @param  {HTMLElement} newNode
+   * @param  {HTMLElement} $reference
+   * @param  {HTMLElement} $parent
+   * @return {HTMLElement}
+   */
+  function insertAfter(newNode, $reference, $parent) {
+    if (!$parent) { $parent = $reference.parentNode; }
+
+    if (newNode instanceof Node) {
+      if ($reference === null || $reference === undefined) {
+        return $parent.insertBefore(newNode, $reference);
+      }
+
+      if ($reference instanceof Node) {
+        return $parent.insertBefore(newNode, $reference.nextSibling);
+      }
+    }
+
+    return newNode;
+  }
+
+  function render$$1(node, parent) {
+    if (Array.isArray(node)) {
+      return node.map(function (item) { return render$$1(item, parent); });
+    }
+
+    if (node.type === TYPE.TEXT) {
+      return document.createTextNode(node.query);
+    }
+
+    if (node.type === TYPE.NODE) {
+      var element;
+      if (node.query === 'svg' || parent instanceof SVGElement) {
+        element = document.createElementNS(
+          'http://www.w3.org/2000/svg',
+          node.query
+        );
+      } else {
+        element = document.createElement(node.query);
+      }
+
+      mount(node.children, element);
+
+      // set attributes
+      setProps(element, node.props);
+
+      return element;
+    }
+
+    if (node.type === TYPE.COMPONENT) {
+      if (!node.pointer) {
+        node.pointer = document.createTextNode('');
+        node.pointer.__radiPoint = node;
+      }
+
+      node.source = new Component(node);
+
+      var $styleRef;
+
+      node.pointer.addEventListener('mount', function (e) {
+        node.update();
+        if (typeof node.source.style === 'string') {
+          $styleRef = document.createElement('style');
+          $styleRef.innerHTML = node.source.style;
+          document.head.appendChild($styleRef);
+        }
+        node.source.trigger('mount', e);
+        node.mounted = true;
+      }, {
+        passive: true,
+        once: true,
+      }, false);
+
+      node.pointer.addEventListener('destroy', function (e) {
+        node.source.trigger('destroy', e);
+        if ($styleRef instanceof Node) {
+          document.head.removeChild($styleRef);
+        }
+        node.mounted = false;
+      }, {
+        passive: true,
+        once: true,
+      }, false);
+
+      return node.pointer;
+    }
+
+    return document.createTextNode(node.toString());
+  }
+
+  /**
+   * @param {*} value
+   * @param {Function} fn
+   * @returns {*}
+   */
+  function autoUpdate(value, fn) {
+    if (value instanceof Listener) {
+      return fn(value.getValue(function (e) { return fn(value.map(e)); }));
+    }
+
+    return fn(value);
+  }
+
+  /**
+   * @param {HTMLElement} $target
+   * @param {string} name
+   * @param {*} value
+   */
+  function setBooleanProp($target, name, value) {
+    if (value) {
+      $target.setAttribute(name, value);
+      $target[name] = true;
+    } else {
+      $target[name] = false;
+    }
+  }
+
+  /**
+   * @param {HTMLElement} $target
+   * @param {string} name
+   */
+  function removeBooleanProp($target, name) {
+    $target.removeAttribute(name);
+    $target[name] = false;
+  }
+
+  /**
+   * @param {string} name
+   * @returns {boolean}
+   */
+  function isEventProp(name) {
+    return /^on/.test(name);
+  }
+
+  /**
+   * @param {string} name
+   * @returns {string}
+   */
+  function extractEventName(name) {
+    return name.replace(/^on/, '').toLowerCase();
+  }
+
+  /**
+   * @param {string} name
+   * @returns {boolean}
+   */
+  function isCustomProp(name) {
+    return isEventProp(name);
+  }
+
+  /**
+   * @param {HTMLElement} $target
+   * @param {string} name
+   * @param {*} value
+   */
+  function setProp($target, name, value) {
+    if (name === 'model') {
+      name = 'value';
+    } else
+    if (name === 'class' || name === 'className') {
+      if (Array.isArray(value)) {
+        value = value.filter(function (v) { return v && typeof v !== 'function'; }).join(' ');
+      }
+    }
+
+    if (name === 'style' && typeof value !== 'string') {
+      setStyles($target, value);
+    } else if (isCustomProp(name)) {
+      addEventListener($target, name, value);
+    } else if (name === 'className') {
+      $target.setAttribute('class', value);
+    } else if (typeof value === 'boolean') {
+      setBooleanProp($target, name, value);
+    } else {
+      if (name === 'value' && document.activeElement !== $target) {
+        $target[name] = value;
+      }
+      $target.setAttribute(name, value);
+    }
+  }
+
+  /**
+   * @param {HTMLElement} $target
+   * @param {string} name
+   * @param {*} value
+   */
+  function removeProp($target, name, value) {
+    if (isCustomProp(name)) {
+      return;
+    }
+
+    if (name === 'className') {
+      $target.removeAttribute('class');
+    } else if (typeof value === 'boolean') {
+      removeBooleanProp($target, name);
+    } else {
+      $target.removeAttribute(name);
+    }
+  }
+
+  /**
+   * @param {HTMLElement} $target
+   * @param {{}} styles
+   */
+  function setStyles($target, styles) {
+    Object.keys(styles).forEach(function (name) {
+      autoUpdate(styles[name], function (value) {
+        $target.style[name] = value;
+      });
+    });
+  }
+
+  /**
+   * @param {HTMLElement} $target
+   * @param {{}} props
+   */
+  function setProps($target, props) {
+    (Object.keys(props || {})).forEach(function (name) {
+      if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
+        var ref = GLOBALS.CUSTOM_ATTRIBUTES[name];
+        var allowedTags = ref.allowedTags;
+        var addToElement = ref.addToElement;
+        var caller = ref.caller;
+
+        if (!allowedTags || (
+          allowedTags
+          && allowedTags.length > 0
+          && allowedTags.indexOf($target.localName) >= 0
+        )) {
+          if (typeof caller === 'function') {
+            props[name] = caller($target, props[name]);
+          }
+          if (!addToElement) { return; }
+        }
+      }
+
+      autoUpdate(props[name], function (value) {
+        setProp($target, name, value);
+      });
+    });
+  }
+
+  /**
+   * @param {*} value
+   * @returns {boolean}
+   */
+  function isRemovableProp(value) {
+    return typeof value === 'undefined' || value === false || value === null;
+  }
+
+  /**
+   * @param {HTMLElement} $target
+   * @param {string} name
+   * @param {*} newVal
+   * @param {*} oldVal
+   */
+  function updateProp($target, name, newVal, oldVal) {
+    if (isRemovableProp(newVal)) {
+      removeProp($target, name, oldVal);
+    } else if (!oldVal || newVal !== oldVal) {
+      setProp($target, name, newVal);
+    }
+  }
+
+  /**
+   * @param {HTMLElement} $target
+   * @param {{}} newProps
+   * @param {{}} oldProps = {}
+   */
+  function updateProps($target, newProps, oldProps) {
+    if ( oldProps === void 0 ) oldProps = {};
+
+    var props = Object.assign({}, newProps, oldProps);
+
+    if (typeof $target.__radiHandlers !== 'undefined') {
+      $target.__radiHandlers.forEach(function (event) {
+        $target.removeEventListener.apply($target, event);
+      });
+
+      $target.__radiHandlers = [];
+    }
+
+    Object.keys(props).forEach(function (name) {
+      autoUpdate(newProps[name], function (value) {
+        if (name === 'model') {
+          name = 'value';
+        }
+        updateProp($target, name, value, oldProps[name]);
+      });
+    });
+  }
+
+  /**
+   * @param {HTMLElement} $target
+   * @param {string} name
+   * @param {*} value
+   */
+  function addEventListener($target, name, value) {
+    var exceptions = ['mount', 'destroy'];
+    if (isEventProp(name)) {
+      if (typeof $target.__radiHandlers === 'undefined') {
+        $target.__radiHandlers = [];
+      }
+      var event = [
+        extractEventName(name),
+        function (e) {
+          if (exceptions.indexOf(name) >= 0) {
+            if ($target === e.target) { value(e); }
+          } else
+          if (typeof value === 'function') {
+            value(e);
+          }
+        } ];
+      $target.__radiHandlers.push(event);
+      $target.addEventListener(
+        event[0],
+        event[1],
+        false
+      );
+    }
+  }
+
+  /**
+   * @param {NamedNodeMap} value
+   * @returns {{}}
+   */
+  function attributesToObject(value) {
+    return [].reduce.call(value, function (acc, obj) {
+      var obj$1;
+
+      return (Object.assign({}, acc,
+      ( obj$1 = {}, obj$1[obj.name] = obj.value, obj$1 )));
+    }, {});
+  }
+
+  function withoutInnerChilds(dom) {
+    var childrenOfComponents = Array.prototype.filter.call(
+      dom.childNodes,
+      function (d) { return typeof d.__radiPoint !== 'undefined'; }
+    )
+      .reduce(function (acc, d) { return acc.concat( d.__radiPoint.dom); }, []);
+
+    return Array.prototype.filter.call(
+      dom.childNodes,
+      function (d) { return childrenOfComponents.indexOf(d) < 0; }
+    );
+  }
+
+  /**
+   * @param  {Structure} structure
+   * @param  {HTMLElement} dom
+   * @param  {HTMLElement} parent
+   * @param  {HTMLElement} last
+   * @returns {{ newDom: HTMLElement, newStucture: Structure, last: HTMLElement }}
+   */
+  function patch(structure, dom, parent, last) {
+    var newStucture;
+    var newDom;
+    if (!dom) {
+      // add
+      newDom = fireEvent('mount', insertAfter(render$$1(newStucture = structure), last, parent));
+      last = newDom;
+    } else
+    if (!structure) {
+      // remove
+      destroy(dom);
+    } else {
+      // replace
+      if (structure.type === TYPE.NODE) {
+        var patchNewDom = structure;
+        var patchOldDom = dom;
+        var patchOldDomChildren = withoutInnerChilds(dom);
+
+        if (patchOldDom.nodeName === patchNewDom.query.toUpperCase()) {
+          var oldAttrs = attributesToObject(patchOldDom.attributes);
+
+          if (patchOldDomChildren || patchNewDom.children) {
+            var length = Math.max(patchOldDomChildren.length, patchNewDom.children.length);
+
+            /* We should always run patch childnodes in reverse from last to first
+              because if node is removed, it removes whole element in array */
+            for (var ii = length - 1; ii >= 0; ii--) {
+              patch(
+                patchNewDom.children[ii],
+                patchOldDomChildren[ii],
+                patchOldDom
+              );
+            }
+          }
+
+          updateProps(patchOldDom, patchNewDom.props, oldAttrs);
+
+          newStucture = structure;
+          newDom = dom;
+          return { newDom: newDom, newStucture: newStucture, last: last };
+        }
+      }
+
+      if (structure.type === TYPE.TEXT && dom.nodeType === 3 && !dom.__radiPoint) {
+        if (dom.textContent !== structure.query) {
+          dom.textContent = structure.query;
+        }
+
+        newStucture = structure;
+        newDom = dom;
+        return { newDom: newDom, newStucture: newStucture, last: last };
+      }
+
+      if (structure.type === TYPE.COMPONENT) {
+        if (dom && dom.__radiPoint
+            && structure.query.name === dom.__radiPoint.query.name
+            && dom.__radiPoint.source.cached === true) {
+          GLOBALS.USE_CACHE = true;
+
+          structure.pointer = dom.__radiPoint.pointer;
+          structure.dom = dom.__radiPoint.dom;
+        }
+
+        if (dom.__radiPoint && dom.__radiPoint.query === structure.query) {
+          dom.__radiPoint.update(structure.props, structure.children);
+
+          newStucture = dom.__radiPoint;
+          newDom = dom;
+          return { newDom: newDom, newStucture: newStucture, last: last };
+        }
+      }
+
+      newDom = fireEvent('mount', insertAfter(render$$1(newStucture = structure), dom, parent));
+      last = newDom;
+      if (last.__radiPoint && last.__radiPoint && last.__radiPoint.dom) {
+        last = last.__radiPoint.dom[last.__radiPoint.dom.length - 1];
+      }
+      destroy(dom);
+    }
+
+    return { newDom: newDom, newStucture: newStucture, last: last };
+  }
+
+  /**
+   * @param {{}} props
+   * @param {[]} children
+   * @returns {HTMLElement}
+   */
+  function renderComponent(props, children) {
+    var this$1 = this;
+    if ( props === void 0 ) props = this.props;
+    if ( children === void 0 ) children = this.children;
+
+    var oldProps = Object.assign({}, this.props);
+    // const oldChildren = [...this.children];
+    if (props) { this.props = props; }
+    if (children) { this.children = children; }
+
+    if (this.source && typeof this.source.shouldUpdate === 'function'
+      && !this.source.shouldUpdate(props, oldProps)) {
+      return this.dom;
+    }
+    var component = flatten([evaluate(
+      this.query.call(this.source, Object.assign({}, this.props,
+        {children: this.children}))
+    )]);
+
+    if (!this.dom) {
+      var rendered = render$$1(this.domStructure = component);
+
+      return this.dom = rendered
+        .reverse()
+        .map(function (item) { return fireEvent('mount', insertAfter(item, this$1.pointer)); })
+        .reverse();
+    }
+
+    if (GLOBALS.USE_CACHE) {
+      GLOBALS.USE_CACHE = false;
+
+      return this.dom;
+    }
+
+    var active = document.activeElement;
+    var scrollPosition = window.scrollY;
+
+    if (this.pointer.parentNode === null) { return this.dom; }
+
+    var length = Math.max(this.dom.length, component.length);
+    var lastEl = this.pointer;
+    var newDom = [];
+    var newStucture = [];
+    for (var i = 0; i <= length - 1; i++) {
+      var output = patch(component[i], this.dom[i], this.pointer.parentNode, lastEl);
+      if (output.last) { lastEl = output.last; }
+      if (output.newDom) { newDom[i] = output.newDom; }
+      if (output.newStucture) { newStucture[i] = output.newStucture; }
+    }
+
+    active.focus();
+    window.scrollTo(0, scrollPosition);
+
+    this.domStructure = newStucture;
+    return this.dom = newDom;
+  }
+
+  function isNode(value) {
+    return value && typeof value === 'object'
+      && typeof value.query !== 'undefined'
+      && typeof value.props !== 'undefined'
+      && typeof value.children !== 'undefined';
+  }
+
+  function updater(comp) {
+    return function () {
+      var args = [], len = arguments.length;
+      while ( len-- ) args[ len ] = arguments[ len ];
+
+      var tempComponent = GLOBALS.CURRENT_COMPONENT;
+      GLOBALS.CURRENT_COMPONENT = comp;
+      var output = renderComponent.call.apply(renderComponent, [ comp ].concat( args ));
+
+      GLOBALS.CURRENT_COMPONENT = tempComponent;
+      return output;
+    };
+  }
+
+  function evaluate(node) {
+    if (Array.isArray(node)) {
+      return flatten(node).map(evaluate);
+    }
+
+    if (typeof node === 'function') {
+      return evaluate(node());
+    }
+
+    if (node instanceof Promise || (node && node.constructor.name === 'LazyPromise')) {
+      return evaluate({
+        query: Await,
+        props: {
+          src: node,
+        },
+        children: [],
+      });
+    }
+
+    if (node instanceof Listener) {
+      var comp = {
+        query: node.update,
+        type: TYPE.COMPONENT,
+        props: {},
+        children: [],
+        pointer: null,
+        dom: null,
+      };
+      comp.update = updater(comp);
+
+      node.link(function () { return (
+        comp.dom !== null && comp.update()
+      ); });
+
+      return comp;
+    }
+
+    if (node && typeof node.type === 'number') { return node; }
+    if (isNode(node)) {
+      if (typeof node.query === 'function') {
+        var comp$1 = Object.assign({}, node,
+          {type: TYPE.COMPONENT,
+          pointer: null,
+          dom: null});
+        comp$1.update = updater(comp$1);
+        return comp$1;
+      }
+
+      if (typeof GLOBALS.CUSTOM_TAGS[node.query] !== 'undefined') {
+        var comp$2 = Object.assign({}, node,
+          {query: GLOBALS.CUSTOM_TAGS[node.query].render,
+          type: TYPE.COMPONENT,
+          pointer: null,
+          dom: null});
+        comp$2.update = updater(comp$2);
+        return comp$2;
+      }
+
+      return Object.assign({}, node,
+        {type: TYPE.NODE,
+        children: evaluate(flatten(node.children))});
+    }
+
+    if (!node && typeof node !== 'string' && typeof node !== 'number') {
+      return {
+        // query: node,
+        query: '',
+        type: TYPE.TEXT,
+      };
+    }
+
+    return {
+      query: node.toString(),
+      type: TYPE.TEXT,
+    };
+  }
+
+  /**
+   * @typedef {Object} Node
+   * @property {string|function} query
+   * @property {{}} props
+   * @property {*[]} children
+   */
+
+  /**
+   * @param  {*} preQuery
+   * @param  {{}} preProps
+   * @param  {*[]} preChildren
+   * @return {Node}
+   */
+  function html(preQuery, preProps) {
+    var preChildren = [], len = arguments.length - 2;
+    while ( len-- > 0 ) preChildren[ len ] = arguments[ len + 2 ];
+
+    var query = (typeof preQuery === 'number') ? ("" + preQuery) : preQuery;
+    var props = preProps || {};
+    var children = flatten(preChildren);
+
+    if (query instanceof Promise || (query && query.constructor.name === 'LazyPromise')) {
+      query = Await;
+      props = {
+        src: preQuery,
+      };
+    }
+
+    return {
+      query: query,
+      props: props,
+      children: children,
+    };
+  }
 
   var Radi = {
     v: GLOBALS.VERSION,
     version: GLOBALS.VERSION,
     h: html,
     html: html,
-    customTag: customTag,
     customAttribute: customAttribute,
     destroy: destroy,
     patch: patch,
     mount: mount,
-    service: service,
-    Service: service,
+    Service: Service,
+
     Event: Event,
-    Fetcher: Fetcher,
+    Fetch: Fetch,
+    Socket: Socket,
     Store: Store,
     Subscribe: Subscribe,
+
     Await: Await,
     Errors: Errors,
     Modal: Modal,
     Portal: Portal,
+    Loading: Loading,
   };
 
   // Pass Radi instance to plugins

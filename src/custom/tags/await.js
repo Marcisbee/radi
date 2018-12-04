@@ -1,4 +1,4 @@
-import { customTag, html } from '../../html';
+import { html } from '../../html';
 
 function ensureFn(maybeFn) {
   if (typeof maybeFn === 'function') return maybeFn;
@@ -24,7 +24,7 @@ export function Await(props) {
   if (!(src &&
     (src instanceof Promise || src.constructor.name === 'LazyPromise')
   )) {
-    console.warn('[Radi] <await/> must have `src` as a Promise');
+    console.warn('[Radi] <Await/> must have `src` as a Promise');
     return null;
   }
 
@@ -63,5 +63,3 @@ export function Await(props) {
 
   return value;
 }
-
-customTag('await', Await);

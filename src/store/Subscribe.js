@@ -6,7 +6,7 @@ import { Store } from './Store';
  * @returns {Store}
  */
 export function Subscribe(subscriber, name) {
-  let factory = (state, value) => value;
+  const factory = (state, value) => value;
 
   Object.defineProperty(factory, 'name', {
     value: subscriber.name || 'update',

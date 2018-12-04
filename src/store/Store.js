@@ -35,7 +35,11 @@ class Dependencies {
     if (typeof this.dependencies[key] === 'undefined') this.dependencies[key] = [];
 
     this.dependencies[key] = this.dependencies[key].filter(c => {
-      if (c === GLOBALS.CURRENT_COMPONENT.query || c.query === GLOBALS.CURRENT_COMPONENT.query) return true;
+      if (GLOBALS.CURRENT_COMPONENT
+        && (
+          c === GLOBALS.CURRENT_COMPONENT.query
+          || c.query === GLOBALS.CURRENT_COMPONENT.query
+        )) return true;
       if (c.pointer instanceof Node) {
         if (c.mounted) return true;
         return c.pointer.isConnected;
@@ -204,7 +208,7 @@ function mapState(state, key, value) {
 
 let storeDispatchMiddleware = noop;
 let storeListMiddleware = noop;
-let storeList = [];
+const storeList = [];
 
 function addStoreToList(store) {
   const index = storeList.push(store) - 1;
@@ -332,7 +336,7 @@ export class Store {
       storeDispatchMiddleware({
         store: this,
         action: action.name,
-        args: args,
+        args,
         payload,
       });
     }
@@ -370,8 +374,8 @@ export class Store {
   static middleware(
     stores = noop,
     dispatch = noop,
-    freeze = noop,
-    resume = noop,
+    // freeze = noop,
+    // resume = noop,
   ) {
     // @TODO: Add middleware to:
     // - freeze updates

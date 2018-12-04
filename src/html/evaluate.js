@@ -1,8 +1,9 @@
-import { flatten } from '../utils';
-import TYPE from '../consts/types';
-import { renderComponent } from './renderComponent';
+import { Await } from '../custom/tags';
 import GLOBALS from '../consts/GLOBALS';
 import { Listener } from '../store/Store';
+import TYPE from '../consts/types';
+import { flatten } from '../utils';
+import { renderComponent } from './renderComponent';
 
 export function isNode(value) {
   return value && typeof value === 'object'
@@ -18,8 +19,8 @@ function updater(comp) {
     const output = renderComponent.call(comp, ...args);
 
     GLOBALS.CURRENT_COMPONENT = tempComponent;
-    return output
-  }
+    return output;
+  };
 }
 
 export function evaluate(node) {
@@ -33,7 +34,7 @@ export function evaluate(node) {
 
   if (node instanceof Promise || (node && node.constructor.name === 'LazyPromise')) {
     return evaluate({
-      query: 'await',
+      query: Await,
       props: {
         src: node,
       },
@@ -61,7 +62,6 @@ export function evaluate(node) {
 
   if (node && typeof node.type === 'number') return node;
   if (isNode(node)) {
-
     if (typeof node.query === 'function') {
       const comp = {
         ...node,
@@ -89,7 +89,7 @@ export function evaluate(node) {
       ...node,
       type: TYPE.NODE,
       children: evaluate(flatten(node.children)),
-    }
+    };
   }
 
   if (!node && typeof node !== 'string' && typeof node !== 'number') {
@@ -97,11 +97,11 @@ export function evaluate(node) {
       // query: node,
       query: '',
       type: TYPE.TEXT,
-    }
+    };
   }
 
   return {
     query: node.toString(),
     type: TYPE.TEXT,
-  }
+  };
 }

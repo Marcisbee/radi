@@ -1,6 +1,6 @@
 import { destroy } from '../../destroy';
 import { mount } from '../../mount';
-import { customTag, html } from '../../html';
+import { html } from '../../html';
 
 export function Portal(data) {
   const {
@@ -26,5 +26,3 @@ export function Portal(data) {
 
   return null;
 }
-
-customTag('portal', Portal);

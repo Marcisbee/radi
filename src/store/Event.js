@@ -19,7 +19,7 @@ export function Event(target = document, name, transformer = e => e) {
   function startListener() {
     events.forEach((event) => {
       function listen(...args) {
-        updater(transformer(...args, event))
+        updater(transformer(...args, event));
       }
       eventSubscription.push([event, listen]);
       target.addEventListener(event, listen);
@@ -46,14 +46,14 @@ export function Event(target = document, name, transformer = e => e) {
     eventSubscription = [];
     startListener();
     status = true;
-  }
+  };
 
   CustomSubscribe.off = function off() {
     if (!status) return;
 
     eventSubscription.forEach(([n, e]) => target.removeEventListener(n, e));
     status = false;
-  }
+  };
 
   return CustomSubscribe;
 }

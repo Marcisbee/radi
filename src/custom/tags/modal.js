@@ -1,5 +1,5 @@
-import { service } from '../../service';
-import { html, customTag } from '../../html';
+import { Service } from '../../service';
+import { html } from '../../html';
 import { Store } from '../../store';
 
 const h = html;
@@ -16,17 +16,6 @@ const switchModal = (store, name, type) => ({
   [name]: type,
 });
 
-export const ModalService = service.add('modal', () => {
-  return {
-    open: (name) => ModalStore.dispatch(switchModal, name, true),
-    close: (name) => ModalStore.dispatch(switchModal, name, false),
-    onOpen: (name, fn) =>
-      ModalStore.subscribe((n, p) => n[name] === true && n[name] !== p[name] && fn()),
-    onClose: (name, fn) =>
-      ModalStore.subscribe((n, p) => n[name] === false && n[name] !== p[name] && fn()),
-  };
-});
-
 export function Modal({ name = 'default', children }) {
   const modal = ModalStore.state;
 
@@ -39,20 +28,26 @@ export function Modal({ name = 'default', children }) {
       ModalStore.dispatch(registerModal, name);
   }
 
-  return h('portal', {},
-    modal[name] && h('div',
-      { class: 'radi-modal', name },
-      h('div', {
-        class: 'radi-modal-backdrop',
-        onclick: () => service.modal.close(name),
-      }),
-      h('div',
-        { class: 'radi-modal-content' },
-        ...(children.slice())
-      )
+  return modal[name] && h('div',
+    { class: 'radi-modal', name },
+    h('div', {
+      class: 'radi-modal-backdrop',
+      onclick: () => ModalService.close(name),
+    }),
+    h('div',
+      { class: 'radi-modal-content' },
+      ...(children.slice())
     )
   );
 }
 
-// TODO: Figure out a different approach to modal
-customTag('modal', Modal);
+export const ModalService = Service.add('Modal', () => {
+  return {
+    open: (name) => ModalStore.dispatch(switchModal, name, true),
+    close: (name) => ModalStore.dispatch(switchModal, name, false),
+    onOpen: (name, fn) =>
+      ModalStore.subscribe((n, p) => n[name] === true && n[name] !== p[name] && fn()),
+    onClose: (name, fn) =>
+      ModalStore.subscribe((n, p) => n[name] === false && n[name] !== p[name] && fn()),
+  };
+});

@@ -1,5 +1,4 @@
 export * from './customAttribute';
-export * from './customTag';
 export * from './destroyTree';
 export * from './evaluate';
 export * from './fireEvent';

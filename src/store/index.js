@@ -1,4 +1,5 @@
 export * from './Event';
-export * from './Fetcher';
+export * from './Fetch';
+export * from './Socket';
 export * from './Store';
 export * from './Subscribe';

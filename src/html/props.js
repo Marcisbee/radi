@@ -67,6 +67,15 @@ function isCustomProp(name) {
  * @param {*} value
  */
 export function setProp($target, name, value) {
+  if (name === 'model') {
+    name = 'value';
+  } else
+  if (name === 'class' || name === 'className') {
+    if (Array.isArray(value)) {
+      value = value.filter(v => v && typeof v !== 'function').join(' ');
+    }
+  }
+
   if (name === 'style' && typeof value !== 'string') {
     setStyles($target, value);
   } else if (isCustomProp(name)) {
@@ -90,8 +99,10 @@ export function setProp($target, name, value) {
  */
 export function removeProp($target, name, value) {
   if (isCustomProp(name)) {
+    return;
+  }
 
-  } else if (name === 'className') {
+  if (name === 'className') {
     $target.removeAttribute('class');
   } else if (typeof value === 'boolean') {
     removeBooleanProp($target, name);
@@ -134,14 +145,6 @@ export function setProps($target, props) {
     }
 
     autoUpdate(props[name], value => {
-      if (name === 'model') {
-        name = 'value';
-      } else
-      if (name === 'class' || name === 'className') {
-        if (Array.isArray(value)) {
-          value = value.filter(v => v && typeof v !== 'function').join(' ');
-        }
-      }
       setProp($target, name, value);
     });
   });

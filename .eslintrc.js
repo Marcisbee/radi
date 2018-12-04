@@ -1,8 +1,8 @@
 module.exports = {
   extends: 'airbnb-base',
-  parser: "babel-eslint",
-  "plugins": [
-    "react"
+  parser: 'babel-eslint',
+  'plugins': [
+    'react'
   ],
   globals: {
     document: true,
@@ -40,12 +40,14 @@ module.exports = {
     'import/prefer-default-export': 'off',
     'import/no-named-as-default': 'off',
     'import/no-named-as-default-member': 'off',
+    'import/no-cycle': 'off',
     'arrow-parens': 'off',
     'no-confusing-arrow': 'off',
     'func-names': 'off',
     'function-paren-newline': 'off',
     'guard-for-in': 'off',
     'prefer-rest-params': 'off',
+    'no-useless-return': 'off',
     'comma-dangle': [
       'error',
       {
@@ -56,7 +58,12 @@ module.exports = {
         functions: 'ignore',
       },
     ],
-    "sort-imports": "error",
-    "react/jsx-uses-vars": "error"
+    'no-console': ["error", { allow: ["warn", "error"] }],
+    'sort-imports': ['error', {
+      'ignoreCase': false,
+      'ignoreMemberSort': false,
+      'memberSyntaxSortOrder': ['single', 'all', 'multiple', 'none']
+    }],
+    'react/jsx-uses-vars': 'error'
   },
 };

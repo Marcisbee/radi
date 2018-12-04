@@ -55,9 +55,15 @@ function fullValidate(elements, rules, update) {
 
 let formCount = 0;
 
+const ruleMemo = {};
+
 customAttribute('onvalidate', (el, rules) => {
-  const formName = el.name || 'defaultForm' + (formCount++);
+  const formName = el.getAttribute('name') || 'defaultForm' + (formCount++);
   let submit;
+
+  if (typeof rules === 'function') {
+    ruleMemo[formName] = rules;
+  }
 
   function update(errors) {
     errorsStore.dispatch(setErrors, formName, errors);
@@ -70,7 +76,9 @@ customAttribute('onvalidate', (el, rules) => {
   });
 
   el.addEventListener('mount', e => {
-    const validate = rules(e);
+    const rule = ruleMemo[formName];
+    if (typeof rule !== 'function') return;
+    const validate = rule(e);
     const elements = el.elements;
     if (validate && typeof validate === 'object'
       && elements) {

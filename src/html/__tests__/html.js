@@ -1,8 +1,8 @@
-import { html } from '../html'; // eslint-disable-line
-// import Structure from '../r/Structure'; // eslint-disable-line
-// import isComponent from '../component/utils/isComponent'; // eslint-disable-line
+import { Await } from '../../custom/tags';
+import { html } from '../html';
+// import Structure from '../r/Structure';
+// import isComponent from '../component/utils/isComponent';
 
-/** @jsx html **/
 describe('r.js', () => {
   it('returns plain object', () => {
     expect(<div></div>).toEqual({ children: [], props: {}, query: 'div' });
@@ -21,14 +21,14 @@ describe('r.js', () => {
         props: {
           src: MyPromise,
         },
-        query: 'await',
+        query: Await,
       });
     });
   });
 
   describe('when component', () => {
     function App() {
-      return;
+      return null;
     }
 
     it('returns function as `query`', () => {

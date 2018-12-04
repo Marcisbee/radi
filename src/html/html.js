@@ -1,3 +1,4 @@
+import { Await } from '../custom/tags';
 import { flatten } from '../utils';
 
 /**
@@ -19,7 +20,7 @@ export function html(preQuery, preProps, ...preChildren) {
   const children = flatten(preChildren);
 
   if (query instanceof Promise || (query && query.constructor.name === 'LazyPromise')) {
-    query = 'await';
+    query = Await;
     props = {
       src: preQuery,
     };

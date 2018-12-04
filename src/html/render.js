@@ -1,9 +1,7 @@
-// TODO: use Component class
 import { Component } from '../component';
-import GLOBALS from '../consts/GLOBALS';
 import TYPE from '../consts/types';
 import { mount } from '../mount';
-import { setProps } from '../html';
+import { setProps } from '.';
 
 export function render(node, parent) {
   if (Array.isArray(node)) {

@@ -1,14 +1,14 @@
 import GLOBALS from './consts/GLOBALS';
-import { service } from './service';
+import { Service } from './service';
 import {
   customAttribute,
-  customTag,
   html,
   patch,
 } from './html';
 import {
   Event,
-  Fetcher,
+  Fetch,
+  Socket,
   Store,
   Subscribe,
 } from './store';
@@ -19,6 +19,7 @@ import {
   Errors,
   Modal,
   Portal,
+  Loading,
 } from './custom';
 
 const Radi = {
@@ -26,21 +27,23 @@ const Radi = {
   version: GLOBALS.VERSION,
   h: html,
   html,
-  customTag,
   customAttribute,
   destroy,
   patch,
   mount,
-  service,
-  Service: service,
+  Service,
+
   Event,
-  Fetcher,
+  Fetch,
+  Socket,
   Store,
   Subscribe,
+
   Await,
   Errors,
   Modal,
   Portal,
+  Loading,
 };
 
 // Pass Radi instance to plugins
