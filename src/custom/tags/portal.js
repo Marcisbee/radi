@@ -1,6 +1,6 @@
 import { destroy } from '../../destroy';
-import { mount } from '../../mount';
 import { html } from '../../html';
+import { mount } from '../../mount';
 
 export function Portal(data) {
   const {
@@ -15,7 +15,7 @@ export function Portal(data) {
       this.onMount = (ev) => {
         e.target.__radiUpdateChild = this.update;
         e.target.__radiPoint.dom[0].__radiRef = ev.target.__radiPoint;
-      }
+      };
       return props.children.length > 0 ? props.children : children;
     }), parent);
   };

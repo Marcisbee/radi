@@ -1,9 +1,10 @@
+/* @jsx html */
 import { Await } from '../../custom/tags';
 import { html } from '../html';
 // import Structure from '../r/Structure';
 // import isComponent from '../component/utils/isComponent';
 
-describe('r.js', () => {
+describe('html.js', () => {
   it('returns plain object', () => {
     expect(<div></div>).toEqual({ children: [], props: {}, query: 'div' });
   });

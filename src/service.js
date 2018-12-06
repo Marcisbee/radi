@@ -1,5 +1,5 @@
-import GLOBALS from './consts/GLOBALS';
 import { Component } from './component';
+import GLOBALS from './consts/GLOBALS';
 
 class RadiService {
   /**
@@ -14,7 +14,7 @@ class RadiService {
     }
 
     if (typeof this[name] !== 'undefined' || typeof Component.prototype[name] !== 'undefined') {
-      throw new Error('[Radi.js] Service "' + name + '" is already in use');
+      throw new Error(`[Radi.js] Service "${name}" is already in use`);
     }
 
     if (typeof fn !== 'function') {
@@ -23,7 +23,8 @@ class RadiService {
 
     const mounted = fn(...args);
 
-    Component.prototype[name] = this[name] = mounted;
+    this[name] = mounted;
+    Component.prototype[name] = mounted;
 
     return GLOBALS.SERVICES[name] = mounted;
   }

@@ -1,7 +1,7 @@
 import { errorsStore } from '../attributes';
 
 export function Errors({ name, onrender = (e) => (e) }) {
-  const state = errorsStore.state;
+  const errors = errorsStore.state;
 
   if (typeof name === 'undefined') {
     console.warn('[Radi.js] Warn: Every <errors> tag needs to have `name` attribute!');
@@ -10,9 +10,9 @@ export function Errors({ name, onrender = (e) => (e) }) {
     console.warn('[Radi.js] Warn: Every <errors> tag needs to have `onrender` attribute!');
   }
 
-  if (!state[name]) {
+  if (!errors[name]) {
     return null;
   }
 
-  return onrender(state[name]);
+  return onrender(errors[name]);
 }

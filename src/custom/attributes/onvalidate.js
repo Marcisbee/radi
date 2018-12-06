@@ -1,6 +1,6 @@
-import { formToJSON } from '../../utils';
-import { customAttribute } from '../../html/customAttribute';
 import { Store } from '../../store';
+import { customAttribute } from '../../html/customAttribute';
+import { formToJSON } from '../../utils';
 
 export const errorsStore = new Store({}, null);
 const setErrors = (state, name, errors) => ({
@@ -21,32 +21,34 @@ function extractTouched(value, elements) {
 }
 
 function fullValidate(elements, rules, update) {
-  let values = formToJSON(elements, ({touched}, value) => ({touched, value}));
-  let plainValues = Object.keys(values)
+  const values = formToJSON(elements, ({ touched }, value) => ({ touched, value }));
+  const plainValues = Object.keys(values)
     .reduce((acc, key) => ({
       ...acc,
       [key]: extractValue(values[key]),
     }), {});
-  let errors = [];
+  const errors = [];
 
-  for (let name in values) {
+  for (const name in values) {
     const value = values[name];
 
     if (typeof rules[name] === 'function') {
       const result = rules[name](extractValue(value), plainValues);
       const valid = (
-          result
+        result
           && typeof result.check === 'function'
           && result.check()
-        )
+      )
         || result
-        || name + ' field is invalid';
+        || `${name} field is invalid`;
 
-      if (valid !== true) errors.push({
-        field: name,
-        touched: Boolean(extractTouched(value, elements[name])),
-        error: valid,
-      });
+      if (valid !== true) {
+        errors.push({
+          field: name,
+          touched: Boolean(extractTouched(value, elements[name])),
+          error: valid,
+        });
+      }
     }
   }
 
@@ -58,7 +60,7 @@ let formCount = 0;
 const ruleMemo = {};
 
 customAttribute('onvalidate', (el, rules) => {
-  const formName = el.getAttribute('name') || 'defaultForm' + (formCount++);
+  const formName = el.getAttribute('name') || `defaultForm${formCount++}`;
   let submit;
 
   if (typeof rules === 'function') {
@@ -79,28 +81,25 @@ customAttribute('onvalidate', (el, rules) => {
     const rule = ruleMemo[formName];
     if (typeof rule !== 'function') return;
     const validate = rule(e);
-    const elements = el.elements;
-    if (validate && typeof validate === 'object'
-      && elements) {
-
-      for (let element of elements) {
-        const name = element.name;
+    const { elements } = el;
+    if (validate && typeof validate === 'object' && elements) {
+      for (const element of elements) {
+        const { name } = element;
 
         if (!element.__radiValidate
           && typeof name === 'string'
           && typeof validate[name] === 'function') {
-
           element.addEventListener('input', () => {
             fullValidate(
               elements,
               validate,
               update
             );
-          })
+          });
           element.__radiValidate = true;
 
           element.touched = false;
-          const setTouched = ({target}) => {
+          const setTouched = ({ target }) => {
             target.touched = true;
             target.removeEventListener('change', setTouched);
             fullValidate(

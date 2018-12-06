@@ -67,6 +67,21 @@ function isCustomProp(name) {
  * @param {*} value
  */
 export function setProp($target, name, value) {
+  if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
+    const { allowedTags, addToElement, caller } = GLOBALS.CUSTOM_ATTRIBUTES[name];
+
+    if (!allowedTags || (
+      allowedTags
+      && allowedTags.length > 0
+      && allowedTags.indexOf($target.localName) >= 0
+    )) {
+      if (typeof caller === 'function') {
+        value = caller($target, value);
+      }
+      if (!addToElement) return;
+    }
+  }
+
   if (name === 'model') {
     name = 'value';
   } else
@@ -129,21 +144,6 @@ export function setStyles($target, styles) {
  */
 export function setProps($target, props) {
   (Object.keys(props || {})).forEach(name => {
-    if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
-      const { allowedTags, addToElement, caller } = GLOBALS.CUSTOM_ATTRIBUTES[name];
-
-      if (!allowedTags || (
-        allowedTags
-        && allowedTags.length > 0
-        && allowedTags.indexOf($target.localName) >= 0
-      )) {
-        if (typeof caller === 'function') {
-          props[name] = caller($target, props[name]);
-        }
-        if (!addToElement) return;
-      }
-    }
-
     autoUpdate(props[name], value => {
       setProp($target, name, value);
     });

@@ -158,7 +158,7 @@ RadiService.prototype.add = function add (name, fn) {
   }
 
   if (typeof this[name] !== 'undefined' || typeof Component.prototype[name] !== 'undefined') {
-    throw new Error('[Radi.js] Service "' + name + '" is already in use');
+    throw new Error(("[Radi.js] Service \"" + name + "\" is already in use"));
   }
 
   if (typeof fn !== 'function') {
@@ -167,7 +167,8 @@ RadiService.prototype.add = function add (name, fn) {
 
   var mounted = fn.apply(void 0, args);
 
-  Component.prototype[name] = this[name] = mounted;
+  this[name] = mounted;
+  Component.prototype[name] = mounted;
 
   return GLOBALS.SERVICES[name] = mounted;
 };
@@ -220,19 +221,17 @@ function Await(props) {
   var this$1 = this;
 
   var placeholderTimeout;
+  var value = props.value; if ( value === void 0 ) value = null;
   var src = props.src;
   var waitMs = props.waitMs;
   var transform = props.transform; if ( transform === void 0 ) transform = function (e) { return e; };
   var error = props.error; if ( error === void 0 ) error = function (e) { return e; };
   var placeholder = props.placeholder; if ( placeholder === void 0 ) placeholder = sharedPlaceholder;
-  var value = props.value; if ( value === void 0 ) value = null;
   var loaded = props.loaded; if ( loaded === void 0 ) loaded = false;
 
   this.cached = true;
 
-  if (!(src &&
-    (src instanceof Promise || src.constructor.name === 'LazyPromise')
-  )) {
+  if (!(src && (src instanceof Promise || src.constructor.name === 'LazyPromise'))) {
     console.warn('[Radi] <Await/> must have `src` as a Promise');
     return null;
   }
@@ -249,9 +248,9 @@ function Await(props) {
     }
 
     src
-      .then(function (value) {
-        if (value && typeof value === 'object' && typeof value.default === 'function') {
-          value = html(value.default);
+      .then(function (output) {
+        if (output && typeof output === 'object' && typeof output.default === 'function') {
+          output = html(output.default);
         }
 
         clearTimeout(placeholderTimeout);
@@ -259,7 +258,7 @@ function Await(props) {
         var tempPlaceholder = sharedPlaceholder;
         sharedPlaceholder = placeholder;
 
-        this$1.update(Object.assign({}, props, {value: ensureFn(transform)(value), loaded: true}));
+        this$1.update(Object.assign({}, props, {value: ensureFn(transform)(output), loaded: true}));
 
         sharedPlaceholder = tempPlaceholder;
       })
@@ -277,7 +276,7 @@ var animate = function (target, type, opts, done) {
   var direct = opts[type];
   if (typeof direct !== 'function') {
     console.warn(("[Radi.js] Animation `" + type + "` for node `" + (target.nodeName.toLowerCase) + "` should be function"));
-    return;
+    return null;
   }
 
   return direct(target, done);
@@ -289,26 +288,25 @@ customAttribute('animation', function (el, value) {
 });
 
 customAttribute('html', function (el, value) {
-  el.addEventListener('mount', function () {
-    if (el.escape) {
-      el.textContent = value;
-    } else {
-      el.innerHTML = value;
-    }
-  });
+  if (el.escape) {
+    el.textContent = value;
+  } else {
+    el.innerHTML = value;
+  }
 });
 
 customAttribute('loadfocus', function (el) {
-  el.addEventListener('mount', function () { return setTimeout(function () { return el.focus(); }, 0); }
-  );
+  el.addEventListener('mount', function () { return (
+    setTimeout(function () { return el.focus(); }, 0)
+  ); });
 });
 
-customAttribute('onsubmit', function (el, fn) {
-  return function(e) {
+customAttribute('onsubmit', function (el, fn) { return (
+  function (e) {
     if (el.prevent) { e.preventDefault(); }
     fn(e, formToJSON(el.elements || {}));
   }
-}, {
+); }, {
   allowedTags: [
     'form' ],
   addToElement: true,
@@ -931,7 +929,7 @@ function fullValidate(elements, rules, update) {
   var values = formToJSON(elements, function (ref, value) {
     var touched = ref.touched;
 
-    return ({touched: touched, value: value});
+    return ({ touched: touched, value: value });
   });
   var plainValues = Object.keys(values)
     .reduce(function (acc, key) {
@@ -948,18 +946,20 @@ function fullValidate(elements, rules, update) {
     if (typeof rules[name] === 'function') {
       var result = rules[name](extractValue(value), plainValues);
       var valid = (
-          result
+        result
           && typeof result.check === 'function'
           && result.check()
-        )
+      )
         || result
-        || name + ' field is invalid';
+        || (name + " field is invalid");
 
-      if (valid !== true) { errors.push({
-        field: name,
-        touched: Boolean(extractTouched(value, elements[name])),
-        error: valid,
-      }); }
+      if (valid !== true) {
+        errors.push({
+          field: name,
+          touched: Boolean(extractTouched(value, elements[name])),
+          error: valid,
+        });
+      }
     }
   }
 
@@ -971,7 +971,7 @@ var formCount = 0;
 var ruleMemo = {};
 
 customAttribute('onvalidate', function (el, rules) {
-  var formName = el.getAttribute('name') || 'defaultForm' + (formCount++);
+  var formName = el.getAttribute('name') || ("defaultForm" + (formCount++));
   var submit;
 
   if (typeof rules === 'function') {
@@ -993,16 +993,13 @@ customAttribute('onvalidate', function (el, rules) {
     if (typeof rule !== 'function') { return; }
     var validate = rule(e);
     var elements = el.elements;
-    if (validate && typeof validate === 'object'
-      && elements) {
-
+    if (validate && typeof validate === 'object' && elements) {
       for (var element of elements) {
         var name = element.name;
 
         if (!element.__radiValidate
           && typeof name === 'string'
           && typeof validate[name] === 'function') {
-
           element.addEventListener('input', function () {
             fullValidate(
               elements,
@@ -1048,7 +1045,7 @@ function Errors(ref) {
   var name = ref.name;
   var onrender = ref.onrender; if ( onrender === void 0 ) onrender = function (e) { return (e); };
 
-  var state = errorsStore.state;
+  var errors = errorsStore.state;
 
   if (typeof name === 'undefined') {
     console.warn('[Radi.js] Warn: Every <errors> tag needs to have `name` attribute!');
@@ -1057,11 +1054,11 @@ function Errors(ref) {
     console.warn('[Radi.js] Warn: Every <errors> tag needs to have `onrender` attribute!');
   }
 
-  if (!state[name]) {
+  if (!errors[name]) {
     return null;
   }
 
-  return onrender(state[name]);
+  return onrender(errors[name]);
 }
 
 function areAnyLoading(src) {
@@ -1115,9 +1112,10 @@ function Modal(ref) {
     console.warn('[Radi.js] Warn: Every <modal> tag needs to have `name` attribute!');
   }
 
-  this.onMount = function (el) {
-    if (!modal[name])
-      { ModalStore.dispatch(registerModal, name); }
+  this.onMount = function () {
+    if (!modal[name]) {
+      ModalStore.dispatch(registerModal, name);
+    }
   };
 
   return modal[name] && h('div',
@@ -1132,50 +1130,18 @@ function Modal(ref) {
   );
 }
 
-var ModalService = Service.add('Modal', function () {
-  return {
+var ModalService = Service.add('Modal', function () { return (
+  {
     open: function (name) { return ModalStore.dispatch(switchModal, name, true); },
     close: function (name) { return ModalStore.dispatch(switchModal, name, false); },
-    onOpen: function (name, fn) { return ModalStore.subscribe(function (n, p) { return n[name] === true && n[name] !== p[name] && fn(); }); },
-    onClose: function (name, fn) { return ModalStore.subscribe(function (n, p) { return n[name] === false && n[name] !== p[name] && fn(); }); },
-  };
-});
-
-/**
- * @param  {HTMLElement} node
- * @param  {function} next
- */
-function beforeDestroy(node, next) {
-  if (typeof node.beforedestroy === 'function') {
-    return node.beforedestroy(next);
+    onOpen: function (name, fn) { return (
+      ModalStore.subscribe(function (n, p) { return n[name] === true && n[name] !== p[name] && fn(); })
+    ); },
+    onClose: function (name, fn) { return (
+      ModalStore.subscribe(function (n, p) { return n[name] === false && n[name] !== p[name] && fn(); })
+    ); },
   }
-
-  return next();
-}
-
-/**
- * @param  {*|*[]} data
- */
-function destroy(data) {
-  var nodes = ensureArray(data);
-
-  nodes.forEach(function (node) {
-    if (!(node instanceof Node)) { return; }
-
-    if (node.__radiPoint && node.__radiPoint.dom && node.__radiPoint.dom.length > 0) {
-      node.__radiPoint.dom.forEach(destroy);
-    }
-
-    var parent = node.parentNode;
-    if (node instanceof Node && parent instanceof Node) {
-      beforeDestroy(node, function () {
-        // This is for async node removals
-        destroyTree$$1(node);
-        parent.removeChild(node);
-      });
-    }
-  });
-}
+); });
 
 /**
  * @param  {*} node
@@ -1404,6 +1370,24 @@ function isCustomProp(name) {
  * @param {*} value
  */
 function setProp($target, name, value) {
+  if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
+    var ref = GLOBALS.CUSTOM_ATTRIBUTES[name];
+    var allowedTags = ref.allowedTags;
+    var addToElement = ref.addToElement;
+    var caller = ref.caller;
+
+    if (!allowedTags || (
+      allowedTags
+      && allowedTags.length > 0
+      && allowedTags.indexOf($target.localName) >= 0
+    )) {
+      if (typeof caller === 'function') {
+        value = caller($target, value);
+      }
+      if (!addToElement) { return; }
+    }
+  }
+
   if (name === 'model') {
     name = 'value';
   } else
@@ -1466,24 +1450,6 @@ function setStyles($target, styles) {
  */
 function setProps($target, props) {
   (Object.keys(props || {})).forEach(function (name) {
-    if (typeof GLOBALS.CUSTOM_ATTRIBUTES[name] !== 'undefined') {
-      var ref = GLOBALS.CUSTOM_ATTRIBUTES[name];
-      var allowedTags = ref.allowedTags;
-      var addToElement = ref.addToElement;
-      var caller = ref.caller;
-
-      if (!allowedTags || (
-        allowedTags
-        && allowedTags.length > 0
-        && allowedTags.indexOf($target.localName) >= 0
-      )) {
-        if (typeof caller === 'function') {
-          props[name] = caller($target, props[name]);
-        }
-        if (!addToElement) { return; }
-      }
-    }
-
     autoUpdate(props[name], function (value) {
       setProp($target, name, value);
     });
@@ -1879,6 +1845,42 @@ function html(preQuery, preProps) {
     props: props,
     children: children,
   };
+}
+
+/**
+ * @param  {HTMLElement} node
+ * @param  {function} next
+ */
+function beforeDestroy(node, next) {
+  if (typeof node.beforedestroy === 'function') {
+    return node.beforedestroy(next);
+  }
+
+  return next();
+}
+
+/**
+ * @param  {*|*[]} data
+ */
+function destroy(data) {
+  var nodes = ensureArray(data);
+
+  nodes.forEach(function (node) {
+    if (!(node instanceof Node)) { return; }
+
+    if (node.__radiPoint && node.__radiPoint.dom && node.__radiPoint.dom.length > 0) {
+      node.__radiPoint.dom.forEach(destroy);
+    }
+
+    var parent = node.parentNode;
+    if (node instanceof Node && parent instanceof Node) {
+      beforeDestroy(node, function () {
+        // This is for async node removals
+        destroyTree$$1(node);
+        parent.removeChild(node);
+      });
+    }
+  });
 }
 
 var Radi = {

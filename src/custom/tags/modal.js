@@ -1,6 +1,6 @@
 import { Service } from '../../service';
-import { html } from '../../html';
 import { Store } from '../../store';
+import { html } from '../../html';
 
 const h = html;
 
@@ -23,10 +23,11 @@ export function Modal({ name = 'default', children }) {
     console.warn('[Radi.js] Warn: Every <modal> tag needs to have `name` attribute!');
   }
 
-  this.onMount = el => {
-    if (!modal[name])
+  this.onMount = () => {
+    if (!modal[name]) {
       ModalStore.dispatch(registerModal, name);
-  }
+    }
+  };
 
   return modal[name] && h('div',
     { class: 'radi-modal', name },
@@ -41,13 +42,15 @@ export function Modal({ name = 'default', children }) {
   );
 }
 
-export const ModalService = Service.add('Modal', () => {
-  return {
+export const ModalService = Service.add('Modal', () => (
+  {
     open: (name) => ModalStore.dispatch(switchModal, name, true),
     close: (name) => ModalStore.dispatch(switchModal, name, false),
-    onOpen: (name, fn) =>
-      ModalStore.subscribe((n, p) => n[name] === true && n[name] !== p[name] && fn()),
-    onClose: (name, fn) =>
-      ModalStore.subscribe((n, p) => n[name] === false && n[name] !== p[name] && fn()),
-  };
-});
+    onOpen: (name, fn) => (
+      ModalStore.subscribe((n, p) => n[name] === true && n[name] !== p[name] && fn())
+    ),
+    onClose: (name, fn) => (
+      ModalStore.subscribe((n, p) => n[name] === false && n[name] !== p[name] && fn())
+    ),
+  }
+));

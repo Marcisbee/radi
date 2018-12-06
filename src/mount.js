@@ -1,9 +1,9 @@
+import { flatten } from './utils';
 import {
+  evaluate,
   fireEvent,
   render,
-  evaluate,
 } from './html';
-import { flatten } from './utils';
 
 /**
  * @param  {*} node

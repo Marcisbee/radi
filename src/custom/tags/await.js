@@ -9,21 +9,19 @@ let sharedPlaceholder;
 
 export function Await(props) {
   let placeholderTimeout;
-  let {
+  let { value = null } = props;
+  const {
     src,
     waitMs,
     transform = e => e,
     error = e => e,
     placeholder = sharedPlaceholder,
-    value = null,
-    loaded = false
+    loaded = false,
   } = props;
 
   this.cached = true;
 
-  if (!(src &&
-    (src instanceof Promise || src.constructor.name === 'LazyPromise')
-  )) {
+  if (!(src && (src instanceof Promise || src.constructor.name === 'LazyPromise'))) {
     console.warn('[Radi] <Await/> must have `src` as a Promise');
     return null;
   }
@@ -40,9 +38,9 @@ export function Await(props) {
     }
 
     src
-      .then((value) => {
-        if (value && typeof value === 'object' && typeof value.default === 'function') {
-          value = html(value.default);
+      .then((output) => {
+        if (output && typeof output === 'object' && typeof output.default === 'function') {
+          output = html(output.default);
         }
 
         clearTimeout(placeholderTimeout);
@@ -50,7 +48,7 @@ export function Await(props) {
         const tempPlaceholder = sharedPlaceholder;
         sharedPlaceholder = placeholder;
 
-        this.update({ ...props, value: ensureFn(transform)(value), loaded: true });
+        this.update({ ...props, value: ensureFn(transform)(output), loaded: true });
 
         sharedPlaceholder = tempPlaceholder;
       })
@@ -58,7 +56,7 @@ export function Await(props) {
         console.error(err);
         clearTimeout(placeholderTimeout);
         this.update({ ...props, value: ensureFn(error)(err), loaded: true });
-      })
+      });
   }
 
   return value;

@@ -93,7 +93,7 @@ To check out [live repl](https://radi.js.org/#/fiddle) and [docs](https://radi.j
 
 ## Changelog
 
-Detailed changes for each release are documented in the [release notes](https://github.com/radi-js/radi/CHANGELOG.md).
+Detailed changes for each release are documented in the [release notes](https://radi.js.org/#/changelog).
 
 ## Stay In Touch
 

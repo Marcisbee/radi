@@ -1,10 +1,14 @@
 import GLOBALS from './consts/GLOBALS';
 import { Service } from './service';
+import { destroy } from './destroy';
+import { mount } from './mount';
 import {
-  customAttribute,
-  html,
-  patch,
-} from './html';
+  Await,
+  Errors,
+  Loading,
+  Modal,
+  Portal,
+} from './custom';
 import {
   Event,
   Fetch,
@@ -12,15 +16,11 @@ import {
   Store,
   Subscribe,
 } from './store';
-import { mount } from './mount';
-import { destroy } from './destroy';
 import {
-  Await,
-  Errors,
-  Modal,
-  Portal,
-  Loading,
-} from './custom';
+  customAttribute,
+  html,
+  patch,
+} from './html';
 
 const Radi = {
   v: GLOBALS.VERSION,
