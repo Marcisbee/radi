@@ -33,19 +33,12 @@ Radi.js currently is compatible with browsers that support at least ES5.
 | Project | Status | Description |
 |---------|--------|-------------|
 | [radi-router]          | [![radi-router-status]][radi-router-package] | Single-page application routing |
-| [radi-fetch]          | [![radi-fetch-status]][radi-fetch-package] | HTTP client for Radi.js |
 
 [radi-router]: https://github.com/radi-js/radi-router
 
 [radi-router-status]: https://img.shields.io/npm/v/radi-router.svg?style=flat-square
 
 [radi-router-package]: https://npmjs.com/package/radi-router
-
-[radi-fetch]: https://github.com/radi-js/radi-fetch
-
-[radi-fetch-status]: https://img.shields.io/npm/v/radi-fetch.svg?style=flat-square
-
-[radi-fetch-package]: https://npmjs.com/package/radi-fetch
 
 ## Documentation
 
@@ -56,20 +49,13 @@ Here are just a few examples to work our appetite.
 #### Hello World example
 
 Lets create component using JSX, tho it's not mandatory
-we can just use hyperscript `r('h1', 'Hello', this.sample, '!')`. I'm using JSX for html familiarity and to showcase compatibility.
+we can just use hyperscript `h('h1', 'Hello', this.sample, '!')`. I'm using JSX for html familiarity and to showcase compatibility.
 
 ```jsx
-/** @jsx Radi.r **/
+/** @jsx Radi.h **/
 
-class Hello extends Radi.component {
-  state() {
-    return { sample: 'World' };
-  }
-  view() {
-    return (
-      <h1>Hello { this.state.sample } !</h1>
-    )
-  }
+function Hello() {
+  return <h1>Hello World !</h1>
 }
 
 Radi.mount(<Hello />, document.body);
@@ -77,51 +63,37 @@ Radi.mount(<Hello />, document.body);
 
 This example will mount h1 to body like so `<body><h1>Hello World</h1></body>`
 
-#### Counter example (With Single File Component syntax)
+#### Counter example
 
 This will be different as we'll need to update state and use actions. Only actions can change state and trigger changes in DOM.
-Also we'll be using our SFC syntax for `*.radi` files
 
-`Counter.radi`
 ```jsx
-class {
-  state = {
-    count: 0
-  }
+/** @jsx Radi.h **/
 
-  @action up() {
-    return {
-      count: this.state.count +1
-    }
-  }
+const store = new Radi.Store(0);
 
-  @action down() {
-    return {
-      count: this.state.count -1
-    }
-  }
+const change = (count, by) => count + by;
+
+function Counter() {
+  const count = store.state;
+  return (
+    <div>
+      <h1>{ count }</h1>
+      <button
+        onclick={ () => store.dispatch(change, -1) }
+        disabled={ count <= 0 }>-</button>
+      <button
+        onclick={ () => store.dispatch(change, 1) }>+</button>
+    </div>
+  )
 }
-
-<div>
-  <h1>{ this.state.count }</h1>
-
-  <button onclick={ () => this.down() } disabled={ this.state.count <= 0 }>-</button>
-
-  <button onclick={ () => this.up() }>+</button>
-</div>
 ```
-
-## Architecture
-
-Radi fully renders page only once initially. After that `listeners` take control. They can listen for state changes in any Radi component. When change in state is caught, listener then re-renders only that part.
-
-Other frameworks silently re-renders whole page over and over again, then apply changes. But radi only re-renders parts that link to changed state values.
 
 To check out [live repl](https://radi.js.org/#/fiddle) and [docs](https://radi.js.org/#/docs), visit [radi.js.org](https://radi.js.org).
 
-<!-- ## Changelog
+## Changelog
 
-Detailed changes for each release are documented in the [release notes](https://github.com/radi-js/radi/releases). -->
+Detailed changes for each release are documented in the [release notes](https://github.com/radi-js/radi/CHANGELOG.md).
 
 ## Stay In Touch
 
