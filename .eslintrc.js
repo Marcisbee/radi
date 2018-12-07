@@ -59,11 +59,7 @@ module.exports = {
       },
     ],
     'no-console': ["error", { allow: ["warn", "error"] }],
-    'sort-imports': ['error', {
-      'ignoreCase': false,
-      'ignoreMemberSort': false,
-      'memberSyntaxSortOrder': ['single', 'all', 'multiple', 'none']
-    }],
+    'sort-imports': 'off',
     'react/jsx-uses-vars': 'error'
   },
 };

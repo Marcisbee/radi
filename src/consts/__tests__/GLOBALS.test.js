@@ -5,6 +5,7 @@ describe('GLOBALS.js', () => {
     expect(typeof GLOBALS.SERVICES).toBe('object');
     expect(typeof GLOBALS.VERSION).toBe('string');
     expect(typeof GLOBALS.CUSTOM_ATTRIBUTES).toBe('object');
-    expect(typeof GLOBALS.CUSTOM_TAGS).toBe('object');
+    expect(typeof GLOBALS.SERVICES).toBe('object');
+    expect(typeof GLOBALS.USE_CACHE).toBe('boolean');
   });
 });

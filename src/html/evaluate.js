@@ -73,18 +73,6 @@ export function evaluate(node) {
       return comp;
     }
 
-    if (typeof GLOBALS.CUSTOM_TAGS[node.query] !== 'undefined') {
-      const comp = {
-        ...node,
-        query: GLOBALS.CUSTOM_TAGS[node.query].render,
-        type: TYPE.COMPONENT,
-        pointer: null,
-        dom: null,
-      };
-      comp.update = updater(comp);
-      return comp;
-    }
-
     return {
       ...node,
       type: TYPE.NODE,
