@@ -9,7 +9,6 @@ export function fireEvent(type, $node, $element = $node) {
   onEvent.initEvent(type, false, true);
 
   if (typeof $node.dispatchEvent === 'function') {
-    $node._eventFired = true;
     $node.dispatchEvent(onEvent, $element);
   }
 
