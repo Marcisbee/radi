@@ -77,7 +77,7 @@ customAttribute('onvalidate', (el, rules) => {
     }
   });
 
-  el.addEventListener('mount', e => {
+  const runValidation = e => {
     const rule = ruleMemo[formName];
     if (typeof rule !== 'function') return;
     const validate = rule(e);
@@ -122,7 +122,10 @@ customAttribute('onvalidate', (el, rules) => {
         update
       );
     }
-  }, false);
+  };
+
+  el.addEventListener('patch', runValidation);
+  el.addEventListener('mount', runValidation, false);
 }, {
   allowedTags: [
     'form',

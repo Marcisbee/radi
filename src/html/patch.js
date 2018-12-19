@@ -75,7 +75,7 @@ export function patch(structure, dom, parent, last) {
         updateProps(patchOldDom, patchNewDom.props, oldAttrs);
 
         newStucture = structure;
-        newDom = dom;
+        newDom = fireEvent('patch', dom);
         return { newDom, newStucture, last };
       }
     }

@@ -2,8 +2,6 @@ var GLOBALS = {
   VERSION: '0.5.0',
   CURRENT_COMPONENT: null,
   CUSTOM_ATTRIBUTES: {},
-  CUSTOM_TAGS: {},
-  IS_UPDATE: false,
   SERVICES: {},
   USE_CACHE: false,
 };
@@ -272,6 +270,29 @@ function Await(props) {
   return value;
 }
 
+/** Example usage:
+  const fade = {
+    in: (el) => el.animate({
+      opacity: [0, 1],
+      transform: ['scale(0.5)', 'scale(1)'],
+    }, {
+      duration: 200,
+      iterations: 1
+    }),
+
+    out: (el, done) => el.animate({
+      opacity: [1, 0],
+      transform: ['scale(1)', 'scale(0.5)'],
+    }, {
+      duration: 200,
+      iterations: 1
+    }).onfinish = done,
+  };
+
+
+  <div animation={fade}></div>
+ */
+
 var animate = function (target, type, opts, done) {
   var direct = opts[type];
   if (typeof direct !== 'function') {
@@ -283,7 +304,9 @@ var animate = function (target, type, opts, done) {
 };
 
 customAttribute('animation', function (el, value) {
-  animate(el, 'in', value, function () {});
+  el.addEventListener('mount', function () {
+    animate(el, 'in', value, function () {});
+  });
   el.beforedestroy = function (done) { return animate(el, 'out', value, done); };
 });
 
@@ -988,7 +1011,7 @@ customAttribute('onvalidate', function (el, rules) {
     }
   });
 
-  el.addEventListener('mount', function (e) {
+  var runValidation = function (e) {
     var rule = ruleMemo[formName];
     if (typeof rule !== 'function') { return; }
     var validate = rule(e);
@@ -1035,7 +1058,10 @@ customAttribute('onvalidate', function (el, rules) {
         update
       );
     }
-  }, false);
+  };
+
+  el.addEventListener('patch', runValidation);
+  el.addEventListener('mount', runValidation, false);
 }, {
   allowedTags: [
     'form' ],
@@ -1206,7 +1232,6 @@ function fireEvent(type, $node, $element) {
   onEvent.initEvent(type, false, true);
 
   if (typeof $node.dispatchEvent === 'function') {
-    $node._eventFired = true;
     $node.dispatchEvent(onEvent, $element);
   }
 
@@ -1607,7 +1632,7 @@ function patch(structure, dom, parent, last) {
         updateProps(patchOldDom, patchNewDom.props, oldAttrs);
 
         newStucture = structure;
-        newDom = dom;
+        newDom = fireEvent('patch', dom);
         return { newDom: newDom, newStucture: newStucture, last: last };
       }
     }
@@ -1781,16 +1806,6 @@ function evaluate(node) {
         dom: null});
       comp$1.update = updater(comp$1);
       return comp$1;
-    }
-
-    if (typeof GLOBALS.CUSTOM_TAGS[node.query] !== 'undefined') {
-      var comp$2 = Object.assign({}, node,
-        {query: GLOBALS.CUSTOM_TAGS[node.query].render,
-        type: TYPE.COMPONENT,
-        pointer: null,
-        dom: null});
-      comp$2.update = updater(comp$2);
-      return comp$2;
     }
 
     return Object.assign({}, node,
