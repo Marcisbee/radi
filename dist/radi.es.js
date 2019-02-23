@@ -1930,7 +1930,7 @@ Radi.plugin = function (fn) {
   return fn.apply(void 0, [ Radi ].concat( args ));
 };
 
-if (window) { window.Radi = Radi; }
+if (typeof window !== 'undefined') { window.Radi = Radi; }
 
 export default Radi;
 //# sourceMappingURL=radi.es.js.map

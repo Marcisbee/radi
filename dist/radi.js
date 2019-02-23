@@ -1936,7 +1936,7 @@
     return fn.apply(void 0, [ Radi ].concat( args ));
   };
 
-  if (window) { window.Radi = Radi; }
+  if (typeof window !== 'undefined') { window.Radi = Radi; }
 
   return Radi;
 
