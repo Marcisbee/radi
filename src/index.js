@@ -13,6 +13,7 @@ import {
   Action,
   Effect,
   Event,
+  Merge,
   Store,
 } from './store';
 import {
@@ -35,6 +36,7 @@ const Radi = {
   Action,
   Effect,
   Event,
+  Merge,
   Store,
 
   Await,

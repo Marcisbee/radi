@@ -537,6 +537,13 @@
       },
 
       /**
+       * @returns {*} Stored state
+       */
+      getRawState: function getRawState() {
+        return state;
+      },
+
+      /**
        * @param {*} newState
        * @returns {*} Stored state
        */
@@ -572,6 +579,24 @@
       },
 
       /**
+       * @param {Function} transformer
+       * @param {String} mappedName
+       * @returns {*} Mapped state
+       */
+      map: function map(transformer, mappedName) {
+        if ( transformer === void 0 ) transformer = function (e) { return e; };
+        if ( mappedName === void 0 ) mappedName = "Mapped " + name;
+
+        var mappedStore = Store(state, mappedName);
+        _store.subscribe(
+          function (newState, oldState) {
+            mappedStore.setState(transformer(newState, oldState));
+          }
+        );
+        return mappedStore;
+      },
+
+      /**
        * @returns {*} Transformed state
        */
       get bind() {
@@ -597,6 +622,23 @@
     }
 
     return _store;
+  }
+
+  function Merge(stores, name) {
+    if ( name === void 0 ) name = 'Unnnamed Map';
+
+    var storesList = [].concat(stores);
+    var states = storesList.map(function (store) { return store.getRawState(); });
+    var mappedStore = Store(states, name);
+    storesList.forEach(
+      function (store, ii) { return store.subscribe(
+        function (state) {
+          states[ii] = state;
+          mappedStore.setState(states);
+        }
+      ); }
+    );
+    return mappedStore;
   }
 
   /**
@@ -1763,6 +1805,7 @@
     Action: Action,
     Effect: Effect,
     Event: Event,
+    Merge: Merge,
     Store: Store,
 
     Await: Await,

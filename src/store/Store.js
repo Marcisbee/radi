@@ -198,6 +198,13 @@ export function Store(originalState = null, name = 'unnamed') {
     },
 
     /**
+     * @returns {*} Stored state
+     */
+    getRawState() {
+      return state;
+    },
+
+    /**
      * @param {*} newState
      * @returns {*} Stored state
      */
@@ -233,6 +240,21 @@ export function Store(originalState = null, name = 'unnamed') {
     },
 
     /**
+     * @param {Function} transformer
+     * @param {String} mappedName
+     * @returns {*} Mapped state
+     */
+    map(transformer = (e) => e, mappedName = `Mapped ${name}`) {
+      const mappedStore = Store(state, mappedName);
+      _store.subscribe(
+        (newState, oldState) => {
+          mappedStore.setState(transformer(newState, oldState));
+        }
+      );
+      return mappedStore;
+    },
+
+    /**
      * @returns {*} Transformed state
      */
     get bind() {
@@ -256,6 +278,21 @@ export function Store(originalState = null, name = 'unnamed') {
   }
 
   return _store;
+}
+
+export function Merge(stores, name = 'Unnnamed Map') {
+  const storesList = [].concat(stores);
+  const states = storesList.map((store) => store.getRawState());
+  const mappedStore = Store(states, name);
+  storesList.forEach(
+    (store, ii) => store.subscribe(
+      (state) => {
+        states[ii] = state;
+        mappedStore.setState(states);
+      }
+    )
+  );
+  return mappedStore;
 }
 
 export function StoreMiddleware(

@@ -70,9 +70,10 @@ This will be different as we'll need to update state and use actions. Only actio
 ```jsx
 /** @jsx Radi.h **/
 
-const store = new Radi.Store(0);
+const changeCount = Action('Change Count');
 
-const change = (count, by) => count + by;
+const store = Radi.Store(0)
+  .on(changeCount, (count, by) => count + by);
 
 function Counter() {
   const count = store.state;
@@ -80,10 +81,10 @@ function Counter() {
     <div>
       <h1>{ count }</h1>
       <button
-        onclick={ () => store.dispatch(change, -1) }
+        onclick={ () => changeCount(-1) }
         disabled={ count <= 0 }>-</button>
       <button
-        onclick={ () => store.dispatch(change, 1) }>+</button>
+        onclick={ () => changeCount(1) }>+</button>
     </div>
   )
 }
