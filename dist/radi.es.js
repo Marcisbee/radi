@@ -1,6 +1,7 @@
 var GLOBALS = {
   VERSION: '0.5.0',
   CURRENT_COMPONENT: null,
+  CURRENT_ACTIION: 0,
   CUSTOM_ATTRIBUTES: {},
   SERVICES: {},
   USE_CACHE: false,
@@ -354,18 +355,14 @@ function clearRenderQueue() {
 }
 
 var Dependencies = function Dependencies() {
-  this.dependencies = {};
+  this.dependencies = [];
 };
 
 /**
- * @param {string[]} path
  * @param {Function} component
  */
-Dependencies.prototype.add = function add (path, component) {
-  var key = path[0];
-  if (typeof this.dependencies[key] === 'undefined') { this.dependencies[key] = []; }
-
-  this.dependencies[key] = this.dependencies[key].filter(function (c) {
+Dependencies.prototype.add = function add (component) {
+  this.dependencies = this.dependencies.filter(function (c) {
     if (GLOBALS.CURRENT_COMPONENT
       && (
         c === GLOBALS.CURRENT_COMPONENT.query
@@ -378,53 +375,47 @@ Dependencies.prototype.add = function add (path, component) {
     return true;
   });
 
-  if (this.dependencies[key].indexOf(component) < 0) {
-    // console.log('addDependency', key, component, this.dependencies[key])
-    this.dependencies[key].push(component);
+  if (this.dependencies.indexOf(component) < 0) {
+    // console.log('addDependency', component, this.dependencies)
+    this.dependencies.push(component);
   }
 };
 
 /**
- * @param {string[]} path
  * @param {Function} component
  */
-Dependencies.prototype.remove = function remove (path, component) {
-  var key = path[0];
-  var index = (this.dependencies[key] || []).indexOf(component);
+Dependencies.prototype.remove = function remove (component) {
+  var index = this.dependencies.indexOf(component);
   if (index >= 0) {
-    // console.log('removeDependency', key, component)
-    this.dependencies[key].splice(index, 1);
+    // console.log('removeDependency', component)
+    this.dependencies.splice(index, 1);
   }
 };
 
 /**
- * @param {string[]} path
  * @param {Function} component
  */
-Dependencies.prototype.component = function component (path, component$1) {
+Dependencies.prototype.component = function component (component$1) {
     var this$1 = this;
 
   if (component$1) {
-    this.add(path, component$1);
+    this.add(component$1);
 
     component$1.__onDestroy = function () {
-      this$1.remove(path, component$1);
+      this$1.remove(component$1);
     };
   }
   return component$1;
 };
 
 /**
- * @param {string} key
- * @param {*} newStore
+ * @param {*} newState
  * @param {*} oldState
  */
-Dependencies.prototype.trigger = function trigger (key, newStore, oldState) {
-  if (this.dependencies[key]) {
-    this.dependencies[key].forEach(function (fn) { return (
-      addToRenderQueue(fn)(newStore, oldState)
-    ); });
-  }
+Dependencies.prototype.trigger = function trigger (newState, oldState) {
+  this.dependencies.forEach(function (fn) { return (
+    addToRenderQueue(fn)(newState, oldState)
+  ); });
 };
 
 /**
@@ -438,7 +429,6 @@ var Listener = function Listener(map, store) {
   this.getValue = this.getValue.bind(this);
   this.update = this.update.bind(this);
   this.store = store;
-  this.dep = store.event;
 };
 
 /**
@@ -457,7 +447,7 @@ Listener.prototype.link = function link (updater) {
  * @returns {*} Cached state
  */
 Listener.prototype.getValue = function getValue (updater) {
-  var state = this.store.get();
+  var state = this.store.getState();
 
   if (!this.subbed) {
     this.subbed = this.store.subscribe(updater);
@@ -470,69 +460,10 @@ Listener.prototype.getValue = function getValue (updater) {
  * @returns {*} Cached state
  */
 Listener.prototype.update = function update () {
-  var state = this.store.get();
+  var state = this.store.getState();
   return this.cached = this.map(state);
 };
 
-/**
- * @param {*} value
- * @returns {boolean}
- */
-function isObject(value) {
-  return value && (
-    value.constructor === Object
-    || value.constructor === Array
-  );
-}
-
-/**
- * @param {Store} store
- * @param {Store} state
- * @param {string[]} path
- * @returns {*} New state
- */
-function evalState(store, state, path) {
-  if ( path === void 0 ) path = [];
-
-  if (state) {
-    if (isObject(state)) {
-      var newState = Array.isArray(state) ? [] : {};
-      for (var key in state) {
-        newState[key] = evalState(store, state[key], path.concat(key));
-      }
-      return newState;
-    }
-
-    if (state instanceof Store) {
-      state.subscribe.call(state, function (newValue) {
-        store.update(store.setPartial(path, newValue));
-      });
-      return state.get();
-    }
-  }
-
-  return state;
-}
-
-/**
- * @param {Store} state
- * @param {string|number} key
- * @param {*} value
- * @returns {*} New state
- */
-function mapState(state, key, value) {
-  if (state && isObject(state)) {
-    var output = Array.isArray(state)
-      ? [].concat( state )
-      : Object.assign({}, state);
-    output[key] = value;
-    return output;
-  }
-
-  return state;
-}
-
-var storeDispatchMiddleware = noop;
 var storeListMiddleware = noop;
 var storeList = [];
 
@@ -545,396 +476,309 @@ function addStoreToList(store) {
   return index;
 }
 
-var Store = function Store(state, name) {
-  this.dependencies = new Dependencies();
-  this.transform = noop;
-  this.willDispatch = this.willDispatch.bind(this);
-  this.dispatch = this.dispatch.bind(this);
-  this.subscribe = this.subscribe.bind(this);
-  this.update = this.update.bind(this);
-  this.get = this.get.bind(this);
-  this.listener = this.listener.bind(this);
-  this.storedState = evalState(this, state);
-  this.name = name;
+var events = {};
+
+/**
+ * @param {*} originalState
+ * @param {String} name
+ * @returns {Store} Store
+ */
+function Store(originalState, name) {
+  if ( originalState === void 0 ) originalState = null;
+  if ( name === void 0 ) name = 'unnamed';
+
+  var state = originalState;
+  var storeEvents = [];
+  var dependencies = new Dependencies();
+
+  var _store = {
+
+    /**
+     * @param {Action} action
+     * @param {Function} reducer
+     * @returns {*} Stored state
+     */
+    on: function on(action, reducer) {
+      if ( reducer === void 0 ) reducer = function (s) { return s; };
+
+      events[action.id].push(function () {
+        var args = [], len = arguments.length;
+        while ( len-- ) args[ len ] = arguments[ len ];
+
+        var newState = reducer.apply(void 0, [ state ].concat( args ));
+
+        return _store.setState(newState);
+      });
+      return _store;
+    },
+
+    /**
+     * @returns {*} Stored state
+     */
+    get state() {
+      return _store.getState();
+    },
+
+    /**
+     * @returns {*} Stored state
+     */
+    getState: function getState() {
+      if (GLOBALS.CURRENT_COMPONENT) {
+        dependencies.component(GLOBALS.CURRENT_COMPONENT);
+      }
+
+      return state;
+    },
+
+    /**
+     * @param {*} newState
+     * @returns {*} Stored state
+     */
+    setState: function setState(newState) {
+      // Timeout render queue
+      setTimeout(function () {
+        dependencies.trigger(newState, state);
+        clearRenderQueue();
+      });
+
+      storeEvents.forEach(function (fn) {
+        fn(newState, state);
+      });
+
+      return (state = newState);
+    },
+
+    /**
+     * @param {Function} fn
+     * @returns {Function} Unsubscribe
+     */
+    subscribe: function subscribe(fn) {
+      dependencies.add(fn);
+      fn(_store.getState(), null);
+      storeEvents.push(fn);
+      return function () {
+        var index = storeEvents.indexOf(fn);
+        if (index >= 0) {
+          dependencies.remove(fn);
+          storeEvents.splice(index, 1);
+        }
+      };
+    },
+
+    /**
+     * @returns {*} Transformed state
+     */
+    get bind() {
+      return {
+        value: _store.getState(),
+        onInput: function (e) { return _store.setState(e.target.value); },
+      };
+    },
+
+    /**
+     * @param {Function} listenerToRender
+     * @returns {Listener}
+     */
+    listener: function listener(listenerToRender) {
+      if ( listenerToRender === void 0 ) listenerToRender = function (e) { return e; };
+
+      return new Listener(listenerToRender, _store);
+    },
+  };
 
   if (name !== false) {
-    addStoreToList(this);
-  }
-};
-
-var prototypeAccessors = { state: { configurable: true },bind: { configurable: true } };
-
-/**
- * @returns {*} Stored state
- */
-prototypeAccessors.state.get = function () {
-  if (GLOBALS.CURRENT_COMPONENT) {
-    this.dependencies.component('*', GLOBALS.CURRENT_COMPONENT);
+    addStoreToList(_store);
   }
 
-  return this.get();
-};
+  return _store;
+}
 
 /**
- * @returns {*} Transformed state
+ * @param {String} name
+ * @returns {Action} Action
  */
-prototypeAccessors.bind.get = function () {
-    var this$1 = this;
+function Action(name) {
+  GLOBALS.CURRENT_ACTIION += 1;
+  var actionEvents = [];
+  var id = GLOBALS.CURRENT_ACTIION;
+  events[id] = [];
 
-  return {
-    value: this.get(),
-    onInput: function (e) { return this$1.update(e.target.value); },
-  };
-};
+  var caller = function () {
+    var args = [], len = arguments.length;
+    while ( len-- ) args[ len ] = arguments[ len ];
 
-/**
- * @returns {*} Transformed state
- */
-Store.prototype.get = function get () {
-  return this.transform(this.storedState);
-};
-
-/**
- * @param {Function} transform
- * @returns {Store}
- */
-Store.prototype.map = function map (transform) {
-  var last = this.transform;
-  this.transform = function (data) { return transform(last(data)); };
-  return this;
-};
-
-/**
- * @param {string[]} path
- * @param {*} newValue
- * @param {*} source Stored state
- * @returns {*} Mapped state
- */
-Store.prototype.setPartial = function setPartial (path, newValue, source) {
-    if ( source === void 0 ) source = this.storedState;
-
-  if (source && path && path.length) {
-    var current = path[0];
-      var nextPath = path.slice(1);
-    return mapState(source, current, this.setPartial(nextPath, newValue, source[current]));
-  }
-
-  return newValue;
-};
-
-/**
- * @param {*} newState
- * @returns {*} Mapped state
- */
-Store.prototype.update = function update (newState) {
-  var parsedState = evalState(this, newState);
-  var oldStore = this.get();
-  this.storedState = parsedState;
-  this.dependencies.trigger('*', this.get(), oldStore);
-  clearRenderQueue();
-  return this.get();
-};
-
-/**
- * @param {Function} callback
- * @returns {Store}
- */
-Store.prototype.subscribe = function subscribe (callback) {
-  this.dependencies.add('*', callback);
-  callback(this.get(), null);
-  return this;
-};
-
-/**
- * @param {Function} subscriber
- */
-Store.prototype.unsubscribe = function unsubscribe (subscriber) {
-  this.dependencies.remove('*', subscriber);
-};
-
-/**
- * @param {Function} action
- * @param {*[]} args
- * @returns {*} Mapped state
- */
-Store.prototype.dispatch = function dispatch (action) {
-    var args = [], len = arguments.length - 1;
-    while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
-
-  var payload = action.apply(void 0, [ this.storedState ].concat( args ));
-
-  if (this.name !== false) {
-    storeDispatchMiddleware({
-      store: this,
-      action: action.name,
-      args: args,
-      payload: payload,
+    // console.log(`Called action ${name}`, args);
+    events[id].forEach(function (fn) {
+      fn.apply(void 0, args);
     });
-  }
-  // console.log('dispatch', {
-  // store: this.name,
-  // action: action.name,
-  // args: args,
-  // payload,
-  // });
-  // console.log('dispatch', action.name, payload);
-  return this.update(payload);
-};
 
-/**
- * @param {Function} action
- * @param {*[]} args
- * @returns {Function} Store.dispatch
- */
-Store.prototype.willDispatch = function willDispatch (action) {
-    var this$1 = this;
-    var args = [], len = arguments.length - 1;
-    while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+    actionEvents.forEach(function (fn) {
+      fn.apply(void 0, args);
+    });
+  };
 
-  return function () {
-      var ref;
-
-      var args2 = [], len = arguments.length;
-      while ( len-- ) args2[ len ] = arguments[ len ];
-      return (ref = this$1).dispatch.apply(ref, [ action ].concat( args, args2 ));
-    };
-};
-
-/**
- * @param {Function} listenerToRender
- * @returns {Listener}
- */
-Store.prototype.listener = function listener (listenerToRender) {
-    if ( listenerToRender === void 0 ) listenerToRender = function (e) { return e; };
-
-  return new Listener(listenerToRender, this);
-};
-
-/**
- * @param {Function} dispatch
- * @returns {Function}
- */
-Store.middleware = function middleware (
-  stores,
-  dispatch
-  // freeze = noop,
-  // resume = noop,
-) {
-    if ( stores === void 0 ) stores = noop;
-    if ( dispatch === void 0 ) dispatch = noop;
-
-  // @TODO: Add middleware to:
-  // - freeze updates
-  // - resume updates
-  storeListMiddleware = stores;
-  storeDispatchMiddleware = dispatch;
-  storeListMiddleware(storeList);
-};
-
-Object.defineProperties( Store.prototype, prototypeAccessors );
-
-/**
- * @param {Function} subscriber
- * @param {string} name
- * @returns {Store}
- */
-function Subscribe(subscriber, name) {
-  var factory = function (state, value) { return value; };
-
-  Object.defineProperty(factory, 'name', {
-    value: subscriber.name || 'update',
+  Object.defineProperties(caller, {
+    name: {
+      value: name,
+    },
+    id: {
+      value: id,
+    },
+    subscribe: {
+      value: function value(fn) {
+        actionEvents.push(fn);
+        return function () {
+          var index = actionEvents.indexOf(fn);
+          if (index >= 0) {
+            actionEvents.splice(index, 1);
+          }
+        };
+      },
+    },
   });
-
-  var subStore = new Store(null, name || 'Subscribe');
-
-  function caller(value) {
-    subStore.dispatch(factory, value);
-    subscriber(value, caller);
-    return subStore;
-  }
 
   return caller;
 }
 
 /**
- * @param {EventTarget} [target=document]
- * @param {string} name
- * @param {Function} transformer
- * @returns {Store}
+ * @param {String} name
+ * @param {Function} effect
+ * @returns {Effect} Effect
  */
-function Event(target, name, transformer) {
-  if ( target === void 0 ) target = document;
-  if ( transformer === void 0 ) transformer = function (e) { return e; };
+function Effect(name, effect) {
+  GLOBALS.CURRENT_ACTIION += 1;
+  var effectEvents = [];
+  var id = GLOBALS.CURRENT_ACTIION;
+  var status = 'idle';
 
-  var events = name.trim().split(' ');
-  var updater = function () {};
-  var status = true;
-  var eventSubscription = [];
+  events[id] = [];
 
-  if (typeof transformer !== 'function') {
-    throw new Error(("[Radi.js] Subscription `" + name + "` must be transformed by function"));
-  }
+  var done = Action((name + " done"));
+  var fail = Action((name + " fail"));
 
-  function startListener() {
-    events.forEach(function (event) {
-      function listen() {
-        var args = [], len = arguments.length;
-        while ( len-- ) args[ len ] = arguments[ len ];
-
-        updater(transformer.apply(void 0, args.concat( [event] )));
-      }
-      eventSubscription.push([event, listen]);
-      target.addEventListener(event, listen);
-    });
-  }
-
-  startListener();
-
-  function factory(value, next) {
-    updater = next;
-  }
-
-  Object.defineProperty(factory, 'name', {
-    value: name || 'update',
-  });
-
-  function CustomSubscribe(defaultValue) {
-    return Subscribe(factory, 'Event')(defaultValue);
-  }
-
-  CustomSubscribe.on = function on() {
-    if (status) { return; }
-
-    eventSubscription = [];
-    startListener();
-    status = true;
-  };
-
-  CustomSubscribe.off = function off() {
-    if (!status) { return; }
-
-    eventSubscription.forEach(function (ref) {
-      var n = ref[0];
-      var e = ref[1];
-
-      return target.removeEventListener(n, e);
-    });
-    status = false;
-  };
-
-  return CustomSubscribe;
-}
-
-/**
- * @param {Promise} resolver
- * @param {Function} success
- * @param {Function} error
- * @param {boolean} instant
- * @returns {Store}
- */
-function Fetch(resolver, success, error, instant) {
-  if ( instant === void 0 ) instant = false;
-
-  var init = false;
-  var trigger = function () {};
-  var data = {};
-
-  var loading = new Store(false, null);
-
-  if (typeof resolver !== 'function') {
-    throw new Error('[Radi.js] Fetch first parameter must be function that returns promise');
-  }
-
-  function factory(value, next) {
-    trigger = next;
-    if (instant && !init) {
-      init = true;
-      CustomSubscribe.fetch();
-    }
-  }
-
-  Object.defineProperty(factory, 'name', {
-    value: resolver.name || 'update',
-  });
-
-  function CustomSubscribe(defaultValue) {
-    return Subscribe(factory, 'Fetch')(defaultValue);
-  }
-
-  CustomSubscribe.loading = loading;
-  CustomSubscribe.cache = true;
-
-  CustomSubscribe.fetch = function fetch() {
+  var caller = function () {
     var args = [], len = arguments.length;
     while ( len-- ) args[ len ] = arguments[ len ];
 
-    var id = JSON.stringify(args);
-    if (CustomSubscribe.cache && typeof data[id] !== 'undefined') {
-      trigger(data[id]);
-      return Promise.resolve();
-    }
+    status = 'loading';
+    // console.log(`Called effect ${name}`, args);
+    events[id].forEach(function (fn) {
+      fn.apply(void 0, args);
+    });
 
-    loading.update(true);
+    effectEvents.forEach(function (fn) {
+      fn({ params: args });
+    });
 
-    return resolver.apply(void 0, args)
-      .then((function (output) {
-        var outputData = typeof success === 'function'
-          ? success(output)
-          : output;
-        data[id] = outputData;
-        trigger(outputData);
-        loading.update(false);
-      }))
-      .catch((function (err) {
-        var errorData = typeof error === 'function'
-          ? error(err)
-          : err;
-        // trigger({ error: data });
-        loading.update(false);
-        console.error(errorData);
-      }));
+    effect.apply(void 0, args)
+      .then(function (result) {
+        status = 'done';
+        // console.log('DONE', result);
+        var output = { result: result, params: args };
+        done(output);
+        effectEvents.forEach(function (fn) { return fn(output); });
+      })
+      .catch(function (error) {
+        status = 'fail';
+        // console.log('FAIL', error);
+        var output = { error: error, params: args };
+        fail(output);
+        effectEvents.forEach(function (fn) { return fn(output); });
+      });
   };
 
-  return CustomSubscribe;
+  Object.defineProperties(caller, {
+    name: {
+      value: name,
+    },
+    id: {
+      value: id,
+    },
+    done: {
+      value: done,
+    },
+    fail: {
+      value: fail,
+    },
+    status: {
+      get: function get() {
+        return status;
+      },
+    },
+    subscribe: {
+      value: function value(fn) {
+        effectEvents.push(fn);
+        return function () {
+          var index = effectEvents.indexOf(fn);
+          if (index >= 0) {
+            effectEvents.splice(index, 1);
+          }
+        };
+      },
+    },
+  });
+
+  return caller;
 }
 
 /**
- * @param {WebSocket} ws
- * @param {Function} transformer
- * @returns {Store}
+ * @param {String} name
+ * @param {EventDispatcher} target
+ * @returns {Event} Event
  */
-function Socket(ws, transformer) {
-  if ( transformer === void 0 ) transformer = function (data) { return data; };
+function Event(name, target) {
+  if ( target === void 0 ) target = window;
 
-  var name = ws.url;
-  var updater = function () {};
+  var eventNames = [];
+  var action = Action(name);
 
-  if (typeof transformer !== 'function') {
-    throw new Error(("[Radi.js] Socket `" + name + "` must be transformed by function"));
+  function handler() {
+    var args = [], len = arguments.length;
+    while ( len-- ) args[ len ] = arguments[ len ];
+
+    return action.apply(void 0, args);
   }
 
-  ws.onmessage = function (e) { return updater(transformer(e.data)); };
-
-  function factory(value, next) {
-    updater = next;
-  }
-
-  Object.defineProperty(factory, 'name', {
-    value: name || 'onmessage',
+  Object.defineProperties(action, {
+    on: {
+      value: function value(nameChunks) {
+        nameChunks
+          .split(' ')
+          .forEach(function (eventName) {
+            target.addEventListener(eventName, handler, false);
+            eventNames.push(eventName);
+          });
+        return action;
+      },
+    },
+    off: {
+      value: function value(nameChunks) {
+        nameChunks
+          .split(' ')
+          .forEach(function (eventName) {
+            var index = eventNames.indexOf(eventName);
+            if (index >= 0) {
+              target.removeEventListener(eventName, handler, false);
+              eventNames.splice(eventName);
+            }
+          });
+        return action;
+      },
+    },
   });
 
-  return function CustomSubscribe(defaultValue) {
-    return Subscribe(factory, 'Socket')(defaultValue);
-  };
+  return action;
 }
 
-var errorsStore = new Store({}, null);
-var setErrors = function (state, name, errors) {
-  var obj;
+var setErrors = Action('Set Errors');
 
-  return (Object.assign({}, state,
-  ( obj = {}, obj[name] = errors, obj )));
-};
+var errorsStore = Store({}, null)
+  .on(setErrors, function (state, name, errors) {
+    var obj;
+
+    return (Object.assign({}, state,
+    ( obj = {}, obj[name] = errors, obj )));
+});
 
 function extractValue(value) {
   return Array.isArray(value)
@@ -1002,7 +846,7 @@ customAttribute('onvalidate', function (el, rules) {
   }
 
   function update(errors) {
-    errorsStore.dispatch(setErrors, formName, errors);
+    setErrors(formName, errors);
   }
 
   errorsStore.subscribe(function (state) {
@@ -1112,21 +956,22 @@ function Loading(ref) {
 
 var h = html;
 
-var ModalStore = new Store({}, null);
+var registerModal = Action('Register Modal');
+var switchModal = Action('Switch Modal');
 
-var registerModal = function (store, name) {
-  var obj;
+var ModalStore = Store({}, null)
+  .on(registerModal, function (store, name) {
+    var obj;
 
-  return (Object.assign({}, store,
-  ( obj = {}, obj[name] = false, obj )));
-};
+    return (Object.assign({}, store,
+    ( obj = {}, obj[name] = false, obj )));
+})
+  .on(switchModal, function (store, name, type) {
+    var obj;
 
-var switchModal = function (store, name, type) {
-  var obj;
-
-  return (Object.assign({}, store,
-  ( obj = {}, obj[name] = type, obj )));
-};
+    return (Object.assign({}, store,
+    ( obj = {}, obj[name] = type, obj )));
+});
 
 function Modal(ref) {
   var name = ref.name; if ( name === void 0 ) name = 'default';
@@ -1140,7 +985,7 @@ function Modal(ref) {
 
   this.onMount = function () {
     if (!modal[name]) {
-      ModalStore.dispatch(registerModal, name);
+      registerModal(name);
     }
   };
 
@@ -1158,8 +1003,8 @@ function Modal(ref) {
 
 var ModalService = Service.add('Modal', function () { return (
   {
-    open: function (name) { return ModalStore.dispatch(switchModal, name, true); },
-    close: function (name) { return ModalStore.dispatch(switchModal, name, false); },
+    open: function (name) { return switchModal(name, true); },
+    close: function (name) { return switchModal(name, false); },
     onOpen: function (name, fn) { return (
       ModalStore.subscribe(function (n, p) { return n[name] === true && n[name] !== p[name] && fn(); })
     ); },
@@ -1909,11 +1754,10 @@ var Radi = {
   mount: mount,
   Service: Service,
 
+  Action: Action,
+  Effect: Effect,
   Event: Event,
-  Fetch: Fetch,
-  Socket: Socket,
   Store: Store,
-  Subscribe: Subscribe,
 
   Await: Await,
   Errors: Errors,

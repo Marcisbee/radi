@@ -1,12 +1,14 @@
-import { Store } from '../../store';
+import { Store, Action } from '../../store';
 import { customAttribute } from '../../html/customAttribute';
 import { formToJSON } from '../../utils';
 
-export const errorsStore = new Store({}, null);
-const setErrors = (state, name, errors) => ({
-  ...state,
-  [name]: errors,
-});
+const setErrors = Action('Set Errors');
+
+export const errorsStore = Store({}, null)
+  .on(setErrors, (state, name, errors) => ({
+    ...state,
+    [name]: errors,
+  }));
 
 function extractValue(value) {
   return Array.isArray(value)
@@ -68,7 +70,7 @@ customAttribute('onvalidate', (el, rules) => {
   }
 
   function update(errors) {
-    errorsStore.dispatch(setErrors, formName, errors);
+    setErrors(formName, errors);
   }
 
   errorsStore.subscribe(state => {

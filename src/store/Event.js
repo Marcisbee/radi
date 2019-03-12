@@ -1,59 +1,45 @@
-import { Subscribe } from './Subscribe';
+import { Action } from './Action';
 
 /**
- * @param {EventTarget} [target=document]
- * @param {string} name
- * @param {Function} transformer
- * @returns {Store}
+ * @param {String} name
+ * @param {EventDispatcher} target
+ * @returns {Event} Event
  */
-export function Event(target = document, name, transformer = e => e) {
-  const events = name.trim().split(' ');
-  let updater = () => {};
-  let status = true;
-  let eventSubscription = [];
+export function Event(name, target = window) {
+  const eventNames = [];
+  const action = Action(name);
 
-  if (typeof transformer !== 'function') {
-    throw new Error(`[Radi.js] Subscription \`${name}\` must be transformed by function`);
+  function handler(...args) {
+    return action(...args);
   }
 
-  function startListener() {
-    events.forEach((event) => {
-      function listen(...args) {
-        updater(transformer(...args, event));
-      }
-      eventSubscription.push([event, listen]);
-      target.addEventListener(event, listen);
-    });
-  }
-
-  startListener();
-
-  function factory(value, next) {
-    updater = next;
-  }
-
-  Object.defineProperty(factory, 'name', {
-    value: name || 'update',
+  Object.defineProperties(action, {
+    on: {
+      value(nameChunks) {
+        nameChunks
+          .split(' ')
+          .forEach((eventName) => {
+            target.addEventListener(eventName, handler, false);
+            eventNames.push(eventName);
+          });
+        return action;
+      },
+    },
+    off: {
+      value(nameChunks) {
+        nameChunks
+          .split(' ')
+          .forEach((eventName) => {
+            const index = eventNames.indexOf(eventName);
+            if (index >= 0) {
+              target.removeEventListener(eventName, handler, false);
+              eventNames.splice(eventName);
+            }
+          });
+        return action;
+      },
+    },
   });
 
-  function CustomSubscribe(defaultValue) {
-    return Subscribe(factory, 'Event')(defaultValue);
-  }
-
-  CustomSubscribe.on = function on() {
-    if (status) return;
-
-    eventSubscription = [];
-    startListener();
-    status = true;
-  };
-
-  CustomSubscribe.off = function off() {
-    if (!status) return;
-
-    eventSubscription.forEach(([n, e]) => target.removeEventListener(n, e));
-    status = false;
-  };
-
-  return CustomSubscribe;
+  return action;
 }

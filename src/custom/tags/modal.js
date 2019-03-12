@@ -1,20 +1,21 @@
 import { Service } from '../../service';
-import { Store } from '../../store';
+import { Store, Action } from '../../store';
 import { html } from '../../html';
 
 const h = html;
 
-export const ModalStore = new Store({}, null);
+const registerModal = Action('Register Modal');
+const switchModal = Action('Switch Modal');
 
-const registerModal = (store, name) => ({
-  ...store,
-  [name]: false,
-});
-
-const switchModal = (store, name, type) => ({
-  ...store,
-  [name]: type,
-});
+export const ModalStore = Store({}, null)
+  .on(registerModal, (store, name) => ({
+    ...store,
+    [name]: false,
+  }))
+  .on(switchModal, (store, name, type) => ({
+    ...store,
+    [name]: type,
+  }));
 
 export function Modal({ name = 'default', children }) {
   const modal = ModalStore.state;
@@ -25,7 +26,7 @@ export function Modal({ name = 'default', children }) {
 
   this.onMount = () => {
     if (!modal[name]) {
-      ModalStore.dispatch(registerModal, name);
+      registerModal(name);
     }
   };
 
@@ -44,8 +45,8 @@ export function Modal({ name = 'default', children }) {
 
 export const ModalService = Service.add('Modal', () => (
   {
-    open: (name) => ModalStore.dispatch(switchModal, name, true),
-    close: (name) => ModalStore.dispatch(switchModal, name, false),
+    open: (name) => switchModal(name, true),
+    close: (name) => switchModal(name, false),
     onOpen: (name, fn) => (
       ModalStore.subscribe((n, p) => n[name] === true && n[name] !== p[name] && fn())
     ),

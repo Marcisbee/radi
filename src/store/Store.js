@@ -23,18 +23,14 @@ class Dependencies {
    * @constructor
    */
   constructor() {
-    this.dependencies = {};
+    this.dependencies = [];
   }
 
   /**
-   * @param {string[]} path
    * @param {Function} component
    */
-  add(path, component) {
-    const key = path[0];
-    if (typeof this.dependencies[key] === 'undefined') this.dependencies[key] = [];
-
-    this.dependencies[key] = this.dependencies[key].filter(c => {
+  add(component) {
+    this.dependencies = this.dependencies.filter(c => {
       if (GLOBALS.CURRENT_COMPONENT
         && (
           c === GLOBALS.CURRENT_COMPONENT.query
@@ -47,51 +43,45 @@ class Dependencies {
       return true;
     });
 
-    if (this.dependencies[key].indexOf(component) < 0) {
-      // console.log('addDependency', key, component, this.dependencies[key])
-      this.dependencies[key].push(component);
+    if (this.dependencies.indexOf(component) < 0) {
+      // console.log('addDependency', component, this.dependencies)
+      this.dependencies.push(component);
     }
   }
 
   /**
-   * @param {string[]} path
    * @param {Function} component
    */
-  remove(path, component) {
-    const key = path[0];
-    const index = (this.dependencies[key] || []).indexOf(component);
+  remove(component) {
+    const index = this.dependencies.indexOf(component);
     if (index >= 0) {
-      // console.log('removeDependency', key, component)
-      this.dependencies[key].splice(index, 1);
+      // console.log('removeDependency', component)
+      this.dependencies.splice(index, 1);
     }
   }
 
   /**
-   * @param {string[]} path
    * @param {Function} component
    */
-  component(path, component) {
+  component(component) {
     if (component) {
-      this.add(path, component);
+      this.add(component);
 
       component.__onDestroy = () => {
-        this.remove(path, component);
+        this.remove(component);
       };
     }
     return component;
   }
 
   /**
-   * @param {string} key
-   * @param {*} newStore
+   * @param {*} newState
    * @param {*} oldState
    */
-  trigger(key, newStore, oldState) {
-    if (this.dependencies[key]) {
-      this.dependencies[key].forEach(fn => (
-        addToRenderQueue(fn)(newStore, oldState)
-      ));
-    }
+  trigger(newState, oldState) {
+    this.dependencies.forEach(fn => (
+      addToRenderQueue(fn)(newState, oldState)
+    ));
   }
 }
 
@@ -113,7 +103,6 @@ export class Listener {
     this.getValue = this.getValue.bind(this);
     this.update = this.update.bind(this);
     this.store = store;
-    this.dep = store.event;
   }
 
   /**
@@ -132,7 +121,7 @@ export class Listener {
    * @returns {*} Cached state
    */
   getValue(updater) {
-    const state = this.store.get();
+    const state = this.store.getState();
 
     if (!this.subbed) {
       this.subbed = this.store.subscribe(updater);
@@ -145,68 +134,11 @@ export class Listener {
    * @returns {*} Cached state
    */
   update() {
-    const state = this.store.get();
+    const state = this.store.getState();
     return this.cached = this.map(state);
   }
 }
 
-/**
- * @param {*} value
- * @returns {boolean}
- */
-function isObject(value) {
-  return value && (
-    value.constructor === Object
-    || value.constructor === Array
-  );
-}
-
-/**
- * @param {Store} store
- * @param {Store} state
- * @param {string[]} path
- * @returns {*} New state
- */
-function evalState(store, state, path = []) {
-  if (state) {
-    if (isObject(state)) {
-      const newState = Array.isArray(state) ? [] : {};
-      for (const key in state) {
-        newState[key] = evalState(store, state[key], path.concat(key));
-      }
-      return newState;
-    }
-
-    if (state instanceof Store) {
-      state.subscribe.call(state, (newValue) => {
-        store.update(store.setPartial(path, newValue));
-      });
-      return state.get();
-    }
-  }
-
-  return state;
-}
-
-/**
- * @param {Store} state
- * @param {string|number} key
- * @param {*} value
- * @returns {*} New state
- */
-function mapState(state, key, value) {
-  if (state && isObject(state)) {
-    const output = Array.isArray(state)
-      ? [...state]
-      : { ...state };
-    output[key] = value;
-    return output;
-  }
-
-  return state;
-}
-
-let storeDispatchMiddleware = noop;
 let storeListMiddleware = noop;
 const storeList = [];
 
@@ -219,169 +151,123 @@ function addStoreToList(store) {
   return index;
 }
 
-export class Store {
-  /**
-   * @param {*} state
-   * @constructor
-   */
-  constructor(state, name) {
-    this.dependencies = new Dependencies();
-    this.transform = noop;
-    this.willDispatch = this.willDispatch.bind(this);
-    this.dispatch = this.dispatch.bind(this);
-    this.subscribe = this.subscribe.bind(this);
-    this.update = this.update.bind(this);
-    this.get = this.get.bind(this);
-    this.listener = this.listener.bind(this);
-    this.storedState = evalState(this, state);
-    this.name = name;
+export const events = {};
 
-    if (name !== false) {
-      addStoreToList(this);
-    }
-  }
+/**
+ * @param {*} originalState
+ * @param {String} name
+ * @returns {Store} Store
+ */
+export function Store(originalState = null, name = 'unnamed') {
+  let state = originalState;
+  const storeEvents = [];
+  const dependencies = new Dependencies();
 
-  /**
-   * @returns {*} Stored state
-   */
-  get state() {
-    if (GLOBALS.CURRENT_COMPONENT) {
-      this.dependencies.component('*', GLOBALS.CURRENT_COMPONENT);
-    }
+  const _store = {
 
-    return this.get();
-  }
+    /**
+     * @param {Action} action
+     * @param {Function} reducer
+     * @returns {*} Stored state
+     */
+    on(action, reducer = (s) => s) {
+      events[action.id].push((...args) => {
+        const newState = reducer(state, ...args);
 
-  /**
-   * @returns {*} Transformed state
-   */
-  get bind() {
-    return {
-      value: this.get(),
-      onInput: (e) => this.update(e.target.value),
-    };
-  }
-
-  /**
-   * @returns {*} Transformed state
-   */
-  get() {
-    return this.transform(this.storedState);
-  }
-
-  /**
-   * @param {Function} transform
-   * @returns {Store}
-   */
-  map(transform) {
-    const last = this.transform;
-    this.transform = (data) => transform(last(data));
-    return this;
-  }
-
-  /**
-   * @param {string[]} path
-   * @param {*} newValue
-   * @param {*} source Stored state
-   * @returns {*} Mapped state
-   */
-  setPartial(path, newValue, source = this.storedState) {
-    if (source && path && path.length) {
-      const [current, ...nextPath] = path;
-      return mapState(source, current, this.setPartial(nextPath, newValue, source[current]));
-    }
-
-    return newValue;
-  }
-
-  /**
-   * @param {*} newState
-   * @returns {*} Mapped state
-   */
-  update(newState) {
-    const parsedState = evalState(this, newState);
-    const oldStore = this.get();
-    this.storedState = parsedState;
-    this.dependencies.trigger('*', this.get(), oldStore);
-    clearRenderQueue();
-    return this.get();
-  }
-
-  /**
-   * @param {Function} callback
-   * @returns {Store}
-   */
-  subscribe(callback) {
-    this.dependencies.add('*', callback);
-    callback(this.get(), null);
-    return this;
-  }
-
-  /**
-   * @param {Function} subscriber
-   */
-  unsubscribe(subscriber) {
-    this.dependencies.remove('*', subscriber);
-  }
-
-  /**
-   * @param {Function} action
-   * @param {*[]} args
-   * @returns {*} Mapped state
-   */
-  dispatch(action, ...args) {
-    const payload = action(this.storedState, ...args);
-
-    if (this.name !== false) {
-      storeDispatchMiddleware({
-        store: this,
-        action: action.name,
-        args,
-        payload,
+        return _store.setState(newState);
       });
-    }
-    // console.log('dispatch', {
-    //   store: this.name,
-    //   action: action.name,
-    //   args: args,
-    //   payload,
-    // });
-    // console.log('dispatch', action.name, payload);
-    return this.update(payload);
+      return _store;
+    },
+
+    /**
+     * @returns {*} Stored state
+     */
+    get state() {
+      return _store.getState();
+    },
+
+    /**
+     * @returns {*} Stored state
+     */
+    getState() {
+      if (GLOBALS.CURRENT_COMPONENT) {
+        dependencies.component(GLOBALS.CURRENT_COMPONENT);
+      }
+
+      return state;
+    },
+
+    /**
+     * @param {*} newState
+     * @returns {*} Stored state
+     */
+    setState(newState) {
+      // Timeout render queue
+      setTimeout(() => {
+        dependencies.trigger(newState, state);
+        clearRenderQueue();
+      });
+
+      storeEvents.forEach((fn) => {
+        fn(newState, state);
+      });
+
+      return (state = newState);
+    },
+
+    /**
+     * @param {Function} fn
+     * @returns {Function} Unsubscribe
+     */
+    subscribe(fn) {
+      dependencies.add(fn);
+      fn(_store.getState(), null);
+      storeEvents.push(fn);
+      return () => {
+        const index = storeEvents.indexOf(fn);
+        if (index >= 0) {
+          dependencies.remove(fn);
+          storeEvents.splice(index, 1);
+        }
+      };
+    },
+
+    /**
+     * @returns {*} Transformed state
+     */
+    get bind() {
+      return {
+        value: _store.getState(),
+        onInput: (e) => _store.setState(e.target.value),
+      };
+    },
+
+    /**
+     * @param {Function} listenerToRender
+     * @returns {Listener}
+     */
+    listener(listenerToRender = e => e) {
+      return new Listener(listenerToRender, _store);
+    },
+  };
+
+  if (name !== false) {
+    addStoreToList(_store);
   }
 
-  /**
-   * @param {Function} action
-   * @param {*[]} args
-   * @returns {Function} Store.dispatch
-   */
-  willDispatch(action, ...args) {
-    return (...args2) => this.dispatch(action, ...args, ...args2);
-  }
+  return _store;
+}
 
-  /**
-   * @param {Function} listenerToRender
-   * @returns {Listener}
-   */
-  listener(listenerToRender = e => e) {
-    return new Listener(listenerToRender, this);
-  }
-
-  /**
-   * @param {Function} dispatch
-   * @returns {Function}
-   */
-  static middleware(
-    stores = noop,
-    dispatch = noop,
-    // freeze = noop,
-    // resume = noop,
-  ) {
-    // @TODO: Add middleware to:
-    // - freeze updates
-    // - resume updates
-    storeListMiddleware = stores;
-    storeDispatchMiddleware = dispatch;
-    storeListMiddleware(storeList);
-  }
+export function StoreMiddleware(
+  stores = noop,
+  // dispatch = noop,
+  // freeze = noop,
+  // resume = noop,
+) {
+  // @TODO: Add middleware to:
+  // - freeze updates
+  // - resume updates
+  storeListMiddleware = stores;
+  // storeDispatchMiddleware = dispatch;
+  storeListMiddleware(storeList);
 }

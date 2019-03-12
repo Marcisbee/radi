@@ -10,11 +10,10 @@ import {
   Portal,
 } from './custom';
 import {
+  Action,
+  Effect,
   Event,
-  Fetch,
-  Socket,
   Store,
-  Subscribe,
 } from './store';
 import {
   customAttribute,
@@ -33,11 +32,10 @@ const Radi = {
   mount,
   Service,
 
+  Action,
+  Effect,
   Event,
-  Fetch,
-  Socket,
   Store,
-  Subscribe,
 
   Await,
   Errors,
