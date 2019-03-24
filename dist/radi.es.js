@@ -888,6 +888,10 @@ customAttribute('onvalidate', function (el, rules) {
   }
 
   function update(errors) {
+    var currentErrors = errorsStore.getRawState()[formName] || [];
+
+    if (JSON.stringify(errors) === JSON.stringify(currentErrors)) { return; }
+
     setErrors(formName, errors);
   }
 

@@ -70,6 +70,10 @@ customAttribute('onvalidate', (el, rules) => {
   }
 
   function update(errors) {
+    const currentErrors = errorsStore.getRawState()[formName] || [];
+
+    if (JSON.stringify(errors) === JSON.stringify(currentErrors)) return;
+
     setErrors(formName, errors);
   }
 
