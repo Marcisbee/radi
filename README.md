@@ -73,16 +73,18 @@ This will be different as we'll need to update state and use actions. Only actio
 const changeCount = Action('Change Count');
 
 const store = Radi.Store(0)
+  .schema(Number)
   .on(changeCount, (count, by) => count + by);
 
-function Counter() {
-  const count = store.state;
+function Counter(
+  count = Radi.Listen(store),
+) {
   return (
     <div>
       <h1>{ count }</h1>
       <button
         onclick={ () => changeCount(-1) }
-        disabled={ count <= 0 }>-</button>
+        disabled={ count(state => state <= 0) }>-</button>
       <button
         onclick={ () => changeCount(1) }>+</button>
     </div>
