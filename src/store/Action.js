@@ -23,6 +23,9 @@ export function Action(name) {
   };
 
   Object.defineProperties(caller, {
+    isRadiAction: {
+      value: true,
+    },
     name: {
       value: name,
     },

@@ -13,8 +13,10 @@ import {
   Action,
   Effect,
   Event,
+  Listen,
   Merge,
   Store,
+  Watch,
 } from './store';
 import {
   customAttribute,
@@ -36,8 +38,10 @@ const Radi = {
   Action,
   Effect,
   Event,
+  Listen,
   Merge,
   Store,
+  Watch,
 
   Await,
   Errors,

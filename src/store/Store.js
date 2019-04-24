@@ -121,7 +121,7 @@ export class Listener {
    * @returns {*} Cached state
    */
   getValue(updater) {
-    const state = this.store.getState();
+    const state = this.store.getRawState();
 
     if (!this.subbed) {
       this.subbed = this.store.subscribe(updater);
@@ -134,7 +134,7 @@ export class Listener {
    * @returns {*} Cached state
    */
   update() {
-    const state = this.store.getState();
+    const state = this.store.getRawState();
     return this.cached = this.map(state);
   }
 }
@@ -159,11 +159,23 @@ export const events = {};
  * @returns {Store} Store
  */
 export function Store(originalState = null, name = 'unnamed') {
-  let state = originalState;
+  const isActionStore = (originalState && originalState.isRadiAction);
+  let state = isActionStore ? null : originalState;
   const storeEvents = [];
   const dependencies = new Dependencies();
+  let storeSchema = null;
 
   const _store = {
+
+    /**
+     * @param {*} schema
+     * @returns {*} Stored state
+     */
+    schema(schema) {
+      storeSchema = schema;
+      _store.setState(state);
+      return _store;
+    },
 
     /**
      * @param {Action} action
@@ -208,7 +220,9 @@ export function Store(originalState = null, name = 'unnamed') {
      * @param {*} newState
      * @returns {*} Stored state
      */
-    setState(newState) {
+    setState(newStateRaw) {
+      const newState = transform(newStateRaw, storeSchema);
+
       // Timeout render queue
       setTimeout(() => {
         dependencies.trigger(newState, state);
@@ -228,7 +242,7 @@ export function Store(originalState = null, name = 'unnamed') {
      */
     subscribe(fn) {
       dependencies.add(fn);
-      fn(_store.getState(), null);
+      fn(_store.getRawState(), null);
       storeEvents.push(fn);
       return () => {
         const index = storeEvents.indexOf(fn);
@@ -259,7 +273,7 @@ export function Store(originalState = null, name = 'unnamed') {
      */
     get bind() {
       return {
-        value: _store.getState(),
+        value: _store.listener(),
         onInput: (e) => _store.setState(e.target.value),
       };
     },
@@ -277,7 +291,59 @@ export function Store(originalState = null, name = 'unnamed') {
     addStoreToList(_store);
   }
 
+  if (isActionStore) {
+    _store.on(originalState, (_, newState) => newState);
+  }
+
   return _store;
+}
+
+export function transform(value, Instance) {
+  if (typeof Instance !== 'function') {
+    if (Instance && Instance.constructor === RegExp) {
+      // eslint-disable-next-line no-new-wrappers
+      return (new String(value).valueOf()).match(Instance);
+    }
+
+    if (Instance instanceof Array) {
+      const newValue = transform(value, Array);
+      const insideInstance = Instance[0];
+
+      if (!insideInstance) return newValue;
+
+      return newValue.map((v) => transform(v, insideInstance));
+    }
+
+    if (!!Instance && Instance instanceof Object) {
+      const tempValue = {};
+      const keys = Object.keys(Instance);
+
+      keys.forEach((key) => {
+        tempValue[key] = transform(
+          (value || {})[key] || null,
+          (Instance || {})[key] || null
+        );
+      });
+
+      return tempValue;
+    }
+
+    if (Number.isNaN(Instance) || Instance === undefined || Instance === null) {
+      return value;
+    }
+
+    return Instance;
+  }
+
+  if (value instanceof Instance) {
+    return value;
+  }
+
+  if (!value) {
+    return new Instance().valueOf();
+  }
+
+  return new Instance(value).valueOf();
 }
 
 export function Merge(stores, name = 'Unnnamed Map') {

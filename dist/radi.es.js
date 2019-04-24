@@ -447,7 +447,7 @@ Listener.prototype.link = function link (updater) {
  * @returns {*} Cached state
  */
 Listener.prototype.getValue = function getValue (updater) {
-  var state = this.store.getState();
+  var state = this.store.getRawState();
 
   if (!this.subbed) {
     this.subbed = this.store.subscribe(updater);
@@ -460,7 +460,7 @@ Listener.prototype.getValue = function getValue (updater) {
  * @returns {*} Cached state
  */
 Listener.prototype.update = function update () {
-  var state = this.store.getState();
+  var state = this.store.getRawState();
   return this.cached = this.map(state);
 };
 
@@ -487,11 +487,23 @@ function Store(originalState, name) {
   if ( originalState === void 0 ) originalState = null;
   if ( name === void 0 ) name = 'unnamed';
 
-  var state = originalState;
+  var isActionStore = (originalState && originalState.isRadiAction);
+  var state = isActionStore ? null : originalState;
   var storeEvents = [];
   var dependencies = new Dependencies();
+  var storeSchema = null;
 
   var _store = {
+
+    /**
+     * @param {*} schema
+     * @returns {*} Stored state
+     */
+    schema: function schema(schema$1) {
+      storeSchema = schema$1;
+      _store.setState(state);
+      return _store;
+    },
 
     /**
      * @param {Action} action
@@ -541,7 +553,9 @@ function Store(originalState, name) {
      * @param {*} newState
      * @returns {*} Stored state
      */
-    setState: function setState(newState) {
+    setState: function setState(newStateRaw) {
+      var newState = transform(newStateRaw, storeSchema);
+
       // Timeout render queue
       setTimeout(function () {
         dependencies.trigger(newState, state);
@@ -561,7 +575,7 @@ function Store(originalState, name) {
      */
     subscribe: function subscribe(fn) {
       dependencies.add(fn);
-      fn(_store.getState(), null);
+      fn(_store.getRawState(), null);
       storeEvents.push(fn);
       return function () {
         var index = storeEvents.indexOf(fn);
@@ -595,7 +609,7 @@ function Store(originalState, name) {
      */
     get bind() {
       return {
-        value: _store.getState(),
+        value: _store.listener(),
         onInput: function (e) { return _store.setState(e.target.value); },
       };
     },
@@ -615,7 +629,59 @@ function Store(originalState, name) {
     addStoreToList(_store);
   }
 
+  if (isActionStore) {
+    _store.on(originalState, function (_, newState) { return newState; });
+  }
+
   return _store;
+}
+
+function transform(value, Instance) {
+  if (typeof Instance !== 'function') {
+    if (Instance && Instance.constructor === RegExp) {
+      // eslint-disable-next-line no-new-wrappers
+      return (new String(value).valueOf()).match(Instance);
+    }
+
+    if (Instance instanceof Array) {
+      var newValue = transform(value, Array);
+      var insideInstance = Instance[0];
+
+      if (!insideInstance) { return newValue; }
+
+      return newValue.map(function (v) { return transform(v, insideInstance); });
+    }
+
+    if (!!Instance && Instance instanceof Object) {
+      var tempValue = {};
+      var keys = Object.keys(Instance);
+
+      keys.forEach(function (key) {
+        tempValue[key] = transform(
+          (value || {})[key] || null,
+          (Instance || {})[key] || null
+        );
+      });
+
+      return tempValue;
+    }
+
+    if (Number.isNaN(Instance) || Instance === undefined || Instance === null) {
+      return value;
+    }
+
+    return Instance;
+  }
+
+  if (value instanceof Instance) {
+    return value;
+  }
+
+  if (!value) {
+    return new Instance().valueOf();
+  }
+
+  return new Instance(value).valueOf();
 }
 
 function Merge(stores, name) {
@@ -660,6 +726,9 @@ function Action(name) {
   };
 
   Object.defineProperties(caller, {
+    isRadiAction: {
+      value: true,
+    },
     name: {
       value: name,
     },
@@ -810,6 +879,27 @@ function Event(name, target) {
   });
 
   return action;
+}
+
+/**
+ * @param {Store} store
+ * @param {Function} transformer
+ * @returns {Listener} Function of Listener
+ */
+function Listen(store, transformer) {
+  return function (newTransformer) {
+    if ( newTransformer === void 0 ) newTransformer = transformer;
+
+    return store.listener(newTransformer);
+  };
+}
+
+/**
+ * @param {Store} store
+ * @returns {*} state
+ */
+function Watch(store) {
+  return store.state;
 }
 
 var setErrors = Action('Set Errors');
@@ -1803,8 +1893,10 @@ var Radi = {
   Action: Action,
   Effect: Effect,
   Event: Event,
+  Listen: Listen,
   Merge: Merge,
   Store: Store,
+  Watch: Watch,
 
   Await: Await,
   Errors: Errors,
