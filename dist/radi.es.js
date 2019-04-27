@@ -1,7 +1,7 @@
 var GLOBALS = {
   VERSION: '0.5.0',
   CURRENT_COMPONENT: null,
-  CURRENT_ACTIION: 0,
+  CURRENT_ACTION: 0,
   CUSTOM_ATTRIBUTES: {},
   SERVICES: {},
   USE_CACHE: false,
@@ -703,12 +703,111 @@ function Merge(stores, name) {
 
 /**
  * @param {String} name
+ * @param {Function} effect
+ * @returns {Effect} Effect
+ */
+function Effect(name) {
+  GLOBALS.CURRENT_ACTION += 1;
+  var effectEvents = [];
+  var id = GLOBALS.CURRENT_ACTION;
+  var status = 'idle';
+  var setStatus = function (newStatus) {
+    status = newStatus;
+  };
+  var effect = function (e) { return Promise.resolve(e); };
+
+  events[id] = [];
+
+  var done = Action((name + " done"));
+  var fail = Action((name + " fail"));
+
+  var caller = function () {
+    var args = [], len = arguments.length;
+    while ( len-- ) args[ len ] = arguments[ len ];
+
+    setStatus('loading');
+    // console.log(`Called effect ${name}`, args);
+    events[id].forEach(function (fn) {
+      fn.apply(void 0, args);
+    });
+
+    effectEvents.forEach(function (fn) {
+      fn({ params: args });
+    });
+
+    effect.apply(void 0, args)
+      .then(function (result) {
+        setStatus('done');
+        // console.log('DONE', result);
+        var output = { result: result, params: args };
+        done(output);
+        effectEvents.forEach(function (fn) { return fn(output); });
+      })
+      .catch(function (error) {
+        setStatus('fail');
+        // console.log('FAIL', error);
+        var output = { error: error, params: args };
+        fail(output);
+        effectEvents.forEach(function (fn) { return fn(output); });
+      });
+  };
+
+  Object.defineProperties(caller, {
+    name: {
+      value: name,
+    },
+    id: {
+      value: id,
+    },
+    use: {
+      value: function value(fn) {
+        effect = fn;
+        return caller;
+      },
+    },
+    done: {
+      value: done,
+    },
+    fail: {
+      value: fail,
+    },
+    status: {
+      get: function get() {
+        return status;
+      },
+    },
+    statusChange: {
+      get: function get() {
+        return Store(status)
+          .on(caller, function () { return status; })
+          .on(done, function () { return status; })
+          .on(fail, function () { return status; });
+      },
+    },
+    subscribe: {
+      value: function value(fn) {
+        effectEvents.push(fn);
+        return function () {
+          var index = effectEvents.indexOf(fn);
+          if (index >= 0) {
+            effectEvents.splice(index, 1);
+          }
+        };
+      },
+    },
+  });
+
+  return caller;
+}
+
+/**
+ * @param {String} name
  * @returns {Action} Action
  */
 function Action(name) {
-  GLOBALS.CURRENT_ACTIION += 1;
+  GLOBALS.CURRENT_ACTION += 1;
   var actionEvents = [];
-  var id = GLOBALS.CURRENT_ACTIION;
+  var id = GLOBALS.CURRENT_ACTION;
   events[id] = [];
 
   var caller = function () {
@@ -735,6 +834,12 @@ function Action(name) {
     id: {
       value: id,
     },
+    effect: {
+      value: function value(fn) {
+        return Effect(name)
+          .use(fn);
+      },
+    },
     subscribe: {
       value: function value(fn) {
         actionEvents.push(fn);
@@ -742,87 +847,6 @@ function Action(name) {
           var index = actionEvents.indexOf(fn);
           if (index >= 0) {
             actionEvents.splice(index, 1);
-          }
-        };
-      },
-    },
-  });
-
-  return caller;
-}
-
-/**
- * @param {String} name
- * @param {Function} effect
- * @returns {Effect} Effect
- */
-function Effect(name, effect) {
-  GLOBALS.CURRENT_ACTIION += 1;
-  var effectEvents = [];
-  var id = GLOBALS.CURRENT_ACTIION;
-  var status = 'idle';
-
-  events[id] = [];
-
-  var done = Action((name + " done"));
-  var fail = Action((name + " fail"));
-
-  var caller = function () {
-    var args = [], len = arguments.length;
-    while ( len-- ) args[ len ] = arguments[ len ];
-
-    status = 'loading';
-    // console.log(`Called effect ${name}`, args);
-    events[id].forEach(function (fn) {
-      fn.apply(void 0, args);
-    });
-
-    effectEvents.forEach(function (fn) {
-      fn({ params: args });
-    });
-
-    effect.apply(void 0, args)
-      .then(function (result) {
-        status = 'done';
-        // console.log('DONE', result);
-        var output = { result: result, params: args };
-        done(output);
-        effectEvents.forEach(function (fn) { return fn(output); });
-      })
-      .catch(function (error) {
-        status = 'fail';
-        // console.log('FAIL', error);
-        var output = { error: error, params: args };
-        fail(output);
-        effectEvents.forEach(function (fn) { return fn(output); });
-      });
-  };
-
-  Object.defineProperties(caller, {
-    name: {
-      value: name,
-    },
-    id: {
-      value: id,
-    },
-    done: {
-      value: done,
-    },
-    fail: {
-      value: fail,
-    },
-    status: {
-      get: function get() {
-        return status;
-      },
-    },
-    subscribe: {
-      value: function value(fn) {
-        effectEvents.push(fn);
-        return function () {
-          var index = effectEvents.indexOf(fn);
-          if (index >= 0) {
-            effectEvents.splice(index, 1);
           }
         };
       },
@@ -1844,6 +1868,48 @@ function html(preQuery, preProps) {
 }
 
 /**
+ * @param  {Function} fn
+ * @return {Function}
+ */
+function onDestroy(fn) {
+  var component = GLOBALS.CURRENT_COMPONENT;
+
+  if (component && component.source) {
+    component.source.onDestroy = fn;
+  }
+
+  return fn;
+}
+
+/**
+ * @param  {Function} fn
+ * @return {Function}
+ */
+function onMount(fn) {
+  var component = GLOBALS.CURRENT_COMPONENT;
+
+  if (component && component.source) {
+    component.source.onMount = fn;
+  }
+
+  return fn;
+}
+
+/**
+ * @param  {Function} fn
+ * @return {Function}
+ */
+function shouldUpdate(fn) {
+  var component = GLOBALS.CURRENT_COMPONENT;
+
+  if (component && component.source) {
+    component.source.shouldUpdate = fn;
+  }
+
+  return fn;
+}
+
+/**
  * @param  {HTMLElement} node
  * @param  {function} next
  */
@@ -1889,6 +1955,10 @@ var Radi = {
   patch: patch,
   mount: mount,
   Service: Service,
+
+  onDestroy: onDestroy,
+  onMount: onMount,
+  shouldUpdate: shouldUpdate,
 
   Action: Action,
   Effect: Effect,

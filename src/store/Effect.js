@@ -1,5 +1,5 @@
 import GLOBALS from '../consts/GLOBALS';
-import { events } from './Store';
+import { events, Store } from './Store';
 import { Action } from './Action';
 
 /**
@@ -7,11 +7,15 @@ import { Action } from './Action';
  * @param {Function} effect
  * @returns {Effect} Effect
  */
-export function Effect(name, effect) {
-  GLOBALS.CURRENT_ACTIION += 1;
+export function Effect(name) {
+  GLOBALS.CURRENT_ACTION += 1;
   const effectEvents = [];
-  const id = GLOBALS.CURRENT_ACTIION;
+  const id = GLOBALS.CURRENT_ACTION;
   let status = 'idle';
+  const setStatus = (newStatus) => {
+    status = newStatus;
+  };
+  let effect = (e) => Promise.resolve(e);
 
   events[id] = [];
 
@@ -19,7 +23,7 @@ export function Effect(name, effect) {
   const fail = Action(`${name} fail`);
 
   const caller = (...args) => {
-    status = 'loading';
+    setStatus('loading');
     // console.log(`Called effect ${name}`, args);
     events[id].forEach((fn) => {
       fn(...args);
@@ -31,14 +35,14 @@ export function Effect(name, effect) {
 
     effect(...args)
       .then((result) => {
-        status = 'done';
+        setStatus('done');
         // console.log('DONE', result);
         const output = { result, params: args };
         done(output);
         effectEvents.forEach((fn) => fn(output));
       })
       .catch((error) => {
-        status = 'fail';
+        setStatus('fail');
         // console.log('FAIL', error);
         const output = { error, params: args };
         fail(output);
@@ -53,6 +57,12 @@ export function Effect(name, effect) {
     id: {
       value: id,
     },
+    use: {
+      value(fn) {
+        effect = fn;
+        return caller;
+      },
+    },
     done: {
       value: done,
     },
@@ -62,6 +72,14 @@ export function Effect(name, effect) {
     status: {
       get() {
         return status;
+      },
+    },
+    statusChange: {
+      get() {
+        return Store(status)
+          .on(caller, () => status)
+          .on(done, () => status)
+          .on(fail, () => status);
       },
     },
     subscribe: {

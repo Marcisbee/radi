@@ -22,6 +22,9 @@ import {
   customAttribute,
   html,
   patch,
+  onDestroy,
+  onMount,
+  shouldUpdate,
 } from './html';
 
 const Radi = {
@@ -34,6 +37,10 @@ const Radi = {
   patch,
   mount,
   Service,
+
+  onDestroy,
+  onMount,
+  shouldUpdate,
 
   Action,
   Effect,

@@ -1,14 +1,15 @@
 import GLOBALS from '../consts/GLOBALS';
 import { events } from './Store';
+import { Effect } from './Effect';
 
 /**
  * @param {String} name
  * @returns {Action} Action
  */
 export function Action(name) {
-  GLOBALS.CURRENT_ACTIION += 1;
+  GLOBALS.CURRENT_ACTION += 1;
   const actionEvents = [];
-  const id = GLOBALS.CURRENT_ACTIION;
+  const id = GLOBALS.CURRENT_ACTION;
   events[id] = [];
 
   const caller = (...args) => {
@@ -31,6 +32,12 @@ export function Action(name) {
     },
     id: {
       value: id,
+    },
+    effect: {
+      value(fn) {
+        return Effect(name)
+          .use(fn);
+      },
     },
     subscribe: {
       value(fn) {
