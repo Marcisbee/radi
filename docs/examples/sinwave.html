@@ -39,91 +39,97 @@
 
 <body>
   <div id="app"></div>
+  <script src="https://unpkg.com/htm@2.1.1/dist/htm.js"></script>
   <script src="../../dist/radi.js"></script>
-  <script src="../../src/devTools/index.js"></script>
+  <!-- <script src="../../src/devTools/index.js"></script> -->
   <script>
-    const { r, component, list, link, mount } = radi;
+    const html = htm.bind(Radi.html);
 
-    const sinWave = component({
-      name: 'sin-wave',
-      view: function () {
-        return r('div',
-          { class: 'animated-sin-wave' },
-          list(l(this.bars), function (bar, i) {
-            return r('div',
-              {
-                class: 'bar',
-                style: {
-                  width: this.barWidth + '%',
-                  left: (this.barWidth * i) + '%',
-                  transform: l('scale(0.8,.5) translateY(' + bar.translateY + '%) rotate(' + bar.rotation + 'deg)'),
-                  // transform: ll(function() {return 'scale(0.8,.5) translateY(' + bar.translateY + '%) rotate(' + bar.rotation + 'deg)';}, [[bar, 'rotation']], 'bar.rotation'),
-                  // transform: l(this.rotation),
-                  // transform: l(bar.transform),
-                  backgroundColor: l(bar.color)
-                }
-              }
-            );
-          })
-        );
-      },
-      state: {
-        barWidth: 1,
-        barCount: 100,
-        active: false,
-        count: 0,
-        step: 0.5,
-        translateY: 0,
-        rotation: 0,
-        bars: []
-      },
-      actions: {
-        onMount() {
-          console.log('Mounted');
+    const setState = Radi.Action('Set State');
+    const store = Radi.Store({
+      barWidth: 1,
+      barCount: 100,
+      active: false,
+      count: 0,
+      step: 0.5,
+      translateY: 0,
+      rotation: 0,
+      bars: []
+    }).on(setState, (state, newState) => ({...state, ...newState}));
 
-          this.active = true;
-          this.bars = this.getColors();
 
-          this.nextFrame();
-        },
-        onDestroy() {
-          console.log('Destroyed');
+    function getColors() {
+      const { barCount, count } = store.getRawState();
 
-          this.active = false;
-          this.bars.splice(0, this.bars.length);
-        },
-        getColors() {
-          var arr = [];
-          for (var i = 0; i < this.barCount; i++) {
-            var hue = (360 / this.barCount * i - this.count) % 360;
-            arr.push({
-              id: i,
-              color: 'hsl(' + hue + ',95%,55%)',
-              translateY: Math.sin(this.count / 10 + i / 5) * 100 * .5,
-              rotation: (this.count + i) % 360,
-            });
-          }
-          return arr;
-        },
-        nextFrame() {
-          if (this.active) {
-            this.count += this.step;
-
-            this.bars = this.getColors();
-
-            window.requestAnimationFrame(() => {
-              this.nextFrame();
-            });
-          }
-        }
+      var arr = [];
+      for (var i = 0; i < barCount; i++) {
+        var hue = (360 / barCount * i - count) % 360;
+        arr.push({
+          id: i,
+          color: 'hsl(' + hue + ',95%,55%)',
+          translateY: Math.sin(count / 10 + i / 5) * 100 * .5,
+          rotation: (count + i) % 360,
+        });
       }
-    });
+      return arr;
+    }
 
-    mount(r('div',
-      new sinWave(),
-      // new sinWave(),
-      // new sinWave(),
-    ), 'app');
+    function nextFrame() {
+      const { active, count, step } = store.getRawState();
+
+      if (active) {
+        setState({
+          count: count + step,
+          bars: getColors(),
+        });
+
+        window.requestAnimationFrame(() => {
+          nextFrame();
+        });
+      }
+    }
+
+    function SinWave({
+      state = Radi.Watch(store),
+    }) {
+      Radi.onMount(() => {
+        console.log('Mounted');
+
+        setState({
+          active: true,
+          bars: getColors(),
+        });
+
+        nextFrame();
+      });
+
+      Radi.onDestroy(() => {
+        console.log('Destroyed');
+
+        setState({
+          active: false,
+          bars: [],
+        });
+      });
+
+      return html`
+        <div class="animated-sin-wave">
+          ${state.bars.map((bar, i) => html`
+            <div class="bar" style=${{
+              width: state.barWidth + '%',
+              left: (state.barWidth * i) + '%',
+              transform: 'scale(0.8,.5) translateY(' + bar.translateY + '%) rotate(' + bar.rotation + 'deg)',
+              // // transform: ll(function() {return 'scale(0.8,.5) translateY(' + bar.translateY + '%) rotate(' + bar.rotation + 'deg)';}, [[bar, 'rotation']], 'bar.rotation'),
+              // // transform: l(this.rotation),
+              // // transform: l(bar.transform),
+              backgroundColor: bar.color
+            }}></div>
+          `)}
+        </div>
+      `;
+    }
+
+    Radi.mount(Radi.html(SinWave), app);
   </script>
 </body>
 

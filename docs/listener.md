@@ -6,17 +6,17 @@ Listeners watch for changes in the state of the assigned component and if change
 Listener expects to receive component that it should listen to and path of state to listen to.
 
 ```jsx
-this.state = {
+const personStore = Radi.store({
   person: {
     name: 'John'
   }
-}
+})
 ...
-<h1>{ listener(this, 'person', 'name') }</h1>
+<h1>{ Radi.listen(personStore, (state) => state.person.name) }</h1>
 ```
 
 Listeners can also do some processing with that state value.
 
 ```jsx
-<h1>{ listener(this, 'count').process(count => count + 50) }</h1>
+<h1>{ Radi.listen(countStore, (count) => count + 50) }</h1>
 ```

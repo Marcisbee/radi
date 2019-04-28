@@ -4,9 +4,9 @@
 The basic idea is to simply create elements with `r` and mount them with `mount`, almost like you would do with plain JavaScript:
 
 ```js
-import { r, mount } from 'radi';
+import { h, mount } from 'radi';
 
-const hello = r('h1', {}, 'Hello Radi!');
+const hello = h('h1', {}, 'Hello Radi!');
 
 mount(hello, document.body);
 ```

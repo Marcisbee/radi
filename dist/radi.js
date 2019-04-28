@@ -917,10 +917,16 @@
    * @returns {Listener} Function of Listener
    */
   function Listen(store, transformer) {
+    if ( transformer === void 0 ) transformer = function (e) { return e; };
+
     return function (newTransformer) {
       if ( newTransformer === void 0 ) newTransformer = transformer;
 
-      return store.listener(newTransformer);
+      return (
+      store.listener(function (data) { return (
+        newTransformer(transformer(data))); }
+      )
+    );
     };
   }
 
@@ -1242,8 +1248,8 @@
     var onEvent = document.createEvent('Event');
     onEvent.initEvent(type, false, true);
 
-    if (typeof $node.dispatchEvent === 'function') {
-      $node.dispatchEvent(onEvent, $element);
+    if (typeof $element.dispatchEvent === 'function') {
+      $element.dispatchEvent(onEvent);
     }
 
     return $node;
@@ -1967,12 +1973,19 @@
     shouldUpdate: shouldUpdate,
 
     Action: Action,
+    action: Action,
     Effect: Effect,
+    effect: Effect,
     Event: Event,
+    event: Event,
     Listen: Listen,
+    listen: Listen,
     Merge: Merge,
+    merge: Merge,
     Store: Store,
+    store: Store,
     Watch: Watch,
+    watch: Watch,
 
     Await: Await,
     Errors: Errors,

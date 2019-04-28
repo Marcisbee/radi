@@ -70,14 +70,14 @@ This will be different as we'll need to update state and use actions. Only actio
 ```jsx
 /** @jsx Radi.h **/
 
-const changeCount = Action('Change Count');
+const changeCount = Radi.action('Change Count');
 
-const store = Radi.Store(0)
+const store = Radi.store(0)
   .schema(Number)
   .on(changeCount, (count, by) => count + by);
 
 function Counter(
-  count = Radi.Listen(store),
+  count = Radi.listen(store),
 ) {
   return (
     <div>
