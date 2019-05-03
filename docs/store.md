@@ -1,6 +1,6 @@
 ## Store
 
-Store is reactive variable that holds data (it can be object, array, string, number, etc.). It's immutable, it can only be changed by [actions](/action) or [effects](/effect).
+Store is reactive variable that holds data (it can be object, array, string, number, etc.). It's immutable, it can only be changed by [actions](action) or [effects](effect).
 
 ```js
 const nameStore = Radi.store('John Doe')
@@ -10,7 +10,7 @@ Store must be created outside components and used inside them.
 Store can be accessed in multiple ways:
 
 1. To get raw state use `nameStore.getRawState()` => "John Doe"
-2. To get [listener](/listener) use `Radi.listen(nameStore)` => Listener("John Doe")
+2. To get [listener](listener) use `Radi.listen(nameStore)` => Listener("John Doe")
 3. To get state and trigger component update use `Radi.watch(nameStore)` => "John Doe"
 
 We can listen to state changes with subscriber.
@@ -58,7 +58,7 @@ In this example user is provided with a button that says `Gain access`. When the
 #### Using `Radi.listen`
 
 If we use `Radi.listen` instead of `Radi.watch` component will not fully re-render when state changes.
-We can use [Listeners](/listener) when there is no need to reload whole component.
+We can use [Listeners](listener) when there is no need to reload whole component.
 
 ```jsx
 const increment = Radi.action('Increment')
@@ -106,9 +106,9 @@ function App() {
 
 Bind is a simple object that has two properties `value` and `oninput`. In example above user is presented with input field that says "No one" and when input is changed by used, state updates automatically.
 
-State can also be change by [actions](/action) or [effects](/effect).
+State can also be change by [actions](action) or [effects](effect).
 
-#### Using [actions](/action)
+#### Using [actions](action)
 
 We can use actions to change state. First we need to create action and then link it to single store or multiple ones. Actions first argument is current state in store and rest are arguments passed when calling action.
 
@@ -132,7 +132,7 @@ function Counter({
 }
 ```
 
-#### Using [effects](/effect)
+#### Using [effects](effect)
 
 Effects are quite similar to actions but ca
 

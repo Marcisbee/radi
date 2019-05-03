@@ -1,6 +1,6 @@
 ## Effects
 
-Effects are like [actions](/action), but it can do stuff on it's own.
+Effects are like [actions](action), but it can do stuff on it's own.
 
 This is usefull for fetching data from API or other async work that has `loading`, `done` and `error` states.
 We can get state of effect by using `Radi.status()`.
