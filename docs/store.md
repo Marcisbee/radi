@@ -106,15 +106,50 @@ function App() {
 
 Bind is a simple object that has two properties `value` and `oninput`. In example above user is presented with input field that says "No one" and when input is changed by used, state updates automatically.
 
+State can also be change by [actions](/action) or [effects](/effect).
+
 #### Using [actions](/action)
 
-```jsx
-const nameStore = Radi.store('No one')
+We can use actions to change state. First we need to create action and then link it to single store or multiple ones. Actions first argument is current state in store and rest are arguments passed when calling action.
 
-function App() {
-  return <input type="text" {...nameStore.bind} />
+Action must return new state.
+
+```jsx
+const changeCount = Radi.action('Change Count')
+const countStore = Radi.store(0)
+  .on(changeCount, (state, by) => state + by)
+
+function Counter({
+  count: Radi.listen(countStore),
+}) {
+  return (
+    <div>
+      <h1>{count}</h1>
+      <button onclick={() => changeCount(-1)}>-</button>
+      <button onclick={() => changeCount(1)}>+</button>
+    </div>
+  )
 }
 ```
 
-
 #### Using [effects](/effect)
+
+Effects are quite similar to actions but ca
+
+```jsx
+const changeCount = Radi.action('Change Count')
+const countStore = Radi.store(0)
+  .on(changeCount, (state, by) => state + by)
+
+function Counter({
+  count: Radi.listen(countStore),
+}) {
+  return (
+    <div>
+      <h1>{count}</h1>
+      <button onclick={() => changeCount(-1)}>-</button>
+      <button onclick={() => changeCount(1)}>+</button>
+    </div>
+  )
+}
+```
