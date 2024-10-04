@@ -1,3 +1,10 @@
+> [!IMPORTANT]
+> **This project is no longer maintained!**
+> 
+> From ashes [state management library "exome"](https://github.com/marcisbee/exome) was born. Go check it out, it works with any framework or as a vanilla standalone lib.
+
+---
+
 # <a href='http://radi.js.org'><img src='https://rawgit.com/radi-js/radi/gh-pages/logo/radijs-github.png' height='60' alt='Radi' aria-label='Redux.js.org' /></a>
 
 **Radi** is a tiny javascript framework.
