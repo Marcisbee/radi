@@ -1,29 +1,26 @@
 {
-  "compilerOptions": {
-    "target": "esnext",
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "typeRoots": ["node_modules/@types", "types"],
-    "allowJs": false,
-    "skipLibCheck": true,
-    "esModuleInterop": false,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "module": "esnext",
-    "moduleResolution": "Node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react",
-    "jsxFactory": "Radi.createElement",
-    "jsxFragmentFactory": "Radi.Fragment",
-    "paths": {
-      "~/*": ["./src/*"]
-    },
-    "allowImportingTsExtensions": true
-  },
-  "exclude": ["node_modules"],
-  "include": ["**/*.ts", "**/*.tsx", "**/*.js"]
+	"compilerOptions": {
+		"target": "esnext",
+		"lib": ["DOM", "DOM.Iterable", "ESNext"],
+		"typeRoots": ["node_modules/@types", "types"],
+		"allowJs": false,
+		"skipLibCheck": true,
+		"esModuleInterop": false,
+		"experimentalDecorators": true,
+		"emitDecoratorMetadata": true,
+		"allowSyntheticDefaultImports": true,
+		"strict": true,
+		"forceConsistentCasingInFileNames": true,
+		"module": "esnext",
+		"moduleResolution": "Node",
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		"noEmit": true,
+		"jsx": "react",
+		"jsxFactory": "Radi.createElement",
+		"jsxFragmentFactory": "Radi.Fragment",
+		"allowImportingTsExtensions": true
+	},
+	"exclude": ["node_modules"],
+	"include": ["**/*.ts", "**/*.tsx", "**/*.js"]
 }

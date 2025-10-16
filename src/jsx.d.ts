@@ -58,11 +58,13 @@ interface MiniFWIntrinsicElementProps {
 /**
  * Constructs component prop types where each declared prop can be reactive.
  */
-type ComponentProps<P extends Record<string, unknown>> = {
-  [K in keyof P]: Reactive<P[K]>;
-} & {
-  children?: Renderable | Renderable[] | (() => Renderable | Renderable[]);
-};
+type ComponentProps<P extends Record<string, unknown>> =
+  & {
+    [K in keyof P]: Reactive<P[K]>;
+  }
+  & {
+    children?: Renderable | Renderable[] | (() => Renderable | Renderable[]);
+  };
 
 /**
  * Component function shape for the MiniFramework.

@@ -2,15 +2,26 @@
 type ReactiveGenerator = (parent: Element) => Child | Child[];
 
 /** Primitive or structured child value accepted by createElement/buildElement. */
-type Child = string | number | boolean | null | undefined | Node | Child[] | ReactiveGenerator;
+type Child =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | Node
+  | Child[]
+  | ReactiveGenerator;
 
 /** Internal extended element with optional component marker. */
-type ComponentElement = HTMLElement & { __component?: Function; [key: string]: unknown };
+type ComponentElement = HTMLElement & {
+  __component?: Function;
+  [key: string]: unknown;
+};
 
 /* ========================= Fragment Boundary ========================= */
 
-const FRAGMENT_START_TEMPLATE = document.createComment('(');
-const FRAGMENT_END_TEMPLATE = document.createComment(')');
+const FRAGMENT_START_TEMPLATE = document.createComment("(");
+const FRAGMENT_END_TEMPLATE = document.createComment(")");
 
 /**
  * Create a fresh pair of fragment boundary comments.
@@ -34,22 +45,22 @@ function normalizeToNodes(raw: Child | Child[]): (Node | ReactiveGenerator)[] {
   while (stack.length) {
     const item = stack.shift();
     if (item == null) {
-      out.push(document.createComment('null'));
+      out.push(document.createComment("null"));
       continue;
     }
     if (Array.isArray(item)) {
       stack.unshift(...item);
       continue;
     }
-    if (typeof item === 'string' || typeof item === 'number') {
+    if (typeof item === "string" || typeof item === "number") {
       out.push(document.createTextNode(String(item)));
       continue;
     }
-    if (typeof item === 'boolean') {
-      out.push(document.createComment(item ? 'true' : 'false'));
+    if (typeof item === "boolean") {
+      out.push(document.createComment(item ? "true" : "false"));
       continue;
     }
-    if (typeof item === 'function') {
+    if (typeof item === "function") {
       // This is a reactive generator awaiting mounting context
       out.push(item as ReactiveGenerator);
       continue;
@@ -71,18 +82,20 @@ function normalizeToNodes(raw: Child | Child[]): (Node | ReactiveGenerator)[] {
  * - Comments for booleans/null
  */
 function buildElement(child: Child): Child {
-  if (typeof child === 'string' || typeof child === 'number') {
+  if (typeof child === "string" || typeof child === "number") {
     return document.createTextNode(String(child));
   }
 
-  if (typeof child === 'boolean') {
-    return document.createComment(child ? 'true' : 'false');
+  if (typeof child === "boolean") {
+    return document.createComment(child ? "true" : "false");
   }
 
-  if (typeof child === 'function') {
+  if (typeof child === "function") {
     return (parent: Element) => {
       const produced = (child as ReactiveGenerator)(parent);
-      return normalizeToNodes(([] as Child[]).concat(produced as any).map(buildElement) as any);
+      return normalizeToNodes(
+        ([] as Child[]).concat(produced as any).map(buildElement) as any,
+      );
     };
   }
 
@@ -92,12 +105,14 @@ function buildElement(child: Child): Child {
       .map(buildElement)
       .flat(Number.POSITIVE_INFINITY as 1)
       .filter(Boolean) as Child[];
-    const nodes = normalizeToNodes(built as any).filter(Boolean) as (Node | ReactiveGenerator)[];
+    const nodes = normalizeToNodes(built as any).filter(
+      Boolean,
+    ) as (Node | ReactiveGenerator)[];
     return [start, ...nodes, end];
   }
 
   if (child == null) {
-    return document.createComment('null');
+    return document.createComment("null");
   }
 
   return child;
@@ -108,7 +123,10 @@ function buildElement(child: Child): Child {
 /**
  * Apply a style object to an element.
  */
-function applyStyleObject(el: HTMLElement, styleObj: Record<string, string | number>): void {
+function applyStyleObject(
+  el: HTMLElement,
+  styleObj: Record<string, string | number>,
+): void {
   for (const k in styleObj) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (el.style as any)[k] = styleObj[k];
@@ -119,7 +137,7 @@ function applyStyleObject(el: HTMLElement, styleObj: Record<string, string | num
  * Set a property or attribute on an element.
  */
 function setPropValue(el: HTMLElement, key: string, value: unknown): void {
-  if (key === 'style' && value && typeof value === 'object') {
+  if (key === "style" && value && typeof value === "object") {
     applyStyleObject(el, value as Record<string, string | number>);
   } else if (key in el) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -171,14 +189,21 @@ function patchElement(
       // Trigger reactive re-evaluation in subtree
       dispatchEventSink(
         oAny,
-        new Event('update', { bubbles: false, cancelable: true, composed: true }),
+        new Event("update", {
+          bubbles: false,
+          cancelable: true,
+          composed: true,
+        }),
       );
     }
     return true;
   }
 
   // Component identity guard (different component types -> replace)
-  if (oAny.__component && nAny.__component && oAny.__component !== nAny.__component) {
+  if (
+    oAny.__component && nAny.__component &&
+    oAny.__component !== nAny.__component
+  ) {
     return false;
   }
 
@@ -242,8 +267,10 @@ function reconcileNodeLists(
 
     if (a.nodeType === Node.ELEMENT_NODE && b.nodeType === Node.ELEMENT_NODE) {
       if (
-        patchElement(a as Element, b as Element, (p, kids) =>
-          reconcileNodeLists(p, Array.from(p.childNodes), kids),
+        patchElement(
+          a as Element,
+          b as Element,
+          (p, kids) => reconcileNodeLists(p, Array.from(p.childNodes), kids),
         )
       ) {
         continue;
@@ -280,11 +307,13 @@ function setupReactiveRender(container: Element, fn: ReactiveGenerator): void {
 
   const render = () => {
     const produced = fn(container);
-    const flat = normalizeToNodes(produced).filter((n): n is Node => n instanceof Node);
+    const flat = normalizeToNodes(produced).filter((n): n is Node =>
+      n instanceof Node
+    );
     reconcileRange(start, end, flat);
   };
 
-  container.addEventListener('update', render);
+  container.addEventListener("update", render);
   render();
 }
 
@@ -292,7 +321,7 @@ function setupReactiveRender(container: Element, fn: ReactiveGenerator): void {
  * Helper to mount a Node or reactive generator as a child of an element.
  */
 function mountChild(parent: Element, nodeOrFn: Node | ReactiveGenerator): void {
-  if (typeof nodeOrFn === 'function') {
+  if (typeof nodeOrFn === "function") {
     setupReactiveRender(parent, nodeOrFn as ReactiveGenerator);
   } else {
     parent.appendChild(nodeOrFn);
@@ -302,7 +331,7 @@ function mountChild(parent: Element, nodeOrFn: Node | ReactiveGenerator): void {
 /* ========================= Radi Core ========================= */
 
 export const Radi = {
-  Fragment: 'fragment',
+  Fragment: "fragment",
 
   /**
    * Lightweight JSX factory.
@@ -319,13 +348,13 @@ export const Radi = {
     const normalizedChildren = normalizeToNodes(builtChildren as any);
 
     // JSX Fragment
-    if (type === 'fragment') {
+    if (type === "fragment") {
       const { start, end } = createFragmentBoundary();
       const fragmentNodes: Node[] = [];
       for (const c of normalizedChildren) {
-        if (typeof c === 'function') {
+        if (typeof c === "function") {
           // Defer mounting; reactive inside fragment wrapper
-          const placeholder = document.createComment('deferred-reactive');
+          const placeholder = document.createComment("deferred-reactive");
           fragmentNodes.push(placeholder);
           // After return, user code won't have appended yet. So we schedule microtask to mount.
           queueMicrotask(() => {
@@ -343,13 +372,13 @@ export const Radi = {
     }
 
     // Functional Component (single execution with props getter; subsequent renders supply placeholder)
-    if (typeof type === 'function') {
+    if (typeof type === "function") {
       const placeholder = document.createElement(
-        'cmp-' + (type.name || 'component'),
+        "cmp-" + (type.name || "component"),
       ) as ComponentElement & {
         __componentPending?: { type: Function; props: any };
       };
-      placeholder.style.display = 'contents';
+      placeholder.style.display = "contents";
       (placeholder as any).__componentPending = {
         type,
         props: { ...(props || {}), children: builtChildren },
@@ -373,13 +402,15 @@ export const Radi = {
         delete (placeholder as any).__componentPending;
 
         // Execute component body ONCE
-        const output = buildElement(pending.type.call(placeholder, propsGetter));
+        const output = buildElement(
+          pending.type.call(placeholder, propsGetter),
+        );
 
         // Normalize and mount output
         if (Array.isArray(output)) {
           const nodes = normalizeToNodes(output as any);
           for (const n of nodes) mountChild(placeholder, n as any);
-        } else if (typeof output === 'function') {
+        } else if (typeof output === "function") {
           setupReactiveRender(placeholder, output as ReactiveGenerator);
         } else if (output instanceof Node) {
           placeholder.appendChild(output);
@@ -397,15 +428,18 @@ export const Radi = {
     if (props) {
       for (const key in props) {
         const value = props[key];
-        if (key.startsWith('on') && typeof value === 'function') {
-          element.addEventListener(key.slice(2).toLowerCase(), value as EventListener);
-        } else if (typeof value === 'function') {
+        if (key.startsWith("on") && typeof value === "function") {
+          element.addEventListener(
+            key.slice(2).toLowerCase(),
+            value as EventListener,
+          );
+        } else if (typeof value === "function") {
           // Reactive prop function
           const evaluate = () => {
             const v = (value as (el: Element) => unknown)(element);
             setPropValue(element, key, v);
           };
-          element.addEventListener('update', evaluate);
+          element.addEventListener("update", evaluate);
           evaluate();
         } else {
           setPropValue(element, key, value);
@@ -423,9 +457,14 @@ export const Radi = {
   /**
    * Render a root node (or array / fragment) into a container, clearing previous content.
    */
-  render(node: Node | Node[] | (Node | Node[])[], container: HTMLElement): void {
-    container.innerHTML = '';
-    const flat = normalizeToNodes(node as any).filter((n): n is Node => n instanceof Node);
+  render(
+    node: Node | Node[] | (Node | Node[])[],
+    container: HTMLElement,
+  ): void {
+    container.innerHTML = "";
+    const flat = normalizeToNodes(node as any).filter((n): n is Node =>
+      n instanceof Node
+    );
     for (const n of flat) {
       container.appendChild(n);
     }
@@ -434,7 +473,7 @@ export const Radi = {
 
 /* ========================= Update & Lifecycle Events ========================= */
 
-export const updateEvent = new Event('update', {
+export const updateEvent = new Event("update", {
   bubbles: false,
   cancelable: true,
   composed: true,
@@ -468,18 +507,18 @@ export function dispatchEventSink(el: Node, event: Event): void {
  */
 export function createAbortSignal(target: Element): AbortSignal {
   const controller = new AbortController();
-  target.addEventListener('disconnect', () => controller.abort());
+  target.addEventListener("disconnect", () => controller.abort());
   return controller.signal;
 }
 
 /* ========================= Connection Events ========================= */
 
-export const connectedEvent = new Event('connect', {
+export const connectedEvent = new Event("connect", {
   bubbles: false,
   cancelable: true,
   composed: true,
 });
-export const disconnectedEvent = new Event('disconnect', {
+export const disconnectedEvent = new Event("disconnect", {
   bubbles: false,
   cancelable: true,
   composed: true,

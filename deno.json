@@ -1,10 +1,9 @@
 {
-  "name": "radi",
-  "version": "0.5.0",
-  "tasks": {
-    "dev": "deno run --watch src/main.ts",
-    "playground:full": "deno bundle --outdir dist playground/full.html"
-  },
-  "imports": {
-  }
+	"name": "radi",
+	"version": "0.5.0",
+	"tasks": {
+		"dev": "deno run --watch src/main.ts",
+		"playground:full": "deno bundle --watch --outdir dist playground/full.html & deno -A npm:livereload ./dist & deno -A npm:sirv-cli --dev ./dist"
+	},
+	"imports": {}
 }
