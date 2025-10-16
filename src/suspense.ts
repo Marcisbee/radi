@@ -74,7 +74,6 @@ export function Suspense(
 ) {
   // @TODO improve update logic, what if children or fallback props update
   const { children, fallback } = props();
-  console.log({ children, fallback });
   const target = children;
   let output = fallback;
 
