@@ -1,7 +1,7 @@
 {
 	"compilerOptions": {
 		"target": "esnext",
-		"lib": ["DOM", "DOM.Iterable", "ESNext"],
+		"lib": ["DOM", "DOM.Iterable", "ESNext", "deno.ns"],
 		"typeRoots": ["node_modules/@types", "types"],
 		"allowJs": false,
 		"skipLibCheck": true,

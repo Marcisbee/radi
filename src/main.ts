@@ -460,14 +460,11 @@ export const Radi = {
   render(
     node: Node | Node[] | (Node | Node[])[],
     container: HTMLElement,
-  ): void {
+  ): HTMLElement {
+    const el = buildElement(node);
     container.innerHTML = "";
-    const flat = normalizeToNodes(node as any).filter((n): n is Node =>
-      n instanceof Node
-    );
-    for (const n of flat) {
-      container.appendChild(n);
-    }
+    container.appendChild(el as any);
+    return el as any;
   },
 };
 
