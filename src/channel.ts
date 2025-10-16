@@ -18,8 +18,8 @@ interface ChannelContainer<T> {
 }
 
 interface Channel<T> {
-  provide(root: Element, initial: Updater<T>): ChannelAccessor<T>;
-  use(root: Element): ChannelAccessor<T>;
+  provide(root: Node, initial: Updater<T>): ChannelAccessor<T>;
+  use(root: Node): ChannelAccessor<T>;
   key: symbol;
   defaultValue: T;
 }
