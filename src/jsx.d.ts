@@ -33,7 +33,7 @@ interface MiniFWComponent<P extends Record<string, unknown> = {}> {
 
 type ElementWithChildren<T> =
   & {
-    [K in Exclude<keyof T, "style" | "children">]?:
+    [K in Exclude<keyof T, keyof Node | "style" | "children">]?:
       Exclude<T[K], null | undefined> extends Function ? T[K]
         : Reactive<T[K]>;
   }
@@ -44,7 +44,7 @@ type ElementWithChildren<T> =
 
 type ElementWithoutChildren<T> =
   & {
-    [K in Exclude<keyof T, "style" | "children">]?:
+    [K in Exclude<keyof T, keyof Node | "style" | "children">]?:
       Exclude<T[K], null | undefined> extends Function ? T[K]
         : Reactive<T[K]>;
   }
@@ -57,11 +57,24 @@ type ElementWithoutChildren<T> =
  */
 declare global {
   namespace JSX {
+    type Props<T extends Record<string, any> = Record<string, any>> = () => T;
+    type PropsWithChildren<
+      T extends Record<string, any> = Record<string, any>,
+    > = () => T & {
+      children: any;
+    };
+
     /**
      * The Element type encompasses all renderables including functions,
      * to allow returning a function directly from components.
      */
     type Element = HTMLElement;
+    type ElementType =
+      // All the valid lowercase tags
+      | keyof IntrinsicElements
+      // Function components
+      | ((props: any) => Element)
+      | ((props: any) => () => Element);
 
     /**
      * IntrinsicElements: every tag name maps to permissive, reactive-capable props.

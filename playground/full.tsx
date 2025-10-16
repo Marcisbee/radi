@@ -7,7 +7,7 @@ const Theme = createChannel<"light" | "dark">("light");
 
 function ThemeProvider(
   this: DocumentFragment,
-  props: () => { children: any[] },
+  props: JSX.PropsWithChildren,
 ) {
   // Provide (idempotent across re-renders unless you explicitly change value)
   const theme = Theme.provide(this, "light");
@@ -81,7 +81,10 @@ function SuspendedChild(this: DocumentFragment) {
   );
 }
 
-function CounterSignal(this: DocumentFragment, props: () => { count: number }) {
+function CounterSignal(
+  this: DocumentFragment,
+  props: JSX.Props<{ count: number }>,
+) {
   const countSignal = createSignal(props().count);
 
   return (
@@ -100,7 +103,10 @@ function CounterSignal(this: DocumentFragment, props: () => { count: number }) {
   );
 }
 
-function Drummer(this: DocumentFragment, props: () => { bpm: () => number }) {
+function Drummer(
+  this: DocumentFragment,
+  props: JSX.Props<{ bpm: () => number }>,
+) {
   const { bpm } = props();
   const signal = createAbortSignal(this);
 
@@ -160,7 +166,7 @@ function Drummer(this: DocumentFragment, props: () => { bpm: () => number }) {
 
 function CustomInput(
   this: DocumentFragment,
-  props: () => { defaultValue?: string },
+  props: JSX.Props<{ defaultValue?: string }>,
 ) {
   let value = props().defaultValue || "";
 
@@ -181,7 +187,7 @@ function CustomInput(
   );
 }
 
-function Counter(this: DocumentFragment, props: () => { count: number }) {
+function Counter(this: DocumentFragment, props: JSX.Props<{ count: number }>) {
   let count = props().count;
   return (
     <button
@@ -232,9 +238,6 @@ function Tab2(this: DocumentFragment) {
   );
 }
 
-const a = document.createElement("form");
-a.onsubmit = (e) => e;
-
 function Tabber(this: DocumentFragment) {
   let tab = "tab1";
 
@@ -271,12 +274,12 @@ function Sub1(this: DocumentFragment) {
   return () => <Sub2 value={Math.random()} />;
 }
 
-function Sub2(props: () => { value: number }) {
+function Sub2(props: JSX.Props<{ value: number }>) {
   console.log("render");
   return <h3>Value: {() => props().value}</h3>;
 }
 
-function App(this: DocumentFragment, props: () => { name: string }) {
+function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
   let bpm = 120;
 
   const signal = createAbortSignal(this);
@@ -301,8 +304,12 @@ function App(this: DocumentFragment, props: () => { name: string }) {
   const ref = <strong>this is gray</strong>;
   ref.style.color = "gray";
 
+  const customElement = document.createElement("strong");
+  customElement.innerHTML = "Hello from custom createElement";
+
   return (
     <div>
+      {customElement}
       <h1>
         Hey {() => props().name} {() => bpm}
       </h1>
