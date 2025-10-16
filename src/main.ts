@@ -505,7 +505,7 @@ export function dispatchEventSink(el: Node, event: Event): void {
 /**
  * Create an AbortSignal bound to element disconnect.
  */
-export function createAbortSignal(target: Element): AbortSignal {
+export function createAbortSignal(target: Node): AbortSignal {
   const controller = new AbortController();
   target.addEventListener("disconnect", () => controller.abort());
   return controller.signal;
