@@ -32,7 +32,7 @@ function Badge(this: DocumentFragment) {
       Theme: {theme}
       <button
         type="button"
-        onClick={() => {
+        onclick={() => {
           theme.set((prev) => (prev === "light" ? "dark" : "light"));
         }}
         style={{ marginLeft: "8px" }}
@@ -41,7 +41,7 @@ function Badge(this: DocumentFragment) {
       </button>
       <button
         type="button"
-        onClick={() => {
+        onclick={() => {
           theme.update(); // force consumers to re-render without changing value
         }}
         style={{ marginLeft: "4px" }}
@@ -87,7 +87,7 @@ function CounterSignal(this: DocumentFragment, props: () => { count: number }) {
   return (
     <button
       type="button"
-      onClick={() => {
+      onclick={() => {
         countSignal(countSignal() + 1);
       }}
       disabled={countSignal((c) => c >= 10)}
@@ -169,7 +169,7 @@ function CustomInput(
       <input
         type="text"
         value={() => value}
-        onInput={(e: Event) => {
+        oninput={(e) => {
           const input = e.target as HTMLInputElement;
           value = input.value;
           update(this);
@@ -186,7 +186,7 @@ function Counter(this: DocumentFragment, props: () => { count: number }) {
   return (
     <button
       type="button"
-      onClick={() => {
+      onclick={() => {
         count++;
         update(this);
       }}
@@ -215,7 +215,7 @@ function Tab2(this: DocumentFragment) {
   });
   return (
     <form
-      onSubmit={(e) => {
+      onsubmit={(e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
         const formObject = Object.fromEntries(formData.entries());
@@ -232,6 +232,9 @@ function Tab2(this: DocumentFragment) {
   );
 }
 
+const a = document.createElement("form");
+a.onsubmit = (e) => e;
+
 function Tabber(this: DocumentFragment) {
   let tab = "tab1";
 
@@ -239,7 +242,7 @@ function Tabber(this: DocumentFragment) {
     <div>
       <button
         type="button"
-        onClick={() => {
+        onclick={() => {
           tab = "tab1";
           update(this);
         }}
@@ -248,7 +251,7 @@ function Tabber(this: DocumentFragment) {
       </button>
       <button
         type="button"
-        onClick={() => {
+        onclick={() => {
           tab = "tab2";
           update(this);
         }}

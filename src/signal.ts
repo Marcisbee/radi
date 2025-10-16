@@ -41,7 +41,7 @@ export function createSignal<T = any>(initialValue: T) {
 
     if (typeof newValue === "function") {
       const mapper = newValue as (map: T) => T;
-      return (el: Node) => {
+      return (el: Node): any => {
         attachNodeListeners(el);
         return mapper(value);
       };
