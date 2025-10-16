@@ -1,0 +1,10 @@
+{
+  "name": "radi",
+  "version": "0.5.0",
+  "tasks": {
+    "dev": "deno run --watch src/main.ts",
+    "playground:full": "deno bundle --outdir dist playground/full.html"
+  },
+  "imports": {
+  }
+}

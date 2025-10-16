@@ -1,0 +1,36 @@
+{
+  "lsp": {
+    "deno": {
+      "settings": {
+        "deno": {
+          "enable": true
+        }
+      }
+    }
+  },
+  "languages": {
+    "TypeScript": {
+      "language_servers": [
+        "deno",
+        "biome",
+        "!typescript-language-server",
+        "!vtsls",
+        "!eslint"
+      ]
+    },
+    "TSX": {
+      "language_servers": [
+        "deno",
+        "biome",
+        "!typescript-language-server",
+        "!vtsls",
+        "!eslint"
+      ]
+    }
+  },
+  "formatter": {
+    "language_server": {
+      "name": "biome"
+    }
+  }
+}
