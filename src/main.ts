@@ -458,13 +458,12 @@ export const Radi = {
    * Render a root node (or array / fragment) into a container, clearing previous content.
    */
   render(
-    node: Node | Node[] | (Node | Node[])[],
+    node: JSX.Element,
     container: HTMLElement,
   ): HTMLElement {
-    const el = buildElement(node);
     container.innerHTML = "";
-    container.appendChild(el as any);
-    return el as any;
+    container.appendChild(node as any);
+    return node as any;
   },
 };
 
