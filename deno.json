@@ -4,7 +4,8 @@
 	"tasks": {
 		"dev": "deno run --watch src/main.ts",
 		"playground:full": "deno bundle --watch --outdir dist playground/full.html & deno -A npm:livereload ./dist & deno -A npm:sirv-cli --dev ./dist",
-		"test": "deno -A --unstable-bundle --watch=src ./test/server.ts src"
+		"test": "deno -A --unstable-bundle --watch=src ./test/test.ts src",
+		"bench": "deno -A --unstable-bundle ./test/bench.ts src"
 	},
 	"exports": {
     "./*": "./src/*.ts"

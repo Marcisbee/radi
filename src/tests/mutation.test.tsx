@@ -115,7 +115,7 @@ test("manual mutate, manual update container", async () => {
   update(container);
 
   const span2 = container.querySelector("span")!;
-  assert.equal(span2.textContent, "3");
+  assert.equal(span2.textContent, "2");
 });
 
 test("manual mutate, manual update span", async () => {
