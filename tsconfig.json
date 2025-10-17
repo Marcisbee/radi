@@ -16,10 +16,15 @@
 		"resolveJsonModule": true,
 		"isolatedModules": true,
 		"noEmit": true,
-		"jsx": "react",
-		"jsxFactory": "createElement",
-		"jsxFragmentFactory": "Fragment",
-		"allowImportingTsExtensions": true
+		"jsx": "react-jsx",
+		"jsxImportSource": "radi",
+		"allowImportingTsExtensions": true,
+		"baseUrl": ".",
+		"paths": {
+			"radi": ["."],
+			"radi/jsx-runtime": ["src/jsx-runtime.ts"],
+			"radi/jsx-dev-runtime": ["src/jsx-dev-runtime.ts"]
+		}
 	},
 	"exclude": ["node_modules"],
 	"include": ["**/*.ts", "**/*.tsx", "**/*.js"]

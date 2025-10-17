@@ -1,7 +1,7 @@
 import { assert, test } from "../../test/runner.ts";
 import { mount } from "../../test/utils.ts";
 
-import { createElement, Fragment, update } from "../main.ts";
+import { update } from "../main.ts";
 
 let count = 0;
 function Counter(this: HTMLElement) {

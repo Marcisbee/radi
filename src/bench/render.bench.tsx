@@ -6,8 +6,6 @@ import {
 } from "npm:react";
 import { createRoot } from "npm:react-dom/client";
 
-import { createElement } from "../main.ts";
-
 import { waitUntilElementVisible } from "./bench.utils.ts";
 
 const bench = new Bench();
