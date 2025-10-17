@@ -249,12 +249,24 @@ function createTestAPI() {
     }
   }
 
-  const api = (<T extends TestFn>(name: string, fn: T) => {
+  const api: {
+    (name: string, fn: TestFn): void;
+    skip(name: string, fn?: TestFn): void;
+    before: {
+      (fn: TestFn): void;
+      each: (fn: TestFn) => void;
+    };
+    after: {
+      (fn: TestFn): void;
+      each: (fn: TestFn) => void;
+    };
+    run(): Promise<RunResult>;
+  } = <T extends TestFn>(name: string, fn: T) => {
     if (started) {
       throw new Error("Cannot add tests after test.run() has started");
     }
     tests.push({ name, fn });
-  }) as any;
+  };
 
   api.skip = (name: string, fn?: TestFn) => {
     if (started) {
@@ -263,12 +275,12 @@ function createTestAPI() {
     tests.push({ name, fn: fn || (() => {}), skipped: true });
   };
 
-  api.before = (fn: TestFn) => {
+  api.before = ((fn: TestFn) => {
     beforeAll.push(fn);
-  };
-  api.after = (fn: TestFn) => {
+  }) as any;
+  api.after = ((fn: TestFn) => {
     afterAll.push(fn);
-  };
+  }) as any;
   api.before.each = (fn: TestFn) => {
     beforeEach.push(fn);
   };

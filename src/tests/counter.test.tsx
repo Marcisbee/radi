@@ -1,7 +1,7 @@
-import { assert, test } from "../test/runner.ts";
-import { mount } from "../test/utils.ts";
+import { assert, test } from "../../test/runner.ts";
+import { mount } from "../../test/utils.ts";
 
-import { Radi, update } from "./main.ts";
+import { Radi, update } from "../main.ts";
 
 function Counter(this: HTMLElement) {
   let count = 0;
