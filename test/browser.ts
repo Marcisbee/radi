@@ -26,6 +26,11 @@ export async function startBrowser(html: string, watch: boolean) {
       await msg.page()?.consoleMessages();
     }
 
+    if (type === "table") {
+      console.table(...args);
+      return;
+    }
+
     if (type === "startGroup") {
       console.group(...args);
       return;

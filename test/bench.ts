@@ -93,27 +93,56 @@ if (!bundleResult.success) {
 }
 
 // Wrap each bundled file in its own grouped script similar to test runner
-const scripts = bundleResult.outputFiles?.map((file, i) => {
-  const entry = entrypoints[i];
-  return `<script type="module">console.log("");console.group("%c${entry}","text-decoration:underline;");${file.text()};console.groupEnd();</script>`;
-}) || [];
+const files = bundleResult.outputFiles ?? [];
 
-// Final script to show summary and signal done
-const footer = `
-<script type=\"module\">
-setTimeout(() => {
-  (window.__done)?.( (window.__bench_errors||[]).length ? 1 : 0 );
+// Build import map with data: URLs for each bundled entry
+const importMapEntries: Record<string, string> = {};
+for (let i = 0; i < entrypoints.length; i++) {
+  const entry = entrypoints[i];
+  const file = files[i];
+  if (!file) continue;
+  // file.text() in the original code; await it to get contents
+  const code = file.text();
+  const dataUrl = "data:text/javascript;charset=utf-8," +
+    encodeURIComponent(code);
+  importMapEntries[entry] = dataUrl;
+}
+
+const importMapScript = `<script type="importmap">${
+  JSON.stringify({ imports: importMapEntries }, null, 2)
+}</script>`;
+
+// Single module script that imports each entry (which resolve to the data URLs)
+// and groups console output per entry
+const mainScript = `<script type="module">
+  const entries = ${JSON.stringify(entrypoints)};
+  for (const entry of entries) {
+    console.log("");
+    console.group("%c" + entry, "text-decoration:underline;");
+    try {
+      await import(entry);
+    } catch (e) {
+      console.error(e);
+      (window.__bench_errors = window.__bench_errors || []).push(e);
+    }
+    console.groupEnd();
+  }
+
+  setTimeout(() => {
+    (window.__done)?.( (window.__bench_errors||[]).length ? 1 : 0 );
   }, 10);
-</script>
-`;
+</script>`;
 
 // Compose HTML
 const html = `<!DOCTYPE html>
 <html lang=\"en\">
-  <head><meta charset=\"UTF-8\"/><title>Bench Runner</title></head>
+  <head>
+    <meta charset=\"UTF-8\"/>
+    <title>Bench Runner</title>
+    ${importMapScript}
+  </head>
   <body>
-    ${scripts.join("\n")}
-    ${footer}
+    ${mainScript}
   </body>
 </html>`;
 
