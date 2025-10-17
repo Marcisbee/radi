@@ -2,6 +2,24 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { parseArgs } from "node:util";
+import { startBrowser } from "./browser.ts";
+
+const { values, positionals } = parseArgs({
+  args: Deno.args,
+  options: {
+    ui: {
+      type: "boolean",
+      default: false,
+    },
+    watch: {
+      type: "boolean",
+      default: false,
+    },
+  },
+  strict: true,
+  allowPositionals: true,
+});
 
 function* walkSync(dir: string): IterableIterator<string> {
   const isFile = fs.statSync(dir).isFile();
@@ -65,16 +83,16 @@ function directory(
   }
 }
 
-const root = path.resolve(Deno.args[0] || "./");
+const root = path.resolve(positionals[0] || "./");
 const entrypoints: string[] = [];
-directory([path.resolve(Deno.args[0] || "./")], (filePath) => {
-  // const relativePath = filePath.replace(
-  //   new RegExp(`^${Deno.cwd().replace(/\//g, "/")}\/`),
-  //   "",
-  // );
+directory([path.resolve(positionals[0] || "./")], (filePath) => {
+  const relativePath = filePath.replace(
+    new RegExp(`^${Deno.cwd().replace(/\//g, "/")}\/`),
+    "",
+  );
 
   // console.log(`Found "${relativePath}"`);
-  entrypoints.push(filePath);
+  entrypoints.push(relativePath);
 }, { include: [/\.test\.tsx?/] });
 
 if (!entrypoints?.length) {
@@ -88,6 +106,8 @@ const result = await Deno.bundle({
   minify: false,
   sourcemap: "inline",
   write: false,
+  format: "esm",
+  codeSplitting: false,
 });
 
 if (!result.success) {
@@ -97,20 +117,29 @@ if (!result.success) {
   throw new Error("Bundling failed");
 }
 
-const server = Deno.serve({ port: 8000 }, () => (
-  new Response(
-    `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>Tester1000</title></head><body>${
-      result.outputFiles!.map((file) =>
-        `<script type="module">${file.text()}</script>`
-      ).concat(
-        `<script type="module">window.__done?.();console.log("Done");</script>`,
-      ).join("\n")
-    }</body></html>`,
-    {
-      status: 200,
-      headers: { "Content-Type": "text/html" },
-    },
-  )
-));
+const html =
+  `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>BoltWatch</title></head><body>${
+    result.outputFiles?.map((file, i) =>
+      `<script type="module">console.log("");console.group("%c${
+        entrypoints[i]
+      }", "text-decoration:underline;");${file.text()};console.groupEnd();</script>`
+    ).concat(
+      `<script type="module">window.showReport();(window.__done)?.(window.__test_failing)</script>`,
+    ).join("\n")
+  }</body></html>`;
 
-await server.finished;
+if (values.ui) {
+  const server = Deno.serve({ port: 8000 }, () => (
+    new Response(
+      html,
+      {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+      },
+    )
+  ));
+
+  await server.finished;
+}
+
+await startBrowser(html, values.watch);
