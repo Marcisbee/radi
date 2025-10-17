@@ -17,8 +17,8 @@
 		"isolatedModules": true,
 		"noEmit": true,
 		"jsx": "react",
-		"jsxFactory": "Radi.createElement",
-		"jsxFragmentFactory": "Radi.Fragment",
+		"jsxFactory": "createElement",
+		"jsxFragmentFactory": "Fragment",
 		"allowImportingTsExtensions": true
 	},
 	"exclude": ["node_modules"],

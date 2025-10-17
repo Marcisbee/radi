@@ -1,4 +1,10 @@
-import { createAbortSignal, Radi, update } from "../src/main.ts";
+import {
+  createAbortSignal,
+  createElement,
+  Fragment,
+  render,
+  update,
+} from "../src/main.ts";
 import { createChannel } from "../src/channel.ts";
 import { suspend, Suspense, unsuspend } from "../src/suspense.ts";
 import { createSignal } from "../src/signal.ts";
@@ -344,4 +350,4 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
   );
 }
 
-Radi.render(<App name="World" />, document.body);
+render(<App name="World" />, document.body);

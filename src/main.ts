@@ -330,142 +330,140 @@ function mountChild(parent: Element, nodeOrFn: Node | ReactiveGenerator): void {
 
 /* ========================= Radi Core ========================= */
 
-export const Radi = {
-  Fragment: "fragment",
+export const Fragment = "fragment";
 
-  /**
-   * Lightweight JSX factory.
-   * - Supports functional components.
-   * - Supports fragments (Radi.Fragment).
-   * - Handles reactive child functions.
-   */
-  createElement(
-    type: string | Function,
-    props: Record<string, unknown> | null,
-    ...childrenRaw: Child[]
-  ): Node | Node[] {
-    const builtChildren = childrenRaw.map(buildElement);
-    const normalizedChildren = normalizeToNodes(builtChildren as any);
+/**
+ * Lightweight JSX factory.
+ * - Supports functional components.
+ * - Supports fragments (Radi.Fragment).
+ * - Handles reactive child functions.
+ */
+export function createElement(
+  type: string | Function,
+  props: Record<string, unknown> | null,
+  ...childrenRaw: Child[]
+): Node | Node[] {
+  const builtChildren = childrenRaw.map(buildElement);
+  const normalizedChildren = normalizeToNodes(builtChildren as any);
 
-    // JSX Fragment
-    if (type === "fragment") {
-      const { start, end } = createFragmentBoundary();
-      const fragmentNodes: Node[] = [];
-      for (const c of normalizedChildren) {
-        if (typeof c === "function") {
-          // Defer mounting; reactive inside fragment wrapper
-          const placeholder = document.createComment("deferred-reactive");
-          fragmentNodes.push(placeholder);
-          // After return, user code won't have appended yet. So we schedule microtask to mount.
-          queueMicrotask(() => {
-            const parent = placeholder.parentNode as Element | null;
-            if (parent) {
-              setupReactiveRender(parent, c as ReactiveGenerator);
-              parent.removeChild(placeholder);
-            }
-          });
-        } else {
-          fragmentNodes.push(c);
-        }
-      }
-      return [start, ...fragmentNodes, end];
-    }
-
-    // Functional Component (single execution with props getter; subsequent renders supply placeholder)
-    if (typeof type === "function") {
-      const placeholder = document.createElement(
-        "cmp-" + (type.name || "component"),
-      ) as ComponentElement & {
-        __componentPending?: { type: Function; props: any };
-      };
-      placeholder.style.display = "contents";
-      (placeholder as any).__componentPending = {
-        type,
-        props: { ...(props || {}), children: builtChildren },
-      };
-
-      // Mount once in a microtask (after insertion so parent reconciliation completes)
-      queueMicrotask(() => {
-        const pending = (placeholder as any).__componentPending;
-        if (!pending) return; // already mounted or discarded
-        // Proceed with mounting even if not yet connected (supports nested component placeholders)
-        // Prevent double mount
-        if ((placeholder as any).__mounted) return;
-
-        const propsRef = { current: pending.props };
-        const propsGetter = () => propsRef.current;
-
-        // Mark as mounted component
-        placeholder.__component = pending.type;
-        (placeholder as any).__propsRef = propsRef;
-        (placeholder as any).__mounted = true;
-        delete (placeholder as any).__componentPending;
-
-        // Execute component body ONCE
-        const output = buildElement(
-          pending.type.call(placeholder, propsGetter),
-        );
-
-        // Normalize and mount output
-        if (Array.isArray(output)) {
-          const nodes = normalizeToNodes(output as any);
-          for (const n of nodes) mountChild(placeholder, n as any);
-        } else if (typeof output === "function") {
-          setupReactiveRender(placeholder, output as ReactiveGenerator);
-        } else if (output instanceof Node) {
-          placeholder.appendChild(output);
-        } else {
-          placeholder.appendChild(document.createTextNode(String(output)));
-        }
-      });
-
-      return placeholder;
-    }
-
-    // Native Element
-    const element = document.createElement(type) as ComponentElement;
-
-    if (props) {
-      for (const key in props) {
-        const value = props[key];
-        if (key.startsWith("on") && typeof value === "function") {
-          element.addEventListener(
-            key.slice(2).toLowerCase(),
-            value as EventListener,
-          );
-        } else if (typeof value === "function") {
-          // Reactive prop function
-          const evaluate = () => {
-            const v = (value as (el: Element) => unknown)(element);
-            setPropValue(element, key, v);
-          };
-          element.addEventListener("update", evaluate);
-          evaluate();
-        } else {
-          setPropValue(element, key, value);
-        }
-      }
-    }
-
+  // JSX Fragment
+  if (type === "fragment") {
+    const { start, end } = createFragmentBoundary();
+    const fragmentNodes: Node[] = [];
     for (const c of normalizedChildren) {
-      mountChild(element, c as any);
+      if (typeof c === "function") {
+        // Defer mounting; reactive inside fragment wrapper
+        const placeholder = document.createComment("deferred-reactive");
+        fragmentNodes.push(placeholder);
+        // After return, user code won't have appended yet. So we schedule microtask to mount.
+        queueMicrotask(() => {
+          const parent = placeholder.parentNode as Element | null;
+          if (parent) {
+            setupReactiveRender(parent, c as ReactiveGenerator);
+            parent.removeChild(placeholder);
+          }
+        });
+      } else {
+        fragmentNodes.push(c);
+      }
     }
+    return [start, ...fragmentNodes, end];
+  }
 
-    return element;
-  },
+  // Functional Component (single execution with props getter; subsequent renders supply placeholder)
+  if (typeof type === "function") {
+    const placeholder = document.createElement(
+      "cmp-" + (type.name || "component"),
+    ) as ComponentElement & {
+      __componentPending?: { type: Function; props: any };
+    };
+    placeholder.style.display = "contents";
+    (placeholder as any).__componentPending = {
+      type,
+      props: { ...(props || {}), children: builtChildren },
+    };
 
-  /**
-   * Render a root node (or array / fragment) into a container, clearing previous content.
-   */
-  render(
-    node: JSX.Element,
-    container: HTMLElement,
-  ): HTMLElement {
-    container.innerHTML = "";
-    container.appendChild(node as any);
-    return node as any;
-  },
-};
+    // Mount once in a microtask (after insertion so parent reconciliation completes)
+    queueMicrotask(() => {
+      const pending = (placeholder as any).__componentPending;
+      if (!pending) return; // already mounted or discarded
+      // Proceed with mounting even if not yet connected (supports nested component placeholders)
+      // Prevent double mount
+      if ((placeholder as any).__mounted) return;
+
+      const propsRef = { current: pending.props };
+      const propsGetter = () => propsRef.current;
+
+      // Mark as mounted component
+      placeholder.__component = pending.type;
+      (placeholder as any).__propsRef = propsRef;
+      (placeholder as any).__mounted = true;
+      delete (placeholder as any).__componentPending;
+
+      // Execute component body ONCE
+      const output = buildElement(
+        pending.type.call(placeholder, propsGetter),
+      );
+
+      // Normalize and mount output
+      if (Array.isArray(output)) {
+        const nodes = normalizeToNodes(output as any);
+        for (const n of nodes) mountChild(placeholder, n as any);
+      } else if (typeof output === "function") {
+        setupReactiveRender(placeholder, output as ReactiveGenerator);
+      } else if (output instanceof Node) {
+        placeholder.appendChild(output);
+      } else {
+        placeholder.appendChild(document.createTextNode(String(output)));
+      }
+    });
+
+    return placeholder;
+  }
+
+  // Native Element
+  const element = document.createElement(type) as ComponentElement;
+
+  if (props) {
+    for (const key in props) {
+      const value = props[key];
+      if (key.startsWith("on") && typeof value === "function") {
+        element.addEventListener(
+          key.slice(2).toLowerCase(),
+          value as EventListener,
+        );
+      } else if (typeof value === "function") {
+        // Reactive prop function
+        const evaluate = () => {
+          const v = (value as (el: Element) => unknown)(element);
+          setPropValue(element, key, v);
+        };
+        element.addEventListener("update", evaluate);
+        evaluate();
+      } else {
+        setPropValue(element, key, value);
+      }
+    }
+  }
+
+  for (const c of normalizedChildren) {
+    mountChild(element, c as any);
+  }
+
+  return element;
+}
+
+/**
+ * Render a root node (or array / fragment) into a container, clearing previous content.
+ */
+export function render(
+  node: JSX.Element,
+  container: HTMLElement,
+): HTMLElement {
+  container.innerHTML = "";
+  container.appendChild(node as any);
+  return node as any;
+}
 
 /* ========================= Update & Lifecycle Events ========================= */
 

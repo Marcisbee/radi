@@ -1,7 +1,7 @@
-import { Radi } from "../src/main.ts";
+import { render } from "../src/main.ts";
 
-export function mount(...args: Parameters<typeof Radi.render>) {
-  const container = Radi.render(...args);
+export function mount(...args: Parameters<typeof render>) {
+  const container = render(...args);
   return new Promise<HTMLElement>((resolve) =>
     container.addEventListener(
       "connect",
