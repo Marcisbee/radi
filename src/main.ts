@@ -477,7 +477,9 @@ export const updateEvent = new Event("update", {
  * Dispatch an update event to an element subtree (reactive props & functions re-evaluate).
  */
 export function update(root: Node): void {
-  dispatchEventSink(root, updateEvent);
+  // try {
+    dispatchEventSink(root, updateEvent);
+  // } catch {}
 }
 
 /**
@@ -485,9 +487,8 @@ export function update(root: Node): void {
  */
 export function dispatchEventSink(el: Node, event: Event): void {
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_ELEMENT);
-  const list: Element[] = [];
   let current: Node | null = walker.currentNode;
-  if (current?.nodeType === Node.ELEMENT_NODE) list.push(current as Element);
+  const list: Element[] = [current as Element];
   while ((current = walker.nextNode())) {
     if (current.nodeType === Node.ELEMENT_NODE) list.push(current as Element);
   }
