@@ -106,15 +106,11 @@ test("suspense fallback then resolution", async () => {
     document.body,
   );
   // Initial should show fallback
-  assert.ok(
-    root.textContent!.includes("Loading..."),
-    "Should render fallback first",
-  );
-  await clock.fastForward(150);
-  assert.ok(
-    root.textContent!.includes("I am unsuspended"),
-    "Should render child after unsuspend",
-  );
+  assert.ok(root.textContent!.includes("Loading..."));
+  await clock.fastForward(90);
+  assert.not.ok(root.textContent!.includes("I am unsuspended"));
+  await clock.fastForward(10);
+  assert.ok(root.textContent!.includes("I am unsuspended"));
   assert.ok(root.textContent!.includes("Extra"));
 });
 
@@ -334,10 +330,8 @@ test("tabber switches and form collects events", async () => {
 
   input.value = "alpha";
   submit.click();
-  await Promise.resolve();
   input.value = "beta";
   submit.click();
-  await Promise.resolve();
 
   const lis = panel.querySelectorAll("li");
   assert.is(lis.length, 2);
@@ -393,7 +387,7 @@ test("createAbortSignal triggers abort on component removal", async () => {
   // Remove from DOM -> disconnect -> abort
   root.parentNode!.removeChild(root);
   // Allow mutation observer to process
-  await new Promise((r) => setTimeout(r, 10));
+  await Promise.resolve();
   assert.is(events.length, 1);
   assert.is(events[0], "aborted");
 });

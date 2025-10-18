@@ -14,7 +14,7 @@
  *
  * await test.run();
  *
- * Now logs every PASS / FAIL / SKIP test name.
+ * Logs every PASS / FAIL / SKIP test name with per-test duration.
  */
 import type { Clock } from "npm:playwright@1.56.1";
 
@@ -202,19 +202,7 @@ function createTestAPI() {
   const STYLE_ERROR_TEST_NAME =
     "color:#b71c1c;font-weight:bold;text-decoration:underline;";
   const STYLE_ERROR_STACK = "color:#b71c1c;";
-
-  function logStatus(status: "PASS" | "FAIL" | "SKIP", testName: string) {
-    const style = status === "PASS"
-      ? STYLE_PASS
-      : status === "FAIL"
-      ? STYLE_FAIL
-      : STYLE_SKIP;
-    (status === "FAIL" ? console.group : console.log)(
-      `%c${status} %c${testName}`,
-      style,
-      "font-weight:normal;",
-    );
-  }
+  const STYLE_DURATION = "color:#9e9e9e;font-weight:normal;";
 
   function printErrorDetail(d: any) {
     if (d instanceof Error && d.stack) {
@@ -237,8 +225,32 @@ function createTestAPI() {
         STYLE_ERROR_TEST_NAME,
       );
     }
-
     details.forEach(printErrorDetail);
+  }
+
+  function logStatus(
+    status: "PASS" | "FAIL" | "SKIP",
+    testName: string,
+    durationMs?: number,
+  ) {
+    const style = status === "PASS"
+      ? STYLE_PASS
+      : status === "FAIL"
+      ? STYLE_FAIL
+      : STYLE_SKIP;
+
+    const hasDuration = durationMs !== undefined;
+    const durationStr = hasDuration ? ` %c(${durationMs!.toFixed(2)} ms)` : "";
+    const fmt = `%c${status} %c${testName}${durationStr}`;
+
+    const args: any[] = [fmt, style, "font-weight:normal;"];
+    if (hasDuration) args.push(STYLE_DURATION);
+
+    if (status === "FAIL") {
+      console.group(...args);
+    } else {
+      console.log(...args);
+    }
   }
 
   async function runHookList(list: TestFn[], label: string, testName?: string) {
@@ -308,10 +320,8 @@ function createTestAPI() {
       errors.push({ error: err });
       logError("Aborting: beforeAll hook failed.");
       const durationMs = now() - start;
-      // All non-skipped tests count as failed because we can't proceed
       const failed = tests.filter((t) => !t.skipped).length;
       const skipped = tests.filter((t) => t.skipped).length;
-      // Log skipped tests (for completeness)
       for (const t of tests.filter((t) => t.skipped)) {
         logStatus("SKIP", t.name);
       }
@@ -336,48 +346,59 @@ function createTestAPI() {
         continue;
       }
 
+      const testStart = now();
+      let testFailed = false;
+      const testErrors: any[] = [];
+
+      // beforeEach
       try {
         await runHookList(beforeEach, "beforeEach", t.name);
       } catch (hookError) {
-        // Treat beforeEach failure as test failure (not skip)
-        failed++;
-        errors.push({ test: t.name, error: hookError });
-        logStatus("FAIL", t.name);
-        console.groupEnd();
-        continue; // Skip test body execution
-      }
-
-      let testFailed = false;
-      try {
-        const result = t.fn();
-        if (result instanceof Promise) {
-          await result;
-        }
-      } catch (error) {
         testFailed = true;
         failed++;
-        errors.push({ test: t.name, error });
-        logStatus("FAIL", t.name);
-        logTestError("", t.name, error);
-        console.groupEnd();
-      }
-
-      try {
-        await runHookList(afterEach, "afterEach", t.name);
-      } catch (hookError) {
-        if (!testFailed) {
-          failed++;
-          logStatus("FAIL", t.name);
-          console.groupEnd();
-        }
         errors.push({ test: t.name, error: hookError });
-        logTestError("afterEach hook failed", t.name, hookError);
-        continue;
+        testErrors.push(hookError);
       }
 
+      // test body
       if (!testFailed) {
+        try {
+          const result = t.fn();
+          if (result instanceof Promise) {
+            await result;
+          }
+        } catch (error) {
+          testFailed = true;
+          failed++;
+          errors.push({ test: t.name, error });
+          testErrors.push(error);
+        }
+      }
+
+      // afterEach
+      if (!testFailed) {
+        try {
+          await runHookList(afterEach, "afterEach", t.name);
+        } catch (hookError) {
+          testFailed = true;
+          failed++;
+          errors.push({ test: t.name, error: hookError });
+          testErrors.push(new Error("afterEach hook failed: " + hookError));
+        }
+      }
+
+      const testDuration = now() - testStart;
+
+      if (testFailed) {
+        logStatus("FAIL", t.name, testDuration);
+        // Print collected errors
+        for (const e of testErrors) {
+          logTestError("", t.name, e);
+        }
+        console.groupEnd();
+      } else {
         passed++;
-        logStatus("PASS", t.name);
+        logStatus("PASS", t.name, testDuration);
       }
     }
 
@@ -403,16 +424,6 @@ function createTestAPI() {
     if (result.failed) {
       window.__test_failing = true;
     }
-
-    // const summaryStyle = "font-weight:bold;";
-    // console.log(
-    //   `%cResult: ${passed} passed, ${failed} failed, ${skipped} skipped (total ${tests.length}) in ${
-    //     durationMs.toFixed(
-    //       2,
-    //     )
-    //   }ms`,
-    //   summaryStyle,
-    // );
 
     return result;
   };
@@ -443,7 +454,6 @@ function showReport() {
     durationMs: 0,
   };
 
-  // Aggregate results across runs
   for (const r of arr) {
     aggregate.passed += r.passed;
     aggregate.failed += r.failed;
@@ -452,12 +462,11 @@ function showReport() {
     aggregate.durationMs += r.durationMs;
   }
 
-  const infoStyle = "font-weight:bold;"; // general bold
-  const passStyle = "color:#2e7d32;font-weight:bold;"; // green bold
-  const failStyle = "color:#b71c1c;font-weight:bold;"; // red bold
-  const skipStyle = "color:orange;font-weight:bold;"; // yellow bold
+  const infoStyle = "font-weight:bold;";
+  const passStyle = "color:#2e7d32;font-weight:bold;";
+  const failStyle = "color:#b71c1c;font-weight:bold;";
+  const skipStyle = "color:orange;font-weight:bold;";
 
-  // Build the format string and corresponding styles dynamically to include skipped in yellow
   let summaryStr = "%cSuites: " + arr.length + " total\n" +
     "Tests:  %c" + aggregate.passed + " passed%c";
   if (aggregate.skipped) {
@@ -477,7 +486,6 @@ function showReport() {
   if (aggregate.failed) {
     summaryStyles.push(failStyle, infoStyle);
   } else {
-    // final reset style for the "%c" used in the else branch
     summaryStyles.push(infoStyle);
   }
 

@@ -31,6 +31,14 @@ export async function startBrowser(
   const browser: Browser = await chromium.launch({
     headless,
     devtools: !headless,
+    args: [
+      "--enable-precise-memory-info",
+      "--enable-benchmarking",
+      // optional stability helpers:
+      "--disable-background-timer-throttling",
+      "--disable-renderer-backgrounding",
+      "--disable-backgrounding-occluded-windows",
+    ],
   });
   const page: Page = await browser.newPage({
     bypassCSP: true,
