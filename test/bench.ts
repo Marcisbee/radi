@@ -104,6 +104,7 @@ for (const { entrypoint, path } of modules) {
   console.log("");
   console.log("%c" + entrypoint, "text-decoration:underline;");
   await import(path);
+  await new Promise((r) => setTimeout(r, 50));
 }
 
 (window.__done)?.(0);
