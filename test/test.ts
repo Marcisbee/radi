@@ -1,9 +1,9 @@
 /// <reference lib="deno.unstable" />  // (For future bundler APIs if needed)
 
-import fs from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { startBrowser } from "./browser.ts";
+import { directory } from "./files.ts";
 
 const { values, positionals } = parseArgs({
   args: Deno.args,
@@ -20,68 +20,6 @@ const { values, positionals } = parseArgs({
   strict: true,
   allowPositionals: true,
 });
-
-function* walkSync(dir: string): IterableIterator<string> {
-  const isFile = fs.statSync(dir).isFile();
-
-  if (isFile) {
-    yield dir;
-
-    return;
-  }
-
-  const files = fs.readdirSync(dir, "utf-8");
-
-  for (const file of files) {
-    const pathToFile = path.join(dir, file);
-    let isDirectory = false;
-
-    try {
-      isDirectory = fs.statSync(pathToFile).isDirectory();
-    } catch (_) {
-      // No biggie, something maybe denied permission or something
-    }
-
-    if (isDirectory) {
-      yield* walkSync(pathToFile);
-    } else {
-      yield pathToFile;
-    }
-  }
-}
-
-const includeDefaults: RegExp[] = [/manifest\.json$/];
-const excludeDefaults: RegExp[] = [/node_modules(\/|\\)/, /dist(\/|\\)/];
-
-function isInRuleset(path: string, rules: RegExp[]): boolean {
-  for (const rule of rules) {
-    if (rule.test(path)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function directory(
-  absolutePaths: string[],
-  traverse: (name: string, read: () => string) => void,
-  { include = includeDefaults, exclude = excludeDefaults }: {
-    include?: RegExp[];
-    exclude?: RegExp[];
-  } = {},
-) {
-  for (const p of absolutePaths) {
-    for (const file of walkSync(p)) {
-      const excluded = isInRuleset(file, exclude);
-      const included = isInRuleset(file, include);
-
-      if (!excluded && included) {
-        traverse(file, () => fs.readFileSync(file).toString());
-      }
-    }
-  }
-}
 
 const root = path.resolve(positionals[0] || "./");
 const entrypoints: string[] = [];
