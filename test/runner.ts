@@ -16,6 +16,7 @@
  *
  * Now logs every PASS / FAIL / SKIP test name.
  */
+import type { Clock } from "npm:playwright@1.56.1";
 
 type MaybePromise<T> = T | Promise<T>;
 type TestFn = () => MaybePromise<any>;
@@ -477,6 +478,8 @@ function showReport() {
   console.log("");
   console.log(summaryStr, ...summaryStyles);
 }
+
+export const clock = (globalThis as any).__pwClock.controller as Clock;
 
 export const test = createTestAPI();
 export { assert, showReport };

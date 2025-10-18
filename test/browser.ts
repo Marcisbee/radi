@@ -12,11 +12,32 @@ declare global {
   }
 }
 
-export async function startBrowser(html: string, watch: boolean) {
-  const browser: Browser = await chromium.launch({ headless: true });
-  const page: Page = await browser.newPage();
+interface StartBrowserOptions {
+  headless?: boolean;
+}
 
-  // Relay browser console logs
+/**
+ * Launch a Playwright Chromium browser.
+ * - headless toggle (use --ui to run headed)
+ */
+export async function startBrowser(
+  html: string,
+  watch: boolean,
+  { headless = true }: StartBrowserOptions = {},
+) {
+  // Launch configuration:
+  // - Headless by default
+  // - In UI mode (headless === false) open DevTools and keep browser open after tests
+  const browser: Browser = await chromium.launch({
+    headless,
+    devtools: !headless,
+  });
+  const page: Page = await browser.newPage({
+    bypassCSP: true,
+  });
+
+  await page.clock.install();
+
   page.on("console", async (msg: ConsoleMessage) => {
     const type = msg.type();
 
@@ -30,7 +51,6 @@ export async function startBrowser(html: string, watch: boolean) {
       console.table(...args);
       return;
     }
-
     if (type === "startGroup") {
       console.group(...args);
       return;
@@ -47,30 +67,30 @@ export async function startBrowser(html: string, watch: boolean) {
     console.log(...args);
   });
 
-  // Relay page errors
   page.on("pageerror", (err: Error) => {
     console.error(`[pageerror] ${err.message}\n${err.stack}`);
   });
 
-  // Network request failures
   page.on("requestfailed", (req: Request) => {
     console.error(
       `[requestfailed] ${req.url()} ${req.failure()?.errorText || ""}`,
     );
   });
 
-  // Expose done relay to page
   await page.exposeFunction("__done", async (isFailing: boolean) => {
-    try {
-      await browser.close();
-    } catch (_) {
-      // ignore
-    } finally {
+    if (headless) {
+      // Allow any pending console events to flush before closing (jsonValue calls)
+      await new Promise((r) => setTimeout(r, 75));
+      try {
+        await browser.close();
+      } catch {
+        // ignore
+      }
       if (!watch) {
         Deno.exit(isFailing ? 1 : 0);
       }
     }
   });
 
-  await page.setContent(html);
+  await page.setContent(html, { waitUntil: "load" });
 }

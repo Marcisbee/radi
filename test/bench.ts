@@ -1,9 +1,10 @@
 /// <reference lib="deno.unstable" />
 
-import fs from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { startBrowser } from "./browser.ts";
+import { directory } from "./files.ts";
+import { sourceMapSupport } from "./sourcemap.ts";
 
 const { values, positionals } = parseArgs({
   args: Deno.args,
@@ -14,148 +15,102 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
 });
 
-function* walkSync(dir: string): IterableIterator<string> {
-  const stat = fs.statSync(dir);
-  if (stat.isFile()) {
-    yield dir;
-    return;
-  }
-  const entries = fs.readdirSync(dir, "utf-8");
-  for (const e of entries) {
-    const p = path.join(dir, e);
-    let isDir = false;
-    try {
-      isDir = fs.statSync(p).isDirectory();
-    } catch {
-      // ignore
-    }
-    if (isDir) {
-      yield* walkSync(p);
-    } else {
-      yield p;
-    }
-  }
-}
-
-const excludeDefaults: RegExp[] = [/node_modules(\/|\\)/, /dist(\/|\\)/];
-
-function inAny(pathStr: string, rules: RegExp[]) {
-  return rules.some((r) => r.test(pathStr));
-}
-
-function collectBenchEntrypoints(root: string): string[] {
-  const out: string[] = [];
-  for (const file of walkSync(root)) {
-    if (inAny(file, excludeDefaults)) continue;
-    if (/\.bench\.tsx?$/.test(file)) {
-      const rel = file.replace(
-        new RegExp(
-          "^" + escapeForRegExp(Deno.cwd().replace(/\\/g, "/")) + "/?",
-        ),
-        "",
-      );
-      out.push(rel);
-    }
-  }
-  return out;
-}
-
-function escapeForRegExp(s: string) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 const root = path.resolve(positionals[0] || "./");
-const entrypoints = collectBenchEntrypoints(root);
+const entrypoints: string[] = [];
+directory([path.resolve(positionals[0] || "./")], (filePath) => {
+  const relativePath = filePath.replace(
+    new RegExp(`^${Deno.cwd().replace(/\//g, "/")}\/`),
+    "",
+  );
+
+  // console.log(`Found "${relativePath}"`);
+  entrypoints.push(relativePath);
+}, { include: [/\.bench\.tsx?/] });
 
 if (!entrypoints.length) {
   console.error("No .bench.ts / .bench.tsx files found in", root);
   Deno.exit(1);
 }
 
-// Bundle benchmarks
-const bundleResult = await Deno.bundle({
-  entrypoints,
-  outputDir: ".bench",
-  platform: "browser",
-  minify: false,
-  sourcemap: "inline",
-  write: false,
-  format: "esm",
-  codeSplitting: false,
-});
-
-if (!bundleResult.success) {
-  console.error("Bundling failed:");
-  for (const e of bundleResult.errors) {
-    console.error(e.text);
-  }
-  Deno.exit(1);
+/* ------------------------------- Bundling --------------------------------- */
+interface ModuleRecord {
+  entrypoint: string;
+  moduleName: string;
+  encoded: string;
+  rawCode: string;
 }
 
-// Wrap each bundled file in its own grouped script similar to test runner
-const files = bundleResult.outputFiles ?? [];
+const modules: ModuleRecord[] = [];
+const allOutputFiles: { text(): string }[] = [];
 
-// Build import map with data: URLs for each bundled entry
-const importMapEntries: Record<string, string> = {};
 for (let i = 0; i < entrypoints.length; i++) {
-  const entry = entrypoints[i];
-  const file = files[i];
-  if (!file) continue;
-  // file.text() in the original code; await it to get contents
-  const code = file.text();
-  const dataUrl = "data:text/javascript;charset=utf-8," +
-    encodeURIComponent(code);
-  importMapEntries[entry] = dataUrl;
-}
-
-const importMapScript = `<script type="importmap">${
-  JSON.stringify({ imports: importMapEntries }, null, 2)
-}</script>`;
-
-// Single module script that imports each entry (which resolve to the data URLs)
-// and groups console output per entry
-const mainScript = `<script type="module">
-  const entries = ${JSON.stringify(entrypoints)};
-  for (const entry of entries) {
-    console.log("");
-    console.group("%c" + entry, "text-decoration:underline;");
-    try {
-      await import(entry);
-    } catch (e) {
-      console.error(e);
-      (window.__bench_errors = window.__bench_errors || []).push(e);
-    }
-    console.groupEnd();
+  const ep = entrypoints[i];
+  let bundle;
+  try {
+    bundle = await Deno.bundle({
+      entrypoints: [ep],
+      outputDir: ".",
+      platform: "browser",
+      minify: true,
+      sourcemap: "inline",
+      write: false,
+      format: "esm",
+      codeSplitting: false,
+    });
+  } catch (e) {
+    console.error(`Bundling failed for ${ep}:`, e);
+    Deno.exit(1);
   }
 
-  setTimeout(() => {
-    (window.__done)?.( (window.__bench_errors||[]).length ? 1 : 0 );
-  }, 10);
-</script>`;
+  if (!bundle.success) {
+    for (const err of bundle.errors) {
+      console.error(`[bundle error] ${ep}: ${err.text}`);
+    }
+    Deno.exit(1);
+  }
 
-// Compose HTML
+  const file = bundle.outputFiles?.[0];
+  if (!file) {
+    console.error(`No output file produced for ${ep}`);
+    Deno.exit(1);
+  }
+
+  allOutputFiles.push(file);
+  const code = file.text();
+  const encoded = encodeURIComponent(code);
+  const moduleName = `module${i}`;
+  modules.push({ entrypoint: ep, moduleName, encoded, rawCode: code });
+}
+
 const html = `<!DOCTYPE html>
-<html lang=\"en\">
-  <head>
-    <meta charset=\"UTF-8\"/>
-    <title>Bench Runner</title>
-    ${importMapScript}
-  </head>
-  <body>
-    ${mainScript}
-  </body>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Bench Runner</title>
+</head>
+<body>
+<script type="module">${await sourceMapSupport()}</script>
+<script type="module">
+const modules = ${
+  JSON.stringify(
+    modules.map((m) => ({
+      entrypoint: m.entrypoint,
+      path: `data:application/javascript,${m.encoded}`,
+    })),
+  )
+};
+
+for (const { entrypoint, path } of modules) {
+  console.log("");
+  console.log("%c" + entrypoint, "text-decoration:underline;");
+  await import(path);
+}
+
+(window.__done)?.(0);
+</script>
+</body>
 </html>`;
 
-// UI mode server (optional)
-if (values.ui) {
-  const server = Deno.serve({ port: 8100 }, () =>
-    new Response(html, {
-      status: 200,
-      headers: { "Content-Type": "text/html" },
-    }));
-  await server.finished;
-  // Don't await server.finished here because we still also launch headless
-}
-
-// Always run headless browser to produce results (no watch mode)
-await startBrowser(html, /*watch*/ false);
+await startBrowser(html, /*watch*/ false, {
+  headless: !values.ui,
+});
