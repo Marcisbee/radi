@@ -18,6 +18,12 @@
  */
 import type { Clock } from "npm:playwright@1.56.1";
 
+// Since we mock performance in Playwright, use an iframe to get a clean performance.now()
+const iframe = document.createElement("iframe");
+iframe.srcdoc = "";
+document.head.appendChild(iframe);
+const now = iframe.contentWindow?.performance.now || performance.now;
+
 type MaybePromise<T> = T | Promise<T>;
 type TestFn = () => MaybePromise<any>;
 
@@ -296,12 +302,12 @@ function createTestAPI() {
     started = true;
 
     const errors: RunError[] = [];
-    const start = performance.now();
+    const start = now();
 
     await runHookList(beforeAll, "beforeAll").catch((err) => {
       errors.push({ error: err });
       logError("Aborting: beforeAll hook failed.");
-      const durationMs = performance.now() - start;
+      const durationMs = now() - start;
       // All non-skipped tests count as failed because we can't proceed
       const failed = tests.filter((t) => !t.skipped).length;
       const skipped = tests.filter((t) => t.skipped).length;
@@ -382,7 +388,7 @@ function createTestAPI() {
       logError("afterAll hook failed", error);
     }
 
-    const durationMs = performance.now() - start;
+    const durationMs = now() - start;
     const result: RunResult = {
       passed,
       failed,
