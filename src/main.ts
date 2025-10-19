@@ -467,31 +467,49 @@ export function render(
 
 /* ========================= Update & Lifecycle Events ========================= */
 
-export const updateEvent = new Event("update", {
-  bubbles: false,
-  cancelable: true,
-  composed: true,
-});
+export const updateEvent = new Event("update");
 
 /**
  * Dispatch an update event to an element subtree (reactive props & functions re-evaluate).
  */
 export function update(root: Node): void {
-  // try {
+  try {
     dispatchEventSink(root, updateEvent);
-  // } catch {}
+  } catch {}
 }
 
 /**
  * Walk an element subtree (snapshot first) and dispatch an event to each element node.
  */
 export function dispatchEventSink(el: Node, event: Event): void {
-  const walker = document.createTreeWalker(el, NodeFilter.SHOW_ELEMENT);
-  let current: Node | null = walker.currentNode;
-  const list: Element[] = [current as Element];
-  while ((current = walker.nextNode())) {
-    if (current.nodeType === Node.ELEMENT_NODE) list.push(current as Element);
+  // Manual preorder depth-first traversal (inclusive of the root node) with snapshot.
+  const list: Element[] = [];
+
+  let node: Node | null = el;
+  while (node) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      list.push(node as Element);
+    }
+
+    // Try to descend into children first (preorder)
+    if (node.firstChild) {
+      node = node.firstChild;
+      continue;
+    }
+
+    // No children — walk up until we find a nextSibling or hit the root
+    while (node && node !== el && !node.nextSibling) {
+      node = node.parentNode;
+    }
+
+    // If we've come back to the root, stop (do not traverse siblings outside the subtree)
+    if (!node || node === el) break;
+
+    // Move to the next sibling
+    node = node.nextSibling;
   }
+
+  // Dispatch to the snapshot list
   for (const n of list) {
     n.dispatchEvent(event);
   }
@@ -508,16 +526,8 @@ export function createAbortSignal(target: Node): AbortSignal {
 
 /* ========================= Connection Events ========================= */
 
-export const connectedEvent = new Event("connect", {
-  bubbles: false,
-  cancelable: true,
-  composed: true,
-});
-export const disconnectedEvent = new Event("disconnect", {
-  bubbles: false,
-  cancelable: true,
-  composed: true,
-});
+export const connectedEvent = new Event("connect");
+export const disconnectedEvent = new Event("disconnect");
 
 /**
  * Global mutation observer to emit connect / disconnect events.
