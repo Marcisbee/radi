@@ -1,6 +1,7 @@
 /// <reference lib="deno.unstable" />
 
 import path from "node:path";
+import { statSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { startBrowser } from "./browser.ts";
 import { directory } from "./files.ts";
@@ -10,25 +11,54 @@ const { values, positionals } = parseArgs({
   args: Deno.args,
   options: {
     ui: { type: "boolean", default: false },
+    includes: { type: "string", multiple: true },
   },
   strict: true,
   allowPositionals: true,
 });
 
-const root = path.resolve(positionals[0] || "./");
 const entrypoints: string[] = [];
-directory([path.resolve(positionals[0] || "./")], (filePath) => {
-  const relativePath = filePath.replace(
-    new RegExp(`^${Deno.cwd().replace(/\//g, "/")}\/`),
-    "",
-  );
+const includeDirs: string[] = (values.includes || []).map((p) =>
+  path.resolve(p)
+);
 
-  // console.log(`Found "${relativePath}"`);
-  entrypoints.push(relativePath);
-}, { include: [/\.bench\.tsx?/] });
+// If positionals are provided, treat them strictly as explicit bench files.
+// Directories must be passed via --includes.
+if (positionals.length) {
+  for (const p of positionals) {
+    const abs = path.resolve(p);
+    let stats;
+    try {
+      stats = statSync(abs);
+    } catch {
+      throw new Error(`Path not found: ${p}`);
+    }
+    if (stats.isDirectory()) {
+      throw new Error(`"${p}" is a directory. Use --includes "${p}" instead.`);
+    }
+    if (!/\.bench\.tsx?$/.test(abs)) {
+      throw new Error(`"${p}" is not a .bench.ts or .bench.tsx file`);
+    }
+    const relativePath = abs.replace(
+      new RegExp(`^${Deno.cwd().replace(/\//g, "/")}\/`),
+      "",
+    );
+    entrypoints.push(relativePath);
+  }
+} else {
+  // Fallback to scanning include directories (or current working directory if none specified).
+  const roots = includeDirs.length ? includeDirs : [path.resolve("./")];
+  directory(roots, (filePath) => {
+    const relativePath = filePath.replace(
+      new RegExp(`^${Deno.cwd().replace(/\//g, "/")}\/`),
+      "",
+    );
+    entrypoints.push(relativePath);
+  }, { include: [/\.bench\.tsx?$/] });
+}
 
 if (!entrypoints.length) {
-  console.error("No .bench.ts / .bench.tsx files found in", root);
+  console.error("No bench entrypoints found");
   Deno.exit(1);
 }
 

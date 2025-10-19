@@ -1,6 +1,7 @@
 /// <reference lib="deno.unstable" />  // Potential future bundler APIs
 
 import path from "node:path";
+import { statSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { startBrowser } from "./browser.ts";
 import { directory } from "./files.ts";
@@ -11,25 +12,54 @@ const { values, positionals } = parseArgs({
   options: {
     ui: { type: "boolean", default: false },
     watch: { type: "boolean", default: false },
+    includes: { type: "string", multiple: true },
   },
   strict: true,
   allowPositionals: true,
 });
 
-const root = path.resolve(positionals[0] || "./");
 const entrypoints: string[] = [];
+const includeDirs: string[] = (values.includes || []).map((p) =>
+  path.resolve(p)
+);
 
-// Discover test entrypoints (*.test.ts / *.test.tsx)
-directory([root], (filePath) => {
-  const relativePath = filePath.replace(
-    new RegExp(`^${Deno.cwd().replace(/\//g, "/")}\/`),
-    "",
-  );
-  entrypoints.push(relativePath);
-}, { include: [/\.test\.tsx?$/] });
+// If positionals are provided, treat them strictly as explicit test files.
+// Directories must be passed via --includes.
+if (positionals.length) {
+  for (const p of positionals) {
+    const abs = path.resolve(p);
+    let stats;
+    try {
+      stats = statSync(abs);
+    } catch {
+      throw new Error(`Path not found: ${p}`);
+    }
+    if (stats.isDirectory()) {
+      throw new Error(`"${p}" is a directory. Use --includes "${p}" instead.`);
+    }
+    if (!/\.test\.tsx?$/.test(abs)) {
+      throw new Error(`"${p}" is not a .test.ts or .test.tsx file`);
+    }
+    const relativePath = abs.replace(
+      new RegExp(`^${Deno.cwd().replace(/\//g, "/")}\/`),
+      "",
+    );
+    entrypoints.push(relativePath);
+  }
+} else {
+  // Fallback to scanning include directories (or current working directory if none specified).
+  const roots = includeDirs.length ? includeDirs : [path.resolve("./")];
+  directory(roots, (filePath) => {
+    const relativePath = filePath.replace(
+      new RegExp(`^${Deno.cwd().replace(/\//g, "/")}\/`),
+      "",
+    );
+    entrypoints.push(relativePath);
+  }, { include: [/\.test\.tsx?$/] });
+}
 
 if (!entrypoints.length) {
-  throw new Error("No test entrypoints found in " + root);
+  throw new Error("No test entrypoints found");
 }
 
 // Bundle all test entrypoints into ESM (no code splitting)
