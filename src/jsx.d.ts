@@ -39,6 +39,9 @@ type ElementWithChildren<T> =
   }
   & {
     style?: Reactive<Partial<CSSStyleDeclaration>>;
+    onupdate?: (this: T, ev: Event & { target: T }) => any;
+    onconnect?: (this: T, ev: Event & { target: T }) => any;
+    ondisconnect?: (this: T, ev: Event & { target: T }) => any;
     children?: any;
   };
 
@@ -50,6 +53,9 @@ type ElementWithoutChildren<T> =
   }
   & {
     style?: Reactive<Partial<CSSStyleDeclaration>>;
+    onupdate?: (this: T, ev: Event & { target: T }) => any;
+    onconnect?: (this: T, ev: Event & { target: T }) => any;
+    ondisconnect?: (this: T, ev: Event & { target: T }) => any;
   };
 
 /**

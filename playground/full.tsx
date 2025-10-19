@@ -304,6 +304,83 @@ function Sub2(props: JSX.Props<{ value: number }>) {
   return <h3>Value: {() => props().value}</h3>;
 }
 
+function StyledCounterChild(
+  this: DocumentFragment,
+  props: JSX.Props<{ count: number }>,
+) {
+  let prevCount = props().count;
+
+  this.addEventListener("update", () => {
+    console.log("Update");
+    // do something fancy
+  });
+
+  return (
+    <span
+      style={() => ({
+        display: "inline-block",
+        fontSize: "24px",
+        color: props().count < 0 ? "red" : "green",
+      })}
+      onclick={(event) => event.target}
+      onupdate={(event) => {
+        if (props().count === prevCount) {
+          return;
+        }
+
+        const frames = props().count >= prevCount
+          ? [
+            { transform: "translateY(-10px) scale(1.5)" },
+            { transform: "translateY(0) scale(1)" },
+            { transform: "translateY(0) scale(1)" },
+            { transform: "translateY(0) scale(1)" },
+          ]
+          : [
+            { transform: "translateY(10px) scale(0.5)" },
+            { transform: "translateY(0) scale(1)" },
+            { transform: "translateY(0) scale(1)" },
+            { transform: "translateY(0) scale(1)" },
+          ];
+        prevCount = props().count;
+
+        event.target.animate(frames, {
+          duration: 400,
+          easing: "ease-out",
+          fill: "none",
+        });
+      }}
+    >
+      {() => props().count}
+    </span>
+  );
+}
+
+function StyledCounter(this: DocumentFragment) {
+  let count = 0;
+
+  return () => (
+    <div style={{ overflow: "hidden" }}>
+      <button
+        onclick={() => {
+          count++;
+          update(this);
+        }}
+      >
+        +
+      </button>
+      <button
+        onclick={() => {
+          count--;
+          update(this);
+        }}
+      >
+        -
+      </button>
+      <StyledCounterChild count={count} />
+    </div>
+  );
+}
+
 function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
   let bpm = 120;
 
@@ -365,6 +442,8 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
       </ThemeProvider>
       <hr />
       <Sub1 />
+      <hr />
+      <StyledCounter />
     </div>
   );
 }

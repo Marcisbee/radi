@@ -246,11 +246,7 @@ function patchElement(oldEl: Element, newEl: Element): boolean {
       delete (nAny as any).__componentPending;
       dispatchEventSink(
         oAny,
-        new Event("update", {
-          bubbles: false,
-          cancelable: true,
-          composed: true,
-        }),
+        createUpdateEvent(),
       );
     }
     return true;
@@ -721,14 +717,87 @@ export function render(
 
 /* ========================= Update & Lifecycle Events ========================= */
 
-export const updateEvent = new Event("update");
+let currentUpdateDispatchId = 0;
+/**
+ * Create a fresh update Event instance (avoid re-dispatching same Event object).
+ */
+function createUpdateEvent(): Event {
+  return new Event("update");
+}
+
+/**
+ * Internal: roots scheduled for update (deduped per microtask).
+ */
+const scheduledUpdateRoots = new Set<Node>();
+
+/**
+ * Internal: microtask flush scheduled flag.
+ */
+let updateFlushScheduled = false;
+
+/**
+ * Internal: dispatch updateEvent to subtree of root, skipping elements already visited.
+ */
+function dispatchUpdateSink(root: Node, visited: Set<Element>): void {
+  const list: Element[] = [];
+  let node: Node | null = root;
+  while (node) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as Element;
+      if (!visited.has(el)) {
+        list.push(el);
+        visited.add(el);
+      }
+    }
+    if (node.firstChild) {
+      node = node.firstChild;
+      continue;
+    }
+    while (node && node !== root && !node.nextSibling) {
+      node = node.parentNode;
+    }
+    if (!node || node === root) break;
+    node = node.nextSibling;
+  }
+  for (const el of list) {
+    el.dispatchEvent(createUpdateEvent());
+  }
+}
+
+/**
+ * Internal: schedule microtask flush.
+ */
+function scheduleUpdateFlush(): void {
+  if (updateFlushScheduled) return;
+  updateFlushScheduled = true;
+  queueMicrotask(() => {
+    updateFlushScheduled = false;
+    const roots = Array.from(scheduledUpdateRoots);
+    scheduledUpdateRoots.clear();
+    const visited = new Set<Element>();
+    for (const r of roots) {
+      try {
+        dispatchUpdateSink(r, visited);
+      } catch { /* intentionally swallow errors during update dispatch */ }
+    }
+  });
+}
+
+/**
+ * Internal: schedule an element (or component root) for update dispatch.
+ */
+function scheduleElementUpdate(el: Element): void {
+  scheduledUpdateRoots.add(el);
+  scheduleUpdateFlush();
+}
 
 /**
  * Dispatch an update event to an element subtree (reactive props & functions re-evaluate).
  */
 export function update(root: Node): void {
+  currentUpdateDispatchId++;
   try {
-    dispatchEventSink(root, updateEvent);
+    dispatchEventSink(root, createUpdateEvent());
   } catch { /* intentionally swallow errors during update dispatch */ }
 }
 
@@ -742,7 +811,19 @@ export function dispatchEventSink(el: Node, event: Event): void {
   let node: Node | null = el;
   while (node) {
     if (node.nodeType === Node.ELEMENT_NODE) {
-      list.push(node as Element);
+      const elNode = node as Element;
+      if (event.type === "update") {
+        // If already scheduled/dispatched for this cycle, skip immediately.
+        if ((elNode as any).__lastUpdateId === currentUpdateDispatchId) {
+          // already handled this cycle
+        } else {
+          // Mark immediately so nested dispatches (triggered by reactive updates) cannot re-add.
+          (elNode as any).__lastUpdateId = currentUpdateDispatchId;
+          list.push(elNode);
+        }
+      } else {
+        list.push(elNode);
+      }
     }
 
     // Try to descend into children first (preorder)
