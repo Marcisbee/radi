@@ -27,7 +27,10 @@ test("sub2 prop regenerates", async () => {
   assert.ok(h3, "Sub2 h3 should exist");
 
   const first = h3.textContent!;
-  assert.ok(/Value:\s*\d\.\d+/.test(first), "First render contains random number");
+  assert.ok(
+    /Value:\s*\d\.\d+/.test(first),
+    "First render contains random number",
+  );
 
   // Trigger an update on the root component (parent)
   update(root);
@@ -39,8 +42,15 @@ test("sub2 prop regenerates", async () => {
     await Promise.resolve();
   }
   const third = h3.textContent!;
-  assert.not.is(first, third, "Random value should change after regeneration updates");
-  assert.ok(/Value:\s*\d\.\d+/.test(third), "Third render contains random number");
+  assert.not.is(
+    first,
+    third,
+    "Random value should change after regeneration updates",
+  );
+  assert.ok(
+    /Value:\s*\d\.\d+/.test(third),
+    "Third render contains random number",
+  );
 });
 
 await test.run();

@@ -139,7 +139,10 @@ test("multi children", async () => {
 
   // Advance past first child completion but not second
   await clock.fastForward(55);
-  assert.ok(root.textContent!.includes("Wait"), "Still fallback until all unsuspend");
+  assert.ok(
+    root.textContent!.includes("Wait"),
+    "Still fallback until all unsuspend",
+  );
   // Advance beyond second
   await clock.fastForward(30);
   assert.not.ok(root.textContent!.includes("Wait"), "Fallback replaced");
@@ -158,8 +161,14 @@ test("never unsuspends", async () => {
 
   // Let time pass well beyond normal thresholds
   await clock.fastForward(500);
-  assert.ok(root.textContent!.includes("Hold"), "Fallback persists when no unsuspend");
-  assert.not.ok(root.textContent!.includes("suspended"), "Child state only internal to fallback hidden");
+  assert.ok(
+    root.textContent!.includes("Hold"),
+    "Fallback persists when no unsuspend",
+  );
+  assert.not.ok(
+    root.textContent!.includes("suspended"),
+    "Child state only internal to fallback hidden",
+  );
 });
 
 test("suspend error", async () => {
@@ -174,7 +183,10 @@ test("suspend error", async () => {
   await clock.fastForward(200);
   // Still fallback due to lack of unsuspend
   assert.ok(root.textContent!.includes("Err"));
-  assert.not.ok(root.textContent!.includes("errored"), "Errored state not revealed since unsuspend never fired");
+  assert.not.ok(
+    root.textContent!.includes("errored"),
+    "Errored state not revealed since unsuspend never fired",
+  );
 });
 
 test("mixed children delays", async () => {
@@ -218,7 +230,10 @@ test("resuspension ignored", async () => {
 
   // Second suspension should NOT re-show fallback
   await clock.fastForward(35); // into second suspend period
-  assert.not.ok(root.textContent!.includes("Phase"), "Fallback not reintroduced on second suspend");
+  assert.not.ok(
+    root.textContent!.includes("Phase"),
+    "Fallback not reintroduced on second suspend",
+  );
   assert.ok(root.textContent!.includes("s2"));
 
   // After second unsuspend

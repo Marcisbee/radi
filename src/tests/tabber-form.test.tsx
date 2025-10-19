@@ -147,7 +147,11 @@ test("empty submit stored", async () => {
 
   const lis = panel.querySelectorAll("li");
   assert.is(lis.length, 1);
-  assert.is(lis[0].textContent, "", "Empty submission should produce empty list item");
+  assert.is(
+    lis[0].textContent,
+    "",
+    "Empty submission should produce empty list item",
+  );
 });
 
 await test.run();

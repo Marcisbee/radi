@@ -61,7 +61,10 @@ test("no increment after disable", async () => {
   // Additional clicks should have no effect
   btn.click();
   btn.click();
-  assert.ok(btn.textContent!.includes("3 / 3"), "Value should stay at threshold");
+  assert.ok(
+    btn.textContent!.includes("3 / 3"),
+    "Value should stay at threshold",
+  );
   assert.ok(btn.disabled);
 });
 
