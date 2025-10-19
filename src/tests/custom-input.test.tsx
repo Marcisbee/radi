@@ -2,15 +2,22 @@ import { assert, test } from "../../test/runner.ts";
 import { mount } from "../../test/utils.ts";
 import { update } from "../main.ts";
 
-/* =========================================================
-   Custom Input Reactive Value Tests
-   ========================================================= */
-
+/**
+ * CustomInputTest component renders a controlled text input whose value is mirrored
+ * in a sibling span. The input's displayed value is driven by internal state that
+ * updates on every input event, triggering a re-render.
+ *
+ * Props:
+ * - defaultValue?: string - initial string shown in the input and mirror.
+ *
+ * @param this Host HTMLElement (used for update triggering).
+ * @param props Reactive props accessor containing optional defaultValue.
+ */
 function CustomInputTest(
   this: HTMLElement,
   props: JSX.Props<{ defaultValue?: string }>,
 ) {
-  let value = props().defaultValue || "";
+  let value = props().defaultValue ?? "";
   return (
     <div className="custom-input">
       <input
@@ -26,7 +33,11 @@ function CustomInputTest(
   );
 }
 
-test("input mirrors", async () => {
+/**
+ * mirrors typed value
+ * Ensures that typing (simulated by dispatching input) updates the mirrored span.
+ */
+test("mirrors typed value", async () => {
   const root = await mount(
     <CustomInputTest defaultValue="Hey" />,
     document.body,

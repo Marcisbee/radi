@@ -4,28 +4,27 @@ import { suspend, Suspense, unsuspend } from "../suspense.ts";
 import { update } from "../main.ts";
 
 /**
- * Combined Suspense tests (core + edge cases).
- * Core:
- *  - Single delayed child resolves fallback.
- * Edge:
- *  - Immediate child (no suspension)
- *  - Multiple delayed children (staggered completion)
- *  - Never unsuspends
- *  - Suspension error (unsuspend never called)
- *  - Mixed immediate + delayed
- *  - Re-suspension after initial reveal (ignored)
+ * Suspense behavior tests covering:
+ * - Fallback resolution after single delayed child unsuspends.
+ * - Immediate child rendering without fallback.
+ * - Multiple staggered delayed children.
+ * - Perpetual suspension (never unsuspends).
+ * - Error during suspension (fallback persists).
+ * - Mixed immediate + delayed children.
+ * - Ignored re-suspension after initial unsuspend.
  */
 
-/* --------------------------------
-   Core: single delayed child
-   -------------------------------- */
+/**
+ * DelayedChild100
+ * Suspends once, waits 100ms, then unsuspends and updates state text.
+ */
 function DelayedChild100(this: HTMLElement) {
   let state = "suspended";
   this.addEventListener(
     "suspension",
     async () => {
       suspend(this);
-      await new Promise((r) => setTimeout(r, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       state = "unsuspended";
       update(this);
       unsuspend(this);
@@ -39,7 +38,7 @@ function DelayedChild100(this: HTMLElement) {
   );
 }
 
-test("fallback resolves", async () => {
+test("fallback-unsuspends-child", async () => {
   const root = await mount(
     <Suspense fallback={<strong>Loading...</strong>}>
       <DelayedChild100 /> Extra
@@ -54,13 +53,15 @@ test("fallback resolves", async () => {
   assert.ok(root.textContent!.includes("Extra"));
 });
 
-/* --------------------------------
-   Edge: helpers
-   -------------------------------- */
+/** ImmediateChild renders synchronously without suspension. */
 function ImmediateChild(this: HTMLElement) {
   return <span className="immediate">Immediate</span>;
 }
 
+/**
+ * DelayedChild
+ * Suspends once for a configurable delay, then unsuspends and shows "done".
+ */
 function DelayedChild(
   this: HTMLElement,
   props: JSX.Props<{ label: string; delay: number }>,
@@ -70,7 +71,7 @@ function DelayedChild(
     "suspension",
     async () => {
       suspend(this);
-      await new Promise((r) => setTimeout(r, props().delay));
+      await new Promise((resolve) => setTimeout(resolve, props().delay));
       state = "done";
       update(this);
       unsuspend(this);
@@ -80,6 +81,10 @@ function DelayedChild(
   return <span className={"delayed-" + props().label}>{() => state}</span>;
 }
 
+/**
+ * NeverUnsuspendChild
+ * Suspends and never calls unsuspend, leaving fallback in place permanently.
+ */
 function NeverUnsuspendChild(this: HTMLElement) {
   let state = "start";
   this.addEventListener(
@@ -88,13 +93,16 @@ function NeverUnsuspendChild(this: HTMLElement) {
       state = "suspended";
       update(this);
       suspend(this);
-      // never unsuspend
     },
     { once: true },
   );
   return <span className="never">{() => state}</span>;
 }
 
+/**
+ * ErrorChild
+ * Throws during suspension; unsuspend is never called so fallback persists.
+ */
 function ErrorChild(this: HTMLElement) {
   let state = "init";
   this.addEventListener(
@@ -106,7 +114,7 @@ function ErrorChild(this: HTMLElement) {
         update(this);
         throw new Error("Suspension failure");
       } catch {
-        // unsuspend not called -> fallback persists
+        // Fallback remains; unsuspend intentionally omitted.
       }
     },
     { once: true },
@@ -114,6 +122,10 @@ function ErrorChild(this: HTMLElement) {
   return <span className="error-child">{() => state}</span>;
 }
 
+/**
+ * Resuspender
+ * Performs two sequential suspension cycles; Suspense ignores the second after reveal.
+ */
 function Resuspender(this: HTMLElement) {
   let phase = "boot";
   this.addEventListener(
@@ -122,16 +134,15 @@ function Resuspender(this: HTMLElement) {
       suspend(this);
       phase = "s1";
       update(this);
-      await new Promise((r) => setTimeout(r, 30));
+      await new Promise((resolve) => setTimeout(resolve, 30));
       phase = "s1-done";
       update(this);
       unsuspend(this);
-      // second cycle (ignored by Suspense)
-      await new Promise((r) => setTimeout(r, 30));
+      await new Promise((resolve) => setTimeout(resolve, 30));
       suspend(this);
       phase = "s2";
       update(this);
-      await new Promise((r) => setTimeout(r, 30));
+      await new Promise((resolve) => setTimeout(resolve, 30));
       phase = "s2-done";
       update(this);
       unsuspend(this);
@@ -141,10 +152,7 @@ function Resuspender(this: HTMLElement) {
   return <span className="resuspender">{() => phase}</span>;
 }
 
-/* --------------------------------
-   Edge tests
-   -------------------------------- */
-test("immediate", async () => {
+test("renders-immediate", async () => {
   const root = await mount(
     <Suspense fallback={<strong className="fallback">Loading</strong>}>
       <ImmediateChild />
@@ -155,7 +163,7 @@ test("immediate", async () => {
   assert.ok(root.querySelector(".immediate"));
 });
 
-test("multi children", async () => {
+test("multi-stagger", async () => {
   const root = await mount(
     <Suspense fallback={<strong className="fallback">Wait</strong>}>
       <DelayedChild label="a" delay={50} />
@@ -172,7 +180,7 @@ test("multi children", async () => {
   assert.ok(root.textContent!.includes("done"));
 });
 
-test("never unsuspends", async () => {
+test("never-unsuspends", async () => {
   const root = await mount(
     <Suspense fallback={<strong className="fallback">Hold</strong>}>
       <NeverUnsuspendChild />
@@ -185,7 +193,7 @@ test("never unsuspends", async () => {
   assert.not.ok(root.textContent!.includes("suspended"));
 });
 
-test("suspend error", async () => {
+test("error-keeps-fallback", async () => {
   const root = await mount(
     <Suspense fallback={<strong className="fallback">Err</strong>}>
       <ErrorChild />
@@ -198,7 +206,7 @@ test("suspend error", async () => {
   assert.not.ok(root.textContent!.includes("errored"));
 });
 
-test("mixed children delays", async () => {
+test("mixed-delays", async () => {
   const root = await mount(
     <Suspense fallback={<strong className="fallback">Mix</strong>}>
       <ImmediateChild />
@@ -216,7 +224,7 @@ test("mixed children delays", async () => {
   assert.ok(root.querySelector(".delayed-slow"));
 });
 
-test("resuspension ignored", async () => {
+test("ignore-resuspend", async () => {
   const root = await mount(
     <Suspense fallback={<strong className="fallback">Phase</strong>}>
       <Resuspender />

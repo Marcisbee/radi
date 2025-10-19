@@ -1,17 +1,31 @@
 import { assert, test } from "../../test/runner.ts";
 import { mount } from "../../test/utils.ts";
-
 import { update } from "../main.ts";
 
+/**
+ * Counter component and related tests.
+ *
+ * The component maintains an internal immutable state object:
+ *   state = { count: number }
+ * Each increment replaces the state object (immutability) and triggers an update.
+ *
+ * Tests:
+ * - render: initial DOM structure snapshot.
+ * - increment: clicking the increment button updates visible count.
+ * - manual-update-no-change: forcing update without state modification keeps value.
+ * - instances-isolated: multiple counters do not share state.
+ * - no-duplicate-nodes: re-renders do not duplicate existing DOM nodes.
+ */
 function Counter(this: HTMLElement) {
-  let count = 0;
+  let state = { count: 0 };
 
   return (
-    <div>
-      <span>{() => String(count)}</span>
+    <div className="counter">
+      <span>{() => String(state.count)}</span>
       <button
+        className="btn-inc"
         onclick={() => {
-          count++;
+          state = { count: state.count + 1 };
           update(this);
         }}
       >
@@ -21,45 +35,45 @@ function Counter(this: HTMLElement) {
   );
 }
 
-test("renders component", async () => {
+test("render", async () => {
   const container = await mount(<Counter />, document.body);
 
   assert.snapshot.html(
     container,
     `<cmp-counter style="display: contents;">
-      <div>
+      <div class="counter">
         <span><!--(-->0<!--)--></span>
-        <button>Increment</button>
+        <button class="btn-inc">Increment</button>
       </div>
     </cmp-counter>`,
   );
 });
 
-test("increments counter", async () => {
+test("increment", async () => {
   const container = await mount(<Counter />, document.body);
+  const spanBefore = container.querySelector("span")!;
+  assert.equal(spanBefore.textContent, "0");
 
-  const span1 = container.querySelector("span")!;
-  assert.equal(span1.textContent, "0");
-
-  const button = container.querySelector("button")!;
+  const button = container.querySelector(".btn-inc") as HTMLButtonElement;
   button.click();
   button.click();
   button.click();
 
-  const span2 = container.querySelector("span")!;
-  assert.equal(span2.textContent, "3");
+  const spanAfter = container.querySelector("span")!;
+  assert.equal(spanAfter.textContent, "3");
 });
 
-test("manual update without state change keeps value", async () => {
+test("manual-update-no-change", async () => {
   const container = await mount(<Counter />, document.body);
   const span = container.querySelector("span")!;
   assert.is(span.textContent, "0");
-  // Trigger an update without modifying state
+
+  // Update without modifying state object reference.
   update(container);
   assert.is(span.textContent, "0");
 });
 
-test("multiple counter instances isolated", async () => {
+test("instances-isolated", async () => {
   const container = await mount(
     <div>
       <Counter />
@@ -74,49 +88,45 @@ test("multiple counter instances isolated", async () => {
   const spans = container.querySelectorAll("span");
   assert.is(spans.length, 2);
 
-  const buttons = container.querySelectorAll("button");
+  const buttons = container.querySelectorAll(".btn-inc");
   assert.is(buttons.length, 2);
 
-  // Interact with each counter independently
-  buttons[0].click();
-  buttons[0].click();
-  buttons[1].click();
+  (buttons[0] as HTMLButtonElement).click();
+  (buttons[0] as HTMLButtonElement).click();
+  (buttons[1] as HTMLButtonElement).click();
 
   assert.is(spans[0].textContent, "2");
   assert.is(spans[1].textContent, "1");
 });
 
-test("counter re-renders without duplicating nodes", async () => {
+test("no-duplicate-nodes", async () => {
   const container = await mount(<Counter />, document.body);
 
-  // Initial structure snapshot
   assert.snapshot.html(
     container,
     `<cmp-counter style="display: contents;">
-      <div>
+      <div class="counter">
         <span><!--(-->0<!--)--></span>
-        <button>Increment</button>
+        <button class="btn-inc">Increment</button>
       </div>
     </cmp-counter>`,
   );
 
-  const button = container.querySelector("button")!;
+  const button = container.querySelector(".btn-inc") as HTMLButtonElement;
   const span = container.querySelector("span")!;
   button.click();
   button.click();
 
   assert.is(span.textContent, "2");
-
-  // Structure should remain the same except for the updated number
   assert.is(container.querySelectorAll("span").length, 1);
   assert.is(container.querySelectorAll("button").length, 1);
 
   assert.snapshot.html(
     container,
     `<cmp-counter style="display: contents;">
-      <div>
+      <div class="counter">
         <span><!--(-->2<!--)--></span>
-        <button>Increment</button>
+        <button class="btn-inc">Increment</button>
       </div>
     </cmp-counter>`,
   );

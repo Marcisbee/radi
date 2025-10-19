@@ -3,92 +3,127 @@ import { mount } from "../../test/utils.ts";
 import { createSignal } from "../signal.ts";
 import { update } from "../main.ts";
 
-function ThresholdSignalTest(
+/**
+ * SignalThresholdTest
+ *
+ * A button component that internally tracks a numeric signal value. Clicking
+ * the button increments the signal until a specified threshold is reached,
+ * after which the button becomes disabled and further clicks do nothing.
+ *
+ * Props:
+ * - count: number          Initial counter value.
+ * - threshold?: number     Maximum allowed value before disabling (default: 3).
+ *
+ * Rendering:
+ * The button text shows current signal value and threshold:
+ *   "Signal: {value} / {threshold}"
+ *
+ * Disabled State:
+ * The button is disabled when value >= threshold.
+ *
+ * @param this Host HTMLElement used for reactive updates.
+ * @param props Reactive props accessor.
+ */
+function SignalThresholdTest(
   this: HTMLElement,
   props: JSX.Props<{ count: number; threshold?: number }>,
 ) {
-  const p = props();
-  const threshold = p.threshold ?? 3;
-  const sig = createSignal(p.count);
+  const propsAccessor = props();
+  const maxThreshold = propsAccessor.threshold ?? 3;
+  const countSignal = createSignal(propsAccessor.count);
+
   return (
     <button
       type="button"
       className="signal-btn"
       onclick={() => {
-        if (sig() < threshold) {
-          sig(sig() + 1);
+        if (countSignal() < maxThreshold) {
+          countSignal(countSignal() + 1);
         }
       }}
-      disabled={() => sig() >= threshold}
+      disabled={() => countSignal() >= maxThreshold}
     >
-      Signal: {sig} / {threshold}
+      Signal: {countSignal} / {maxThreshold}
     </button>
   );
 }
 
-test("increments & disables", async () => {
-  const root = await mount(<ThresholdSignalTest count={0} />, document.body);
-  const btn = root.querySelector(".signal-btn") as HTMLButtonElement;
+/**
+ * increments until disabled
+ * Validates that the button increments value up to the threshold and then
+ * becomes disabled, preventing further increments.
+ */
+test("increments until disabled", async () => {
+  const rootEl = await mount(<SignalThresholdTest count={0} />, document.body);
+  const buttonEl = rootEl.querySelector(".signal-btn") as HTMLButtonElement;
 
-  assert.ok(btn.textContent!.includes("0 / 3"));
-  assert.not.ok(btn.disabled);
+  assert.ok(buttonEl.textContent!.includes("0 / 3"));
+  assert.not.ok(buttonEl.disabled);
 
-  btn.click();
-  assert.ok(btn.textContent!.includes("1 / 3"));
-  assert.not.ok(btn.disabled);
+  buttonEl.click();
+  assert.ok(buttonEl.textContent!.includes("1 / 3"));
+  assert.not.ok(buttonEl.disabled);
 
-  btn.click();
-  assert.ok(btn.textContent!.includes("2 / 3"));
-  assert.not.ok(btn.disabled);
+  buttonEl.click();
+  assert.ok(buttonEl.textContent!.includes("2 / 3"));
+  assert.not.ok(buttonEl.disabled);
 
-  btn.click();
-  assert.ok(btn.textContent!.includes("3 / 3"));
-  assert.ok(btn.disabled, "Button disabled at threshold");
+  buttonEl.click();
+  assert.ok(buttonEl.textContent!.includes("3 / 3"));
+  assert.ok(buttonEl.disabled, "Button disabled at threshold");
 });
 
-test("no increment after disable", async () => {
-  const root = await mount(<ThresholdSignalTest count={2} />, document.body);
-  const btn = root.querySelector(".signal-btn") as HTMLButtonElement;
+/**
+ * no increment after disabled
+ * Starting near threshold, verifies that once disabled it does not change even
+ * with additional clicks.
+ */
+test("no increment after disabled", async () => {
+  const rootEl = await mount(<SignalThresholdTest count={2} />, document.body);
+  const buttonEl = rootEl.querySelector(".signal-btn") as HTMLButtonElement;
 
-  assert.ok(btn.textContent!.includes("2 / 3"));
-  assert.not.ok(btn.disabled);
+  assert.ok(buttonEl.textContent!.includes("2 / 3"));
+  assert.not.ok(buttonEl.disabled);
 
-  // First click reaches threshold
-  btn.click();
-  assert.ok(btn.textContent!.includes("3 / 3"));
-  assert.ok(btn.disabled);
+  buttonEl.click(); // reaches threshold
+  assert.ok(buttonEl.textContent!.includes("3 / 3"));
+  assert.ok(buttonEl.disabled);
 
-  // Additional clicks should have no effect
-  btn.click();
-  btn.click();
+  buttonEl.click();
+  buttonEl.click();
   assert.ok(
-    btn.textContent!.includes("3 / 3"),
+    buttonEl.textContent!.includes("3 / 3"),
     "Value should stay at threshold",
   );
-  assert.ok(btn.disabled);
+  assert.ok(buttonEl.disabled);
 });
 
-test("starts disabled when >= threshold", async () => {
-  const root = await mount(
-    <ThresholdSignalTest count={5} threshold={5} />,
+/**
+ * starts disabled at threshold
+ * If initial count is already >= threshold the button should render disabled
+ * and remain stable across manual updates.
+ */
+test("starts disabled at threshold", async () => {
+  const rootEl = await mount(
+    <SignalThresholdTest count={5} threshold={5} />,
     document.body,
   );
-  const btn = root.querySelector(".signal-btn") as HTMLButtonElement;
+  const buttonEl = rootEl.querySelector(".signal-btn") as HTMLButtonElement;
 
-  assert.ok(btn.textContent!.includes("5 / 5"));
-  assert.ok(btn.disabled, "Starts disabled at or above threshold");
+  assert.ok(buttonEl.textContent!.includes("5 / 5"));
+  assert.ok(buttonEl.disabled);
 
-  // Attempt clicks should not change value
-  btn.click();
+  // Click attempts do nothing.
+  buttonEl.click();
   await Promise.resolve();
-  assert.ok(btn.textContent!.includes("5 / 5"));
-  assert.ok(btn.disabled);
+  assert.ok(buttonEl.textContent!.includes("5 / 5"));
+  assert.ok(buttonEl.disabled);
 
-  // Force update without change to ensure stability
-  update(root);
+  // Force update without change; should remain identical.
+  update(rootEl);
   await Promise.resolve();
-  assert.ok(btn.textContent!.includes("5 / 5"));
-  assert.ok(btn.disabled);
+  assert.ok(buttonEl.textContent!.includes("5 / 5"));
+  assert.ok(buttonEl.disabled);
 });
 
 await test.run();

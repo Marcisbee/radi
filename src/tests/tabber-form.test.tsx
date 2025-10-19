@@ -3,18 +3,24 @@ import { mount } from "../../test/utils.ts";
 import { update } from "../main.ts";
 
 /**
- * Simple static tab
+ * Tab1
+ * Static tab content component.
+ * @param this HTMLElement host.
+ * @returns JSX element with Tab1 label.
  */
 function Tab1(this: HTMLElement) {
   return <div className="tab1">Tab1</div>;
 }
 
 /**
- * Form tab that collects submitted "event" values into an internal array
- * and re-renders the list.
+ * Tab2
+ * Form tab that collects submitted "event" values and re-renders a list.
+ * Maintains an internal immutable event list.
+ * @param this HTMLElement host.
+ * @returns JSX form element with input + submitted events list.
  */
 function Tab2(this: HTMLElement) {
-  const events: string[] = [];
+  let eventList: string[] = [];
 
   return (
     <form
@@ -23,7 +29,7 @@ function Tab2(this: HTMLElement) {
         e.preventDefault();
         const fd = new FormData(e.target as HTMLFormElement);
         const obj = Object.fromEntries(fd.entries());
-        events.push(String(obj.event));
+        eventList = [...eventList, String(obj.event)];
         (e.target as HTMLFormElement).reset();
         update(this);
       }}
@@ -33,17 +39,20 @@ function Tab2(this: HTMLElement) {
         submit
       </button>
       <ul className="events">
-        {() => events.map((ev) => <li>{ev}</li>)}
+        {() => eventList.map((ev) => <li>{ev}</li>)}
       </ul>
     </form>
   );
 }
 
 /**
- * Tabber root: maintains which tab is active and swaps content.
+ * TabberTest
+ * Root container that controls which tab is active.
+ * @param this HTMLElement host.
+ * @returns JSX tab switcher + panel.
  */
 function TabberTest(this: HTMLElement) {
-  let tab: "tab1" | "tab2" = "tab1";
+  let activeTab: "tab1" | "tab2" = "tab1";
 
   return (
     <div className="tabber">
@@ -51,7 +60,7 @@ function TabberTest(this: HTMLElement) {
         type="button"
         className="btn-tab1"
         onclick={() => {
-          tab = "tab1";
+          activeTab = "tab1";
           update(this);
         }}
       >
@@ -61,97 +70,91 @@ function TabberTest(this: HTMLElement) {
         type="button"
         className="btn-tab2"
         onclick={() => {
-          tab = "tab2";
+          activeTab = "tab2";
           update(this);
         }}
       >
         tab2
       </button>
       <div className="panel">
-        {() => (tab === "tab1" ? <Tab1 /> : <Tab2 />)}
+        {() => (activeTab === "tab1" ? <Tab1 /> : <Tab2 />)}
       </div>
     </div>
   );
 }
 
-test("tab switch & form", async () => {
-  const root = await mount(<TabberTest />, document.body);
-  const panel = root.querySelector(".panel")!;
-  assert.ok(panel.textContent!.includes("Tab1"), "Initial tab should be Tab1");
+/** switch tabs and submit events */
+test("switch tabs", async () => {
+  const rootEl = await mount(<TabberTest />, document.body);
+  const panelEl = rootEl.querySelector(".panel")!;
+  assert.ok(panelEl.textContent!.includes("Tab1"));
 
-  (root.querySelector(".btn-tab2") as HTMLButtonElement).click();
+  (rootEl.querySelector(".btn-tab2") as HTMLButtonElement).click();
   await Promise.resolve();
-  assert.ok(panel.querySelector(".tab2-form"), "Tab2 form should appear");
+  assert.ok(panelEl.querySelector(".tab2-form"));
 
-  const input = panel.querySelector(".event-input") as HTMLInputElement;
-  const submit = panel.querySelector(".submit-btn") as HTMLButtonElement;
+  const eventInput = panelEl.querySelector(".event-input") as HTMLInputElement;
+  const submitBtn = panelEl.querySelector(".submit-btn") as HTMLButtonElement;
 
-  input.value = "alpha";
-  submit.click();
-  input.value = "beta";
-  submit.click();
+  eventInput.value = "alpha";
+  submitBtn.click();
+  eventInput.value = "beta";
+  submitBtn.click();
 
-  const lis = panel.querySelectorAll("li");
-  assert.is(lis.length, 2);
-  assert.is(lis[0].textContent, "alpha");
-  assert.is(lis[1].textContent, "beta");
+  const listItems = panelEl.querySelectorAll("li");
+  assert.is(listItems.length, 2);
+  assert.is(listItems[0].textContent, "alpha");
+  assert.is(listItems[1].textContent, "beta");
 });
 
-test("tab2 reset on remount", async () => {
-  const root = await mount(<TabberTest />, document.body);
-  const btnTab1 = root.querySelector(".btn-tab1") as HTMLButtonElement;
-  const btnTab2 = root.querySelector(".btn-tab2") as HTMLButtonElement;
+/** tab2 resets events after unmount/remount */
+test("tab2 resets", async () => {
+  const rootEl = await mount(<TabberTest />, document.body);
+  const btnTab1 = rootEl.querySelector(".btn-tab1") as HTMLButtonElement;
+  const btnTab2 = rootEl.querySelector(".btn-tab2") as HTMLButtonElement;
 
-  // Go to Tab2
   btnTab2.click();
   await Promise.resolve();
 
-  const panel1 = root.querySelector(".panel")!;
-  const input1 = panel1.querySelector(".event-input") as HTMLInputElement;
-  const submit1 = panel1.querySelector(".submit-btn") as HTMLButtonElement;
+  const panelEl1 = rootEl.querySelector(".panel")!;
+  const eventInput1 = panelEl1.querySelector(
+    ".event-input",
+  ) as HTMLInputElement;
+  const submitBtn1 = panelEl1.querySelector(".submit-btn") as HTMLButtonElement;
 
-  input1.value = "first";
-  submit1.click();
-  input1.value = "second";
-  submit1.click();
+  eventInput1.value = "first";
+  submitBtn1.click();
+  eventInput1.value = "second";
+  submitBtn1.click();
+  assert.is(panelEl1.querySelectorAll("li").length, 2);
 
-  assert.is(panel1.querySelectorAll("li").length, 2);
-
-  // Switch back to Tab1 (unmount Tab2)
   btnTab1.click();
   await Promise.resolve();
-  assert.ok(panel1.textContent!.includes("Tab1"), "Should show Tab1 now");
+  assert.ok(panelEl1.textContent!.includes("Tab1"));
 
-  // Switch again to Tab2 (fresh instance with empty events)
   btnTab2.click();
   await Promise.resolve();
-
-  const panel2 = root.querySelector(".panel")!;
-  const lis2 = panel2.querySelectorAll("li");
-  assert.is(lis2.length, 0, "Events should reset on fresh Tab2 mount");
+  const panelEl2 = rootEl.querySelector(".panel")!;
+  assert.is(panelEl2.querySelectorAll("li").length, 0);
 });
 
-test("empty submit stored", async () => {
-  const root = await mount(<TabberTest />, document.body);
-  (root.querySelector(".btn-tab2") as HTMLButtonElement).click();
+/** empty submission preserved as empty list item */
+test("empty submit preserved", async () => {
+  const rootEl = await mount(<TabberTest />, document.body);
+  (rootEl.querySelector(".btn-tab2") as HTMLButtonElement).click();
   await Promise.resolve();
 
-  const panel = root.querySelector(".panel")!;
-  const input = panel.querySelector(".event-input") as HTMLInputElement;
-  const submit = panel.querySelector(".submit-btn") as HTMLButtonElement;
+  const panelEl = rootEl.querySelector(".panel")!;
+  const eventInput = panelEl.querySelector(".event-input") as HTMLInputElement;
+  const submitBtn = panelEl.querySelector(".submit-btn") as HTMLButtonElement;
 
-  // Leave input blank
-  input.value = "";
-  submit.click();
+  eventInput.value = "";
+  submitBtn.click();
   await Promise.resolve();
 
-  const lis = panel.querySelectorAll("li");
-  assert.is(lis.length, 1);
-  assert.is(
-    lis[0].textContent,
-    "",
-    "Empty submission should produce empty list item",
-  );
+  const listItems = panelEl.querySelectorAll("li");
+  assert.is(listItems.length, 1);
+  assert.is(listItems[0].textContent, "");
 });
 
 await test.run();

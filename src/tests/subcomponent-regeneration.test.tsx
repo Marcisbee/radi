@@ -3,54 +3,78 @@ import { mount } from "../../test/utils.ts";
 import { update } from "../main.ts";
 
 /**
- * Subcomponent Regeneration Tests
+ * SubValue
+ * Displays a numeric value passed via props and exposes it reactively.
  *
- * Goal: Ensure that a parent component returning a freshly constructed child component
- * via a reactive function causes that child to re-evaluate its props (including randomized values)
- * on subsequent updates.
+ * Props:
+ * - value: number
+ *
+ * The value is wrapped in a reactive accessor so that regenerating the parent
+ * component with a new random value updates the displayed text.
+ *
+ * @param props Reactive props accessor containing a numeric value.
+ * @returns JSX heading element showing the value.
  */
-
-function Sub2Test(props: JSX.Props<{ value: number }>) {
-  // Value prop should be reactive from parent regeneration
+function SubValue(props: JSX.Props<{ value: number }>) {
   return <h3 className="sub2-value">Value: {() => props().value}</h3>;
 }
 
-function Sub1Test(this: HTMLElement) {
-  // Returning a function makes this "reactive" in framework semantics
-  // Each update(root) should trigger re-evaluation and new random prop for Sub2Test
-  return () => <Sub2Test value={Math.random()} />;
+/**
+ * Regenerator
+ * Parent component that returns a reactive function producing a new
+ * `SubValue` instance with a freshly generated random number each time
+ * `update(parent)` is invoked.
+ *
+ * @returns Reactive function returning a SubValue child with random value.
+ */
+function Regenerator(this: HTMLElement) {
+  return () => <SubValue value={Math.random()} />;
 }
 
-test("sub2 prop regenerates", async () => {
-  const root = await mount(<Sub1Test />, document.body);
-  const h3 = root.querySelector(".sub2-value")!;
-  assert.ok(h3, "Sub2 h3 should exist");
+/**
+ * prop-regenerates
+ * Confirms that successive parent updates produce different random values.
+ * Retries a limited number of times in the extremely unlikely event of
+ * identical random outputs.
+ */
+test("prop-regenerates", async () => {
+  const root = await mount(<Regenerator />, document.body);
+  const heading = root.querySelector(".sub2-value") as HTMLElement;
+  assert.ok(heading);
 
-  const first = h3.textContent!;
-  assert.ok(
-    /Value:\s*\d\.\d+/.test(first),
-    "First render contains random number",
-  );
+  const first = heading.textContent!;
+  assert.ok(/Value:\s*\d\.\d+/.test(first));
 
-  // Trigger an update on the root component (parent)
-  update(root);
-  await Promise.resolve();
-  const second = h3.textContent!;
-  // If random collided (edge case), retry once
-  if (first === second) {
+  const maxAttempts = 5;
+  let attempt = 0;
+  let changed = false;
+  while (attempt < maxAttempts && !changed) {
     update(root);
     await Promise.resolve();
+    const current = heading.textContent!;
+    if (current !== first) {
+      changed = true;
+    } else {
+      attempt++;
+    }
   }
-  const third = h3.textContent!;
-  assert.not.is(
-    first,
-    third,
-    "Random value should change after regeneration updates",
-  );
-  assert.ok(
-    /Value:\s*\d\.\d+/.test(third),
-    "Third render contains random number",
-  );
+
+  assert.ok(changed, "Random value should change within attempts");
+  assert.ok(/Value:\s*\d\.\d+/.test(heading.textContent!));
+});
+
+/**
+ * stable-before-update
+ * Ensures that without invoking `update`, the rendered random value
+ * remains stable (no spontaneous change).
+ */
+test("stable-before-update", async () => {
+  const root = await mount(<Regenerator />, document.body);
+  const heading = root.querySelector(".sub2-value") as HTMLElement;
+  const initial = heading.textContent!;
+  await Promise.resolve(); // allow any microtasks
+  const again = heading.textContent!;
+  assert.is(initial, again);
 });
 
 await test.run();

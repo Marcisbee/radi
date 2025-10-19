@@ -1,0 +1,27 @@
+- use kebab-case for file names
+- use camelCase for variable and function names
+- use PascalCase for class names and React components
+- use UPPER_SNAKE_CASE for constants
+- use double quotes for strings
+- use semicolons at the end of statements
+- use trailing commas in multi-line objects and arrays
+- use template literals for string interpolation
+- do not use default exports, use named exports instead
+- write JSDoc comments for functions and classes
+- function content should be less than 50 lines
+- avoid using `any` type in TypeScript, use specific types instead
+- prefer `const` over `let` and `let` over `var`
+- use async/await for asynchronous code instead of .then() and .catch()
+- use loops like `for...of` or array methods like `.map()`, `.filter()`, and
+  `.reduce()` instead of traditional `for` loops
+- avoid deeply nested code, refactor into smaller functions if necessary
+- use destructuring assignment for objects and arrays
+- use css modules for styling React components
+- name variables and functions descriptively to convey their purpose
+- avoid using inline styles in React components, use CSS classes instead
+- prefer code clarity over cleverness
+- prefer immutability, avoid mutating objects and arrays directly
+- keep comments minimal and only when necessary to explain complex logic
+- do not write what or why you did things in comments
+- do not use section comments
+- test names should clearly describe the expected behavior and be very short

@@ -3,56 +3,56 @@ import { mount } from "../../test/utils.ts";
 import { update } from "../main.ts";
 
 /**
- * Subcomponent generation + reactive/fragment behavior tests.
- * Consolidated (edge + core) suite to guard buildElement / normalizeToNodes /
- * reactive generator mounting / component identity replacement / fragment churn.
+ * Renders a span with an id value.
+ * @param this Host HTMLElement.
+ * @param props Props containing numeric id.
  */
-
-/* =========================================================
-   Helper Components
-   ========================================================= */
-
 function Item(this: HTMLElement, props: JSX.Props<{ id: number }>) {
   return <span className="item-span">#{() => props().id}</span>;
 }
 
+/**
+ * Demo child A that shows a label and render count.
+ * @param this Host element.
+ * @param props Props with a static label string.
+ */
 function AChild(this: HTMLElement, props: JSX.Props<{ label: string }>) {
-  let renders = 0;
+  let renderCount = 0;
   return () => (
     <div className="a-child">
-      A:{props().label} r:{++renders}
+      A:{props().label} r:{++renderCount}
     </div>
   );
 }
 
+/**
+ * Demo child B that shows a label and render count.
+ * @param this Host element.
+ * @param props Props with a static label string.
+ */
 function BChild(this: HTMLElement, props: JSX.Props<{ label: string }>) {
-  let renders = 0;
+  let renderCount = 0;
   return () => (
     <div className="b-child">
-      B:{props().label} r:{++renders}
+      B:{props().label} r:{++renderCount}
     </div>
   );
 }
 
-/* =========================================================
-   Tests
-   ========================================================= */
-
-/* 1. Reactive returns array whose length changes */
-
+/**
+ * Root with variable-length array of Item children.
+ * @param this Host element.
+ */
 function VariableArrayRoot(this: HTMLElement) {
-  let count = 1;
+  let itemCount = 1;
   return () => {
-    const arr: JSX.Element[] = [];
-    for (let i = 0; i < count; i++) {
-      arr.push(<Item id={i} />);
-    }
+    const items = Array.from({ length: itemCount }, (_, i) => <Item id={i} />);
     return (
       <div className="var-array">
         <button
           className="inc-btn"
           onclick={() => {
-            count++;
+            itemCount++;
             update(this);
           }}
         >
@@ -61,49 +61,23 @@ function VariableArrayRoot(this: HTMLElement) {
         <button
           className="dec-btn"
           onclick={() => {
-            count = Math.max(0, count - 1);
+            itemCount = Math.max(0, itemCount - 1);
             update(this);
           }}
         >
           dec
         </button>
-        <div className="list">{arr}</div>
-        <span className="count">{count}</span>
+        <div className="list">{items}</div>
+        <span className="count">{itemCount}</span>
       </div>
     );
   };
 }
 
-test("vary array len", async () => {
-  const root = await mount(<VariableArrayRoot />, document.body);
-  const list = root.querySelector(".list")!;
-  const inc = root.querySelector(".inc-btn") as HTMLButtonElement;
-  const dec = root.querySelector(".dec-btn") as HTMLButtonElement;
-
-  assert.is(list.querySelectorAll(".item-span").length, 1);
-
-  inc.click();
-  await Promise.resolve();
-  assert.is(list.querySelectorAll(".item-span").length, 2);
-
-  inc.click();
-  inc.click();
-  await Promise.resolve();
-  assert.is(list.querySelectorAll(".item-span").length, 4);
-
-  dec.click();
-  await Promise.resolve();
-  assert.is(list.querySelectorAll(".item-span").length, 3);
-
-  dec.click();
-  dec.click();
-  dec.click();
-  await Promise.resolve();
-  assert.is(list.querySelectorAll(".item-span").length, 0);
-});
-
-/* 2. Reactive returns null then node toggling */
-
+/**
+ * Root that toggles a nullable child node.
+ * @param this Host element.
+ */
 function NullToggleRoot(this: HTMLElement) {
   let show = false;
   return () => (
@@ -125,34 +99,22 @@ function NullToggleRoot(this: HTMLElement) {
   );
 }
 
-test("null toggle", async () => {
-  const root = await mount(<NullToggleRoot />, document.body);
-  const slot = root.querySelector(".slot")!;
-  const btn = root.querySelector(".toggle-btn") as HTMLButtonElement;
-
-  assert.is(slot.querySelectorAll(".strong").length, 0);
-  btn.click();
-  await Promise.resolve();
-  assert.is(slot.querySelectorAll(".strong").length, 1);
-  btn.click();
-  await Promise.resolve();
-  assert.is(slot.querySelectorAll(".strong").length, 0);
-});
-
-/* 3. Nested reactive generator chain */
-
+/**
+ * Deep nested reactive chain returning a dynamic message.
+ * @param this Host element.
+ */
 function DeepChain(this: HTMLElement) {
-  let n = 0;
+  let value = 0;
   return () => (
     <>
       {() => {
-        const msg = `val:${n}`;
+        const msg = `val:${value}`;
         return (
           <div className="deep-chain">
             <button
               className="bump"
               onclick={() => {
-                n++;
+                value++;
                 update(this);
               }}
             >
@@ -166,28 +128,10 @@ function DeepChain(this: HTMLElement) {
   );
 }
 
-test("nested chain", async () => {
-  const root = await mount(<DeepChain />, document.body);
-  let msg: HTMLElement | null = null;
-  for (let i = 0; i < 5 && !msg; i++) {
-    await Promise.resolve();
-    msg = root.querySelector(".msg");
-  }
-  assert.ok(msg, "msg element mounted");
-  const bump = root.querySelector(".bump") as HTMLButtonElement;
-
-  assert.ok(msg!.textContent!.includes("val:0"));
-  bump.click();
-  await Promise.resolve();
-  assert.ok(root.querySelector(".msg")!.textContent!.includes("val:1"));
-  bump.click();
-  bump.click();
-  await Promise.resolve();
-  assert.ok(root.querySelector(".msg")!.textContent!.includes("val:3"));
-});
-
-/* 4. Component identity swap triggers replacement */
-
+/**
+ * Swaps identity between AChild and BChild components to test full replacement.
+ * @param this Host element.
+ */
 function IdentitySwap(this: HTMLElement) {
   let mode: "A" | "B" = "A";
   return () => (
@@ -207,26 +151,10 @@ function IdentitySwap(this: HTMLElement) {
   );
 }
 
-test("identity swap", async () => {
-  const root = await mount(<IdentitySwap />, document.body);
-  const swap = root.querySelector(".swap") as HTMLButtonElement;
-
-  assert.is(root.querySelectorAll(".a-child").length, 1);
-  assert.is(root.querySelectorAll(".b-child").length, 0);
-
-  swap.click();
-  await Promise.resolve();
-  assert.is(root.querySelectorAll(".a-child").length, 0);
-  assert.is(root.querySelectorAll(".b-child").length, 1);
-
-  swap.click();
-  await Promise.resolve();
-  assert.is(root.querySelectorAll(".a-child").length, 1);
-  assert.is(root.querySelectorAll(".b-child").length, 0);
-});
-
-/* 5. Multiple updates do not duplicate nodes */
-
+/**
+ * Root that increments a tick counter ensuring nodes are not duplicated.
+ * @param this Host element.
+ */
 function NoDupRoot(this: HTMLElement) {
   let ticks = 0;
   return () => (
@@ -245,26 +173,19 @@ function NoDupRoot(this: HTMLElement) {
   );
 }
 
-test("no dup", async () => {
-  const root = await mount(<NoDupRoot />, document.body);
-  const tick = root.querySelector(".tick") as HTMLButtonElement;
-  for (let i = 0; i < 5; i++) tick.click();
-  await Promise.resolve();
-  assert.is(root.querySelectorAll(".ticks").length, 1);
-  assert.ok(root.querySelector(".ticks")!.textContent!.includes("ticks:5"));
-});
-
-/* 6. Fragment churn: booleans / null / array mixing */
-
+/**
+ * Fragment churn stress test mixing booleans, nulls and keyed elements.
+ * @param this Host element.
+ */
 function FragmentChurn(this: HTMLElement) {
   let phase = 0;
   return () => {
     phase++;
-    const show = phase % 2 === 0;
+    const evenMode = phase % 2 === 0;
     return (
       <>
-        {show && <span className="even">even</span>}
-        {!show && <span className="odd">odd</span>}
+        {evenMode && <span className="even">even</span>}
+        {!evenMode && <span className="odd">odd</span>}
         {null}
         {true}
         {false}
@@ -282,32 +203,124 @@ function FragmentChurn(this: HTMLElement) {
   };
 }
 
+/** variable array length */
+test("vary array len", async () => {
+  const root = await mount(<VariableArrayRoot />, document.body);
+  const listEl = root.querySelector(".list")!;
+  const incBtn = root.querySelector(".inc-btn") as HTMLButtonElement;
+  const decBtn = root.querySelector(".dec-btn") as HTMLButtonElement;
+
+  assert.is(listEl.querySelectorAll(".item-span").length, 1);
+
+  incBtn.click();
+  await Promise.resolve();
+  assert.is(listEl.querySelectorAll(".item-span").length, 2);
+
+  incBtn.click();
+  incBtn.click();
+  await Promise.resolve();
+  assert.is(listEl.querySelectorAll(".item-span").length, 4);
+
+  decBtn.click();
+  await Promise.resolve();
+  assert.is(listEl.querySelectorAll(".item-span").length, 3);
+
+  decBtn.click();
+  decBtn.click();
+  decBtn.click();
+  await Promise.resolve();
+  assert.is(listEl.querySelectorAll(".item-span").length, 0);
+});
+
+/** toggle nullable child */
+test("null toggle", async () => {
+  const root = await mount(<NullToggleRoot />, document.body);
+  const slotEl = root.querySelector(".slot")!;
+  const toggleBtn = root.querySelector(".toggle-btn") as HTMLButtonElement;
+
+  assert.is(slotEl.querySelectorAll(".strong").length, 0);
+  toggleBtn.click();
+  await Promise.resolve();
+  assert.is(slotEl.querySelectorAll(".strong").length, 1);
+  toggleBtn.click();
+  await Promise.resolve();
+  assert.is(slotEl.querySelectorAll(".strong").length, 0);
+});
+
+/** nested reactive chain updates message */
+test("nested chain", async () => {
+  const root = await mount(<DeepChain />, document.body);
+  let msgEl: HTMLElement | null = null;
+  for (const _ of Array.from({ length: 5 })) {
+    if (msgEl) break;
+    await Promise.resolve();
+    msgEl = root.querySelector(".msg");
+  }
+  assert.ok(msgEl, "msg element mounted");
+  const bumpBtn = root.querySelector(".bump") as HTMLButtonElement;
+
+  assert.ok(msgEl!.textContent!.includes("val:0"));
+  bumpBtn.click();
+  await Promise.resolve();
+  assert.ok(root.querySelector(".msg")!.textContent!.includes("val:1"));
+  bumpBtn.click();
+  bumpBtn.click();
+  await Promise.resolve();
+  assert.ok(root.querySelector(".msg")!.textContent!.includes("val:3"));
+});
+
+/** component identity replacement */
+test("identity swap", async () => {
+  const root = await mount(<IdentitySwap />, document.body);
+  const swapBtn = root.querySelector(".swap") as HTMLButtonElement;
+
+  assert.is(root.querySelectorAll(".a-child").length, 1);
+  assert.is(root.querySelectorAll(".b-child").length, 0);
+
+  swapBtn.click();
+  await Promise.resolve();
+  assert.is(root.querySelectorAll(".a-child").length, 0);
+  assert.is(root.querySelectorAll(".b-child").length, 1);
+
+  swapBtn.click();
+  await Promise.resolve();
+  assert.is(root.querySelectorAll(".a-child").length, 1);
+  assert.is(root.querySelectorAll(".b-child").length, 0);
+});
+
+/** multiple updates keep single node instance */
+test("no dup", async () => {
+  const root = await mount(<NoDupRoot />, document.body);
+  const tickBtn = root.querySelector(".tick") as HTMLButtonElement;
+  for (const _ of Array.from({ length: 5 })) tickBtn.click();
+  await Promise.resolve();
+  assert.is(root.querySelectorAll(".ticks").length, 1);
+  assert.ok(root.querySelector(".ticks")!.textContent!.includes("ticks:5"));
+});
+
+/** fragment churn maintains single even/odd and inner node */
 test("fragment churn", async () => {
   const root = await mount(<FragmentChurn />, document.body);
-  const flip = root.querySelector(".flip") as HTMLButtonElement;
+  const flipBtn = root.querySelector(".flip") as HTMLButtonElement;
 
-  const cycle = () => {
-    const even = root.querySelectorAll(".even").length;
-    const odd = root.querySelectorAll(".odd").length;
+  const validate = () => {
+    const evenCount = root.querySelectorAll(".even").length;
+    const oddCount = root.querySelectorAll(".odd").length;
     const innerCount = root.querySelectorAll(".inner").length;
-    assert.is(even + odd, 1);
+    assert.is(evenCount + oddCount, 1);
     assert.is(innerCount, 1);
   };
 
-  cycle();
-  flip.click();
+  validate();
+  flipBtn.click();
   await Promise.resolve();
-  cycle();
-  flip.click();
+  validate();
+  flipBtn.click();
   await Promise.resolve();
-  cycle();
-  flip.click();
+  validate();
+  flipBtn.click();
   await Promise.resolve();
-  cycle();
+  validate();
 });
-
-/* =========================================================
-   Run
-   ========================================================= */
 
 await test.run();

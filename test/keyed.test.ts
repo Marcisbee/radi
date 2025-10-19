@@ -3,19 +3,30 @@ import { assert, test } from "./runner.ts";
 import { mount } from "./utils.ts";
 
 /**
- * Utility: flush microtasks + a short frame.
+ * nextTick
+ * Flushes queued microtasks and a single animation frame to allow DOM mutations,
+ * mutation observers, and component lifecycle microtasks to settle before continuing.
+ *
+ * @returns Promise that resolves after a microtask and a requestAnimationFrame.
  */
 function nextTick(): Promise<void> {
-  return new Promise((r) => {
+  return new Promise((resolve) => {
     queueMicrotask(() => {
-      // Allow MutationObserver/connect events to propagate
-      requestAnimationFrame(() => r());
+      requestAnimationFrame(() => resolve());
     });
   });
 }
 
-test("reorder retains identity", async () => {
-  const state = { items: [1, 2, 3] };
+/* ---------------------------------------------------------
+   Reordering / keyed identity tests
+   --------------------------------------------------------- */
+
+/**
+ * reorder retains nodes
+ * Reordering a keyed list should move existing DOM elements without recreating them.
+ */
+test("reorder retains nodes", async () => {
+  const state: { items: number[] } = { items: [1, 2, 3] };
 
   const listGen = () =>
     state.items.map((id) =>
@@ -29,11 +40,10 @@ test("reorder retains identity", async () => {
   const root = createElement("section", null, listGen);
   const container = await mount(root as any, document.body as any);
 
-  // Capture initial nodes by key
   const initialNodes = new Map<string, Element>();
-  Array.from(container.querySelectorAll("section > div")).forEach((el) => {
+  for (const el of Array.from(container.querySelectorAll("section > div"))) {
     initialNodes.set(el.getAttribute("data-key")!, el);
-  });
+  }
 
   assert.is(
     Array.from(initialNodes.values()).map((n) => n.textContent).join(","),
@@ -41,7 +51,7 @@ test("reorder retains identity", async () => {
     "Initial order mismatch",
   );
 
-  // Reorder
+  // Reorder immutably.
   state.items = [3, 2, 1];
   update(container.querySelector("section")!);
   await nextTick();
@@ -53,15 +63,19 @@ test("reorder retains identity", async () => {
   const reorderedKeys = reordered.map((n) => n.getAttribute("data-key"));
   assert.equal(reorderedKeys, ["3", "2", "1"]);
 
-  // Identity check: nodes should be the same objects, only moved
+  // Identity check.
   for (const el of reordered) {
     const key = el.getAttribute("data-key")!;
     assert.is(el, initialNodes.get(key), `Node with key ${key} was replaced`);
   }
 });
 
+/**
+ * insertion removal preserves
+ * Inserting and removing keyed items should preserve identity of existing keys.
+ */
 test("insertion removal preserves", async () => {
-  const state = { items: [10, 20, 30] };
+  const state: { items: number[] } = { items: [10, 20, 30] };
 
   const listGen = () =>
     state.items.map((id) =>
@@ -77,7 +91,6 @@ test("insertion removal preserves", async () => {
   }
   assert.equal(Array.from(firstSnapshot.keys()), ["10", "20", "30"]);
 
-  // Mutate: remove 20, add 15 before 10, add 40 at end
   state.items = [15, 10, 30, 40];
   update(container.querySelector("section")!);
   await nextTick();
@@ -86,24 +99,37 @@ test("insertion removal preserves", async () => {
   const keys = afterEls.map((el) => el.getAttribute("data-key"));
   assert.equal(keys, ["15", "10", "30", "40"]);
 
-  // Identity: 10 and 30 preserved
   assert.is(afterEls[1], firstSnapshot.get("10"));
   assert.is(afterEls[2], firstSnapshot.get("30"));
-
-  // New nodes for 15 and 40
   assert.ok(!firstSnapshot.has("15"));
   assert.ok(!firstSnapshot.has("40"));
 });
 
-test("stable key no remount", async () => {
-  let mountCount = 0;
-  const state = { key: "A", value: 1 };
+/* ---------------------------------------------------------
+   Component remount behavior with stable / changing keys
+   --------------------------------------------------------- */
 
-  function Counter(getProps: () => { value: number }) {
-    mountCount++;
-    const { value } = getProps();
-    return createElement("span", null, "V" + value);
-  }
+/**
+ * Counter
+ * Simple component used for mount counting; not reactive to value changes
+ * since it returns static content.
+ *
+ * @param getProps Accessor returning props with a numeric value field.
+ */
+function Counter(getProps: () => { value: number }) {
+  mountCount++;
+  const { value } = getProps();
+  return createElement("span", null, "V" + value);
+}
+let mountCount = 0;
+
+/**
+ * stable key no remount
+ * Changing a non-reactive prop without changing the key should not remount component.
+ */
+test("stable key no remount", async () => {
+  mountCount = 0;
+  const state: { key: string; value: number } = { key: "A", value: 1 };
 
   const compGen = () =>
     createElement(Counter, { key: state.key, value: state.value });
@@ -117,28 +143,34 @@ test("stable key no remount", async () => {
   assert.ok(span);
   assert.is(span!.textContent, "V1");
 
-  // Update value only; same key
-  state.value = 2;
+  state.value = 2; // value changes but component not reactive to it
   update(container.querySelector("div")!);
   await nextTick();
 
-  // Component body should NOT run again (mountCount unchanged)
   assert.is(mountCount, 1, "Component should NOT remount when key is stable");
-  // Since component output isn't reactive to value change (no reactive child fn),
-  // span text will remain V1 — this validates no re-execution.
   assert.is(span!.textContent, "V1");
 });
 
-test("key change remounts", async () => {
-  let mountCount = 0;
-  const state = { key: "K1", value: 1 };
+/**
+ * KeyedComp
+ * Component used to verify mount counts on key changes.
+ *
+ * @param getProps Accessor returning props with a value.
+ */
+function KeyedComp(getProps: () => { value: number }) {
+  keyedMountCount++;
+  const { value } = getProps();
+  return createElement("span", null, `M${keyedMountCount}-V${value}`);
+}
+let keyedMountCount = 0;
 
-  function KeyedComp(getProps: () => { value: number }) {
-    mountCount++;
-    const { value } = getProps();
-    // Include mount count so we can observe new instantiation
-    return createElement("span", null, `M${mountCount}-V${value}`);
-  }
+/**
+ * key change remounts
+ * Changing the key forces a remount and re-execution of component body.
+ */
+test("key change remounts", async () => {
+  keyedMountCount = 0;
+  const state: { key: string; value: number } = { key: "K1", value: 1 };
 
   const compGen = () =>
     createElement(KeyedComp, { key: state.key, value: state.value });
@@ -147,27 +179,33 @@ test("key change remounts", async () => {
   const container = await mount(root as any, document.body as any);
   await nextTick();
 
-  assert.is(mountCount, 1);
+  assert.is(keyedMountCount, 1);
   let span = container.querySelector("div > cmp-KeyedComp > span")!;
   assert.ok(span);
   assert.is(span.textContent, "M1-V1");
 
-  // Change key -> expect remount
   state.key = "K2";
   state.value = 2;
   update(container.querySelector("div")!);
   await nextTick();
-  // Need one more tick for microtask component mount
-  await nextTick();
+  await nextTick(); // allow microtask component mount
 
   span = container.querySelector("div > cmp-KeyedComp[data-key='K2'] > span")!;
   assert.ok(span);
-  assert.is(mountCount, 2, "Component should remount on key change");
+  assert.is(keyedMountCount, 2, "Component should remount on key change");
   assert.is(span.textContent, "M2-V2");
 });
 
+/* ---------------------------------------------------------
+   Fragment keyed reordering
+   --------------------------------------------------------- */
+
+/**
+ * fragment reorder identity
+ * Reordering keyed children inside a Fragment preserves node identity.
+ */
 test("fragment reorder identity", async () => {
-  const state = { items: ["a", "b", "c"] };
+  const state: { items: string[] } = { items: ["a", "b", "c"] };
 
   const listGen = () =>
     state.items.map((id) => createElement("p", { key: id }, id.toUpperCase()));
@@ -199,8 +237,16 @@ test("fragment reorder identity", async () => {
   }
 });
 
+/**
+ * mixed keyed preserves
+ * Reordering keyed nodes while mutating an unkeyed tail should preserve
+ * identity of keyed nodes only.
+ */
 test("mixed keyed preserves", async () => {
-  const state = { items: ["x", "y"], tail: ["un1", "un2"] };
+  const state: { items: string[]; tail: string[] } = {
+    items: ["x", "y"],
+    tail: ["un1", "un2"],
+  };
 
   const mixedGen = () => [
     ...state.items.map((k) => createElement("i", { key: k }, k)),
@@ -218,8 +264,8 @@ test("mixed keyed preserves", async () => {
     initialKeyed.map((n) => [n.textContent!, n]),
   );
 
-  state.items = ["y", "x"]; // reorder keyed
-  state.tail = ["un2", "un1", "un3"]; // mutate unkeyed
+  state.items = ["y", "x"];
+  state.tail = ["un2", "un1", "un3"];
   update(container.querySelector("div")!);
   await nextTick();
 
@@ -230,15 +276,26 @@ test("mixed keyed preserves", async () => {
   }
 });
 
-test("key removed remounts", async () => {
-  let mountCount = 0;
-  const state: { keyed: boolean } = { keyed: true };
+/**
+ * Flip
+ * Component used to verify remount when key is removed.
+ *
+ * @param getProps Accessor for label string.
+ */
+function Flip(getProps: () => { label: string }) {
+  flipMountCount++;
+  const { label } = getProps();
+  return createElement("strong", null, label);
+}
+let flipMountCount = 0;
 
-  function Flip(getProps: () => { label: string }) {
-    mountCount++;
-    const { label } = getProps();
-    return createElement("strong", null, label);
-  }
+/**
+ * key removed remounts
+ * Removing a previously existing key causes remount.
+ */
+test("key removed remounts", async () => {
+  flipMountCount = 0;
+  const state: { keyed: boolean } = { keyed: true };
 
   const compGen = () =>
     state.keyed
@@ -248,13 +305,18 @@ test("key removed remounts", async () => {
   const root = createElement("div", null, compGen);
   const container = await mount(root as any, document.body as any);
   await nextTick();
-  assert.is(mountCount, 1);
+  assert.is(flipMountCount, 1);
 
-  state.keyed = false; // drop key
+  state.keyed = false;
   update(container.querySelector("div")!);
   await nextTick();
-  await nextTick(); // allow microtask mount
-  assert.is(mountCount, 2, "Component should remount when key removed");
+  await nextTick();
+  assert.is(flipMountCount, 2, "Component should remount when key removed");
   const txt = container.querySelector("div > cmp-Flip > strong")!.textContent;
   assert.is(txt, "UNKEYED");
 });
+
+/* ---------------------------------------------------------
+   Run all tests
+   --------------------------------------------------------- */
+await test.run();
