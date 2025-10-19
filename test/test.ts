@@ -62,46 +62,40 @@ if (!entrypoints.length) {
   throw new Error("No test entrypoints found");
 }
 
-// Bundle all test entrypoints into ESM (no code splitting)
-const result = await Deno.bundle({
-  entrypoints,
-  outputDir: "./",
-  platform: "browser",
-  minify: false,
-  sourcemap: "inline",
-  write: false,
-  format: "esm",
-  codeSplitting: false,
-});
+// Internal bundling step (no code splitting)
+async function bundle(): Promise<{ html: string }> {
+  const result = await Deno.bundle({
+    entrypoints,
+    outputDir: "./",
+    platform: "browser",
+    minify: false,
+    sourcemap: "inline",
+    write: false,
+    format: "esm",
+    codeSplitting: false,
+  });
 
-if (!result.success) {
-  for (const error of result.errors) {
-    console.error(error.text);
+  if (!result.success) {
+    for (const error of result.errors) {
+      console.error(error.text);
+    }
+    throw new Error("Bundling failed");
   }
-  throw new Error("Bundling failed");
-}
 
-// Build importmap where each bundled file is a data: URI module.
-// We wrap each module's code with console.group decorations for readability.
-const importEntries: string[] = [];
-const moduleNames: [string, string][] = [];
+  const importEntries: string[] = [];
+  const moduleNames: [string, string][] = [];
 
-result.outputFiles?.forEach((file, i) => {
-  const moduleName = `test_module_${i}`;
-  moduleNames.push([entrypoints[i], moduleName]);
+  result.outputFiles?.forEach((file, i) => {
+    const moduleName = `test_module_${i}`;
+    moduleNames.push([entrypoints[i], moduleName]);
+    const decorated = [file.text()].join("\n");
+    const encoded = encodeURIComponent(decorated);
+    importEntries.push(
+      `"${moduleName}": "data:application/javascript,${encoded}"`,
+    );
+  });
 
-  const decorated = [
-    file.text(),
-  ].join("\n");
-
-  const encoded = encodeURIComponent(decorated);
-  importEntries.push(
-    `"${moduleName}": "data:application/javascript,${encoded}"`,
-  );
-});
-
-// Compose final HTML with a single importmap and one loader module script
-const html = `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -128,6 +122,56 @@ const html = `<!DOCTYPE html>
   </head>
   <body></body>
 </html>`;
+  return { html };
+}
 
-// Launch browser (headless by default unless watch controls otherwise)
-await startBrowser(html, values.watch, { headless: !values.ui });
+if (!values.watch) {
+  const { html } = await bundle();
+  await startBrowser(html, false, { headless: !values.ui });
+} else {
+  // Watch mode using Deno.watchFs (no global --watch flag required)
+  const rootsToWatch = includeDirs.length ? includeDirs : [path.resolve("./")];
+
+  async function runSuite() {
+    console.log("[run] bundling & executing tests...");
+    const { html } = await bundle();
+    // Use watch=true so process does not exit after tests finish; headless browser will close itself.
+    await startBrowser(html, true, { headless: !values.ui });
+  }
+
+  await runSuite();
+
+  console.log("[watch] watching for changes in:", rootsToWatch.join(", "));
+
+  const watcher = Deno.watchFs(rootsToWatch, { recursive: true });
+  let pending = false;
+  const debounceMs = 150;
+  let lastTrigger = 0;
+
+  for await (const event of watcher) {
+    // Only react to modifies/add/remove involving .ts/.tsx files
+    if (!event.paths.some((p) => /\.tsx?$/.test(p))) {
+      continue;
+    }
+    const nowTs = Date.now();
+    if (pending && nowTs - lastTrigger < debounceMs) {
+      lastTrigger = nowTs;
+      continue;
+    }
+    pending = true;
+    lastTrigger = nowTs;
+    setTimeout(async () => {
+      pending = false;
+      console.clear();
+      console.log(
+        "[watch] change detected:",
+        event.paths.map((p) => path.relative(Deno.cwd(), p)).join(", "),
+      );
+      try {
+        await runSuite();
+      } catch (e) {
+        console.error("[watch] rebuild failed:", e);
+      }
+    }, debounceMs);
+  }
+}
