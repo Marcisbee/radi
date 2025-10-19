@@ -31,6 +31,7 @@ interface TestCase {
   name: string;
   fn: TestFn;
   skipped?: boolean;
+  only?: boolean;
 }
 
 interface RunError {
@@ -271,6 +272,7 @@ function createTestAPI() {
   const api: {
     (name: string, fn: TestFn): void;
     skip(name: string, fn?: TestFn): void;
+    only(name: string, fn: TestFn): void;
     before: {
       (fn: TestFn): void;
       each: (fn: TestFn) => void;
@@ -292,6 +294,12 @@ function createTestAPI() {
       throw new Error("Cannot add tests after test.run() has started");
     }
     tests.push({ name, fn: fn || (() => {}), skipped: true });
+  };
+  api.only = (name: string, fn: TestFn) => {
+    if (started) {
+      throw new Error("Cannot add tests after test.run() has started");
+    }
+    tests.push({ name, fn, only: true });
   };
 
   api.before = ((fn: TestFn) => {
@@ -338,9 +346,10 @@ function createTestAPI() {
     let passed = 0;
     let failed = 0;
     let skipped = 0;
+    const hasOnly = tests.some((t) => t.only);
 
     for (const t of tests) {
-      if (t.skipped) {
+      if (t.skipped || (hasOnly && !t.only)) {
         skipped++;
         logStatus("SKIP", t.name);
         continue;
