@@ -42,7 +42,7 @@ type ElementWithChildren<T> =
     onupdate?: (this: T, ev: Event & { target: T }) => any;
     onconnect?: (this: T, ev: Event & { target: T }) => any;
     ondisconnect?: (this: T, ev: Event & { target: T }) => any;
-    children?: any;
+    children?: any | undefined;
   };
 
 type ElementWithoutChildren<T> =
