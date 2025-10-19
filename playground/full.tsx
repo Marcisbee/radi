@@ -244,6 +244,10 @@ function Tab2(this: DocumentFragment) {
   );
 }
 
+function Tab3(this: DocumentFragment) {
+  return <strong>{Math.random()}</strong>;
+}
+
 function Tabber(this: DocumentFragment) {
   let tab = "tab1";
 
@@ -267,7 +271,22 @@ function Tabber(this: DocumentFragment) {
       >
         tab2
       </button>
-      <div>{() => (tab === "tab1" ? <Tab1 /> : <Tab2 />)}</div>
+      <button
+        type="button"
+        onclick={() => {
+          tab = "tab3";
+          update(this);
+        }}
+      >
+        tab3 (random key)
+      </button>
+      <div>
+        {() => (tab === "tab1"
+          ? <Tab1 />
+          : tab === "tab2"
+          ? <Tab2 />
+          : <Tab3 key={Math.random()} />)}
+      </div>
     </div>
   );
 }
