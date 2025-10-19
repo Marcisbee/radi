@@ -155,8 +155,8 @@ function setPropValue(el: HTMLElement, key: string, value: unknown): void {
  */
 function patchText(a: Node, b: Node): boolean {
   if (a.nodeType === Node.TEXT_NODE && b.nodeType === Node.TEXT_NODE) {
-    if ((a as Text).textContent !== (b as Text).textContent) {
-      (a as Text).textContent = (b as Text).textContent;
+    if ((a as Text).nodeValue !== (b as Text).nodeValue) {
+      (a as Text).nodeValue = (b as Text).nodeValue;
     }
     return true;
   }

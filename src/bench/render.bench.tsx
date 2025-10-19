@@ -6,7 +6,7 @@ import {
 } from "npm:react";
 import { createRoot } from "npm:react-dom/client";
 
-import { waitUntilElementVisible } from "./bench.utils.ts";
+import { waitForXPath } from "./bench.utils.ts";
 
 const bench = new Bench();
 
@@ -16,7 +16,7 @@ const bench = new Bench();
     async () => {
       document.body.innerHTML = "<h1>Hello bench</h1>";
 
-      await waitUntilElementVisible("//h1[contains(., 'Hello')]");
+      await waitForXPath("//h1[text()='Hello bench']");
     },
     {
       beforeEach() {
@@ -38,7 +38,7 @@ const bench = new Bench();
       const component = <Simple />;
       document.body.appendChild(component);
 
-      await waitUntilElementVisible("//h1[contains(., 'Hello')]");
+      await waitForXPath("//h1[text()='Hello bench']");
     },
     {
       beforeEach() {
@@ -62,7 +62,7 @@ const bench = new Bench();
       root = createRoot(document.body);
       root.render(component);
 
-      await waitUntilElementVisible("//h1[contains(., 'Hello')]");
+      await waitForXPath("//h1[text()='Hello bench']");
     },
     {
       beforeEach() {
