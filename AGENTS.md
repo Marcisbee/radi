@@ -23,5 +23,5 @@
 - prefer immutability, avoid mutating objects and arrays directly
 - keep comments minimal and only when necessary to explain complex logic
 - do not write what or why you did things in comments
-- do not use banner comments
+- do not use banner or section header comments
 - test names should clearly describe the expected behavior and be very short
