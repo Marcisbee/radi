@@ -52,23 +52,19 @@ function normalizeToNodes(raw: Child | Child[]): (Node | ReactiveGenerator)[] {
       stack.unshift(...item);
       continue;
     }
-    if (typeof item === "string" || typeof item === "number") {
-      out.push(document.createTextNode(String(item)));
-      continue;
+    switch (typeof item) {
+      case "string":
+      case "number":
+        out.push(document.createTextNode(String(item)));
+        continue;
+      case "boolean":
+        out.push(document.createComment(item ? "true" : "false"));
+        continue;
+      case "function":
+        out.push(item as ReactiveGenerator);
+        continue;
     }
-    if (typeof item === "boolean") {
-      out.push(document.createComment(item ? "true" : "false"));
-      continue;
-    }
-    if (typeof item === "function") {
-      // This is a reactive generator awaiting mounting context
-      out.push(item as ReactiveGenerator);
-      continue;
-    }
-    // Already a Node
-    if (item instanceof Node) {
-      out.push(item);
-    }
+    if (item instanceof Node) out.push(item);
   }
   return out;
 }
@@ -164,13 +160,56 @@ function patchText(a: Node, b: Node): boolean {
 }
 
 /**
- * Attempt to patch two element nodes in place; returns false if they must be replaced.
+ * Optimized attribute diff (namespaced + removal) inspired by morphdom's morphAttrs.
  */
-function patchElement(
-  oldEl: Element,
-  newEl: Element,
-  reconcileChildrenFn: (parent: Element, newKids: Node[]) => void,
-): boolean {
+function diffAttributes(fromEl: Element, toEl: Element): void {
+  // Add/update
+  const toAttrs = toEl.attributes;
+  for (let i = toAttrs.length - 1; i >= 0; i--) {
+    const attr = toAttrs[i];
+    const ns = attr.namespaceURI;
+    let name = attr.name;
+    const value = attr.value;
+    if (ns) {
+      name = attr.localName || name;
+      const fromValue = fromEl.getAttributeNS(ns, name);
+      if (fromValue !== value) {
+        if (attr.prefix === "xmlns") {
+          name = attr.name;
+        }
+        fromEl.setAttributeNS(ns, name, value);
+      }
+    } else {
+      const fromValue = fromEl.getAttribute(name);
+      if (fromValue !== value) {
+        fromEl.setAttribute(name, value);
+      }
+    }
+  }
+  // Remove
+  const fromAttrs = fromEl.attributes;
+  for (let i = fromAttrs.length - 1; i >= 0; i--) {
+    const attr = fromAttrs[i];
+    const ns = attr.namespaceURI;
+    let name = attr.name;
+    if (ns) {
+      name = attr.localName || name;
+      if (!toEl.hasAttributeNS(ns, name)) {
+        fromEl.removeAttributeNS(ns, name);
+      }
+    } else {
+      if (!toEl.hasAttribute(name)) {
+        fromEl.removeAttribute(name);
+      }
+    }
+  }
+}
+
+/**
+ * Attempt to patch two element nodes in place; returns false if they must be replaced.
+ * Avoids child/attribute array allocations.
+ */
+function patchElement(oldEl: Element, newEl: Element): boolean {
   if (oldEl.nodeName !== newEl.nodeName) return false;
 
   const oAny = oldEl as ComponentElement;
@@ -207,93 +246,142 @@ function patchElement(
     return false;
   }
 
-  // Attributes
-  const nextAttrs = Array.from(newEl.attributes);
-  for (const attr of nextAttrs) {
-    if (oldEl.getAttribute(attr.name) !== attr.value) {
-      oldEl.setAttribute(attr.name, attr.value);
-    }
-  }
-  const prevAttrs = Array.from(oldEl.attributes);
-  for (const attr of prevAttrs) {
-    if (!newEl.hasAttribute(attr.name)) {
-      oldEl.removeAttribute(attr.name);
-    }
-  }
+  // Attributes (optimized)
+  diffAttributes(oldEl, newEl);
 
   // Styles
-  // if ((oldEl as HTMLElement).style.cssText !== (newEl as HTMLElement).style.cssText)
-  (oldEl as HTMLElement).style.cssText = (newEl as HTMLElement).style.cssText;
+  const oldStyle = (oldEl as HTMLElement).style.cssText;
+  const newStyle = (newEl as HTMLElement).style.cssText;
+  if (oldStyle !== newStyle) {
+    (oldEl as HTMLElement).style.cssText = newStyle;
+  }
 
-  // Common mutable props (inputs, etc.)
-  // for (const key of PROPS_TO_COPY) {
-  //   if (key in newEl) {
-  //     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  //     (oldEl as any)[key] = (newEl as any)[key];
-  //   }
-  // }
-
-  // Children
-  reconcileChildrenFn(oldEl, Array.from(newEl.childNodes));
+  // Children diff (sibling-pointer linear walk, no arrays)
+  reconcileElementChildren(oldEl, newEl);
   return true;
 }
 
 /**
- * Generic node list diff. Can target a full parent or a sub-range (when 'before' is provided).
+ * Linear reconciliation of element children without intermediate arrays.
  */
-function reconcileNodeLists(
-  parent: Element,
-  oldNodes: Node[],
-  newNodes: Node[],
-  before?: Node | null,
-): void {
-  const max = Math.max(oldNodes.length, newNodes.length);
-  for (let i = 0; i < max; i++) {
-    const a = oldNodes[i];
-    const b = newNodes[i];
+function reconcileElementChildren(oldEl: Element, newEl: Element): void {
+  let oldChild: Node | null = oldEl.firstChild;
+  let newChild: Node | null = newEl.firstChild;
 
-    if (!a && b) {
-      parent.insertBefore(b, before || null);
+  while (oldChild || newChild) {
+    if (!oldChild) {
+      // append remaining new
+      oldEl.appendChild(newChild!);
+      newChild = newChild!.nextSibling;
       continue;
     }
-    if (a && !b) {
-      parent.removeChild(a);
+    if (!newChild) {
+      // remove remaining old
+      const nextOld = oldChild.nextSibling;
+      oldEl.removeChild(oldChild);
+      oldChild = nextOld;
       continue;
     }
-    if (!a || !b) continue;
-    if (a === b) continue;
+    if (oldChild === newChild) {
+      oldChild = oldChild.nextSibling;
+      newChild = newChild.nextSibling;
+      continue;
+    }
 
-    if (patchText(a, b)) continue;
+    if (patchText(oldChild, newChild)) {
+      oldChild = oldChild.nextSibling;
+      newChild = newChild.nextSibling;
+      continue;
+    }
 
-    if (a.nodeType === Node.ELEMENT_NODE && b.nodeType === Node.ELEMENT_NODE) {
-      if (
-        patchElement(
-          a as Element,
-          b as Element,
-          (p, kids) => reconcileNodeLists(p, Array.from(p.childNodes), kids),
-        )
-      ) {
+    if (
+      oldChild.nodeType === Node.ELEMENT_NODE &&
+      newChild.nodeType === Node.ELEMENT_NODE
+    ) {
+      if (patchElement(oldChild as Element, newChild as Element)) {
+        oldChild = oldChild.nextSibling;
+        newChild = newChild.nextSibling;
         continue;
       }
     }
 
-    parent.replaceChild(b, a);
+    // Replace
+    const replaceTarget = oldChild;
+    const nextOld = oldChild.nextSibling;
+    const nextNew = newChild.nextSibling;
+    oldEl.replaceChild(newChild, replaceTarget);
+    oldChild = nextOld;
+    newChild = nextNew;
   }
 }
 
 /**
  * Reconcile nodes inside a fragment boundary (exclusive of the boundary comments).
+ * Uses pointer walk (no old array).
  */
 function reconcileRange(start: Comment, end: Comment, newNodes: Node[]): void {
   const parent = start.parentNode;
   if (!parent || end.parentNode !== parent) return;
-  const oldNodes: Node[] = [];
-  let cur = start.nextSibling;
-  while (cur && cur !== end) {
-    oldNodes.push(cur);
-    cur = cur.nextSibling;
+
+  let oldCur: Node | null = start.nextSibling;
+  let idx = 0;
+
+  while ((oldCur && oldCur !== end) || idx < newNodes.length) {
+    if (oldCur === end) {
+      // append rest
+      while (idx < newNodes.length) {
+        parent.insertBefore(newNodes[idx++], end);
+      }
+      break;
+    }
+
+    const newNode = newNodes[idx];
+
+    if (!oldCur) {
+      parent.insertBefore(newNode, end);
+      idx++;
+      continue;
+    }
+
+    if (!newNode) {
+      // remove remaining old until end
+      while (oldCur && oldCur !== end) {
+        const next: Node | null = oldCur.nextSibling;
+        parent.removeChild(oldCur);
+        oldCur = next;
+      }
+      break;
+    }
+
+    if (oldCur === newNode) {
+      oldCur = oldCur.nextSibling;
+      idx++;
+      continue;
+    }
+
+    if (patchText(oldCur, newNode)) {
+      oldCur = oldCur.nextSibling;
+      idx++;
+      continue;
+    }
+
+    if (
+      oldCur.nodeType === Node.ELEMENT_NODE &&
+      newNode.nodeType === Node.ELEMENT_NODE
+    ) {
+      if (patchElement(oldCur as Element, newNode as Element)) {
+        oldCur = oldCur.nextSibling;
+        idx++;
+        continue;
+      }
+    }
+
+    // Replace oldCur with newNode
+    parent.insertBefore(newNode, oldCur);
+    parent.removeChild(oldCur);
+    oldCur = newNode.nextSibling;
+    idx++;
   }
-  reconcileNodeLists(parent as Element, oldNodes, newNodes, end);
 }
 
 /* ========================= Reactive Rendering ========================= */
@@ -387,7 +475,6 @@ export function createElement(
     queueMicrotask(() => {
       const pending = (placeholder as any).__componentPending;
       if (!pending) return; // already mounted or discarded
-      // Proceed with mounting even if not yet connected (supports nested component placeholders)
       // Prevent double mount
       if ((placeholder as any).__mounted) return;
 
@@ -475,7 +562,7 @@ export const updateEvent = new Event("update");
 export function update(root: Node): void {
   try {
     dispatchEventSink(root, updateEvent);
-  } catch {}
+  } catch { /* intentionally swallow errors during update dispatch */ }
 }
 
 /**
