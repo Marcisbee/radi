@@ -160,6 +160,16 @@ function patchText(a: Node, b: Node): boolean {
 }
 
 /**
+ * Resolve a key for keyed diffing.
+ * Priority: internal __key, data-key attribute.
+ */
+function getNodeKey(node: Node): string | null {
+  if (node.nodeType !== Node.ELEMENT_NODE) return null;
+  const el = node as Element & { __key?: string };
+  return (el as any).__key || el.getAttribute("data-key");
+}
+
+/**
  * Optimized attribute diff (namespaced + removal) inspired by morphdom's morphAttrs.
  */
 function diffAttributes(fromEl: Element, toEl: Element): void {
@@ -215,17 +225,25 @@ function patchElement(oldEl: Element, newEl: Element): boolean {
   const oAny = oldEl as ComponentElement;
   const nAny = newEl as ComponentElement;
 
-  // Component placeholder update (do NOT re-run component function)
+  // Key mismatch -> force replace (even for same tag/component type)
+  const oldKey = (oAny as any).__key ||
+    (oldEl as Element).getAttribute("data-key");
+  const newKey = (nAny as any).__key ||
+    (newEl as Element).getAttribute("data-key");
+  if (oldKey !== newKey && (oldKey != null || newKey != null)) {
+    return false;
+  }
+
+  // Component placeholder update (do NOT re-run component function) if same component type + key
   if (
     oAny.__component &&
     (nAny as any).__componentPending &&
-    oAny.__component === (nAny as any).__componentPending.type
+    oAny.__component === (nAny as any).__componentPending.type &&
+    oldKey === newKey
   ) {
     if ((oAny as any).__propsRef) {
       (oAny as any).__propsRef.current = (nAny as any).__componentPending.props;
-      // Prevent microtask placeholder from mounting component again
       delete (nAny as any).__componentPending;
-      // Trigger reactive re-evaluation in subtree
       dispatchEventSink(
         oAny,
         new Event("update", {
@@ -241,7 +259,7 @@ function patchElement(oldEl: Element, newEl: Element): boolean {
   // Component identity guard (different component types -> replace)
   if (
     oAny.__component && nAny.__component &&
-    oAny.__component !== nAny.__component
+    (oAny.__component !== nAny.__component)
   ) {
     return false;
   }
@@ -265,53 +283,177 @@ function patchElement(oldEl: Element, newEl: Element): boolean {
  * Linear reconciliation of element children without intermediate arrays.
  */
 function reconcileElementChildren(oldEl: Element, newEl: Element): void {
-  let oldChild: Node | null = oldEl.firstChild;
-  let newChild: Node | null = newEl.firstChild;
+  // Detect keyed usage
+  let hasKeys = false;
+  for (let c = newEl.firstChild; c; c = c.nextSibling) {
+    if (getNodeKey(c)) {
+      hasKeys = true;
+      break;
+    }
+  }
+  if (!hasKeys) {
+    for (let c = oldEl.firstChild; c; c = c.nextSibling) {
+      if (getNodeKey(c)) {
+        hasKeys = true;
+        break;
+      }
+    }
+  }
 
-  while (oldChild || newChild) {
-    if (!oldChild) {
-      // append remaining new
-      oldEl.appendChild(newChild!);
-      newChild = newChild!.nextSibling;
-      continue;
-    }
-    if (!newChild) {
-      // remove remaining old
-      const nextOld = oldChild.nextSibling;
-      oldEl.removeChild(oldChild);
-      oldChild = nextOld;
-      continue;
-    }
-    if (oldChild === newChild) {
-      oldChild = oldChild.nextSibling;
-      newChild = newChild.nextSibling;
-      continue;
-    }
-
-    if (patchText(oldChild, newChild)) {
-      oldChild = oldChild.nextSibling;
-      newChild = newChild.nextSibling;
-      continue;
-    }
-
-    if (
-      oldChild.nodeType === Node.ELEMENT_NODE &&
-      newChild.nodeType === Node.ELEMENT_NODE
-    ) {
-      if (patchElement(oldChild as Element, newChild as Element)) {
+  if (!hasKeys) {
+    // Fallback fast pointer diff (original logic)
+    let oldChild: Node | null = oldEl.firstChild;
+    let newChild: Node | null = newEl.firstChild;
+    while (oldChild || newChild) {
+      if (!oldChild) {
+        oldEl.appendChild(newChild!);
+        newChild = newChild!.nextSibling;
+        continue;
+      }
+      if (!newChild) {
+        const nextOld = oldChild.nextSibling;
+        oldEl.removeChild(oldChild);
+        oldChild = nextOld;
+        continue;
+      }
+      if (oldChild === newChild) {
         oldChild = oldChild.nextSibling;
         newChild = newChild.nextSibling;
         continue;
       }
+      if (patchText(oldChild, newChild)) {
+        oldChild = oldChild.nextSibling;
+        newChild = newChild.nextSibling;
+        continue;
+      }
+      if (
+        oldChild.nodeType === Node.ELEMENT_NODE &&
+        newChild.nodeType === Node.ELEMENT_NODE
+      ) {
+        if (patchElement(oldChild as Element, newChild as Element)) {
+          oldChild = oldChild.nextSibling;
+          newChild = newChild.nextSibling;
+          continue;
+        }
+      }
+      const replaceTarget = oldChild;
+      const nextOld = oldChild.nextSibling;
+      const nextNew = newChild.nextSibling;
+      oldEl.replaceChild(newChild, replaceTarget);
+      oldChild = nextOld;
+      newChild = nextNew;
+    }
+    return;
+  }
+
+  // Keyed diff (simplified morphdom-inspired)
+  const oldKeyMap = new Map<string, Node>();
+  const unmatchedOld: Node[] = [];
+  for (let c = oldEl.firstChild; c; c = c.nextSibling) {
+    const k = getNodeKey(c);
+    if (k) {
+      oldKeyMap.set(k, c);
+    } else {
+      unmatchedOld.push(c);
+    }
+  }
+
+  let oldPointer: Node | null = oldEl.firstChild;
+  const processed = new Set<Node>();
+  for (
+    let newPointer = newEl.firstChild;
+    newPointer;
+    newPointer = newPointer.nextSibling
+  ) {
+    const newKey = getNodeKey(newPointer);
+    if (!newKey) {
+      // Consume next unmatched old node in sequence
+      while (oldPointer && getNodeKey(oldPointer)) {
+        oldPointer = oldPointer.nextSibling;
+      }
+      if (!oldPointer) {
+        // append
+        oldEl.appendChild(newPointer);
+        continue;
+      }
+      if (oldPointer === newPointer) {
+        processed.add(oldPointer);
+        oldPointer = oldPointer.nextSibling;
+        continue;
+      }
+      if (patchText(oldPointer, newPointer)) {
+        processed.add(oldPointer);
+        oldPointer = oldPointer.nextSibling;
+        continue;
+      }
+      if (
+        oldPointer.nodeType === Node.ELEMENT_NODE &&
+        newPointer.nodeType === Node.ELEMENT_NODE
+      ) {
+        if (patchElement(oldPointer as Element, newPointer as Element)) {
+          processed.add(oldPointer);
+          oldPointer = oldPointer.nextSibling;
+          continue;
+        }
+      }
+      // Replace non-keyed
+      const nextOld = oldPointer.nextSibling;
+      oldEl.replaceChild(newPointer, oldPointer);
+      processed.add(newPointer);
+      oldPointer = nextOld;
+      continue;
     }
 
-    // Replace
-    const replaceTarget = oldChild;
-    const nextOld = oldChild.nextSibling;
-    const nextNew = newChild.nextSibling;
-    oldEl.replaceChild(newChild, replaceTarget);
-    oldChild = nextOld;
-    newChild = nextNew;
+    // Keyed case
+    const match = oldKeyMap.get(newKey);
+    if (match) {
+      oldKeyMap.delete(newKey);
+      processed.add(match);
+      if (match === oldPointer) {
+        // Already in correct position
+        oldPointer = oldPointer.nextSibling;
+      } else {
+        // Move into place before current oldPointer
+        if (oldPointer) {
+          oldEl.insertBefore(match, oldPointer);
+        } else {
+          oldEl.appendChild(match);
+        }
+      }
+      if (
+        match.nodeType === Node.ELEMENT_NODE &&
+        newPointer.nodeType === Node.ELEMENT_NODE
+      ) {
+        if (match !== newPointer) {
+          patchElement(match as Element, newPointer as Element);
+        }
+      } else if (patchText(match, newPointer)) {
+        // patched
+      } else if (match !== newPointer) {
+        oldEl.replaceChild(newPointer, match);
+      }
+    } else {
+      // New keyed node not found; insert before oldPointer or append
+      if (oldPointer) {
+        oldEl.insertBefore(newPointer, oldPointer);
+      } else {
+        oldEl.appendChild(newPointer);
+      }
+    }
+  }
+
+  // Remove any old keyed nodes not matched
+  for (const [, node] of oldKeyMap) {
+    if (processed.has(node)) continue;
+    oldEl.removeChild(node);
+  }
+  // Remove remaining unmatched old nodes that were not processed
+  for (let c = oldEl.firstChild; c;) {
+    const next = c.nextSibling;
+    if (!processed.has(c) && !getNodeKey(c)) {
+      oldEl.removeChild(c);
+    }
+    c = next;
   }
 }
 
@@ -465,6 +607,17 @@ export function createElement(
     ) as ComponentElement & {
       __componentPending?: { type: Function; props: any };
     };
+    // Component key support
+    if (props) {
+      const pAny = props as Record<string, unknown>;
+      if (pAny.key != null) {
+        (placeholder as any).__key = String(pAny.key);
+        placeholder.setAttribute("data-key", String(pAny.key));
+        delete pAny.key;
+      } else if (pAny["data-key"] != null) {
+        (placeholder as any).__key = String(pAny["data-key"]);
+      }
+    }
     placeholder.style.display = "contents";
     (placeholder as any).__componentPending = {
       type,
@@ -510,6 +663,20 @@ export function createElement(
 
   // Native Element
   const element = document.createElement(type) as ComponentElement;
+  // Key support: props.key or props["data-key"]
+  if (props) {
+    const possibleKey = (props as Record<string, unknown>).key as
+      | string
+      | undefined;
+    if (possibleKey != null) {
+      (element as any).__key = String(possibleKey);
+      element.setAttribute("data-key", String(possibleKey));
+      delete (props as any).key;
+    } else if ((props as Record<string, unknown>)["data-key"]) {
+      const dk = (props as Record<string, unknown>)["data-key"] as string;
+      (element as any).__key = dk;
+    }
+  }
 
   if (props) {
     for (const key in props) {
