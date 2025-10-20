@@ -169,7 +169,13 @@ export function dispatchEventSink(el: Node, event: Event): void {
         list.push(elNode);
       }
     }
-    if (node.firstChild) {
+    if (
+      event.type === "update" &&
+      node.nodeType === Node.ELEMENT_NODE &&
+      (node as any).__reactiveRoot
+    ) {
+      // Reactive root boundary: do not descend into nested reactive roots during an update dispatch.
+    } else if (node.firstChild) {
       node = node.firstChild;
       continue;
     }
@@ -598,6 +604,7 @@ function setupReactiveRender(container: Element, fn: ReactiveGenerator): void {
       dispatchRenderError(container, err);
     }
   };
+  (container as any).__reactiveRoot = true;
   container.addEventListener("update", renderFn);
   renderFn();
 }
@@ -806,7 +813,12 @@ function dispatchUpdateSink(root: Node, visited: Set<Element>): void {
         visited.add(el);
       }
     }
-    if (node.firstChild) {
+    if (
+      node.nodeType === Node.ELEMENT_NODE &&
+      (node as any).__reactiveRoot
+    ) {
+      // Reactive root boundary: skip children; they will re-render when parent reactive regenerates them.
+    } else if (node.firstChild) {
       node = node.firstChild;
       continue;
     }

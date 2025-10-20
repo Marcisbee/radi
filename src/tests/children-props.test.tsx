@@ -79,7 +79,6 @@ test("children-fragment-nested", async () => {
  */
 function DynamicParent(this: HTMLElement) {
   let items = ["a", "b"];
-  // Expose a way for the test to mutate items via element property
   (this as any).__setItems = (next: string[]) => {
     items = next.slice();
     update(this);
@@ -106,10 +105,7 @@ test("children-dynamic-update", async () => {
     n.textContent
   );
   assert.equal(initial, ["a", "b"]);
-
-  // Mutate items via exposed setter and trigger update
   (root as any).__setItems(["b", "c", "d"]);
-
   const after = Array.from(echo.querySelectorAll(".dyn")).map((n) =>
     n.textContent
   );
@@ -126,10 +122,7 @@ test("children-reactive-single-replacement", async () => {
   (root as any).__setItems(["only"]);
   const afterHTML = echo.innerHTML;
   assert.ok(/only/.test(afterHTML));
-  assert.is(
-    Array.from(echo.querySelectorAll(".dyn")).length,
-    1,
-  );
+  assert.is(Array.from(echo.querySelectorAll(".dyn")).length, 1);
 });
 
 /**
