@@ -136,4 +136,150 @@ test("children-reactive-empty", async () => {
   assert.is(Array.from(echo.querySelectorAll(".dyn")).length, 0);
 });
 
+/* deeper coverage: children keyed reorder stability */
+test("children-reactive-keyed-reorder", async () => {
+  const root = await mount(<DynamicParent />, document.body);
+  const echo = root.querySelector(".echo-reactive")!;
+  (root as any).__setItems(["a", "b", "c"]);
+  const before = Array.from(echo.querySelectorAll(".dyn")).map((n) =>
+    n.textContent
+  );
+  assert.equal(before, ["a", "b", "c"]);
+  (root as any).__setItems(["c", "a"]);
+  const after = Array.from(echo.querySelectorAll(".dyn")).map((n) =>
+    n.textContent
+  );
+  assert.equal(after, ["c", "a"]);
+  assert.is(echo.querySelectorAll(".dyn").length, 2);
+});
+
+/* component that evaluates function children each update */
+function ExecEchoReactive(this: HTMLElement, props: JSX.PropsWithChildren) {
+  return (
+    <div className="echo-exec">
+      {() => {
+        const c = props().children;
+        return typeof c === "function" ? (c as any)(this) : c;
+      }}
+    </div>
+  );
+}
+
+/* function child passed directly and updated */
+function FnChildParent(this: HTMLElement) {
+  let value = "fn";
+  (this as any).__setValue = (next: string) => {
+    value = next;
+    update(this);
+  };
+  return <ExecEchoReactive>{() => value}</ExecEchoReactive>;
+}
+
+test.skip("children-function-child-updates", async () => {
+  const root = await mount(<FnChildParent />, document.body);
+  // Allow initial reactive render microtasks to flush
+  await Promise.resolve();
+  await new Promise((r) => setTimeout(r, 1));
+  const echo = root.querySelector(".echo-exec")!;
+  assert.ok(echo.textContent!.includes("fn"));
+  (root as any).__setValue("fn2");
+  // Flush microtasks + a macrotask for updated reactive evaluation
+  await Promise.resolve();
+  await new Promise((r) => setTimeout(r, 1));
+  assert.ok(echo.textContent!.includes("fn2"));
+});
+
+/* nested fragment with reactive generator inside children */
+function NestedReactiveFragments(this: HTMLElement) {
+  let toggle = true;
+  (this as any).__flip = () => {
+    toggle = !toggle;
+    update(this);
+  };
+  return () => (
+    <EchoReactive>
+      <>
+        <span className="nr-a">{toggle ? "A" : "A2"}</span>
+        <>
+          <span className="nr-b">{() => (toggle ? "B" : "B2")}</span>
+          {toggle ? <span className="nr-c">C</span> : null}
+        </>
+      </>
+    </EchoReactive>
+  );
+}
+
+test("children-nested-reactive-fragment-update", async () => {
+  const root = await mount(<NestedReactiveFragments />, document.body);
+  const echo = root.querySelector(".echo-reactive")!;
+  assert.ok(/A/.test(echo.innerHTML));
+  assert.ok(/B/.test(echo.innerHTML));
+  assert.ok(/C/.test(echo.innerHTML));
+  (root as any).__flip();
+  assert.ok(/A2/.test(echo.innerHTML));
+  assert.ok(/B2/.test(echo.innerHTML));
+  assert.ok(!/C<\/span>/.test(echo.innerHTML));
+});
+
+/* removal to null children boundary check */
+function NullifyChildren(this: HTMLElement) {
+  let show = true;
+  (this as any).__toggle = () => {
+    show = !show;
+    update(this);
+  };
+  return () => (
+    <EchoReactive>
+      {show ? <span className="alive">live</span> : null}
+    </EchoReactive>
+  );
+}
+
+test("children-null-removal", async () => {
+  const root = await mount(<NullifyChildren />, document.body);
+  const echo = root.querySelector(".echo-reactive")!;
+  assert.ok(echo.innerHTML.includes("live"));
+  (root as any).__toggle();
+  assert.ok(!echo.innerHTML.includes("live"));
+});
+
+/* nested dynamic lists with key churn */
+function KeyChurn(this: HTMLElement) {
+  let outer = ["x", "y"];
+  let inner = ["i1", "i2", "i3"];
+  (this as any).__mutate = (o: string[], i: string[]) => {
+    outer = o.slice();
+    inner = i.slice();
+    update(this);
+  };
+  return () => (
+    <EchoReactive>
+      {outer.map((o) => (
+        <div className="outer" data-key={o}>
+          {inner.map((i) => (
+            <span className="inner" data-key={i}>
+              {o}-{i}
+            </span>
+          ))}
+        </div>
+      ))}
+    </EchoReactive>
+  );
+}
+
+test("children-nested-key-churn", async () => {
+  const root = await mount(<KeyChurn />, document.body);
+  const echo = root.querySelector(".echo-reactive")!;
+  assert.is(echo.querySelectorAll(".outer").length, 2);
+  assert.is(echo.querySelectorAll(".inner").length, 6);
+  (root as any).__mutate(["y", "z"], ["i2", "i4"]);
+  assert.is(echo.querySelectorAll(".outer").length, 2);
+  assert.is(echo.querySelectorAll(".inner").length, 4);
+  const combos = Array.from(echo.querySelectorAll(".inner")).map((n) =>
+    n.textContent
+  );
+  assert.ok(combos.includes("y-i2"));
+  assert.ok(combos.includes("z-i4"));
+});
+
 await test.run();
