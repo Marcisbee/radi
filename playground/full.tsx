@@ -2,6 +2,7 @@ import {
   createAbortSignal,
   createElement,
   Fragment,
+  type JSX,
   render,
   update,
 } from "../src/main.ts";
@@ -280,12 +281,23 @@ function Tabber(this: DocumentFragment) {
       >
         tab3 (random key)
       </button>
+      <button
+        type="button"
+        onclick={() => {
+          tab = "tab4";
+          update(this);
+        }}
+      >
+        tab4 (scoped style)
+      </button>
       <div>
         {() => (tab === "tab1"
           ? <Tab1 />
           : tab === "tab2"
           ? <Tab2 />
-          : <Tab3 key={Math.random()} />)}
+          : tab === "tab3"
+          ? <Tab3 key={Math.random()} />
+          : <Styling />)}
       </div>
     </div>
   );
@@ -377,6 +389,64 @@ function StyledCounter(this: DocumentFragment) {
         -
       </button>
       <StyledCounterChild count={count} />
+    </div>
+  );
+}
+
+function css(
+  strings: TemplateStringsArray,
+  ...values: any[]
+): HTMLStyleElement {
+  const parts: any[] = [];
+
+  // If invoked as tagged template: css`...`
+  if (Array.isArray(strings)) {
+    for (let i = 0; i < strings.length; i++) {
+      parts.push(strings[i]);
+      if (i < values.length) {
+        parts.push(values[i]);
+      }
+    }
+  }
+
+  return createElement("style", null, parts) as any;
+}
+
+function getRandomColor() {
+  const letters = "0123456789ABCDEF";
+  let color = "#";
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+}
+
+function linkStyles(component: Node, styles: HTMLStyleElement[]) {
+  for (const style of styles) {
+    document.head.appendChild(style);
+  }
+  component.addEventListener("disconnect", () => {
+    for (const style of styles) {
+      style.remove();
+    }
+  });
+  component.addEventListener("update", () => {
+    for (const style of styles) {
+      style.dispatchEvent(new Event("update"));
+    }
+  });
+}
+
+function Styling(this: DocumentFragment) {
+  linkStyles(this, [css`
+    body {
+      color: ${getRandomColor};
+    }
+  `]);
+
+  return (
+    <div>
+      <button type="button" onclick={() => update(this)}>Recolor</button>
     </div>
   );
 }

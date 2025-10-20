@@ -125,7 +125,32 @@ export const connectedEvent = new Event("connect");
 export const disconnectedEvent = new Event("disconnect");
 
 /**
+ * Dispatch a bubbling, cancelable render error event.
+ * Parents can listen for "error" and call stopPropagation()/preventDefault()
+ * to intercept the error. If left unhandled (default not prevented) it is logged.
+ */
+function dispatchRenderError(origin: Element, error: unknown): void {
+  const event = new CustomEvent("error", {
+    detail: { error },
+    bubbles: true,
+    cancelable: true,
+  });
+  try {
+    origin.dispatchEvent(event);
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(e);
+  }
+  if (!(event.defaultPrevented || (event as any).cancelBubble)) {
+    // eslint-disable-next-line no-console
+    console.error(error);
+  }
+}
+let currentBuildingComponent: Element | null = null;
+
+/**
  * Walk an element subtree (snapshot first) and dispatch an event to each element node.
+ * Errors thrown by listeners on individual elements are converted into bubbling error events.
  */
 export function dispatchEventSink(el: Node, event: Event): void {
   const list: Element[] = [];
@@ -155,7 +180,11 @@ export function dispatchEventSink(el: Node, event: Event): void {
     node = node.nextSibling;
   }
   for (const n of list) {
-    n.dispatchEvent(event);
+    try {
+      n.dispatchEvent(event);
+    } catch (err) {
+      dispatchRenderError(n, err);
+    }
   }
 }
 
@@ -185,8 +214,6 @@ function dispatchDisconnectIfElement(node: Node): void {
 }
 
 function detachIfMoving(node: Node): void {
-  // If node is already connected and has a parent, moving will implicitly remove it.
-  // Emit disconnect for its subtree before move.
   if (node.isConnected && node.parentNode) {
     dispatchDisconnectIfElement(node);
   }
@@ -561,11 +588,15 @@ function setupReactiveRender(container: Element, fn: ReactiveGenerator): void {
   const { start, end } = createFragmentBoundary();
   container.append(start, end); // comments only (skip connect dispatch)
   const renderFn = () => {
-    const produced = fn(container);
-    const flat = normalizeToNodes(produced).filter(
-      (n): n is Node => n instanceof Node,
-    );
-    reconcileRange(start, end, flat);
+    try {
+      const produced = fn(container);
+      const flat = normalizeToNodes(produced).filter(
+        (n): n is Node => n instanceof Node,
+      );
+      reconcileRange(start, end, flat);
+    } catch (err) {
+      dispatchRenderError(container, err);
+    }
   };
   container.addEventListener("update", renderFn);
   renderFn();
@@ -650,23 +681,31 @@ export function createElement(
       (placeholder as any).__mounted = true;
       delete (placeholder as any).__componentPending;
 
-      const output = buildElement(
-        pending.type.call(placeholder, propsGetter),
-      );
-      if (Array.isArray(output)) {
-        const nodes = normalizeToNodes(output as any);
-        for (const n of nodes) mountChild(placeholder, n as any);
-      } else if (typeof output === "function") {
-        setupReactiveRender(placeholder, output as ReactiveGenerator);
-      } else if (output instanceof Node) {
-        safeAppend(placeholder, output);
-      } else {
-        safeAppend(
-          placeholder,
-          document.createTextNode(String(output)),
+      const prevBuilding = currentBuildingComponent;
+      currentBuildingComponent = placeholder;
+      try {
+        const output = buildElement(
+          pending.type.call(placeholder, propsGetter),
         );
+        if (Array.isArray(output)) {
+          const nodes = normalizeToNodes(output as any);
+          for (const n of nodes) mountChild(placeholder, n as any);
+        } else if (typeof output === "function") {
+          setupReactiveRender(placeholder, output as ReactiveGenerator);
+        } else if (output instanceof Node) {
+          safeAppend(placeholder, output);
+        } else {
+          safeAppend(
+            placeholder,
+            document.createTextNode(String(output)),
+          );
+        }
+      } catch (err) {
+        dispatchRenderError(placeholder, err);
+      } finally {
+        currentBuildingComponent = prevBuilding;
       }
-      // Emit deferred connect for the component placeholder after its output mounts.
+      // Emit deferred connect for the component placeholder after its output mounts (or after error).
       placeholder.dispatchEvent(connectedEvent);
     });
     return placeholder;
@@ -697,8 +736,16 @@ export function createElement(
         );
       } else if (typeof value === "function") {
         const evaluate = () => {
-          const v = (value as (el: Element) => unknown)(element);
-          setPropValue(element, key, v);
+          try {
+            const v = (value as (el: Element) => unknown)(element);
+            setPropValue(element, key, v);
+          } catch (err) {
+            if (!element.isConnected && currentBuildingComponent) {
+              dispatchRenderError(currentBuildingComponent, err);
+            } else {
+              dispatchRenderError(element, err);
+            }
+          }
         };
         element.addEventListener("update", evaluate);
         evaluate();
@@ -770,7 +817,11 @@ function dispatchUpdateSink(root: Node, visited: Set<Element>): void {
     node = node.nextSibling;
   }
   for (const el of list) {
-    el.dispatchEvent(createUpdateEvent());
+    try {
+      el.dispatchEvent(createUpdateEvent());
+    } catch (err) {
+      dispatchRenderError(el, err);
+    }
   }
 }
 
@@ -785,7 +836,14 @@ function scheduleUpdateFlush(): void {
     for (const r of roots) {
       try {
         dispatchUpdateSink(r, visited);
-      } catch { /* swallow */ }
+      } catch (err) {
+        if (r instanceof Element) {
+          dispatchRenderError(r, err);
+        } else {
+          // eslint-disable-next-line no-console
+          console.error(err);
+        }
+      }
     }
   });
 }
@@ -799,7 +857,14 @@ export function update(root: Node): void {
   currentUpdateDispatchId++;
   try {
     dispatchEventSink(root, createUpdateEvent());
-  } catch { /* swallow */ }
+  } catch (err) {
+    if (root instanceof Element) {
+      dispatchRenderError(root, err);
+    } else {
+      // eslint-disable-next-line no-console
+      console.error(err);
+    }
+  }
 }
 
 /* ========================= External Removal Observer ========================= */
