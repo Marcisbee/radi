@@ -1,4 +1,4 @@
-import { assert, clock, test } from "../../test/runner.ts";
+import { assert, clock, test } from "jsr:@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { createChannel } from "../channel.ts";
 import { update } from "../main.ts";

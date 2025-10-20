@@ -1,4 +1,4 @@
-import { assert, test } from "../../test/runner.ts";
+import { assert, test } from "jsr:@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { createAbortSignal } from "../main.ts";
 

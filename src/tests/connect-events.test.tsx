@@ -1,4 +1,4 @@
-import { assert, test } from "../../test/runner.ts";
+import { assert, test } from "jsr:@marcisbee/rion";
 import { render } from "../main.ts";
 
 function Probe() {

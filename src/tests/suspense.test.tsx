@@ -1,4 +1,4 @@
-import { assert, clock, test } from "../../test/runner.ts";
+import { assert, clock, test } from "jsr:@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { suspend, Suspense, unsuspend } from "../suspense.ts";
 import { update } from "../main.ts";
