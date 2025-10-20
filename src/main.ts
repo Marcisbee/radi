@@ -171,10 +171,11 @@ export function dispatchEventSink(el: Node, event: Event): void {
     }
     if (
       event.type === "update" &&
+      node !== el &&
       node.nodeType === Node.ELEMENT_NODE &&
       (node as any).__reactiveRoot
     ) {
-      // Reactive root boundary: do not descend into nested reactive roots during an update dispatch.
+      // Nested reactive root boundary: skip descending into nested reactive roots (but traverse original root).
     } else if (node.firstChild) {
       node = node.firstChild;
       continue;
@@ -814,10 +815,11 @@ function dispatchUpdateSink(root: Node, visited: Set<Element>): void {
       }
     }
     if (
+      node !== root &&
       node.nodeType === Node.ELEMENT_NODE &&
       (node as any).__reactiveRoot
     ) {
-      // Reactive root boundary: skip children; they will re-render when parent reactive regenerates them.
+      // Nested reactive root boundary: skip children; they will re-render when their own root updates.
     } else if (node.firstChild) {
       node = node.firstChild;
       continue;
