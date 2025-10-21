@@ -176,13 +176,11 @@ test("children-function-child-updates", async () => {
   const root = await mount(<FnChildParent />, document.body);
   // Allow initial reactive render microtasks to flush
   await Promise.resolve();
-  await new Promise((r) => setTimeout(r, 1));
   const echo = root.querySelector(".echo-exec")!;
   assert.ok(echo.textContent!.includes("fn"));
   (root as any).__setValue("fn2");
   // Flush microtasks + a macrotask for updated reactive evaluation
   await Promise.resolve();
-  await new Promise((r) => setTimeout(r, 1));
   assert.ok(echo.textContent!.includes("fn2"));
 });
 
@@ -212,13 +210,11 @@ test("children-function-child-updates-reactive", async () => {
   const root = await mount(<FnChildParentReactive />, document.body);
   // Allow initial reactive render microtasks to flush
   await Promise.resolve();
-  await new Promise((r) => setTimeout(r, 1));
   const echo = root.querySelector(".echo-exec")!;
   assert.ok(echo.textContent!.includes("fn"));
   (root as any).__setValue("fn2");
   // Flush microtasks + a macrotask for updated reactive evaluation
   await Promise.resolve();
-  await new Promise((r) => setTimeout(r, 1));
   assert.ok(echo.textContent!.includes("fn2"));
 });
 

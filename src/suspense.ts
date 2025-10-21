@@ -70,7 +70,7 @@ function waitForUnsuspense(target: Node | Node[], finish: () => void) {
 
 export function Suspense(
   this: DocumentFragment,
-  props: () => { children: any[]; fallback: any },
+  props: JSX.PropsWithChildren<{ fallback: JSX.Element }>,
 ) {
   // @TODO improve update logic, what if children or fallback props update
   const { children, fallback } = props();

@@ -24,7 +24,7 @@ interface Channel<T> {
   defaultValue: T;
 }
 
-const CHANNELS_SYMBOL = Symbol("mini-fw:channels");
+const CHANNELS_SYMBOL = Symbol("radi:channels");
 
 function getChannelMap(el: any): Map<symbol, ChannelContainer<any>> {
   if (!el[CHANNELS_SYMBOL]) el[CHANNELS_SYMBOL] = new Map();
