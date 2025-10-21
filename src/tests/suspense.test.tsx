@@ -1,4 +1,4 @@
-import { assert, clock, test } from "jsr:@marcisbee/rion";
+import { assert, clock, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { suspend, Suspense, unsuspend } from "../suspense.ts";
 import { update } from "../main.ts";
@@ -41,15 +41,15 @@ test("fallback-unsuspends-child", async () => {
     </Suspense>,
     document.body,
   );
-  assert.ok(root.textContent.includes("Loading..."));
-  assert.ok(root.textContent.includes("I am suspended"));
+  assert.contains(root.textContent, "Loading...");
+  assert.contains(root.textContent, "I am suspended");
   await clock.fastForward(90);
-  assert.ok(root.textContent.includes("I am suspended"));
-  assert.not.ok(root.textContent.includes("I am unsuspended"));
+  assert.contains(root.textContent, "I am suspended");
+  assert.false(root.textContent.includes("I am unsuspended"));
   await clock.fastForward(10);
-  assert.ok(root.textContent.includes("I am unsuspended"));
-  assert.not.ok(root.textContent.includes("Loading..."));
-  assert.ok(root.textContent.includes("Extra"));
+  assert.contains(root.textContent, "I am unsuspended");
+  assert.false(root.textContent.includes("Loading..."));
+  assert.contains(root.textContent, "Extra");
 });
 
 /** ImmediateChild renders synchronously without suspension. */
@@ -142,8 +142,8 @@ test("renders-immediate", async () => {
     </Suspense>,
     document.body,
   );
-  assert.not.ok(root.textContent!.includes("Loading"));
-  assert.ok(root.querySelector(".immediate"));
+  assert.false(root.textContent!.includes("Loading"));
+  assert.exists(root.querySelector(".immediate"));
 });
 
 test("multi-stagger", async () => {
@@ -154,15 +154,15 @@ test("multi-stagger", async () => {
     </Suspense>,
     document.body,
   );
-  assert.ok(root.textContent!.includes("Wait"));
-  assert.not.ok(root.textContent!.includes("done"));
+  assert.contains(root.textContent!, "Wait");
+  assert.false(root.textContent!.includes("done"));
   await clock.fastForward(55);
-  assert.ok(root.textContent!.includes("Wait"));
-  assert.ok(root.textContent!.includes("done"));
-  assert.ok(root.textContent!.includes("pending"));
+  assert.contains(root.textContent!, "Wait");
+  assert.contains(root.textContent!, "done");
+  assert.contains(root.textContent!, "pending");
   await clock.fastForward(30);
-  assert.not.ok(root.textContent!.includes("Wait"));
-  assert.ok(root.textContent!.includes("done"));
+  assert.false(root.textContent!.includes("Wait"));
+  assert.contains(root.textContent!, "done");
 });
 
 test("never-unsuspends", async () => {
@@ -172,10 +172,10 @@ test("never-unsuspends", async () => {
     </Suspense>,
     document.body,
   );
-  assert.ok(root.textContent!.includes("Hold"));
+  assert.contains(root.textContent!, "Hold");
   await clock.fastForward(500);
-  assert.ok(root.textContent!.includes("Hold"));
-  assert.ok(root.textContent!.includes("suspended"));
+  assert.contains(root.textContent!, "Hold");
+  assert.contains(root.textContent!, "suspended");
 });
 
 test("error-keeps-fallback", async () => {
@@ -185,10 +185,10 @@ test("error-keeps-fallback", async () => {
     </Suspense>,
     document.body,
   );
-  assert.ok(root.textContent!.includes("Err"));
+  assert.contains(root.textContent!, "Err");
   await clock.fastForward(200);
-  assert.ok(root.textContent!.includes("Err"));
-  assert.ok(root.textContent!.includes("errored"));
+  assert.contains(root.textContent!, "Err");
+  assert.contains(root.textContent!, "errored");
 });
 
 test("mixed-delays", async () => {
@@ -199,20 +199,20 @@ test("mixed-delays", async () => {
     </Suspense>,
     document.body,
   );
-  assert.ok(root.textContent!.includes("Mix"));
-  assert.ok(root.textContent!.includes("Immediate"));
-  assert.ok(root.textContent!.includes("pending"));
+  assert.contains(root.textContent!, "Mix");
+  assert.contains(root.textContent!, "Immediate");
+  assert.contains(root.textContent!, "pending");
   await clock.fastForward(40);
-  assert.ok(root.textContent!.includes("Mix"));
-  assert.ok(root.textContent!.includes("Immediate"));
-  assert.ok(root.textContent!.includes("pending"));
-  assert.ok(root.textContent!.includes("Immediate"));
+  assert.contains(root.textContent!, "Mix");
+  assert.contains(root.textContent!, "Immediate");
+  assert.contains(root.textContent!, "pending");
+  assert.contains(root.textContent!, "Immediate");
   await clock.fastForward(40);
-  assert.not.ok(root.textContent!.includes("Mix"));
-  assert.ok(root.textContent!.includes("Immediate"));
-  assert.ok(root.textContent!.includes("done"));
-  assert.ok(root.querySelector(".immediate"));
-  assert.ok(root.querySelector(".delayed-slow"));
+  assert.false(root.textContent!.includes("Mix"));
+  assert.contains(root.textContent!, "Immediate");
+  assert.contains(root.textContent!, "done");
+  assert.elementExists(".immediate");
+  assert.elementExists(".delayed-slow");
 });
 
 test("can-resuspend", async () => {
@@ -222,17 +222,17 @@ test("can-resuspend", async () => {
     </Suspense>,
     document.body,
   );
-  assert.ok(root.textContent!.includes("Phase"));
-  assert.ok(root.textContent!.includes("s1"));
+  assert.contains(root.textContent!, "Phase");
+  assert.contains(root.textContent!, "s1");
   await clock.fastForward(35);
-  assert.not.ok(root.textContent!.includes("Phase"));
-  assert.ok(root.textContent!.includes("s1-done"));
+  assert.false(root.textContent!.includes("Phase"));
+  assert.contains(root.textContent!, "s1-done");
   await clock.fastForward(35);
-  assert.ok(root.textContent!.includes("Phase"));
-  assert.ok(root.textContent!.includes("s2"));
+  assert.contains(root.textContent!, "Phase");
+  assert.contains(root.textContent!, "s2");
   await clock.fastForward(40);
-  assert.ok(root.textContent!.includes("s2-done"));
-  assert.not.ok(root.textContent!.includes("Phase"));
+  assert.contains(root.textContent!, "s2-done");
+  assert.false(root.textContent!.includes("Phase"));
 });
 
 await test.run();

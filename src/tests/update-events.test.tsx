@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { update } from "../main.ts";
 
@@ -25,7 +25,7 @@ test("update-event", async () => {
   // Await microtask flush (Promise.then chain).
   await Promise.resolve();
 
-  assert.is(called, 1);
+  assert.equal(called, 1);
 });
 
 test("increment-single-update-callback", async () => {
@@ -54,7 +54,7 @@ test("increment-single-update-callback", async () => {
   // Wait for microtask flush of the scheduler.
   await Promise.resolve();
 
-  assert.is(called, 1);
+  assert.equal(called, 1);
 });
 
 test("parent-dispatch-child-update", async () => {
@@ -82,7 +82,7 @@ test("parent-dispatch-child-update", async () => {
   update(parent);
   await Promise.resolve();
 
-  assert.is(childUpdates, 1);
+  assert.equal(childUpdates, 1);
 });
 
 test("parent-dispatch-child-update2", async () => {
@@ -110,7 +110,7 @@ test("parent-dispatch-child-update2", async () => {
   update(parent);
   await Promise.resolve();
 
-  assert.is(childUpdates, 1);
+  assert.equal(childUpdates, 1);
 });
 
 await test.run();

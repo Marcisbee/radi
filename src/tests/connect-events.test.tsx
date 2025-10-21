@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { createRoot } from "../main.ts";
 
 function Probe() {
@@ -18,7 +18,7 @@ test("connect in component", async () => {
   // Await microtask flush (Promise.then chain).
   await Promise.resolve();
 
-  assert.is(called, 1);
+  assert.equal(called, 1);
 });
 
 test("connect in element", async () => {
@@ -34,7 +34,7 @@ test("connect in element", async () => {
   // Await microtask flush (Promise.then chain).
   await Promise.resolve();
 
-  assert.is(called, 1);
+  assert.equal(called, 1);
 });
 
 await test.run();

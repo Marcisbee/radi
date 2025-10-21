@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { createRoot, update } from "../main.ts";
 
 /**
@@ -43,11 +43,11 @@ test("update-increments", () => {
   const getText = () =>
     (document.querySelector(".count") as HTMLDivElement).textContent;
 
-  assert.is(getText(), "0");
+  assert.equal(getText(), "0");
   update(root.root);
-  assert.is(getText(), "1");
+  assert.equal(getText(), "1");
   update(root.root);
-  assert.is(getText(), "2");
+  assert.equal(getText(), "2");
 });
 
 /**
@@ -63,14 +63,14 @@ test("update-no-remount", () => {
 
   const root = createRoot(document.body);
   root.render(instance);
-  assert.is(connects, 1);
-  assert.is(disconnects, 0);
+  assert.equal(connects, 1);
+  assert.equal(disconnects, 0);
 
   update(root.root);
   update(root.root);
   update(root.root);
-  assert.is(connects, 1, "still single mount");
-  assert.is(disconnects, 0, "no unmounts");
+  assert.equal(connects, 1);
+  assert.equal(disconnects, 0);
 });
 
 /**
@@ -88,20 +88,20 @@ test("update-nested-reactive", () => {
 
   const firstOuter = outerEl();
   const firstInner = innerEl();
-  assert.is(firstOuter, "0");
-  assert.ok(firstInner.length > 0);
+  assert.equal(firstOuter, "0");
+  assert.true(firstInner.length > 0);
 
   update(root.root);
   const secondOuter = outerEl();
   const secondInner = innerEl();
-  assert.is(secondOuter, "1", "outer incremented");
-  assert.not.is(secondInner, firstInner, "inner regenerated");
+  assert.equal(secondOuter, "1");
+  assert.notEqual(secondInner, firstInner);
 
   update(root.root);
   const thirdOuter = outerEl();
   const thirdInner = innerEl();
-  assert.is(thirdOuter, "2", "outer incremented again");
-  assert.not.is(thirdInner, secondInner, "inner regenerated again");
+  assert.equal(thirdOuter, "2");
+  assert.notEqual(thirdInner, secondInner);
 });
 
 await test.run();

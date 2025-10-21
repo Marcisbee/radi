@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { createSignal } from "../signal.ts";
 import { update } from "../main.ts";
@@ -57,20 +57,20 @@ test("increments until disabled", async () => {
   const rootEl = await mount(<SignalThresholdTest count={0} />, document.body);
   const buttonEl = rootEl.querySelector(".signal-btn") as HTMLButtonElement;
 
-  assert.ok(buttonEl.textContent!.includes("0 / 3"));
-  assert.not.ok(buttonEl.disabled);
+  assert.true(buttonEl.textContent!.includes("0 / 3"));
+  assert.false(buttonEl.disabled);
 
   buttonEl.click();
-  assert.ok(buttonEl.textContent!.includes("1 / 3"));
-  assert.not.ok(buttonEl.disabled);
+  assert.true(buttonEl.textContent!.includes("1 / 3"));
+  assert.false(buttonEl.disabled);
 
   buttonEl.click();
-  assert.ok(buttonEl.textContent!.includes("2 / 3"));
-  assert.not.ok(buttonEl.disabled);
+  assert.true(buttonEl.textContent!.includes("2 / 3"));
+  assert.false(buttonEl.disabled);
 
   buttonEl.click();
-  assert.ok(buttonEl.textContent!.includes("3 / 3"));
-  assert.ok(buttonEl.disabled, "Button disabled at threshold");
+  assert.true(buttonEl.textContent!.includes("3 / 3"));
+  assert.true(buttonEl.disabled, "Button disabled at threshold");
 });
 
 /**
@@ -82,20 +82,20 @@ test("no increment after disabled", async () => {
   const rootEl = await mount(<SignalThresholdTest count={2} />, document.body);
   const buttonEl = rootEl.querySelector(".signal-btn") as HTMLButtonElement;
 
-  assert.ok(buttonEl.textContent!.includes("2 / 3"));
-  assert.not.ok(buttonEl.disabled);
+  assert.true(buttonEl.textContent!.includes("2 / 3"));
+  assert.false(buttonEl.disabled);
 
   buttonEl.click(); // reaches threshold
-  assert.ok(buttonEl.textContent!.includes("3 / 3"));
-  assert.ok(buttonEl.disabled);
+  assert.true(buttonEl.textContent!.includes("3 / 3"));
+  assert.true(buttonEl.disabled);
 
   buttonEl.click();
   buttonEl.click();
-  assert.ok(
+  assert.true(
     buttonEl.textContent!.includes("3 / 3"),
     "Value should stay at threshold",
   );
-  assert.ok(buttonEl.disabled);
+  assert.true(buttonEl.disabled);
 });
 
 /**
@@ -110,20 +110,20 @@ test("starts disabled at threshold", async () => {
   );
   const buttonEl = rootEl.querySelector(".signal-btn") as HTMLButtonElement;
 
-  assert.ok(buttonEl.textContent!.includes("5 / 5"));
-  assert.ok(buttonEl.disabled);
+  assert.true(buttonEl.textContent!.includes("5 / 5"));
+  assert.true(buttonEl.disabled);
 
   // Click attempts do nothing.
   buttonEl.click();
   await Promise.resolve();
-  assert.ok(buttonEl.textContent!.includes("5 / 5"));
-  assert.ok(buttonEl.disabled);
+  assert.true(buttonEl.textContent!.includes("5 / 5"));
+  assert.true(buttonEl.disabled);
 
   // Force update without change; should remain identical.
   update(rootEl);
   await Promise.resolve();
-  assert.ok(buttonEl.textContent!.includes("5 / 5"));
-  assert.ok(buttonEl.disabled);
+  assert.true(buttonEl.textContent!.includes("5 / 5"));
+  assert.true(buttonEl.disabled);
 });
 
 await test.run();

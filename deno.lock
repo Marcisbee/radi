@@ -4,6 +4,7 @@
     "jsr:@david/code-block-writer@^13.0.3": "13.0.3",
     "jsr:@deno/dnt@*": "0.42.3",
     "jsr:@marcisbee/rion@*": "0.1.0",
+    "jsr:@marcisbee/rion@0.2": "0.2.0",
     "jsr:@std/fmt@1": "1.0.8",
     "jsr:@std/fs@1": "1.0.14",
     "jsr:@std/path@1": "1.1.0",
@@ -11,7 +12,9 @@
     "jsr:@ts-morph/bootstrap@0.27": "0.27.0",
     "jsr:@ts-morph/common@0.27": "0.27.0",
     "npm:@jridgewell/trace-mapping@*": "0.3.31",
+    "npm:@types/node@*": "24.2.0",
     "npm:esbuild@*": "0.25.6",
+    "npm:playwright@^1.56.1": "1.56.1",
     "npm:react-dom@*": "19.2.0_react@19.2.0",
     "npm:react@*": "19.2.0",
     "npm:tinybench@*": "5.0.1"
@@ -34,6 +37,13 @@
       "integrity": "d7a2898798899b9970afa8051acfe4dbcd96a1c06298e178f8ff5481cdd7af34",
       "dependencies": [
         "npm:@jridgewell/trace-mapping"
+      ]
+    },
+    "@marcisbee/rion@0.2.0": {
+      "integrity": "4c7fd1db3aaffcd5a94a7d4dcb71a30fda670128aab68f9887d98a749070e55d",
+      "dependencies": [
+        "npm:@jridgewell/trace-mapping",
+        "npm:playwright"
       ]
     },
     "@std/fmt@1.0.8": {
@@ -206,6 +216,12 @@
         "@jridgewell/sourcemap-codec"
       ]
     },
+    "@types/node@24.2.0": {
+      "integrity": "sha512-3xyG3pMCq3oYCNg7/ZP+E1ooTaGB4cG8JWRsqqOYQdbWNY4zbaV0Ennrd7stjiJEFZCaybcIgpTjJWHRfBSIDw==",
+      "dependencies": [
+        "undici-types"
+      ]
+    },
     "esbuild@0.25.6": {
       "integrity": "sha512-GVuzuUwtdsghE3ocJ9Bs8PNoF13HNQ5TXbEi2AhvVb8xU1Iwt9Fos9FEamfoee+u/TOsn7GUWc04lz46n2bbTg==",
       "optionalDependencies": [
@@ -239,6 +255,25 @@
       "scripts": true,
       "bin": true
     },
+    "fsevents@2.3.2": {
+      "integrity": "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==",
+      "os": ["darwin"],
+      "scripts": true
+    },
+    "playwright-core@1.56.1": {
+      "integrity": "sha512-hutraynyn31F+Bifme+Ps9Vq59hKuUCz7H1kDOcBs+2oGguKkWTU50bBWrtz34OUWmIwpBTWDxaRPXrIXkgvmQ==",
+      "bin": true
+    },
+    "playwright@1.56.1": {
+      "integrity": "sha512-aFi5B0WovBHTEvpM3DzXTUaeN6eN0qWnTkKx4NQaH4Wvcmc153PdaY2UBdSYKaGYw+UyWXSVyxDUg5DoPEttjw==",
+      "dependencies": [
+        "playwright-core"
+      ],
+      "optionalDependencies": [
+        "fsevents"
+      ],
+      "bin": true
+    },
     "react-dom@19.2.0_react@19.2.0": {
       "integrity": "sha512-UlbRu4cAiGaIewkPyiRGJk0imDN2T3JjieT6spoL2UeSf5od4n5LB/mQ4ejmxhCFT1tYe8IvaFulzynWovsEFQ==",
       "dependencies": [
@@ -254,6 +289,14 @@
     },
     "tinybench@5.0.1": {
       "integrity": "sha512-aNVgWQZY4veCZLQJRftDA1X9OoLUIjDWNfC90nledkX7Lx205IpSEFYnsu4slyofoPGpJ+NIQj+BNSt4U5edMg=="
+    },
+    "undici-types@7.10.0": {
+      "integrity": "sha512-t5Fy/nfn+14LuOc2KNYg75vZqClpAiqscVvMygNnlsHBFpSXdJaYtXMcdNLpl/Qvc3P2cB3s6lOV51nqsFq4ag=="
     }
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@marcisbee/rion@0.2"
+    ]
   }
 }

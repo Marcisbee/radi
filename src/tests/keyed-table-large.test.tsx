@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { createElement, update } from "../main.ts";
 
@@ -185,9 +185,9 @@ function KeyedLargeTableRoot(this: HTMLElement) {
  * Assert a single row element has expected id and non-empty label.
  */
 function assertRow(el: HTMLTableRowElement, expectedId: number) {
-  assert.is(parseInt(el.id, 10), expectedId);
+  assert.equal(parseInt(el.id, 10), expectedId);
   const labelCell = el.querySelector(".col-label") as HTMLElement;
-  assert.ok(
+  assert.true(
     labelCell && labelCell.textContent && labelCell.textContent.length > 0,
   );
 }
@@ -207,15 +207,14 @@ test("large-keyed-table-renders-all-and-appends", async () => {
   const tbody = root.querySelector("tbody")!;
 
   // Initial: no rows
-  assert.is(tbody.children.length, 0);
+  assert.length(tbody.children, 0);
 
   // Generate 1000
   generateBtn.click();
   await Promise.resolve();
-  assert.is(
-    tbody.children.length,
+  assert.length(
+    tbody.children,
     1000,
-    "Expected 1000 rows after first generate",
   );
   const firstRow = tbody.children[0] as HTMLTableRowElement;
   const lastRow = tbody
@@ -226,7 +225,7 @@ test("large-keyed-table-renders-all-and-appends", async () => {
   // Append 1000 to reach 2000
   appendBtn.click();
   await Promise.resolve();
-  assert.is(tbody.children.length, 2000, "Expected 2000 rows after append");
+  assert.length(tbody.children, 2000);
   const appendedLast = tbody
     .children[tbody.children.length - 1] as HTMLTableRowElement;
   assertRow(appendedLast, 2000);
@@ -234,10 +233,9 @@ test("large-keyed-table-renders-all-and-appends", async () => {
   // Regenerate (fresh 1000 new ids)
   regenerateBtn.click();
   await Promise.resolve();
-  assert.is(
-    tbody.children.length,
+  assert.length(
+    tbody.children,
     1000,
-    "Expected 1000 rows after regeneration",
   );
   const regenFirst = tbody.children[0] as HTMLTableRowElement;
   const regenLast = tbody
@@ -252,7 +250,7 @@ test("swap-rows", async () => {
   const generateBtn = root.querySelector(".btn-generate") as HTMLButtonElement;
   generateBtn.click();
   await Promise.resolve();
-  assert.is(root.querySelector("tbody")!.children.length, 1000);
+  assert.length(root.querySelector("tbody")!.children, 1000);
 
   const originalRow2 = root.querySelector("tbody")!.children[1] as HTMLElement;
   const originalRow999 = root.querySelector("tbody")!
@@ -265,8 +263,8 @@ test("swap-rows", async () => {
 
   const newRow2 = root.querySelector("tbody")!.children[1] as HTMLElement;
   const newRow999 = root.querySelector("tbody")!.children[998] as HTMLElement;
-  assert.is(newRow2.id, originalId999);
-  assert.is(newRow999.id, originalId2);
+  assert.equal(newRow2.id, originalId999);
+  assert.equal(newRow999.id, originalId2);
 });
 
 test("update-rows", async () => {
@@ -275,7 +273,7 @@ test("update-rows", async () => {
   const generateBtn = root.querySelector(".btn-generate") as HTMLButtonElement;
   generateBtn.click();
   await Promise.resolve();
-  assert.is(root.querySelector("tbody")!.children.length, 1000);
+  assert.length(root.querySelector("tbody")!.children, 1000);
 
   const row0 = root.querySelector("tbody")!.children[0] as HTMLElement;
   const originalLabel = row0.querySelector(".col-label")!.textContent;
@@ -284,7 +282,7 @@ test("update-rows", async () => {
   await Promise.resolve();
 
   const newLabel = row0.querySelector(".col-label")!.textContent;
-  assert.is(newLabel, originalLabel + " !!!");
+  assert.equal(newLabel, originalLabel + " !!!");
 });
 
 await test.run();

@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { update } from "../main.ts";
 
@@ -44,12 +44,12 @@ test("mirrors typed value", async () => {
   );
   const input = root.querySelector("input") as HTMLInputElement;
   const mirror = root.querySelector(".mirror")!;
-  assert.is(mirror.textContent, "Hey");
+  assert.equal(mirror.textContent, "Hey");
 
   input.value = "World";
   input.dispatchEvent(new Event("input", { bubbles: true }));
   await Promise.resolve();
-  assert.is(mirror.textContent, "World");
+  assert.equal(mirror.textContent, "World");
 });
 
 await test.run();

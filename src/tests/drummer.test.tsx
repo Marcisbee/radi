@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { createAbortSignal, update } from "../main.ts";
 
@@ -65,19 +65,19 @@ test("events update bpm", async () => {
   const div = root.querySelector(".drummer")!;
   const initialText = div.textContent!;
   const match = /Random:\s*(\d\.\d+)/.exec(initialText);
-  assert.ok(match);
+  assert.exists(match);
   const seed = match![1];
 
   root.dispatchEvent(new CustomEvent("bpm:increment", { bubbles: true }));
   await Promise.resolve();
-  assert.ok(div.textContent!.includes("BPM: 101"));
-  assert.ok(div.textContent!.includes(seed));
+  assert.true(div.textContent!.includes("BPM: 101"));
+  assert.true(div.textContent!.includes(seed));
 
   root.dispatchEvent(new CustomEvent("bpm:decrement", { bubbles: true }));
   root.dispatchEvent(new CustomEvent("bpm:decrement", { bubbles: true }));
   await Promise.resolve();
-  assert.ok(div.textContent!.includes("BPM: 99"));
-  assert.ok(div.textContent!.includes(seed));
+  assert.true(div.textContent!.includes("BPM: 99"));
+  assert.true(div.textContent!.includes(seed));
 });
 
 /**
@@ -88,7 +88,7 @@ test("events update bpm", async () => {
 test("abort stops events", async () => {
   const root = await mount(<Drummer />, document.body);
   const div = root.querySelector(".drummer")!;
-  assert.ok(div.textContent!.includes("BPM: 100"));
+  assert.true(div.textContent!.includes("BPM: 100"));
 
   // Remove component -> abort listeners.
   root.remove();
@@ -100,7 +100,7 @@ test("abort stops events", async () => {
   await Promise.resolve();
 
   // BPM should remain unchanged.
-  assert.ok(div.textContent!.includes("BPM: 100"));
+  assert.true(div.textContent!.includes("BPM: 100"));
 });
 
 await test.run();

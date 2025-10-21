@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { createRoot } from "../main.ts";
 
 /**
@@ -41,18 +41,18 @@ test("reuse-component-props", () => {
 
   const valueEl0 = document.querySelector(".value") as HTMLDivElement | null;
   if (!valueEl0) throw new Error("value element missing");
-  assert.is(valueEl0.textContent, "0");
+  assert.equal(valueEl0.textContent, "0");
 
   // Subsequent renders reuse component host (no new connect).
   for (let i = 1; i < 3; i++) {
     root.render(<App counter={i} />);
     const valueEl = document.querySelector(".value") as HTMLDivElement | null;
     if (!valueEl) throw new Error("value element missing");
-    assert.is(valueEl.textContent, String(i), "text reconciled");
+    assert.equal(valueEl.textContent, String(i), "text reconciled");
   }
 
-  assert.is(connectCount, 1);
-  assert.is(disconnectCount, 0);
+  assert.equal(connectCount, 1);
+  assert.equal(disconnectCount, 0);
 });
 
 /**
@@ -70,18 +70,18 @@ test("replace-component-type", () => {
   a.addEventListener("connect", () => connectA++);
   a.addEventListener("disconnect", () => disconnectA++);
   root.render(a);
-  assert.is((document.querySelector(".which") as HTMLElement).textContent, "A");
+  assert.equal((document.querySelector(".which") as HTMLElement).textContent, "A");
 
   const b = <AppB />;
   b.addEventListener("connect", () => connectB++);
   b.addEventListener("disconnect", () => disconnectB++);
   root.render(b);
-  assert.is((document.querySelector(".which") as HTMLElement).textContent, "B");
+  assert.equal((document.querySelector(".which") as HTMLElement).textContent, "B");
 
-  assert.is(connectA, 1);
-  assert.is(disconnectA, 1);
-  assert.is(connectB, 1, "B connected once");
-  assert.is(disconnectB, 0, "B not disconnected yet");
+  assert.equal(connectA, 1);
+  assert.equal(disconnectA, 1);
+  assert.equal(connectB, 1, "B connected once");
+  assert.equal(disconnectB, 0, "B not disconnected yet");
 });
 
 /**
@@ -97,16 +97,16 @@ test("replace-component-key", () => {
   one.addEventListener("connect", () => connects++);
   one.addEventListener("disconnect", () => disconnects++);
   root.render(one);
-  assert.is((document.querySelector(".value") as HTMLElement).textContent, "0");
+  assert.equal((document.querySelector(".value") as HTMLElement).textContent, "0");
 
   const two = <App key="two" counter={1} />;
   two.addEventListener("connect", () => connects++);
   two.addEventListener("disconnect", () => disconnects++);
   root.render(two);
-  assert.is((document.querySelector(".value") as HTMLElement).textContent, "1");
+  assert.equal((document.querySelector(".value") as HTMLElement).textContent, "1");
 
-  assert.is(connects, 2, "two separate mounts");
-  assert.is(disconnects, 1, "first host disconnected once");
+  assert.equal(connects, 2, "two separate mounts");
+  assert.equal(disconnects, 1, "first host disconnected once");
 });
 
 await test.run();

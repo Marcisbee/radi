@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { update } from "../main.ts";
 
@@ -87,11 +87,11 @@ function TabberTest(this: HTMLElement) {
 test("switch tabs", async () => {
   const rootEl = await mount(<TabberTest />, document.body);
   const panelEl = rootEl.querySelector(".panel")!;
-  assert.ok(panelEl.textContent!.includes("Tab1"));
+  assert.true(panelEl.textContent!.includes("Tab1"));
 
   (rootEl.querySelector(".btn-tab2") as HTMLButtonElement).click();
   await Promise.resolve();
-  assert.ok(panelEl.querySelector(".tab2-form"));
+  assert.elementExists(".tab2-form");
 
   const eventInput = panelEl.querySelector(".event-input") as HTMLInputElement;
   const submitBtn = panelEl.querySelector(".submit-btn") as HTMLButtonElement;
@@ -102,9 +102,9 @@ test("switch tabs", async () => {
   submitBtn.click();
 
   const listItems = panelEl.querySelectorAll("li");
-  assert.is(listItems.length, 2);
-  assert.is(listItems[0].textContent, "alpha");
-  assert.is(listItems[1].textContent, "beta");
+  assert.equal(listItems.length, 2);
+  assert.equal(listItems[0].textContent, "alpha");
+  assert.equal(listItems[1].textContent, "beta");
 });
 
 /** tab2 resets events after unmount/remount */
@@ -126,16 +126,16 @@ test("tab2 resets", async () => {
   submitBtn1.click();
   eventInput1.value = "second";
   submitBtn1.click();
-  assert.is(panelEl1.querySelectorAll("li").length, 2);
+  assert.length(panelEl1.querySelectorAll("li"), 2);
 
   btnTab1.click();
   await Promise.resolve();
-  assert.ok(panelEl1.textContent!.includes("Tab1"));
+  assert.true(panelEl1.textContent!.includes("Tab1"));
 
   btnTab2.click();
   await Promise.resolve();
   const panelEl2 = rootEl.querySelector(".panel")!;
-  assert.is(panelEl2.querySelectorAll("li").length, 0);
+  assert.length(panelEl2.querySelectorAll("li"), 0);
 });
 
 /** empty submission preserved as empty list item */
@@ -153,8 +153,8 @@ test("empty submit preserved", async () => {
   await Promise.resolve();
 
   const listItems = panelEl.querySelectorAll("li");
-  assert.is(listItems.length, 1);
-  assert.is(listItems[0].textContent, "");
+  assert.length(listItems, 1);
+  assert.equal(listItems[0].textContent, "");
 });
 
 await test.run();

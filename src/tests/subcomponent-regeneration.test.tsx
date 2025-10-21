@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { update } from "../main.ts";
 
@@ -40,10 +40,10 @@ function Regenerator(this: HTMLElement) {
 test("prop-regenerates", async () => {
   const root = await mount(<Regenerator />, document.body);
   const heading = root.querySelector(".sub2-value") as HTMLElement;
-  assert.ok(heading);
+  assert.exists(heading);
 
   const first = heading.textContent!;
-  assert.ok(/Value:\s*\d\.\d+/.test(first));
+  assert.true(/Value:\s*\d\.\d+/.test(first));
 
   const maxAttempts = 5;
   let attempt = 0;
@@ -59,8 +59,8 @@ test("prop-regenerates", async () => {
     }
   }
 
-  assert.ok(changed, "Random value should change within attempts");
-  assert.ok(/Value:\s*\d\.\d+/.test(heading.textContent!));
+  assert.true(changed, "Random value should change within attempts");
+  assert.match(heading.textContent, /Value:\s*\d\.\d+/);
 });
 
 /**
@@ -74,7 +74,7 @@ test("stable-before-update", async () => {
   const initial = heading.textContent!;
   await Promise.resolve(); // allow any microtasks
   const again = heading.textContent!;
-  assert.is(initial, again);
+  assert.equal(initial, again);
 });
 
 await test.run();

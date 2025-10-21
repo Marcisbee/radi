@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { update } from "../main.ts";
 
@@ -210,26 +210,26 @@ test("vary array len", async () => {
   const incBtn = root.querySelector(".inc-btn") as HTMLButtonElement;
   const decBtn = root.querySelector(".dec-btn") as HTMLButtonElement;
 
-  assert.is(listEl.querySelectorAll(".item-span").length, 1);
+  assert.length(listEl.querySelectorAll(".item-span"), 1);
 
   incBtn.click();
   await Promise.resolve();
-  assert.is(listEl.querySelectorAll(".item-span").length, 2);
+  assert.length(listEl.querySelectorAll(".item-span"), 2);
 
   incBtn.click();
   incBtn.click();
   await Promise.resolve();
-  assert.is(listEl.querySelectorAll(".item-span").length, 4);
+  assert.length(listEl.querySelectorAll(".item-span"), 4);
 
   decBtn.click();
   await Promise.resolve();
-  assert.is(listEl.querySelectorAll(".item-span").length, 3);
+  assert.length(listEl.querySelectorAll(".item-span"), 3);
 
   decBtn.click();
   decBtn.click();
   decBtn.click();
   await Promise.resolve();
-  assert.is(listEl.querySelectorAll(".item-span").length, 0);
+  assert.length(listEl.querySelectorAll(".item-span"), 0);
 });
 
 /** toggle nullable child */
@@ -238,13 +238,13 @@ test("null toggle", async () => {
   const slotEl = root.querySelector(".slot")!;
   const toggleBtn = root.querySelector(".toggle-btn") as HTMLButtonElement;
 
-  assert.is(slotEl.querySelectorAll(".strong").length, 0);
+  assert.length(slotEl.querySelectorAll(".strong"), 0);
   toggleBtn.click();
   await Promise.resolve();
-  assert.is(slotEl.querySelectorAll(".strong").length, 1);
+  assert.length(slotEl.querySelectorAll(".strong"), 1);
   toggleBtn.click();
   await Promise.resolve();
-  assert.is(slotEl.querySelectorAll(".strong").length, 0);
+  assert.length(slotEl.querySelectorAll(".strong"), 0);
 });
 
 /** nested reactive chain updates message */
@@ -256,17 +256,17 @@ test("nested chain", async () => {
     await Promise.resolve();
     msgEl = root.querySelector(".msg");
   }
-  assert.ok(msgEl, "msg element mounted");
+  assert.exists(msgEl, "msg element mounted");
   const bumpBtn = root.querySelector(".bump") as HTMLButtonElement;
 
-  assert.ok(msgEl!.textContent!.includes("val:0"));
+  assert.contains(msgEl!.textContent, "val:0");
   bumpBtn.click();
   await Promise.resolve();
-  assert.ok(root.querySelector(".msg")!.textContent!.includes("val:1"));
+  assert.contains(root.querySelector(".msg")!.textContent, "val:1");
   bumpBtn.click();
   bumpBtn.click();
   await Promise.resolve();
-  assert.ok(root.querySelector(".msg")!.textContent!.includes("val:3"));
+  assert.contains(root.querySelector(".msg")!.textContent, "val:3");
 });
 
 /** component identity replacement */
@@ -274,18 +274,18 @@ test("identity swap", async () => {
   const root = await mount(<IdentitySwap />, document.body);
   const swapBtn = root.querySelector(".swap") as HTMLButtonElement;
 
-  assert.is(root.querySelectorAll(".a-child").length, 1);
-  assert.is(root.querySelectorAll(".b-child").length, 0);
+  assert.length(root.querySelectorAll(".a-child"), 1);
+  assert.length(root.querySelectorAll(".b-child"), 0);
 
   swapBtn.click();
   await Promise.resolve();
-  assert.is(root.querySelectorAll(".a-child").length, 0);
-  assert.is(root.querySelectorAll(".b-child").length, 1);
+  assert.length(root.querySelectorAll(".a-child"), 0);
+  assert.length(root.querySelectorAll(".b-child"), 1);
 
   swapBtn.click();
   await Promise.resolve();
-  assert.is(root.querySelectorAll(".a-child").length, 1);
-  assert.is(root.querySelectorAll(".b-child").length, 0);
+  assert.length(root.querySelectorAll(".a-child"), 1);
+  assert.length(root.querySelectorAll(".b-child"), 0);
 });
 
 /** multiple updates keep single node instance */
@@ -294,8 +294,8 @@ test("no dup", async () => {
   const tickBtn = root.querySelector(".tick") as HTMLButtonElement;
   for (const _ of Array.from({ length: 5 })) tickBtn.click();
   await Promise.resolve();
-  assert.is(root.querySelectorAll(".ticks").length, 1);
-  assert.ok(root.querySelector(".ticks")!.textContent!.includes("ticks:5"));
+  assert.length(root.querySelectorAll(".ticks"), 1);
+  assert.contains(root.querySelector(".ticks")!.textContent, "ticks:5");
 });
 
 /** fragment churn maintains single even/odd and inner node */
@@ -307,8 +307,8 @@ test("fragment churn", async () => {
     const evenCount = root.querySelectorAll(".even").length;
     const oddCount = root.querySelectorAll(".odd").length;
     const innerCount = root.querySelectorAll(".inner").length;
-    assert.is(evenCount + oddCount, 1);
-    assert.is(innerCount, 1);
+    assert.equal(evenCount + oddCount, 1);
+    assert.equal(innerCount, 1);
   };
 
   validate();

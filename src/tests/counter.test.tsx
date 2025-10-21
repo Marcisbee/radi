@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { update } from "../main.ts";
 
@@ -66,11 +66,11 @@ test("increment", async () => {
 test("manual-update-no-change", async () => {
   const container = await mount(<Counter />, document.body);
   const span = container.querySelector("span")!;
-  assert.is(span.textContent, "0");
+  assert.equal(span.textContent, "0");
 
   // Update without modifying state object reference.
   update(container);
-  assert.is(span.textContent, "0");
+  assert.equal(span.textContent, "0");
 });
 
 test("instances-isolated", async () => {
@@ -83,20 +83,20 @@ test("instances-isolated", async () => {
   );
 
   const counters = container.querySelectorAll("radi-host");
-  assert.is(counters.length, 2);
+  assert.equal(counters.length, 2);
 
   const spans = container.querySelectorAll("span");
-  assert.is(spans.length, 2);
+  assert.equal(spans.length, 2);
 
   const buttons = container.querySelectorAll(".btn-inc");
-  assert.is(buttons.length, 2);
+  assert.equal(buttons.length, 2);
 
   (buttons[0] as HTMLButtonElement).click();
   (buttons[0] as HTMLButtonElement).click();
   (buttons[1] as HTMLButtonElement).click();
 
-  assert.is(spans[0].textContent, "2");
-  assert.is(spans[1].textContent, "1");
+  assert.equal(spans[0].textContent, "2");
+  assert.equal(spans[1].textContent, "1");
 });
 
 test("no-duplicate-nodes", async () => {
@@ -117,9 +117,9 @@ test("no-duplicate-nodes", async () => {
   button.click();
   button.click();
 
-  assert.is(span.textContent, "2");
-  assert.is(container.querySelectorAll("span").length, 1);
-  assert.is(container.querySelectorAll("button").length, 1);
+  assert.equal(span.textContent, "2");
+  assert.equal(container.querySelectorAll("span").length, 1);
+  assert.equal(container.querySelectorAll("button").length, 1);
 
   assert.snapshot.html(
     container,

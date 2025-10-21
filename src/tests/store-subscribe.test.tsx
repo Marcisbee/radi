@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { createRoot } from "../main.ts";
 
@@ -64,13 +64,13 @@ test("subsequent-set-update", async () => {
 
   const root = await mount(<App />, document.body);
   const host = root.querySelector(".store-host")!;
-  assert.is(host.textContent, "A");
+  assert.equal(host.textContent, "A");
 
   store.set("B");
-  assert.is(host.textContent, "B");
+  assert.equal(host.textContent, "B");
 
   store.set("C");
-  assert.is(host.textContent, "C");
+  assert.equal(host.textContent, "C");
 });
 
 test("no-duplicate-nodes", async () => {
@@ -82,12 +82,12 @@ test("no-duplicate-nodes", async () => {
 
   const root = await mount(<App />, document.body);
   const host = root.querySelector(".store-host")!;
-  assert.is(host.textContent, "X");
+  assert.equal(host.textContent, "X");
 
   store.set("Y");
   store.set("Z");
 
-  assert.is(host.textContent, "Z");
+  assert.equal(host.textContent, "Z");
   // Only one child text node inside the fragment range.
   const comments = Array.from(host.childNodes).filter(
     (n) => n.nodeType === Node.COMMENT_NODE,
@@ -96,8 +96,8 @@ test("no-duplicate-nodes", async () => {
     (n) => n.nodeType === Node.TEXT_NODE,
   );
   // Expect two comments (fragment boundary) and one text node.
-  assert.is(comments.length, 2);
-  assert.is(texts.length, 1);
+  assert.equal(comments.length, 2);
+  assert.equal(texts.length, 1);
 });
 
 test("unsubscribe-on-disconnect", async () => {
@@ -110,7 +110,7 @@ test("unsubscribe-on-disconnect", async () => {
   const root = createRoot(document.body);
   root.render(<App />);
   await Promise.resolve();
-  assert.is(store.unsubscribedCount, 0);
+  assert.equal(store.unsubscribedCount, 0);
 
   // Remove root element -> disconnect should propagate and trigger unsubscribe.
   root.unmount();
@@ -118,7 +118,7 @@ test("unsubscribe-on-disconnect", async () => {
   // Allow any microtasks (not strictly required since removal synchronous).
   await Promise.resolve();
 
-  assert.is(store.unsubscribedCount, 1);
+  assert.equal(store.unsubscribedCount, 1);
 });
 
 test("nested-reactive-in-store-value", async () => {
@@ -134,11 +134,11 @@ test("nested-reactive-in-store-value", async () => {
 
   const root = await mount(<App />, document.body);
   const host = root.querySelector(".store-host")!;
-  assert.is(host.textContent, "R1");
+  assert.equal(host.textContent, "R1");
 
   // Update to a different nested reactive generator.
   store.set(() => "R2");
-  assert.is(host.textContent, "R2");
+  assert.equal(host.textContent, "R2");
 });
 
 test("late-first-emission", async () => {
@@ -154,15 +154,15 @@ test("late-first-emission", async () => {
 
   // Between the two boundary comments there should be no text initially.
   const raw = host.innerHTML;
-  assert.is(raw, "<!--(--><!--)-->");
+  assert.equal(raw, "<!--(--><!--)-->");
 
   // First emission
   store.set("L1");
-  assert.is(host.textContent, "L1");
+  assert.equal(host.textContent, "L1");
 
   // Second emission
   store.set("L2");
-  assert.is(host.textContent, "L2");
+  assert.equal(host.textContent, "L2");
 });
 
 test("unsubscribe-object", async () => {
@@ -199,13 +199,13 @@ test("unsubscribe-object", async () => {
   await Promise.resolve();
 
   const host = document.querySelector(".store-host")!;
-  assert.is(host.textContent, "O1");
-  assert.is(store.unsubCalled, 0);
+  assert.equal(host.textContent, "O1");
+  assert.equal(store.unsubCalled, 0);
 
   root.unmount();
   await Promise.resolve();
 
-  assert.is(store.unsubCalled, 1);
+  assert.equal(store.unsubCalled, 1);
 });
 
 test("nested-unsubscribe", async () => {
@@ -250,13 +250,13 @@ test("nested-unsubscribe", async () => {
   root.render(<App />);
   await Promise.resolve();
   await Promise.resolve(); // extra microtask flush for nested subscription setup
-  assert.is(outerUnsub, 0);
-  assert.is(innerUnsub, 0);
+  assert.equal(outerUnsub, 0);
+  assert.equal(innerUnsub, 0);
   root.unmount();
   await Promise.resolve();
   await Promise.resolve(); // extra microtask flush for nested unsubscribe cleanup
-  assert.is(outerUnsub, 1);
-  assert.is(innerUnsub, 1);
+  assert.equal(outerUnsub, 1);
+  assert.equal(innerUnsub, 1);
 });
 test("nested-unsubscribe-update", async () => {
   let outerUnsub = 0;
@@ -304,15 +304,15 @@ test("nested-unsubscribe-update", async () => {
   await Promise.resolve();
   await Promise.resolve(); // ensure inner subscription rendering completes
   const host = document.querySelector(".store-host")!;
-  assert.is(host.textContent, "J1");
+  assert.equal(host.textContent, "J1");
   innerStore.set("J2");
-  assert.is(host.textContent, "J2");
-  assert.is(outerUnsub, 0);
-  assert.is(innerUnsub, 0);
+  assert.equal(host.textContent, "J2");
+  assert.equal(outerUnsub, 0);
+  assert.equal(innerUnsub, 0);
   root.unmount();
   await Promise.resolve();
   await Promise.resolve(); // flush cleanup microtasks
-  assert.is(outerUnsub, 1);
-  assert.is(innerUnsub, 1);
+  assert.equal(outerUnsub, 1);
+  assert.equal(innerUnsub, 1);
 });
 await test.run();

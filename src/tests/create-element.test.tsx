@@ -1,4 +1,4 @@
-import { assert, clock, test } from "jsr:@marcisbee/rion";
+import { assert, clock, test } from "@marcisbee/rion";
 import { createElement, createRoot } from "../main.ts";
 import { mount } from "../../test/utils.ts";
 
@@ -10,7 +10,7 @@ import { mount } from "../../test/utils.ts";
    - subscribable children (object with subscribe emitting multiple values)
 ----------------------------------------------------------------------------- */
 
-test("primitives", async () => {
+test("primitives", () => {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const { render } = createRoot(host);
@@ -28,21 +28,18 @@ test("primitives", async () => {
   render(node as any);
 
   const div = host.querySelector("div")!;
-  assert.ok(div, "div should exist");
-  assert.ok(
-    div.textContent?.includes("hello42"),
-    "text content should concatenate primitives",
-  );
+  assert.exists(div, "div should exist");
+  assert.contains(div.textContent, "hello42");
 
   // Count comment nodes (false, null, undefined => 3 comments)
   let commentCount = 0;
   for (const child of Array.from(div.childNodes)) {
     if (child.nodeType === Node.COMMENT_NODE) commentCount++;
   }
-  assert.is(commentCount, 3);
+  assert.equal(commentCount, 3);
 });
 
-test("array-flatten", async () => {
+test("array-flatten", () => {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const { render } = createRoot(container);
@@ -51,18 +48,15 @@ test("array-flatten", async () => {
   render(nested);
 
   const div = container.querySelector("div")!;
-  assert.ok(div, "div should exist");
-  assert.ok(
-    div.textContent?.includes("abc"),
-    "flattened text should be present",
-  );
+  assert.exists(div, "div should exist");
+  assert.contains(div.textContent, "abc");
 
   // Expect at least one comment for null
   const comments = Array.from(div.childNodes).filter((n) =>
     n.nodeType === Node.COMMENT_NODE &&
     /null/.test((n as Comment).textContent || "")
   );
-  assert.ok(comments.length >= 1, "null should produce a comment node");
+  assert.exists(comments.length >= 1, "null should produce a comment node");
 });
 
 function ExampleComponent(
@@ -85,9 +79,9 @@ test("component", async () => {
   );
 
   const div = mounted.querySelector(".ex")!;
-  assert.ok(div, "component inner div should exist");
-  assert.is(div.textContent, "Xchild");
-  assert.is(
+  assert.exists(div);
+  assert.equal(div.textContent, "Xchild");
+  assert.equal(
     mounted.tagName.toLowerCase().startsWith("radi-host"),
     true,
   );
@@ -110,7 +104,7 @@ test("subscribable", async () => {
   await Promise.resolve(); // Wait for initial render
 
   const div = host.querySelector("div")!;
-  assert.ok(div, "div should exist");
+  assert.exists(div);
   // After initial synchronous emission
   assert.equal(div.textContent, "first");
 

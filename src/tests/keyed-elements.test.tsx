@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { update } from "../main.ts";
 
@@ -132,7 +132,7 @@ test("keyed-reorder-preserves-instances", async () => {
   const initialNodes = Array.from(
     list.querySelectorAll(".key-item"),
   ) as HTMLElement[];
-  assert.is(initialNodes.length, 4);
+  assert.equal(initialNodes.length, 4);
   const initialMap = new Map(
     initialNodes.map((n) => [n.textContent!.split(":")[0], n]),
   );
@@ -143,18 +143,18 @@ test("keyed-reorder-preserves-instances", async () => {
   const afterNodes = Array.from(
     list.querySelectorAll(".key-item"),
   ) as HTMLElement[];
-  assert.is(afterNodes.length, 4);
+  assert.equal(afterNodes.length, 4);
   const afterMap = new Map(
     afterNodes.map((n) => [n.textContent!.split(":")[0], n]),
   );
 
   // Each key should still map to the same element instance (identity preserved)
   for (const [key, node] of initialMap) {
-    assert.is(afterMap.get(key), node);
+    assert.equal(afterMap.get(key), node);
   }
 
   // Order should have reversed (first and last swapped)
-  assert.ok(
+  assert.true(
     afterNodes[0] === initialMap.get("d") &&
       afterNodes[afterNodes.length - 1] === initialMap.get("a"),
     "Order reversed but nodes reused",
@@ -168,7 +168,7 @@ test("keyed-removal-preserves-others", async () => {
   const removeBtn = root.querySelector(".remove-b") as HTMLButtonElement;
 
   const before = Array.from(list.children) as HTMLElement[];
-  assert.is(before.length, 3);
+  assert.equal(before.length, 3);
   const aNode = before.find((n) => n.textContent === "a")!;
   const bNode = before.find((n) => n.textContent === "b")!;
   const cNode = before.find((n) => n.textContent === "c")!;
@@ -177,12 +177,12 @@ test("keyed-removal-preserves-others", async () => {
   await Promise.resolve();
 
   const after = Array.from(list.children) as HTMLElement[];
-  assert.is(after.length, 2);
+  assert.equal(after.length, 2);
   const texts = after.map((n) => n.textContent);
-  assert.ok(!texts.includes("b"));
-  assert.ok(after.includes(aNode));
-  assert.ok(after.includes(cNode));
-  assert.ok(!document.body.contains(bNode), "Removed node not in DOM");
+  assert.true(!texts.includes("b"));
+  assert.true(after.includes(aNode));
+  assert.true(after.includes(cNode));
+  assert.true(!document.body.contains(bNode), "Removed node not in DOM");
 });
 
 /** key flip remounts component (counter resets) while same key rerender increments */
@@ -193,24 +193,24 @@ test("key-flip-remounts", async () => {
 
   const counter = () => root.querySelector(".render-counter") as HTMLElement;
 
-  assert.ok(counter().textContent!.includes("renders:1"));
+  assert.true(counter().textContent!.includes("renders:1"));
 
   rerenderBtn.click();
   await Promise.resolve();
-  assert.ok(counter().textContent!.includes("renders:2"));
+  assert.true(counter().textContent!.includes("renders:2"));
 
   rerenderBtn.click();
   await Promise.resolve();
-  assert.ok(counter().textContent!.includes("renders:3"));
+  assert.true(counter().textContent!.includes("renders:3"));
 
   flipBtn.click();
   await Promise.resolve();
   // Key changed; instance should remount resetting count to 1
-  assert.ok(counter().textContent!.includes("renders:1"));
+  assert.true(counter().textContent!.includes("renders:1"));
 
   rerenderBtn.click();
   await Promise.resolve();
-  assert.ok(counter().textContent!.includes("renders:2"));
+  assert.true(counter().textContent!.includes("renders:2"));
 });
 
 await test.run();

@@ -1,4 +1,5 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+/// <reference path="../jsx.d.ts" />
+import { assert, test } from "@marcisbee/rion";
 
 import { createAbortSignal, createRoot } from "../main.ts";
 
@@ -47,7 +48,7 @@ test("abort on unmount", async () => {
   });
   rootApi.render(cmp);
   await connected;
-  assert.is(events.length, 0, "No abort before unmount");
+  assert.length(events, 0);
 
   // Unmount root -> should trigger abort.
   rootApi.unmount();
@@ -55,8 +56,8 @@ test("abort on unmount", async () => {
   // Allow microtasks to flush.
   await Promise.resolve();
 
-  assert.is(events.length, 1, "Abort fired exactly once");
-  assert.is(events[0], "abortable:aborted");
+  assert.length(events, 1);
+  assert.equal(events[0], "abortable:aborted");
 });
 
 /**
@@ -75,18 +76,18 @@ test("single abort event", async () => {
   });
   rootApi.render(cmp);
   await connected;
-  assert.is(events.length, 0);
+  assert.length(events, 0);
 
   // First unmount.
   rootApi.unmount();
   await Promise.resolve();
-  assert.is(events.length, 1);
-  assert.is(events[0], "multi:aborted");
+  assert.length(events, 1);
+  assert.equal(events[0], "multi:aborted");
 
   // Second unmount (noop / idempotent).
   rootApi.unmount();
   await Promise.resolve();
-  assert.is(events.length, 1, "No duplicate abort events");
+  assert.length(events, 1);
 });
 
 await test.run();

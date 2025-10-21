@@ -1,5 +1,5 @@
 import { update } from "../main.ts";
-import { assert, test } from "../../test/runner.ts";
+import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 
 /**
@@ -37,9 +37,9 @@ test("catches child component render error via parent listener", async () => {
   const container = createContainer();
   await mount(<Parent /> as unknown as HTMLElement, container);
 
-  assert.is(callCount, 1);
-  assert.ok(caught instanceof Error);
-  assert.is((caught as Error).message, "child boom");
+  assert.equal(callCount, 1);
+  assert.instanceOf(caught, Error);
+  assert.equal((caught as Error).message, "child boom");
 });
 
 test("uncaught component error bubbles to container listener", async () => {
@@ -62,8 +62,8 @@ test("uncaught component error bubbles to container listener", async () => {
 
   await mount(<Boom /> as unknown as HTMLElement, container);
 
-  assert.ok(bubbleCaught instanceof Error);
-  assert.is((bubbleCaught as Error).message, "boom root");
+  assert.instanceOf(bubbleCaught, Error);
+  assert.equal((bubbleCaught as Error).message, "boom root");
 });
 
 test("reactive generator error bubbles", async () => {
@@ -87,8 +87,8 @@ test("reactive generator error bubbles", async () => {
   const container = createContainer();
   await mount(<ReactiveThrower /> as unknown as HTMLElement, container);
 
-  assert.ok(caught instanceof Error);
-  assert.is((caught as Error).message, "reactive boom");
+  assert.instanceOf(caught, Error);
+  assert.equal((caught as Error).message, "reactive boom");
 });
 
 test("prop function evaluation error emits error event", async () => {
@@ -116,8 +116,8 @@ test("prop function evaluation error emits error event", async () => {
   const container = createContainer();
   await mount(<Holder /> as unknown as HTMLElement, container);
 
-  assert.ok(caught instanceof Error);
-  assert.is((caught as Error).message, "prop eval");
+  assert.instanceOf(caught, Error);
+  assert.equal((caught as Error).message, "prop eval");
 });
 
 test("prop function throws on update dispatch", async () => {
@@ -151,14 +151,14 @@ test("prop function throws on update dispatch", async () => {
   const node = <Updater /> as unknown as HTMLElement;
   await mount(node, container);
 
-  assert.is(calls, 1);
-  assert.is(caught, null);
+  assert.equal(calls, 1);
+  assert.equal(caught, null);
 
   update(container);
 
-  assert.is(calls, 2);
-  assert.ok(caught instanceof Error);
-  assert.is((caught as Error).message, "update eval");
+  assert.equal(calls, 2);
+  assert.instanceOf(caught, Error);
+  assert.equal((caught as Error).message, "update eval");
 });
 
 function ErrorBoundary(
@@ -216,11 +216,11 @@ test("ErrorBoundary renders fallback and prevents error from bubbling", async ()
 
   // fallback should be rendered
   const fb = container.querySelector("#fb");
-  assert.ok(fb instanceof HTMLElement);
-  assert.is(fb!.textContent, "fallback");
+  assert.instanceOf(fb, HTMLElement);
+  assert.equal(fb!.textContent, "fallback");
 
   // error should not bubble to container because it's handled
-  assert.is(containerCaught, null);
+  assert.equal(containerCaught, null);
 });
 
 test("ErrorBoundary passes error into fallback render prop", async () => {
@@ -245,9 +245,9 @@ test("ErrorBoundary passes error into fallback render prop", async () => {
   await mount(node, container);
 
   // fallback component should receive the error message
-  assert.is(receivedText, "boomprop");
+  assert.equal(receivedText, "boomprop");
   const fb = container.querySelector("#fb-prop");
-  assert.ok(fb instanceof HTMLElement);
+  assert.instanceOf(fb, HTMLElement);
 });
 
 await test.run();

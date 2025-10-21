@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { createRoot } from "../main.ts";
 
@@ -57,7 +57,7 @@ test("prop-store-initial-sync", async () => {
   const root = await mount(<App />, document.body);
   const div = root.querySelector("#host") as HTMLDivElement;
 
-  assert.is(div.title, "Hello");
+  assert.equal(div.title, "Hello");
 });
 
 test("prop-store-subsequent-update", async () => {
@@ -69,13 +69,13 @@ test("prop-store-subsequent-update", async () => {
 
   const root = await mount(<App />, document.body);
   const span = root.querySelector("#host") as HTMLSpanElement;
-  assert.is(span.getAttribute("data-value"), "one");
+  assert.equal(span.getAttribute("data-value"), "one");
 
   dataStore.set("two");
-  assert.is(span.getAttribute("data-value"), "two");
+  assert.equal(span.getAttribute("data-value"), "two");
 
   dataStore.set("three");
-  assert.is(span.getAttribute("data-value"), "three");
+  assert.equal(span.getAttribute("data-value"), "three");
 });
 
 test("prop-store-no-initial-emission", async () => {
@@ -89,13 +89,13 @@ test("prop-store-no-initial-emission", async () => {
   const div = root.querySelector("#host") as HTMLDivElement;
 
   // No initial emission -> attribute absent
-  assert.is(div.getAttribute("data-mode"), null);
+  assert.equal(div.getAttribute("data-mode"), null);
 
   lateStore.set("latent");
-  assert.is(div.getAttribute("data-mode"), "latent");
+  assert.equal(div.getAttribute("data-mode"), "latent");
 
   lateStore.set("active");
-  assert.is(div.getAttribute("data-mode"), "active");
+  assert.equal(div.getAttribute("data-mode"), "active");
 });
 
 test("prop-store-unsubscribe-function-cleanup", async () => {
@@ -108,11 +108,11 @@ test("prop-store-unsubscribe-function-cleanup", async () => {
   const root = createRoot(document.body);
   root.render(<App />);
   await Promise.resolve();
-  assert.is(store.unsubscribedCount, 0);
+  assert.equal(store.unsubscribedCount, 0);
 
   root.unmount();
   await Promise.resolve();
-  assert.is(store.unsubscribedCount, 1);
+  assert.equal(store.unsubscribedCount, 1);
 });
 
 test("prop-store-unsubscribe-object-cleanup", async () => {
@@ -125,11 +125,11 @@ test("prop-store-unsubscribe-object-cleanup", async () => {
   const root = createRoot(document.body);
   root.render(<App />);
   await Promise.resolve();
-  assert.is(store.unsubscribedCount, 0);
+  assert.equal(store.unsubscribedCount, 0);
 
   root.unmount();
   await Promise.resolve();
-  assert.is(store.unsubscribedCount, 1);
+  assert.equal(store.unsubscribedCount, 1);
 });
 
 test("prop-store-updates-property-field", async () => {
@@ -142,13 +142,13 @@ test("prop-store-updates-property-field", async () => {
 
   const root = await mount(<App />, document.body);
   const input = root.querySelector("#inp") as HTMLInputElement;
-  assert.is(input.value, "first");
+  assert.equal(input.value, "first");
 
   valueStore.set("second");
-  assert.is(input.value, "second");
+  assert.equal(input.value, "second");
 
   valueStore.set("third");
-  assert.is(input.value, "third");
+  assert.equal(input.value, "third");
 });
 
 test("prop-store-boolean-attribute-presence", async () => {
@@ -162,13 +162,13 @@ test("prop-store-boolean-attribute-presence", async () => {
   const root = await mount(<App />, document.body);
   const button = root.querySelector("#btn") as HTMLButtonElement;
 
-  assert.is(button.disabled, true);
+  assert.equal(button.disabled, true);
 
   disabledStore.set(false);
-  assert.is(button.disabled, false);
+  assert.equal(button.disabled, false);
 
   disabledStore.set(true);
-  assert.is(button.disabled, true);
+  assert.equal(button.disabled, true);
 });
 
 test("prop-store-style-object-updates", async () => {
@@ -181,13 +181,13 @@ test("prop-store-style-object-updates", async () => {
 
   const root = await mount(<App />, document.body);
   const div = root.querySelector("#styled") as HTMLDivElement;
-  assert.is(div.style.color, "red");
+  assert.equal(div.style.color, "red");
 
   styleStore.set({ color: "blue" });
-  assert.is(div.style.color, "blue");
+  assert.equal(div.style.color, "blue");
 
   styleStore.set({ color: "green" });
-  assert.is(div.style.color, "green");
+  assert.equal(div.style.color, "green");
 });
 
 test("prop-store-multiple-props", async () => {
@@ -201,13 +201,13 @@ test("prop-store-multiple-props", async () => {
   const root = await mount(<App />, document.body);
   const div = root.querySelector("#multi") as HTMLDivElement;
 
-  assert.is(div.title, "T1");
-  assert.is(div.getAttribute("data-info"), "D1");
+  assert.equal(div.title, "T1");
+  assert.equal(div.getAttribute("data-info"), "D1");
 
   titleStore.set("T2");
   dataStore.set("D2");
-  assert.is(div.title, "T2");
-  assert.is(div.getAttribute("data-info"), "D2");
+  assert.equal(div.title, "T2");
+  assert.equal(div.getAttribute("data-info"), "D2");
 });
 
 await test.run();

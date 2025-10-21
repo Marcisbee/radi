@@ -1,4 +1,4 @@
-import { assert, test } from "../../test/runner.ts";
+import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { update } from "../main.ts";
 
@@ -24,7 +24,7 @@ function EchoReactive(this: HTMLElement, props: JSX.PropsWithChildren) {
 test("children-single", async () => {
   const root = await mount(<EchoStatic>hello</EchoStatic>, document.body);
   const div = root.querySelector(".echo-static")!;
-  assert.is(div.textContent, "hello");
+  assert.equal(div.textContent, "hello");
 });
 
 /**
@@ -66,11 +66,11 @@ test("children-fragment-nested", async () => {
     document.body,
   );
   const div = root.querySelector(".echo-static")!;
-  assert.ok(div.innerHTML.includes("X"));
-  assert.ok(div.innerHTML.includes("Y"));
-  assert.ok(div.innerHTML.includes("Z"));
-  assert.ok(div.innerHTML.includes("rawA"));
-  assert.ok(div.innerHTML.includes("rawB"));
+  assert.true(div.innerHTML.includes("X"));
+  assert.true(div.innerHTML.includes("Y"));
+  assert.true(div.innerHTML.includes("Z"));
+  assert.true(div.innerHTML.includes("rawA"));
+  assert.true(div.innerHTML.includes("rawB"));
 });
 
 /**
@@ -104,12 +104,12 @@ test("children-dynamic-update", async () => {
   const initial = Array.from(echo.querySelectorAll(".dyn")).map((n) =>
     n.textContent
   );
-  assert.equal(initial, ["a", "b"]);
+  assert.deepEqual(initial, ["a", "b"]);
   (root as any).__setItems(["b", "c", "d"]);
   const after = Array.from(echo.querySelectorAll(".dyn")).map((n) =>
     n.textContent
   );
-  assert.equal(after, ["b", "c", "d"]);
+  assert.deepEqual(after, ["b", "c", "d"]);
 });
 
 /**
@@ -121,8 +121,8 @@ test("children-reactive-single-replacement", async () => {
   const echo = root.querySelector(".echo-reactive")!;
   (root as any).__setItems(["only"]);
   const afterHTML = echo.innerHTML;
-  assert.ok(/only/.test(afterHTML));
-  assert.is(Array.from(echo.querySelectorAll(".dyn")).length, 1);
+  assert.match(afterHTML, /only/);
+  assert.length(Array.from(echo.querySelectorAll(".dyn")), 1);
 });
 
 /**
@@ -133,7 +133,7 @@ test("children-reactive-empty", async () => {
   const root = await mount(<DynamicParent />, document.body);
   const echo = root.querySelector(".echo-reactive")!;
   (root as any).__setItems([]);
-  assert.is(Array.from(echo.querySelectorAll(".dyn")).length, 0);
+  assert.length(Array.from(echo.querySelectorAll(".dyn")), 0);
 });
 
 /* deeper coverage: children keyed reorder stability */
@@ -144,13 +144,13 @@ test("children-reactive-keyed-reorder", async () => {
   const before = Array.from(echo.querySelectorAll(".dyn")).map((n) =>
     n.textContent
   );
-  assert.equal(before, ["a", "b", "c"]);
+  assert.deepEqual(before, ["a", "b", "c"]);
   (root as any).__setItems(["c", "a"]);
   const after = Array.from(echo.querySelectorAll(".dyn")).map((n) =>
     n.textContent
   );
-  assert.equal(after, ["c", "a"]);
-  assert.is(echo.querySelectorAll(".dyn").length, 2);
+  assert.deepEqual(after, ["c", "a"]);
+  assert.length(Array.from(echo.querySelectorAll(".dyn")), 2);
 });
 
 /* component that evaluates function children each update */
@@ -177,11 +177,11 @@ test("children-function-child-updates", async () => {
   // Allow initial reactive render microtasks to flush
   await Promise.resolve();
   const echo = root.querySelector(".echo-exec")!;
-  assert.ok(echo.textContent!.includes("fn"));
+  assert.match(echo.textContent!, /fn/);
   (root as any).__setValue("fn2");
   // Flush microtasks + a macrotask for updated reactive evaluation
   await Promise.resolve();
-  assert.ok(echo.textContent!.includes("fn2"));
+  assert.match(echo.textContent!, /fn2/);
 });
 
 /* component that evaluates function children each update */
@@ -211,11 +211,11 @@ test("children-function-child-updates-reactive", async () => {
   // Allow initial reactive render microtasks to flush
   await Promise.resolve();
   const echo = root.querySelector(".echo-exec")!;
-  assert.ok(echo.textContent!.includes("fn"));
+  assert.match(echo.textContent!, /fn/);
   (root as any).__setValue("fn2");
   // Flush microtasks + a macrotask for updated reactive evaluation
   await Promise.resolve();
-  assert.ok(echo.textContent!.includes("fn2"));
+  assert.match(echo.textContent!, /fn2/);
 });
 
 /* nested fragment with reactive generator inside children */
@@ -241,13 +241,13 @@ function NestedReactiveFragments(this: HTMLElement) {
 test("children-nested-reactive-fragment-update", async () => {
   const root = await mount(<NestedReactiveFragments />, document.body);
   const echo = root.querySelector(".echo-reactive")!;
-  assert.ok(/A/.test(echo.innerHTML));
-  assert.ok(/B/.test(echo.innerHTML));
-  assert.ok(/C/.test(echo.innerHTML));
+  assert.match(echo.innerHTML, /A/);
+  assert.match(echo.innerHTML, /B/);
+  assert.match(echo.innerHTML, /C/);
   (root as any).__flip();
-  assert.ok(/A2/.test(echo.innerHTML));
-  assert.ok(/B2/.test(echo.innerHTML));
-  assert.ok(!/C<\/span>/.test(echo.innerHTML));
+  assert.match(echo.innerHTML, /A2/);
+  assert.match(echo.innerHTML, /B2/);
+  assert.false(/C<\/span>/.test(echo.innerHTML));
 });
 
 /* removal to null children boundary check */
@@ -267,9 +267,9 @@ function NullifyChildren(this: HTMLElement) {
 test("children-null-removal", async () => {
   const root = await mount(<NullifyChildren />, document.body);
   const echo = root.querySelector(".echo-reactive")!;
-  assert.ok(echo.innerHTML.includes("live"));
+  assert.true(echo.innerHTML.includes("live"));
   (root as any).__toggle();
-  assert.ok(!echo.innerHTML.includes("live"));
+  assert.true(!echo.innerHTML.includes("live"));
 });
 
 /* nested dynamic lists with key churn */
@@ -299,16 +299,16 @@ function KeyChurn(this: HTMLElement) {
 test("children-nested-key-churn", async () => {
   const root = await mount(<KeyChurn />, document.body);
   const echo = root.querySelector(".echo-reactive")!;
-  assert.is(echo.querySelectorAll(".outer").length, 2);
-  assert.is(echo.querySelectorAll(".inner").length, 6);
+  assert.length(Array.from(echo.querySelectorAll(".outer")), 2);
+  assert.length(Array.from(echo.querySelectorAll(".inner")), 6);
   (root as any).__mutate(["y", "z"], ["i2", "i4"]);
-  assert.is(echo.querySelectorAll(".outer").length, 2);
-  assert.is(echo.querySelectorAll(".inner").length, 4);
+  assert.length(Array.from(echo.querySelectorAll(".outer")), 2);
+  assert.length(Array.from(echo.querySelectorAll(".inner")), 4);
   const combos = Array.from(echo.querySelectorAll(".inner")).map((n) =>
     n.textContent
   );
-  assert.ok(combos.includes("y-i2"));
-  assert.ok(combos.includes("z-i4"));
+  assert.contains(combos, "y-i2");
+  assert.contains(combos, "z-i4");
 });
 
 await test.run();

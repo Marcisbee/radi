@@ -1,4 +1,4 @@
-import { assert, test } from "jsr:@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { update } from "../main.ts";
 
@@ -119,7 +119,7 @@ test("mutate parent", async () => {
   );
 
   await Promise.resolve();
-  assert.equal(trace, ["A", "B", "C", "C", "B", "A"]);
+  assert.deepEqual(trace, ["A", "B", "C", "C", "B", "A"]);
 });
 
 test("mutate child", async () => {
@@ -139,7 +139,7 @@ test("mutate child", async () => {
   );
 
   await Promise.resolve();
-  assert.equal(trace, ["A", "B", "C", "A", "B", "C"]);
+  assert.deepEqual(trace, ["A", "B", "C", "A", "B", "C"]);
 });
 
 test("mutate both", async () => {
@@ -161,7 +161,7 @@ test("mutate both", async () => {
   );
 
   await Promise.resolve();
-  assert.equal(trace, ["A", "B", "C", "C", "B", "A"]);
+  assert.deepEqual(trace, ["A", "B", "C", "C", "B", "A"]);
 });
 
 await test.run();

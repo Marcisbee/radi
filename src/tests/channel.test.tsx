@@ -1,4 +1,4 @@
-import { assert, clock, test } from "jsr:@marcisbee/rion";
+import { assert, clock, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { createChannel } from "../channel.ts";
 import { update } from "../main.ts";
@@ -82,13 +82,13 @@ test("nested override", async () => {
 
   const badgeEl = root.querySelector(".badge")!;
   const nestedEl = root.querySelector(".nested")!;
-  assert.ok(badgeEl.textContent!.includes("light"));
-  assert.ok(nestedEl.textContent!.includes("dark"));
+  assert.contains(badgeEl.textContent!, "light");
+  assert.contains(nestedEl.textContent!, "dark");
 
   (root.querySelector(".toggle-btn") as HTMLButtonElement).click();
   await Promise.resolve();
-  assert.ok(badgeEl.textContent!.includes("dark"));
-  assert.ok(nestedEl.textContent!.includes("dark"));
+  assert.contains(badgeEl.textContent!, "dark");
+  assert.contains(nestedEl.textContent!, "dark");
 });
 
 /**
@@ -116,16 +116,16 @@ function LateProviderRoot(this: HTMLElement) {
 test("late resolve", async () => {
   const root = await mount(<LateProviderRoot />, document.body);
   const div = root.querySelector(".late-provider")!;
-  assert.ok(div.textContent!.includes("Phase: pre"));
-  assert.ok(div.textContent!.includes("Value: light"));
-  assert.ok(div.textContent!.includes("Resolved: false"));
+  assert.contains(div.textContent!, "Phase: pre");
+  assert.contains(div.textContent!, "Value: light");
+  assert.contains(div.textContent!, "Resolved: false");
 
   await Promise.resolve();
   await clock.fastForward(5);
 
-  assert.ok(div.textContent!.includes("Phase: post"));
-  assert.ok(div.textContent!.includes("Value: dark"));
-  assert.ok(div.textContent!.includes("Resolved: true"));
+  assert.contains(div.textContent!, "Phase: post");
+  assert.contains(div.textContent!, "Value: dark");
+  assert.contains(div.textContent!, "Resolved: true");
 });
 
 /**
@@ -170,18 +170,18 @@ test("override chain", async () => {
   const innerAValEl = root.querySelector(".innerA-val")!;
   const outerValEl = root.querySelector(".outer-val")!;
 
-  assert.ok(deepEl.textContent!.includes("before:innerA"));
-  assert.ok(deepEl.textContent!.includes("after:deep"));
-  assert.ok(deepEl.textContent!.includes("deep:deep"));
-  assert.is(innerAValEl.textContent, "innerA");
-  assert.is(outerValEl.textContent, "outer");
+  assert.contains(deepEl.textContent!, "before:innerA");
+  assert.contains(deepEl.textContent!, "after:deep");
+  assert.contains(deepEl.textContent!, "deep:deep");
+  assert.equal(innerAValEl.textContent, "innerA");
+  assert.equal(outerValEl.textContent, "outer");
 
   const outerAccessor = Theme.use(root.querySelector(".chain-outer")!);
   outerAccessor.set("outer2");
   await Promise.resolve();
-  assert.is(outerValEl.textContent, "outer2");
-  assert.is(innerAValEl.textContent, "innerA");
-  assert.ok(deepEl.textContent!.includes("before:innerA"));
+  assert.equal(outerValEl.textContent, "outer2");
+  assert.equal(innerAValEl.textContent, "innerA");
+  assert.contains(deepEl.textContent!, "before:innerA");
 });
 
 /**
@@ -210,13 +210,13 @@ test("reprovide functional", async () => {
   const root = await mount(<ReprovideTest />, document.body);
   const span = root.querySelector(".val")!;
   const btn = root.querySelector(".reprovide-btn") as HTMLButtonElement;
-  assert.is(span.textContent, "base");
+  assert.equal(span.textContent, "base");
   btn.click();
   await Promise.resolve();
-  assert.is(span.textContent, "next");
+  assert.equal(span.textContent, "next");
   btn.click();
   await Promise.resolve();
-  assert.is(span.textContent, "final");
+  assert.equal(span.textContent, "final");
 });
 
 /**
@@ -240,14 +240,14 @@ function UnresolvedSetTest(this: HTMLElement) {
 test("pre-resolve set ignored", async () => {
   const root = await mount(<UnresolvedSetTest />, document.body);
   const div = root.querySelector(".unresolved")!;
-  assert.ok(div.textContent!.includes("val:light"));
-  assert.ok(div.textContent!.includes("resolved:false"));
+  assert.contains(div.textContent!, "val:light");
+  assert.contains(div.textContent!, "resolved:false");
 
   Theme.provide(root, "dark");
   update(root);
   await Promise.resolve();
-  assert.ok(div.textContent!.includes("val:dark"));
-  assert.ok(div.textContent!.includes("resolved:true"));
+  assert.contains(div.textContent!, "val:dark");
+  assert.contains(div.textContent!, "resolved:true");
 });
 
 /**
@@ -278,10 +278,10 @@ function DisposalTest(this: HTMLElement) {
 test("provider disposal", async () => {
   const root = await mount(<DisposalTest />, document.body);
   const div = root.querySelector(".disposal")!;
-  assert.ok(div.textContent!.includes("value:alive"));
+  assert.contains(div.textContent!, "value:alive");
   await Promise.resolve();
   await Promise.resolve();
-  assert.ok(div.textContent!.includes("value:alive"));
+  assert.contains(div.textContent!, "value:alive");
 });
 
 /**
@@ -331,13 +331,13 @@ test("no redundant set", async () => {
   await Promise.resolve();
   const afterSameMatch = /renders:(\d+)/.exec(div.textContent!)!;
   const sameCount = Number(afterSameMatch[1]);
-  assert.is(sameCount, initialCount);
+  assert.equal(sameCount, initialCount);
 
   diffBtn.click();
   await Promise.resolve();
   const afterDiffMatch = /renders:(\d+)/.exec(div.textContent!)!;
   const diffCount = Number(afterDiffMatch[1]);
-  assert.is(diffCount, initialCount + 1);
+  assert.equal(diffCount, initialCount + 1);
 });
 
 /**
@@ -380,14 +380,14 @@ test("shared update", async () => {
   const c2 = root.querySelector(".c2")!;
   const bump = root.querySelector(".bump") as HTMLButtonElement;
 
-  assert.ok(c1.textContent!.includes("base"));
-  assert.ok(c2.textContent!.includes("base"));
+  assert.contains(c1.textContent!, "base");
+  assert.contains(c2.textContent!, "base");
 
   bump.click();
   await Promise.resolve();
 
-  assert.ok(c1.textContent!.includes("bumped"));
-  assert.ok(c2.textContent!.includes("bumped"));
+  assert.contains(c1.textContent!, "bumped");
+  assert.contains(c2.textContent!, "bumped");
 });
 
 /* run */
