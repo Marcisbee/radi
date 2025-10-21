@@ -111,6 +111,25 @@ function KeyedLargeTableRoot(this: HTMLElement) {
     update(this);
   };
 
+  const swapRows = () => {
+    if (rows.length > 998) {
+      const tmp = rows[1];
+      rows[1] = rows[998];
+      rows[998] = tmp;
+    }
+    update(this);
+  };
+
+  const updateRows = () => {
+    for (let i = 0; i < rows.length; i += 10) {
+      rows[i].label += " !!!";
+    }
+    update(this);
+  };
+
+  (this as any).__swapRows = swapRows;
+  (this as any).__updateRows = updateRows;
+
   return () => (
     <div className="keyed-large-table-root">
       <div className="toolbar">
@@ -225,6 +244,47 @@ test("large-keyed-table-renders-all-and-appends", async () => {
     .children[tbody.children.length - 1] as HTMLTableRowElement;
   assertRow(regenFirst, 2001);
   assertRow(regenLast, 3000);
+});
+
+test("swap-rows", async () => {
+  const root = await mount(<KeyedLargeTableRoot />, document.body);
+
+  const generateBtn = root.querySelector(".btn-generate") as HTMLButtonElement;
+  generateBtn.click();
+  await Promise.resolve();
+  assert.is(root.querySelector("tbody")!.children.length, 1000);
+
+  const originalRow2 = root.querySelector("tbody")!.children[1] as HTMLElement;
+  const originalRow999 = root.querySelector("tbody")!
+    .children[998] as HTMLElement;
+  const originalId2 = originalRow2.id;
+  const originalId999 = originalRow999.id;
+
+  (root as any).__swapRows();
+  await Promise.resolve();
+
+  const newRow2 = root.querySelector("tbody")!.children[1] as HTMLElement;
+  const newRow999 = root.querySelector("tbody")!.children[998] as HTMLElement;
+  assert.is(newRow2.id, originalId999);
+  assert.is(newRow999.id, originalId2);
+});
+
+test("update-rows", async () => {
+  const root = await mount(<KeyedLargeTableRoot />, document.body);
+
+  const generateBtn = root.querySelector(".btn-generate") as HTMLButtonElement;
+  generateBtn.click();
+  await Promise.resolve();
+  assert.is(root.querySelector("tbody")!.children.length, 1000);
+
+  const row0 = root.querySelector("tbody")!.children[0] as HTMLElement;
+  const originalLabel = row0.querySelector(".col-label")!.textContent;
+
+  (root as any).__updateRows();
+  await Promise.resolve();
+
+  const newLabel = row0.querySelector(".col-label")!.textContent;
+  assert.is(newLabel, originalLabel + " !!!");
 });
 
 await test.run();
