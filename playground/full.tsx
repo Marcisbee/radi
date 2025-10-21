@@ -453,9 +453,12 @@ function Styling(this: DocumentFragment) {
 
 function ExecEchoReactive(this: HTMLElement, props: JSX.PropsWithChildren) {
   return (
-    <div className="echo-exec">
-      [{() => props().children}]
-    </div>
+    <pre>
+      <ul>
+        <li>Direct children: {props().children}</li>
+        <li>Random: {Math.random()}</li>
+      </ul>
+    </pre>
   );
 }
 
@@ -467,12 +470,13 @@ function FnChildParent(this: HTMLElement) {
       <button
         type="button"
         onclick={() => {
-          value = "updated";
+          value = Math.random().toString();
           update(this);
         }}
       >
         update
       </button>
+
       {() => value}
     </ExecEchoReactive>
   );

@@ -597,10 +597,29 @@ function setupReactiveRender(container: Element, fn: ReactiveGenerator): void {
   const renderFn = () => {
     try {
       const produced = fn(container);
-      const flat = normalizeToNodes(produced).filter(
-        (n): n is Node => n instanceof Node,
-      );
-      reconcileRange(start, end, flat);
+      const normalized = normalizeToNodes(produced);
+      const expanded: Node[] = [];
+      for (const item of normalized) {
+        if (item instanceof Node) {
+          expanded.push(item);
+          continue;
+        }
+        if (typeof item === "function") {
+          try {
+            const innerProduced = (item as ReactiveGenerator)(container);
+            const innerNorm = normalizeToNodes(innerProduced);
+            for (const inner of innerNorm) {
+              if (inner instanceof Node) {
+                expanded.push(inner);
+              }
+              // Nested functions are expanded only one level deep per parent render.
+            }
+          } catch (innerErr) {
+            dispatchRenderError(container, innerErr);
+          }
+        }
+      }
+      reconcileRange(start, end, expanded);
     } catch (err) {
       dispatchRenderError(container, err);
     }

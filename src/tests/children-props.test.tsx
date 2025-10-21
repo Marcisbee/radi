@@ -157,10 +157,7 @@ test("children-reactive-keyed-reorder", async () => {
 function ExecEchoReactive(this: HTMLElement, props: JSX.PropsWithChildren) {
   return (
     <div className="echo-exec">
-      {() => {
-        const c = props().children;
-        return typeof c === "function" ? (c as any)(this) : c;
-      }}
+      {props().children}
     </div>
   );
 }
@@ -175,8 +172,44 @@ function FnChildParent(this: HTMLElement) {
   return <ExecEchoReactive>{() => value}</ExecEchoReactive>;
 }
 
-test.skip("children-function-child-updates", async () => {
+test("children-function-child-updates", async () => {
   const root = await mount(<FnChildParent />, document.body);
+  // Allow initial reactive render microtasks to flush
+  await Promise.resolve();
+  await new Promise((r) => setTimeout(r, 1));
+  const echo = root.querySelector(".echo-exec")!;
+  assert.ok(echo.textContent!.includes("fn"));
+  (root as any).__setValue("fn2");
+  // Flush microtasks + a macrotask for updated reactive evaluation
+  await Promise.resolve();
+  await new Promise((r) => setTimeout(r, 1));
+  assert.ok(echo.textContent!.includes("fn2"));
+});
+
+/* component that evaluates function children each update */
+function ExecEchoReactiveReactive(
+  this: HTMLElement,
+  props: JSX.PropsWithChildren,
+) {
+  return (
+    <div className="echo-exec">
+      {() => props().children}
+    </div>
+  );
+}
+
+/* function child passed directly and updated */
+function FnChildParentReactive(this: HTMLElement) {
+  let value = "fn";
+  (this as any).__setValue = (next: string) => {
+    value = next;
+    update(this);
+  };
+  return <ExecEchoReactiveReactive>{() => value}</ExecEchoReactiveReactive>;
+}
+
+test("children-function-child-updates-reactive", async () => {
+  const root = await mount(<FnChildParentReactive />, document.body);
   // Allow initial reactive render microtasks to flush
   await Promise.resolve();
   await new Promise((r) => setTimeout(r, 1));
