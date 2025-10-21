@@ -10,7 +10,7 @@ import { createRoot } from "npm:react-dom/client";
 import { flushSync } from "npm:react-dom";
 
 import { waitForXPath } from "./bench.utils.ts";
-import { update } from "../main.ts";
+import { render, update } from "../main.ts";
 
 const bench = new Bench();
 
@@ -137,7 +137,7 @@ const bench = new Bench();
         count = 0;
         document.body.innerHTML = "";
         const cmp = <RadiCounter />;
-        document.body.appendChild(cmp);
+        render(cmp, document.body);
         await waitForXPath(`//button[text()='0']`);
       },
     },

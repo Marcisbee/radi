@@ -161,4 +161,93 @@ test("prop function throws on update dispatch", async () => {
   assert.is((caught as Error).message, "update eval");
 });
 
+function ErrorBoundary(
+  this: HTMLElement,
+  props: JSX.PropsWithChildren<{ fallback: (err: Error) => JSX.Element }>,
+) {
+  let error: Error | null = null;
+
+  this.addEventListener(
+    "error",
+    (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const ce = e as CustomEvent;
+      error = ce?.detail?.error ?? null;
+      update(this);
+    },
+  );
+
+  return () => {
+    if (error) {
+      return props().fallback(error);
+    }
+
+    return props().children;
+  };
+}
+
+test("ErrorBoundary renders fallback and prevents error from bubbling", async () => {
+  let containerCaught: unknown = null;
+
+  function Bomb(): never {
+    throw new Error("bomb!");
+  }
+
+  const container = createContainer();
+  container.addEventListener(
+    "error",
+    (e: Event) => {
+      const ce = e as CustomEvent;
+      containerCaught = ce.detail.error;
+      e.preventDefault();
+    },
+    { once: true },
+  );
+
+  const node = (
+    <ErrorBoundary fallback={() => <div id="fb">fallback</div>}>
+      <Bomb />
+    </ErrorBoundary>
+  ) as unknown as HTMLElement;
+
+  await mount(node, container);
+
+  // fallback should be rendered
+  const fb = container.querySelector("#fb");
+  assert.ok(fb instanceof HTMLElement);
+  assert.is(fb!.textContent, "fallback");
+
+  // error should not bubble to container because it's handled
+  assert.is(containerCaught, null);
+});
+
+test("ErrorBoundary passes error into fallback render prop", async () => {
+  let receivedText = "";
+
+  function Boom(): never {
+    throw new Error("boomprop");
+  }
+
+  const container = createContainer();
+  const node = (
+    <ErrorBoundary
+      fallback={(err: Error) => {
+        receivedText = err.message;
+        return <div id="fb-prop">ok</div>;
+      }}
+    >
+      <Boom />
+    </ErrorBoundary>
+  ) as unknown as HTMLElement;
+
+  await mount(node, container);
+
+  // fallback component should receive the error message
+  assert.is(receivedText, "boomprop");
+  const fb = container.querySelector("#fb-prop");
+  assert.ok(fb instanceof HTMLElement);
+});
+
 await test.run();

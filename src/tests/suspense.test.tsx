@@ -20,17 +20,13 @@ import { update } from "../main.ts";
  */
 function DelayedChild100(this: HTMLElement) {
   let state = "suspended";
-  this.addEventListener(
-    "suspension",
-    async () => {
-      suspend(this);
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      state = "unsuspended";
-      update(this);
-      unsuspend(this);
-    },
-    { once: true },
-  );
+  (async () => {
+    suspend(this);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    state = "unsuspended";
+    update(this);
+    unsuspend(this);
+  })();
   return (
     <div>
       <h1>I am {() => state}</h1>
@@ -45,12 +41,15 @@ test("fallback-unsuspends-child", async () => {
     </Suspense>,
     document.body,
   );
-  assert.ok(root.textContent!.includes("Loading..."));
+  assert.ok(root.textContent.includes("Loading..."));
+  assert.ok(root.textContent.includes("I am suspended"));
   await clock.fastForward(90);
-  assert.not.ok(root.textContent!.includes("I am unsuspended"));
+  assert.ok(root.textContent.includes("I am suspended"));
+  assert.not.ok(root.textContent.includes("I am unsuspended"));
   await clock.fastForward(10);
-  assert.ok(root.textContent!.includes("I am unsuspended"));
-  assert.ok(root.textContent!.includes("Extra"));
+  assert.ok(root.textContent.includes("I am unsuspended"));
+  assert.not.ok(root.textContent.includes("Loading..."));
+  assert.ok(root.textContent.includes("Extra"));
 });
 
 /** ImmediateChild renders synchronously without suspension. */
@@ -67,17 +66,13 @@ function DelayedChild(
   props: JSX.Props<{ label: string; delay: number }>,
 ) {
   let state = "pending";
-  this.addEventListener(
-    "suspension",
-    async () => {
-      suspend(this);
-      await new Promise((resolve) => setTimeout(resolve, props().delay));
-      state = "done";
-      update(this);
-      unsuspend(this);
-    },
-    { once: true },
-  );
+  (async () => {
+    suspend(this);
+    await new Promise((resolve) => setTimeout(resolve, props().delay));
+    state = "done";
+    update(this);
+    unsuspend(this);
+  })();
   return <span className={"delayed-" + props().label}>{() => state}</span>;
 }
 
@@ -87,15 +82,11 @@ function DelayedChild(
  */
 function NeverUnsuspendChild(this: HTMLElement) {
   let state = "start";
-  this.addEventListener(
-    "suspension",
-    () => {
-      state = "suspended";
-      update(this);
-      suspend(this);
-    },
-    { once: true },
-  );
+
+  state = "suspended";
+  update(this);
+  suspend(this);
+
   return <span className="never">{() => state}</span>;
 }
 
@@ -105,20 +96,16 @@ function NeverUnsuspendChild(this: HTMLElement) {
  */
 function ErrorChild(this: HTMLElement) {
   let state = "init";
-  this.addEventListener(
-    "suspension",
-    () => {
-      try {
-        suspend(this);
-        state = "errored";
-        update(this);
-        throw new Error("Suspension failure");
-      } catch {
-        // Fallback remains; unsuspend intentionally omitted.
-      }
-    },
-    { once: true },
-  );
+
+  try {
+    suspend(this);
+    state = "errored";
+    update(this);
+    throw new Error("Suspension failure");
+  } catch {
+    // Fallback remains; unsuspend intentionally omitted.
+  }
+
   return <span className="error-child">{() => state}</span>;
 }
 
@@ -128,27 +115,23 @@ function ErrorChild(this: HTMLElement) {
  */
 function Resuspender(this: HTMLElement) {
   let phase = "boot";
-  this.addEventListener(
-    "suspension",
-    async () => {
-      suspend(this);
-      phase = "s1";
-      update(this);
-      await new Promise((resolve) => setTimeout(resolve, 30));
-      phase = "s1-done";
-      update(this);
-      unsuspend(this);
-      await new Promise((resolve) => setTimeout(resolve, 30));
-      suspend(this);
-      phase = "s2";
-      update(this);
-      await new Promise((resolve) => setTimeout(resolve, 30));
-      phase = "s2-done";
-      update(this);
-      unsuspend(this);
-    },
-    { once: true },
-  );
+  (async () => {
+    suspend(this);
+    phase = "s1";
+    update(this);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    phase = "s1-done";
+    update(this);
+    unsuspend(this);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    suspend(this);
+    phase = "s2";
+    update(this);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    phase = "s2-done";
+    update(this);
+    unsuspend(this);
+  })();
   return <span className="resuspender">{() => phase}</span>;
 }
 
@@ -175,6 +158,8 @@ test("multi-stagger", async () => {
   assert.not.ok(root.textContent!.includes("done"));
   await clock.fastForward(55);
   assert.ok(root.textContent!.includes("Wait"));
+  assert.ok(root.textContent!.includes("done"));
+  assert.ok(root.textContent!.includes("pending"));
   await clock.fastForward(30);
   assert.not.ok(root.textContent!.includes("Wait"));
   assert.ok(root.textContent!.includes("done"));
@@ -190,7 +175,7 @@ test("never-unsuspends", async () => {
   assert.ok(root.textContent!.includes("Hold"));
   await clock.fastForward(500);
   assert.ok(root.textContent!.includes("Hold"));
-  assert.not.ok(root.textContent!.includes("suspended"));
+  assert.ok(root.textContent!.includes("suspended"));
 });
 
 test("error-keeps-fallback", async () => {
@@ -203,7 +188,7 @@ test("error-keeps-fallback", async () => {
   assert.ok(root.textContent!.includes("Err"));
   await clock.fastForward(200);
   assert.ok(root.textContent!.includes("Err"));
-  assert.not.ok(root.textContent!.includes("errored"));
+  assert.ok(root.textContent!.includes("errored"));
 });
 
 test("mixed-delays", async () => {
@@ -215,16 +200,22 @@ test("mixed-delays", async () => {
     document.body,
   );
   assert.ok(root.textContent!.includes("Mix"));
+  assert.ok(root.textContent!.includes("Immediate"));
+  assert.ok(root.textContent!.includes("pending"));
   await clock.fastForward(40);
   assert.ok(root.textContent!.includes("Mix"));
-  assert.not.ok(root.textContent!.includes("Immediate"));
+  assert.ok(root.textContent!.includes("Immediate"));
+  assert.ok(root.textContent!.includes("pending"));
+  assert.ok(root.textContent!.includes("Immediate"));
   await clock.fastForward(40);
   assert.not.ok(root.textContent!.includes("Mix"));
+  assert.ok(root.textContent!.includes("Immediate"));
+  assert.ok(root.textContent!.includes("done"));
   assert.ok(root.querySelector(".immediate"));
   assert.ok(root.querySelector(".delayed-slow"));
 });
 
-test("ignore-resuspend", async () => {
+test("can-resuspend", async () => {
   const root = await mount(
     <Suspense fallback={<strong className="fallback">Phase</strong>}>
       <Resuspender />
@@ -232,11 +223,12 @@ test("ignore-resuspend", async () => {
     document.body,
   );
   assert.ok(root.textContent!.includes("Phase"));
+  assert.ok(root.textContent!.includes("s1"));
   await clock.fastForward(35);
   assert.not.ok(root.textContent!.includes("Phase"));
   assert.ok(root.textContent!.includes("s1-done"));
   await clock.fastForward(35);
-  assert.not.ok(root.textContent!.includes("Phase"));
+  assert.ok(root.textContent!.includes("Phase"));
   assert.ok(root.textContent!.includes("s2"));
   await clock.fastForward(40);
   assert.ok(root.textContent!.includes("s2-done"));

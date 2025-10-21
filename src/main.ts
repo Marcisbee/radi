@@ -121,8 +121,75 @@ function setPropValue(el: HTMLElement, key: string, value: unknown): void {
 
 /* ========================= Lifecycle Events ========================= */
 
-export const connectedEvent = new Event("connect");
-export const disconnectedEvent = new Event("disconnect");
+/**
+ * Dispatch a lifecycle event ("connect" | "disconnect") on an element subtree.
+ * Always uses a fresh Event instance to avoid re-entrant dispatch issues.
+ */
+function dispatchLifecycle(node: Node, type: "connect" | "disconnect"): void {
+  dispatchEventSink(node, new Event(type));
+}
+
+/* ========================= Component Build Queue ========================= */
+
+type ComponentHost = ComponentElement & {
+  __componentPending?: { type: (propsGetter: () => any) => any; props: any };
+  __propsRef?: { current: any };
+  __mounted?: boolean;
+};
+
+let pendingComponentBuildQueue: ComponentHost[] = [];
+let isFlushingComponentBuilds = false;
+
+function queueComponentForBuild(host: ComponentHost): void {
+  if (host.__mounted) return;
+  pendingComponentBuildQueue.push(host);
+}
+
+function buildComponentHost(host: ComponentHost): void {
+  const pending = host.__componentPending;
+  if (!pending || host.__mounted) return;
+
+  const propsRef = { current: pending.props };
+  const propsGetter = () => propsRef.current;
+
+  host.__component = pending.type;
+  host.__propsRef = propsRef;
+  host.__mounted = true;
+  delete host.__componentPending;
+
+  const prevBuilding = currentBuildingComponent;
+  currentBuildingComponent = host;
+  try {
+    const output = buildElement(pending.type.call(host, propsGetter));
+    if (Array.isArray(output)) {
+      const nodes = normalizeToNodes(output as any);
+      for (const n of nodes) mountChild(host, n as any);
+    } else if (typeof output === "function") {
+      setupReactiveRender(host, output as ReactiveGenerator);
+    } else if (output instanceof Node) {
+      safeAppend(host, output);
+    } else if (output != null) {
+      safeAppend(host, document.createTextNode(String(output)));
+    }
+  } catch (err) {
+    dispatchRenderError(host, err);
+  } finally {
+    currentBuildingComponent = prevBuilding;
+  }
+}
+
+function flushComponentBuildQueue(): void {
+  if (isFlushingComponentBuilds) return;
+  isFlushingComponentBuilds = true;
+  try {
+    while (pendingComponentBuildQueue.length) {
+      const host = pendingComponentBuildQueue.shift()!;
+      buildComponentHost(host);
+    }
+  } finally {
+    isFlushingComponentBuilds = false;
+  }
+}
 
 /**
  * Dispatch a bubbling, cancelable render error event.
@@ -193,6 +260,9 @@ export function dispatchEventSink(el: Node, event: Event): void {
       dispatchRenderError(n, err);
     }
   }
+  if (event.type === "connect") {
+    flushComponentBuildQueue();
+  }
 }
 
 /**
@@ -208,15 +278,14 @@ export function createAbortSignal(target: Node): AbortSignal {
 
 function dispatchConnectIfElement(node: Node): void {
   if (node.nodeType === Node.ELEMENT_NODE) {
-    dispatchEventSink(node, connectedEvent);
+    dispatchLifecycle(node, "connect");
   }
 }
 
 function dispatchDisconnectIfElement(node: Node): void {
   if (node.nodeType === Node.ELEMENT_NODE) {
-    // Mark root so external removal observer can ignore duplicate disconnect.
     (node as any).__radiAlreadyDisconnected = true;
-    dispatchEventSink(node, disconnectedEvent);
+    dispatchLifecycle(node, "disconnect");
   }
 }
 
@@ -648,10 +717,15 @@ export function createElement(
   props: Record<string, unknown> | null,
   ...childrenRaw: Child[]
 ): Node | Node[] {
-  const builtChildren = childrenRaw.map(buildElement);
-  const normalizedChildren = normalizeToNodes(builtChildren as any);
+  // Lazy children strategy:
+  // - Do not eagerly build children for function components.
+  // - Build only inside specific branches (fragment, plain element) or via a getter for components.
+  const buildChildrenArray = () => childrenRaw.map(buildElement);
+  const buildNormalized = () => normalizeToNodes(buildChildrenArray() as any);
 
   if (type === "fragment") {
+    const builtChildren = buildChildrenArray();
+    const normalizedChildren = normalizeToNodes(builtChildren as any);
     const { start, end } = createFragmentBoundary();
     const fragmentNodes: Node[] = [];
     for (const c of normalizedChildren) {
@@ -679,7 +753,8 @@ export function createElement(
       __componentPending?: { type: Function; props: any };
       __deferConnect?: boolean;
     };
-    (placeholder as any).__deferConnect = true;
+    // Removed deferred connect; component will build on its first connect event.
+    // (placeholder as any).__deferConnect intentionally omitted to allow immediate connect dispatch.
     if (props) {
       const pAny = props as Record<string, unknown>;
       if (pAny.key != null) {
@@ -691,53 +766,37 @@ export function createElement(
       }
     }
     placeholder.style.display = "contents";
+
+    const rawChildren = childrenRaw;
+    let builtChildrenCache: Child[] | null = null;
+    const ensureBuiltChildren = (): Child[] => {
+      if (builtChildrenCache) return builtChildrenCache;
+      builtChildrenCache = rawChildren.map(buildElement);
+      return builtChildrenCache;
+    };
+
     (placeholder as any).__componentPending = {
       type,
-      props: { ...(props || {}), children: builtChildren },
+      props: {
+        ...(props || {}),
+        get children() {
+          return ensureBuiltChildren();
+        },
+      },
     };
-    queueMicrotask(() => {
-      const pending = (placeholder as any).__componentPending;
-      if (!pending) return;
-      if ((placeholder as any).__mounted) return;
-
-      const propsRef = { current: pending.props };
-      const propsGetter = () => propsRef.current;
-
-      placeholder.__component = pending.type;
-      (placeholder as any).__propsRef = propsRef;
-      (placeholder as any).__mounted = true;
-      delete (placeholder as any).__componentPending;
-
-      const prevBuilding = currentBuildingComponent;
-      currentBuildingComponent = placeholder;
-      try {
-        const output = buildElement(
-          pending.type.call(placeholder, propsGetter),
-        );
-        if (Array.isArray(output)) {
-          const nodes = normalizeToNodes(output as any);
-          for (const n of nodes) mountChild(placeholder, n as any);
-        } else if (typeof output === "function") {
-          setupReactiveRender(placeholder, output as ReactiveGenerator);
-        } else if (output instanceof Node) {
-          safeAppend(placeholder, output);
-        } else {
-          safeAppend(
-            placeholder,
-            document.createTextNode(String(output)),
-          );
-        }
-      } catch (err) {
-        dispatchRenderError(placeholder, err);
-      } finally {
-        currentBuildingComponent = prevBuilding;
-      }
-      // Emit deferred connect for the component placeholder after its output mounts (or after error).
-      placeholder.dispatchEvent(connectedEvent);
+    // Build lazily on connect so parent ErrorBoundary listeners exist before child component evaluation.
+    // Build lazily in a microtask after the connect cascade finishes to avoid re-entrant connect dispatch.
+    placeholder.addEventListener("connect", () => {
+      queueComponentForBuild(placeholder as any);
     });
+
+    // Removed microtask-based build; now handled by connect listener above.
     return placeholder;
   }
 
+  // Plain element branch: eager build is fine
+  const builtChildren = buildChildrenArray();
+  const normalizedChildren = normalizeToNodes(builtChildren as any);
   const element = document.createElement(type) as ComponentElement;
   if (props) {
     const possibleKey = (props as Record<string, unknown>).key as
@@ -915,7 +974,7 @@ const removalObserver = new MutationObserver((mutations) => {
         removed.nodeType === Node.ELEMENT_NODE &&
         !(removed as any).__radiAlreadyDisconnected
       ) {
-        dispatchEventSink(removed, disconnectedEvent);
+        dispatchLifecycle(removed, "disconnect");
       }
     }
   }

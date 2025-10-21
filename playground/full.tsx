@@ -2,7 +2,6 @@ import {
   createAbortSignal,
   createElement,
   Fragment,
-  type JSX,
   render,
   update,
 } from "../src/main.ts";
@@ -69,17 +68,13 @@ function Nested(this: DocumentFragment) {
 function SuspendedChild(this: DocumentFragment) {
   let state = "suspended";
 
-  this.addEventListener(
-    "suspension",
-    async () => {
-      suspend(this);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      state = "unsuspended";
-      update(this);
-      unsuspend(this);
-    },
-    { once: true },
-  );
+  (async () => {
+    suspend(this);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    state = "unsuspended";
+    update(this);
+    unsuspend(this);
+  })();
 
   return (
     <div>
@@ -482,6 +477,47 @@ function FnChildParent(this: HTMLElement) {
   );
 }
 
+function ChildError() {
+  throw new Error("error happened");
+
+  return <h1>This is never reached</h1>;
+}
+
+function ErrorBoundary(
+  this: HTMLElement,
+  props: JSX.PropsWithChildren<{ fallback: (err: Error) => JSX.Element }>,
+) {
+  let error: Error | null = null;
+
+  this.addEventListener(
+    "error",
+    (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const ce = e as CustomEvent;
+      error = ce?.detail?.error ?? null;
+      update(this);
+    },
+  );
+
+  return () => {
+    if (error) {
+      return props().fallback(error);
+    }
+
+    return props().children;
+  };
+}
+
+function AsyncChild(this: HTMLElement) {
+  suspend(this);
+  setTimeout(() => {
+    unsuspend(this);
+  }, 1500);
+  return () => <span>Child {Math.random()}</span>;
+}
+
 function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
   let bpm = 120;
 
@@ -534,6 +570,11 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
             asd
           </Suspense>
         </div>
+        <div>
+          <Suspense fallback={<em>Global fallback...</em>}>
+            <AsyncChild />
+          </Suspense>
+        </div>
       </div>
       <hr />
       <ThemeProvider>
@@ -547,8 +588,32 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
       <StyledCounter />
       <hr />
       <FnChildParent />
+      <hr />
+      Before
+      <ErrorBoundary
+        fallback={(error) => (
+          <strong style={{ color: "orangered" }}>
+            Child error: {String(error)}
+          </strong>
+        )}
+      >
+        <ChildError />
+      </ErrorBoundary>
+      After
     </div>
   );
+}
+
+function Boom() {
+  throw new Error("boom");
+  return <span>OK</span>;
+}
+function ErrorBoundary2(this: HTMLElement, props: JSX.PropsWithChildren) {
+  this.addEventListener("error", (e) => {
+    e.preventDefault();
+    console.log("Caught:", (e as CustomEvent).detail.error);
+  });
+  return () => props().children;
 }
 
 render(<App name="World" />, document.body);

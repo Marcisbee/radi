@@ -1,86 +1,108 @@
-import { dispatchEventSink, update } from "./main.ts";
+import { createElement, update } from "./main.ts";
 
-const suspendEvent = new Event("suspend", {
-  bubbles: true,
-  composed: true,
-  cancelable: true,
-});
-export function suspend(target: Node) {
-  return target.dispatchEvent(suspendEvent);
+/**
+ * Dispatch a fresh "suspend" event from a descendant node.
+ * Returns true if not prevented.
+ */
+export function suspend(target: Node): boolean {
+  return target.dispatchEvent(
+    new Event("suspend", {
+      bubbles: true,
+      composed: true,
+      cancelable: true,
+    }),
+  );
 }
 
-const unsuspendEvent = new Event("unsuspend", {
-  bubbles: true,
-  composed: true,
-  cancelable: true,
-});
-export function unsuspend(target: Node) {
-  return target.dispatchEvent(unsuspendEvent);
+/**
+ * Dispatch a fresh "unsuspend" event from a descendant node.
+ * Returns true if not prevented.
+ */
+export function unsuspend(target: Node): boolean {
+  return target.dispatchEvent(
+    new Event("unsuspend", {
+      bubbles: true,
+      composed: true,
+      cancelable: true,
+    }),
+  );
 }
 
-function waitForUnsuspense(target: Node | Node[], finish: () => void) {
-  const targets = Array.isArray(target) ? target : [target];
-
-  let suspendCount = 0;
-  const onSuspend = (e?: Event) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    e?.stopImmediatePropagation();
-
-    console.log("suspend");
-    suspendCount++;
-  };
-
-  for (const t of targets) {
-    t.addEventListener("suspend", onSuspend);
-    dispatchEventSink(t, new Event("suspension"));
-  }
-
-  Promise.resolve().then(() => {
-    for (const t of targets) {
-      t.removeEventListener("suspend", onSuspend);
-    }
-
-    if (suspendCount === 0) {
-      finish();
-      return;
-    }
-
-    let remaining = suspendCount;
-    const onUnsuspend = (e?: Event) => {
-      e?.preventDefault();
-      e?.stopPropagation();
-      e?.stopImmediatePropagation();
-
-      console.log("unsuspend");
-      remaining--;
-      if (remaining <= 0) {
-        for (const t of targets) {
-          t.removeEventListener("unsuspend", onUnsuspend);
-        }
-        finish();
-      }
-    };
-
-    for (const t of targets) {
-      t.addEventListener("unsuspend", onUnsuspend);
-    }
-  });
-}
-
+/**
+ * Suspense component
+ * Shows fallback while one or more descendants are suspended.
+ * Child components that perform async work should call suspend(node) before starting
+ * and unsuspend(node) when resolved. Multiple overlapping suspensions are reference-counted.
+ *
+ * This implementation relies on the updated component build queue:
+ * - Suspense host builds first, installs listeners.
+ * - Descendant component builds that trigger suspend will bubble upward correctly.
+ */
 export function Suspense(
-  this: DocumentFragment,
+  this: HTMLElement,
   props: JSX.PropsWithChildren<{ fallback: JSX.Element }>,
 ) {
-  // @TODO improve update logic, what if children or fallback props update
-  const { children, fallback } = props();
-  const target = children;
-  let output = fallback;
+  // Track number of active suspensions.
+  let pending = 0;
+  // Start by assuming children should render; suspend events may arrive during child build.
+  let showChildren = true;
 
-  waitForUnsuspense(target, () => {
-    output = target;
-    update(this);
+  const onSuspend = (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (pending === 0 && showChildren) {
+      showChildren = false;
+      update(this);
+    }
+    pending++;
+  };
+
+  const onUnsuspend = (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (pending > 0) pending--;
+    if (pending === 0 && !showChildren) {
+      showChildren = true;
+      update(this);
+    }
+  };
+
+  this.addEventListener("update", (e) => {
+    e.preventDefault();
+    // QUESTION? Should we do this?
+    for (const child of props().children) {
+      if (child instanceof HTMLElement) {
+        if (child.isConnected) {
+          update(child);
+        }
+      }
+    }
   });
+  this.addEventListener("suspend", onSuspend);
+  this.addEventListener("unsuspend", onUnsuspend);
+  this.addEventListener(
+    "disconnect",
+    () => {
+      this.removeEventListener("suspend", onSuspend);
+      this.removeEventListener("unsuspend", onUnsuspend);
+    },
+    { once: true },
+  );
 
-  return () => output;
+  const child = props().children;
+
+  return () => {
+    if (!showChildren) {
+      return [
+        createElement(
+          "suspended",
+          { style: { display: "none" } },
+          child,
+        ),
+        props().fallback,
+      ];
+    }
+
+    return [child];
+  };
 }

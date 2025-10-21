@@ -7,6 +7,7 @@ import {
 import { createRoot } from "npm:react-dom/client";
 
 import { waitForXPath } from "./bench.utils.ts";
+import { render } from "../main.ts";
 
 const bench = new Bench();
 
@@ -36,7 +37,7 @@ const bench = new Bench();
     "radi",
     async () => {
       const component = <Simple />;
-      document.body.appendChild(component);
+      render(component, document.body);
 
       await waitForXPath("//h1[text()='Hello bench']");
     },
