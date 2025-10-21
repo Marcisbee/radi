@@ -3,9 +3,9 @@
   "version": "0.5.0",
   "tasks": {
     "dev": "deno -A npm:esbuild playground/full.tsx playground/table.tsx --jsx-import-source=preact --jsx=automatic --watch --servedir=playground/www --outdir=playground/www --bundle",
-    "bench": "deno -A --unstable-bundle jsr:@marcisbee/rion/bench --includes src",
-    "build": "deno -A ./build.npm.ts"
     "test": "deno -A --unstable-bundle @marcisbee/rion/test --includes src",
+    "bench": "deno -A --unstable-bundle @marcisbee/rion/bench --includes src",
+    "publish": "deno -A ./build.npm.ts && cd npm && npm publish --tag alpha"
   },
   "exports": {
     "./*": "./src/*.ts"
