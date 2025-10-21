@@ -4,7 +4,8 @@
   "tasks": {
     "dev": "deno -A npm:esbuild playground/full.tsx --jsx-import-source=preact --jsx=automatic --watch --servedir=playground/www --outdir=playground/www --bundle",
     "test": "deno -A --unstable-bundle jsr:@marcisbee/rion/test --includes src",
-    "bench": "deno -A --unstable-bundle jsr:@marcisbee/rion/bench --includes src"
+    "bench": "deno -A --unstable-bundle jsr:@marcisbee/rion/bench --includes src",
+    "build": "deno -A ./build.npm.ts"
   },
   "exports": {
     "./*": "./src/*.ts"
