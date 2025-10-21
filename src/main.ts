@@ -725,7 +725,7 @@ function reconcileKeyedChildren(oldEl: Element, newEl: Element): void {
   let oldPointer: Node | null = oldEl.firstChild;
   const processed = new Set<Node>();
 
-  for (let newPointer = newEl.firstChild; newPointer; ) {
+  for (let newPointer = newEl.firstChild; newPointer;) {
     const next = newPointer.nextSibling;
     const newKey = getNodeKey(newPointer);
     if (!newKey) {
