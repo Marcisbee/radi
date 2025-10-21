@@ -662,8 +662,9 @@ function reconcileNonKeyedChildren(oldEl: Element, newEl: Element): void {
   let newChild: Node | null = newEl.firstChild;
   while (oldChild || newChild) {
     if (!oldChild) {
+      const next = newChild!.nextSibling;
       safeAppend(oldEl, newChild!);
-      newChild = newChild!.nextSibling;
+      newChild = next;
       continue;
     }
     if (!newChild) {
@@ -724,26 +725,26 @@ function reconcileKeyedChildren(oldEl: Element, newEl: Element): void {
   let oldPointer: Node | null = oldEl.firstChild;
   const processed = new Set<Node>();
 
-  for (
-    let newPointer = newEl.firstChild;
-    newPointer;
-    newPointer = newPointer.nextSibling
-  ) {
+  for (let newPointer = newEl.firstChild; newPointer; ) {
+    const next = newPointer.nextSibling;
     const newKey = getNodeKey(newPointer);
     if (!newKey) {
       oldPointer = advancePastKeyed(oldPointer);
       if (!oldPointer) {
         safeAppend(oldEl, newPointer);
+        newPointer = next;
         continue;
       }
       if (oldPointer === newPointer) {
         processed.add(oldPointer);
         oldPointer = oldPointer.nextSibling;
+        newPointer = next;
         continue;
       }
       if (patchText(oldPointer, newPointer)) {
         processed.add(oldPointer);
         oldPointer = oldPointer.nextSibling;
+        newPointer = next;
         continue;
       }
       if (
@@ -753,12 +754,14 @@ function reconcileKeyedChildren(oldEl: Element, newEl: Element): void {
       ) {
         processed.add(oldPointer);
         oldPointer = oldPointer.nextSibling;
+        newPointer = next;
         continue;
       }
       const nextOld = oldPointer.nextSibling;
       safeReplace(oldEl, newPointer, oldPointer);
       processed.add(newPointer);
       oldPointer = nextOld;
+      newPointer = next;
       continue;
     }
 
@@ -777,6 +780,7 @@ function reconcileKeyedChildren(oldEl: Element, newEl: Element): void {
       if (oldPointer) safeInsertBefore(oldEl, newPointer, oldPointer);
       else safeAppend(oldEl, newPointer);
     }
+    newPointer = next;
   }
 
   for (const [, node] of oldKeyMap) {
