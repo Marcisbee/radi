@@ -2,7 +2,7 @@
   "name": "radi",
   "version": "0.5.0",
   "tasks": {
-    "dev": "deno bundle --watch --outdir dist playground/full.html & deno -A npm:livereload ./dist & deno -A npm:sirv-cli --dev ./dist",
+    "dev": "deno -A npm:esbuild playground/full.tsx --jsx-import-source=preact --jsx=automatic --watch --servedir=playground/www --outdir=playground/www --bundle",
     "test": "deno -A --unstable-bundle jsr:@marcisbee/rion/test --includes src",
     "bench": "deno -A --unstable-bundle jsr:@marcisbee/rion/bench --includes src"
   },

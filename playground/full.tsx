@@ -451,6 +451,33 @@ function Styling(this: DocumentFragment) {
   );
 }
 
+function ExecEchoReactive(this: HTMLElement, props: JSX.PropsWithChildren) {
+  return (
+    <div className="echo-exec">
+      [{() => props().children}]
+    </div>
+  );
+}
+
+/* function child passed directly and updated */
+function FnChildParent(this: HTMLElement) {
+  let value = "fn";
+  return (
+    <ExecEchoReactive>
+      <button
+        type="button"
+        onclick={() => {
+          value = "updated";
+          update(this);
+        }}
+      >
+        update
+      </button>
+      {() => value}
+    </ExecEchoReactive>
+  );
+}
+
 function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
   let bpm = 120;
 
@@ -514,6 +541,8 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
       <Sub1 />
       <hr />
       <StyledCounter />
+      <hr />
+      <FnChildParent />
     </div>
   );
 }
