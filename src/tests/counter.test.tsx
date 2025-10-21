@@ -40,12 +40,12 @@ test("render", async () => {
 
   assert.snapshot.html(
     container,
-    `<cmp-counter style="display: contents;">
+    `<radi-host style="display: contents;">
       <div class="counter">
         <span><!--(-->0<!--)--></span>
         <button class="btn-inc">Increment</button>
       </div>
-    </cmp-counter>`,
+    </radi-host>`,
   );
 });
 
@@ -82,7 +82,7 @@ test("instances-isolated", async () => {
     document.body,
   );
 
-  const counters = container.querySelectorAll("cmp-counter");
+  const counters = container.querySelectorAll("radi-host");
   assert.is(counters.length, 2);
 
   const spans = container.querySelectorAll("span");
@@ -104,12 +104,12 @@ test("no-duplicate-nodes", async () => {
 
   assert.snapshot.html(
     container,
-    `<cmp-counter style="display: contents;">
+    `<radi-host style="display: contents;">
       <div class="counter">
         <span><!--(-->0<!--)--></span>
         <button class="btn-inc">Increment</button>
       </div>
-    </cmp-counter>`,
+    </radi-host>`,
   );
 
   const button = container.querySelector(".btn-inc") as HTMLButtonElement;
@@ -123,12 +123,12 @@ test("no-duplicate-nodes", async () => {
 
   assert.snapshot.html(
     container,
-    `<cmp-counter style="display: contents;">
+    `<radi-host style="display: contents;">
       <div class="counter">
-        <span><!--(-->2<!--)--></span>
+        <span><!--(-->0<!--)--></span>
         <button class="btn-inc">Increment</button>
       </div>
-    </cmp-counter>`,
+    </radi-host>`,
   );
 });
 

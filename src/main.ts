@@ -1,5 +1,36 @@
 import { Child, ReactiveGenerator, Subscribable } from "./types.ts";
 
+/** Custom Radi component host element with built-in connect/disconnect lifecycle. */
+class RadiHostElement extends HTMLElement {
+  connectedCallback() {
+    this.dispatchEvent(new Event("connect", { bubbles: false, cancelable: false }));
+  }
+
+  disconnectedCallback() {
+    this.dispatchEvent(new Event("disconnect", { bubbles: false, cancelable: false }));
+  }
+}
+
+// Register the custom element if not already defined
+if (!customElements.get("radi-host")) {
+  customElements.define("radi-host", RadiHostElement);
+}
+
+// Listen for connect events to flush component build queue
+document.addEventListener("connect", (event) => {
+  if (event.target instanceof RadiHostElement) {
+    flushComponentBuildQueue();
+  }
+}, { capture: true });
+
+// Also flush the build queue immediately when components are queued
+const originalQueueComponentForBuild = queueComponentForBuild;
+queueComponentForBuild = function(host: ComponentHost): void {
+  originalQueueComponentForBuild(host);
+  // Flush immediately to ensure components are built synchronously
+  flushComponentBuildQueue();
+};
+
 /** Internal extended element with optional component marker. */
 type ComponentElement = HTMLElement & {
   __component?: Function;
@@ -275,14 +306,7 @@ function setPropValue(el: HTMLElement, key: string, value: unknown): void {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Lifecycle Event Dispatch                                                   */
-/* -------------------------------------------------------------------------- */
 
-/** Dispatch a lifecycle event ("connect" | "disconnect") within a subtree. */
-function dispatchLifecycle(node: Node, type: "connect" | "disconnect"): void {
-  dispatchEventSink(node, new Event(type));
-}
 
 /* -------------------------------------------------------------------------- */
 /* Component Build Queue                                                      */
@@ -295,6 +319,8 @@ let isFlushingComponentBuilds = false;
 function queueComponentForBuild(host: ComponentHost): void {
   if (host.__mounted) return;
   pendingComponentBuildQueue.push(host);
+  // Flush immediately to ensure components are built synchronously
+  flushComponentBuildQueue();
 }
 
 /** Perform the initial build for a component host (evaluates component function). */
@@ -436,9 +462,6 @@ export function dispatchEventSink(root: Node, event: Event): void {
       dispatchRenderError(el, err);
     }
   }
-  if (event.type === "connect") {
-    flushComponentBuildQueue();
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -456,25 +479,10 @@ export function createAbortSignal(target: Node): AbortSignal {
 /* DOM Operation Helpers                                                      */
 /* -------------------------------------------------------------------------- */
 
-/** Dispatch connect lifecycle if node is an element. */
-function dispatchConnectIfElement(node: Node): void {
-  if (node.nodeType === Node.ELEMENT_NODE) {
-    dispatchLifecycle(node, "connect");
-  }
-}
-
-/** Dispatch disconnect lifecycle if node is an element. */
-function dispatchDisconnectIfElement(node: Node): void {
-  if (node.nodeType === Node.ELEMENT_NODE) {
-    (node as any).__radiAlreadyDisconnected = true;
-    dispatchLifecycle(node, "disconnect");
-  }
-}
-
 /** If a node is moving between parents, emit disconnect first. */
 function detachIfMoving(node: Node): void {
   if (node.isConnected && node.parentNode) {
-    dispatchDisconnectIfElement(node);
+    // Disconnect will be handled by the custom element itself
   }
 }
 
@@ -482,13 +490,6 @@ function detachIfMoving(node: Node): void {
 function safeAppend(parent: Node & ParentNode, child: Node): void {
   detachIfMoving(child);
   parent.appendChild(child);
-  if (child.isConnected) {
-    if ((child as any).__deferConnect) {
-      delete (child as any).__deferConnect;
-    } else {
-      dispatchConnectIfElement(child);
-    }
-  }
 }
 
 /** Insert before while handling lifecycle dispatch. */
@@ -499,13 +500,11 @@ function safeInsertBefore(
 ): void {
   detachIfMoving(child);
   parent.insertBefore(child, before);
-  if (child.isConnected) dispatchConnectIfElement(child);
 }
 
 /** Remove while handling lifecycle dispatch. */
 function safeRemove(parent: Node & ParentNode, child: Node): void {
   if (child.parentNode === parent) {
-    dispatchDisconnectIfElement(child);
     parent.removeChild(child);
   }
 }
@@ -517,9 +516,7 @@ function safeReplace(
   prev: Node,
 ): void {
   detachIfMoving(next);
-  dispatchDisconnectIfElement(prev);
   parent.replaceChild(next, prev);
-  if (next.isConnected) dispatchConnectIfElement(next);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -866,10 +863,6 @@ function reconcileRange(start: Comment, end: Comment, newNodes: Node[]): void {
           inserted.push(n);
         }
         parent.insertBefore(frag, end);
-        // Manually simulate connect lifecycle for each inserted element
-        for (const n of inserted) {
-          if (n.isConnected) dispatchConnectIfElement(n);
-        }
       }
       break;
     }
@@ -1061,9 +1054,7 @@ function createComponentPlaceholder(
   props: Record<string, unknown> | null,
   childrenRaw: Child[],
 ): ComponentElement {
-  const placeholder = document.createElement(
-    "cmp-" + (type.name || "component"),
-  ) as ComponentElement & {
+  const placeholder = document.createElement("radi-host") as ComponentElement & {
     __componentPending?: { type: Function; props: any };
     __deferConnect?: boolean;
   };
@@ -1089,9 +1080,8 @@ function createComponentPlaceholder(
     },
   };
 
-  placeholder.addEventListener("connect", () => {
-    queueComponentForBuild(placeholder as any);
-  });
+  // Queue component for build immediately - it will be built when connect event fires
+  queueComponentForBuild(placeholder as any);
 
   return placeholder;
 }
@@ -1240,12 +1230,11 @@ export function createRoot(container: HTMLElement): {
   return { root: container, render, unmount };
 }
 
-/** Remove all existing child nodes from the container (with disconnect dispatch). */
+/** Remove all existing child nodes from the container. */
 function clearContainerInitialChildren(container: HTMLElement): void {
   for (let c = container.firstChild; c;) {
     const next = c.nextSibling;
     if (c.parentNode === container) {
-      dispatchDisconnectIfElement(c);
       container.removeChild(c);
     }
     c = next;

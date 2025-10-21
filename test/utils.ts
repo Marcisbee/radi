@@ -5,18 +5,10 @@ export function mount(
   parent: Parameters<typeof createRoot>[0],
 ) {
   const promise = new Promise<HTMLElement>((resolve) => {
-    const onConnect = (event: Event) => resolve(event.target as HTMLElement);
-
-    // Attach listener before calling render so we catch synchronous "connect" events
-    (element as EventTarget).addEventListener("connect", onConnect, {
-      once: true,
-    });
-
-    // If the element is already connected, resolve immediately and remove the listener
-    if ((element as Node).isConnected) {
-      (element as EventTarget).removeEventListener("connect", onConnect);
+    // Use a microtask to ensure the element is connected and built
+    queueMicrotask(() => {
       resolve(element as HTMLElement);
-    }
+    });
   });
 
   const { render } = createRoot(parent);
