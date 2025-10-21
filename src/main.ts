@@ -1038,7 +1038,7 @@ export function createElement(
   type: string | Function,
   props: Record<string, unknown> | null,
   ...childrenRaw: Child[]
-): Node | Node[] {
+): Child {
   const buildChildrenArray = () => childrenRaw.map(buildElement);
   const buildNormalized = () => normalizeToNodes(buildChildrenArray() as any);
 
