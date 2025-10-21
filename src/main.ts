@@ -615,6 +615,14 @@ function patchElement(oldEl: Element, newEl: Element): boolean {
 
   if (
     oAny.__component &&
+    (nAny as any).__componentPending &&
+    oAny.__component !== (nAny as any).__componentPending.type
+  ) {
+    return false;
+  }
+
+  if (
+    oAny.__component &&
     nAny.__component &&
     oAny.__component !== nAny.__component
   ) {
@@ -1062,7 +1070,7 @@ function createComponentPlaceholder(
   childrenRaw: Child[],
 ): ComponentElement {
   const placeholder = document.createElement(
-    "cmp-" + (type.name || "component"),
+    "radi-host",
   ) as ComponentElement & {
     __componentPending?: { type: Function; props: any };
     __deferConnect?: boolean;

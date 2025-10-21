@@ -88,7 +88,7 @@ test("component", async () => {
   assert.ok(div, "component inner div should exist");
   assert.is(div.textContent, "Xchild");
   assert.is(
-    mounted.tagName.toLowerCase().startsWith("cmp-examplecomponent"),
+    mounted.tagName.toLowerCase().startsWith("radi-host"),
     true,
   );
 });

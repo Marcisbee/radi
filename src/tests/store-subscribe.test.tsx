@@ -49,9 +49,9 @@ test("initial-sync-value", async () => {
 
   assert.snapshot.html(
     root,
-    `<cmp-app style="display: contents;">
+    `<radi-host style="display: contents;">
       <div class="store-host"><!--(-->A<!--)--></div>
-    </cmp-app>`,
+    </radi-host>`,
   );
 });
 

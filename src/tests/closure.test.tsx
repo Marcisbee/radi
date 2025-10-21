@@ -56,7 +56,7 @@ test("render parent", async () => {
 
   assert.snapshot.html(
     container,
-    `<cmp-listparent style="display: contents;">
+    `<radi-host style="display: contents;">
       <button>
         <!--(-->
           <span>#A</span>
@@ -64,7 +64,7 @@ test("render parent", async () => {
           <span>#C</span>
         <!--)-->
       </button>
-    </cmp-listparent>`,
+    </radi-host>`,
   );
 });
 
@@ -73,13 +73,13 @@ test("render child", async () => {
 
   assert.snapshot.html(
     container,
-    `<cmp-listchild style="display: contents;">
+    `<radi-host style="display: contents;">
       <button>
         <span>#<!--(-->A<!--)--></span>
         <span>#<!--(-->B<!--)--></span>
         <span>#<!--(-->C<!--)--></span>
       </button>
-    </cmp-listchild>`,
+    </radi-host>`,
   );
 });
 
@@ -88,7 +88,7 @@ test("render both", async () => {
 
   assert.snapshot.html(
     container,
-    `<cmp-listboth style="display: contents;">
+    `<radi-host style="display: contents;">
       <button>
         <!--(-->
           <span>#<!--(-->A<!--)--></span>
@@ -96,7 +96,7 @@ test("render both", async () => {
           <span>#<!--(-->C<!--)--></span>
         <!--)-->
       </button>
-    </cmp-listboth>`,
+    </radi-host>`,
   );
 });
 
@@ -107,7 +107,7 @@ test("mutate parent", async () => {
 
   assert.snapshot.html(
     container,
-    `<cmp-listparent style="display: contents;">
+    `<radi-host style="display: contents;">
       <button>
         <!--(-->
           <span>#C</span>
@@ -115,7 +115,7 @@ test("mutate parent", async () => {
           <span>#A</span>
         <!--)-->
       </button>
-    </cmp-listparent>`,
+    </radi-host>`,
   );
 
   await Promise.resolve();
@@ -129,13 +129,13 @@ test("mutate child", async () => {
 
   assert.snapshot.html(
     container,
-    `<cmp-listchild style="display: contents;">
+    `<radi-host style="display: contents;">
       <button>
         <span>#<!--(-->A<!--)--></span>
         <span>#<!--(-->B<!--)--></span>
         <span>#<!--(-->C<!--)--></span>
       </button>
-    </cmp-listchild>`,
+    </radi-host>`,
   );
 
   await Promise.resolve();
@@ -149,7 +149,7 @@ test("mutate both", async () => {
 
   assert.snapshot.html(
     container,
-    `<cmp-listboth style="display: contents;">
+    `<radi-host style="display: contents;">
       <button>
         <!--(-->
           <span>#<!--(-->C<!--)--></span>
@@ -157,7 +157,7 @@ test("mutate both", async () => {
           <span>#<!--(-->A<!--)--></span>
         <!--)-->
       </button>
-    </cmp-listboth>`,
+    </radi-host>`,
   );
 
   await Promise.resolve();
