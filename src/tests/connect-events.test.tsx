@@ -1,5 +1,5 @@
 import { assert, test } from "jsr:@marcisbee/rion";
-import { render } from "../main.ts";
+import { createRoot } from "../main.ts";
 
 function Probe() {
   return <div>probe</div>;
@@ -13,7 +13,7 @@ test("connect in component", async () => {
     called++;
   });
 
-  render(probe, document.body);
+  createRoot(document.body).render(probe);
 
   // Await microtask flush (Promise.then chain).
   await Promise.resolve();
@@ -29,7 +29,7 @@ test("connect in element", async () => {
     called++;
   });
 
-  render(probe, document.body);
+  createRoot(document.body).render(probe);
 
   // Await microtask flush (Promise.then chain).
   await Promise.resolve();

@@ -4,10 +4,10 @@ import {
   createRef,
   useLayoutEffect,
 } from "npm:react";
-import { createRoot } from "npm:react-dom/client";
+import { createRoot as createRootReact } from "npm:react-dom/client";
 
 import { waitForXPath } from "./bench.utils.ts";
-import { render } from "../main.ts";
+import { createRoot } from "../main.ts";
 
 const bench = new Bench();
 
@@ -33,17 +33,23 @@ const bench = new Bench();
     return <h1>Hello bench</h1>;
   }
 
+  let root: ReturnType<typeof createRoot> | null = null;
   bench.add(
     "radi",
     async () => {
       const component = <Simple />;
-      render(component, document.body);
+      root = createRoot(document.body);
+      root!.render(component);
 
       await waitForXPath("//h1[text()='Hello bench']");
     },
     {
       beforeEach() {
         document.body.innerHTML = "";
+      },
+      afterEach() {
+        root?.unmount();
+        root = null;
       },
     },
   );
@@ -55,12 +61,12 @@ const bench = new Bench();
     return createElementReact("h1", null, "Hello bench");
   }
 
-  let root: ReturnType<typeof createRoot> | null = null;
+  let root: ReturnType<typeof createRootReact> | null = null;
   bench.add(
     "react",
     async () => {
       const component = createElementReact(Simple);
-      root = createRoot(document.body);
+      root = createRootReact(document.body);
       root.render(component);
 
       await waitForXPath("//h1[text()='Hello bench']");

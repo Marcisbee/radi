@@ -1,8 +1,8 @@
-import { render } from "../src/main.ts";
+import { createRoot } from "../src/main.ts";
 
 export function mount(
-  element: Parameters<typeof render>[0],
-  parent: Parameters<typeof render>[1],
+  element: Parameters<ReturnType<typeof createRoot>["render"]>[0],
+  parent: Parameters<typeof createRoot>[0],
 ) {
   const promise = new Promise<HTMLElement>((resolve) => {
     const onConnect = (event: Event) => resolve(event.target as HTMLElement);
@@ -19,6 +19,7 @@ export function mount(
     }
   });
 
-  render(element, parent);
+  const { render } = createRoot(parent);
+  render(element);
   return promise;
 }

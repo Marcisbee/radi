@@ -1,16 +1,4 @@
-/** A reactive function returns new child(ren) when invoked with the parent element. */
-type ReactiveGenerator = (parent: Element) => Child | Child[];
-
-/** Primitive or structured child value accepted by createElement/buildElement. */
-type Child =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | Node
-  | Child[]
-  | ReactiveGenerator;
+import { Child, ReactiveGenerator, Subscribable } from "./types.ts";
 
 /** Internal extended element with optional component marker. */
 type ComponentElement = HTMLElement & {
@@ -78,6 +66,66 @@ function buildElement(child: Child): Child {
         ([] as Child[]).concat(produced as any).map(buildElement) as any,
       );
     };
+  }
+  // Subscribable store detection: object with subscribe(fn) returning optional cleanup (function or {unsubscribe()})
+  if (
+    child &&
+    typeof child === "object" &&
+    !Array.isArray(child) &&
+    !(child instanceof Node) &&
+    typeof (child as { subscribe?: unknown }).subscribe === "function"
+  ) {
+    const storeObj = child as Subscribable<unknown>;
+    const { start, end } = createFragmentBoundary();
+    queueMicrotask(() => {
+      const parentEl = start.parentNode as Element | null;
+      if (!parentEl) return;
+      const unsub = storeObj.subscribe((value) => {
+        try {
+          const built = buildElement(value as Child);
+          const normalized = normalizeToNodes(
+            Array.isArray(built) ? built : [built],
+          );
+          const expanded: Node[] = [];
+          for (const item of normalized) {
+            if (item instanceof Node) {
+              expanded.push(item);
+            } else if (typeof item === "function") {
+              try {
+                const innerProduced = (item as ReactiveGenerator)(parentEl);
+                const innerNorm = normalizeToNodes(innerProduced);
+                for (const inner of innerNorm) {
+                  if (inner instanceof Node) expanded.push(inner);
+                }
+              } catch (err) {
+                dispatchRenderError(parentEl, err);
+              }
+            }
+          }
+          reconcileRange(start, end, expanded);
+        } catch (err) {
+          dispatchRenderError(parentEl, err);
+        }
+      });
+      if (parentEl) {
+        parentEl.addEventListener("disconnect", () => {
+          try {
+            if (typeof unsub === "function") {
+              (unsub as () => void)();
+            } else if (
+              unsub &&
+              typeof (unsub as { unsubscribe(): void }).unsubscribe ===
+                "function"
+            ) {
+              (unsub as { unsubscribe(): void }).unsubscribe();
+            }
+          } catch {
+            // swallow
+          }
+        });
+      }
+    });
+    return [start, end];
   }
   if (Array.isArray(child)) {
     const { start, end } = createFragmentBoundary();
@@ -645,7 +693,25 @@ function reconcileRange(start: Comment, end: Comment, newNodes: Node[]): void {
       oldCur.nodeType === Node.ELEMENT_NODE &&
       newNode.nodeType === Node.ELEMENT_NODE
     ) {
-      if (patchElement(oldCur as Element, newNode as Element)) {
+      const oldEl: any = oldCur;
+      const newEl: any = newNode;
+      // Component host prop reconciliation (reuse host; update props; trigger update)
+      if (
+        oldEl.__component &&
+        oldEl.__mounted &&
+        newEl.__componentPending &&
+        oldEl.__component === newEl.__componentPending.type &&
+        ((oldEl.__key || null) ===
+          (newEl.__key || newEl.getAttribute?.("data-key") || null))
+      ) {
+        oldEl.__propsRef.current = newEl.__componentPending.props;
+        // Trigger reactive reevaluation for children referencing props()
+        oldEl.dispatchEvent(createUpdateEvent());
+        idx++;
+        oldCur = oldCur.nextSibling;
+        continue;
+      }
+      if (patchElement(oldEl as Element, newEl as Element)) {
         oldCur = oldCur.nextSibling;
         idx++;
         continue;
@@ -835,6 +901,39 @@ export function createElement(
         };
         element.addEventListener("update", evaluate);
         evaluate();
+      } else if (
+        value &&
+        typeof value === "object" &&
+        typeof (value as { subscribe?: unknown }).subscribe === "function"
+      ) {
+        const subscribable = value as Subscribable<unknown>;
+        let unsub: void | (() => void) | { unsubscribe(): void };
+        try {
+          unsub = subscribable.subscribe((v) => {
+            try {
+              setPropValue(element, key, v);
+            } catch (err) {
+              dispatchRenderError(element, err);
+            }
+          });
+        } catch (err) {
+          dispatchRenderError(element, err);
+        }
+        element.addEventListener("disconnect", () => {
+          try {
+            if (typeof unsub === "function") {
+              (unsub as () => void)();
+            } else if (
+              unsub &&
+              typeof (unsub as { unsubscribe?: () => void }).unsubscribe ===
+                "function"
+            ) {
+              (unsub as { unsubscribe: () => void }).unsubscribe();
+            }
+          } catch {
+            // swallow
+          }
+        });
       } else {
         setPropValue(element, key, value);
       }
@@ -850,24 +949,51 @@ export function createElement(
 
 /* ========================= Render Root ========================= */
 
-export function render(
-  node: JSX.Element,
-  container: HTMLElement,
-): HTMLElement {
-  // Remove existing children with disconnect events
-  const toRemove: Node[] = [];
-  for (let c = container.firstChild; c; c = c.nextSibling) {
-    toRemove.push(c);
-  }
-  for (const c of toRemove) {
+/**
+ * Create a managed Radi root for a container element.
+ * Uses an internal fragment boundary so repeated renders reconcile instead of full teardown.
+ * @param container Root container element.
+ * @returns Root management API.
+ */
+export function createRoot(container: HTMLElement): {
+  root: HTMLElement;
+  render: (node: JSX.Element) => HTMLElement;
+  unmount: () => void;
+} {
+  // Clear any pre-existing children in container (initial mount only)
+  for (let c = container.firstChild; c;) {
+    const next = c.nextSibling;
     if (c.parentNode === container) {
       dispatchDisconnectIfElement(c);
       container.removeChild(c);
     }
+    c = next;
   }
-  // Append new root (fragment array or single)
-  safeAppend(container, node as any);
-  return node as any;
+
+  // Establish reconciliation boundary
+  const { start, end } = createFragmentBoundary();
+  container.append(start, end);
+
+  function render(node: JSX.Element): HTMLElement {
+    // Build & normalize new tree
+    const built = buildElement(node as any);
+    const normalized = normalizeToNodes(
+      Array.isArray(built) ? (built as any) : [built as any],
+    ) as Node[];
+    reconcileRange(start, end, normalized);
+    return node as any;
+  }
+
+  function unmount(): void {
+    let cur: Node | null = start.nextSibling;
+    while (cur && cur !== end) {
+      const next = cur.nextSibling;
+      safeRemove(container as any, cur);
+      cur = next;
+    }
+  }
+
+  return { root: container, render, unmount };
 }
 
 /* ========================= Update & Lifecycle (Update) ========================= */
@@ -966,20 +1092,3 @@ export function update(root: Node): void {
   Guards against duplicate disconnect by skipping nodes marked during
   Radi-managed removal (flag: __radiAlreadyDisconnected).
 */
-const removalObserverRoot = document.documentElement || document;
-const removalObserver = new MutationObserver((mutations) => {
-  for (const m of mutations) {
-    for (const removed of Array.from(m.removedNodes)) {
-      if (
-        removed.nodeType === Node.ELEMENT_NODE &&
-        !(removed as any).__radiAlreadyDisconnected
-      ) {
-        dispatchLifecycle(removed, "disconnect");
-      }
-    }
-  }
-});
-removalObserver.observe(removalObserverRoot, {
-  childList: true,
-  subtree: true,
-});

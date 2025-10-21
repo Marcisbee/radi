@@ -1,0 +1,112 @@
+import { assert, test } from "jsr:@marcisbee/rion";
+import { createRoot } from "../main.ts";
+
+/**
+ * Simple component whose displayed value depends on its props.
+ * Uses a reactive render function so update events reconcile content.
+ */
+function App(
+  this: HTMLElement,
+  props: JSX.Props<{ counter: number; key?: string }>,
+) {
+  return () => <div className="value">{() => props().counter}</div>;
+}
+
+function AppA(this: HTMLElement) {
+  return () => <div className="which">A</div>;
+}
+
+function AppB(this: HTMLElement) {
+  return () => <div className="which">B</div>;
+}
+
+test.before.each(() => {
+  document.body.innerHTML = "";
+});
+
+/**
+ * reuse-component-props
+ * Multiple root.render() calls with same component type update props without remount.
+ */
+test("reuse-component-props", () => {
+  const root = createRoot(document.body);
+  let connectCount = 0;
+  let disconnectCount = 0;
+
+  // Attach listeners directly on first instance (events are non-bubbling).
+  const first = <App counter={0} />;
+  first.addEventListener("connect", () => connectCount++);
+  first.addEventListener("disconnect", () => disconnectCount++);
+  root.render(first);
+
+  const valueEl0 = document.querySelector(".value") as HTMLDivElement | null;
+  if (!valueEl0) throw new Error("value element missing");
+  assert.is(valueEl0.textContent, "0");
+
+  // Subsequent renders reuse component host (no new connect).
+  for (let i = 1; i < 3; i++) {
+    root.render(<App counter={i} />);
+    const valueEl = document.querySelector(".value") as HTMLDivElement | null;
+    if (!valueEl) throw new Error("value element missing");
+    assert.is(valueEl.textContent, String(i), "text reconciled");
+  }
+
+  assert.is(connectCount, 1);
+  assert.is(disconnectCount, 0);
+});
+
+/**
+ * replace-component-type
+ * Rendering different component types causes old host to disconnect and new to connect.
+ */
+test("replace-component-type", () => {
+  const root = createRoot(document.body);
+  let connectA = 0;
+  let disconnectA = 0;
+  let connectB = 0;
+  let disconnectB = 0;
+
+  const a = <AppA />;
+  a.addEventListener("connect", () => connectA++);
+  a.addEventListener("disconnect", () => disconnectA++);
+  root.render(a);
+  assert.is((document.querySelector(".which") as HTMLElement).textContent, "A");
+
+  const b = <AppB />;
+  b.addEventListener("connect", () => connectB++);
+  b.addEventListener("disconnect", () => disconnectB++);
+  root.render(b);
+  assert.is((document.querySelector(".which") as HTMLElement).textContent, "B");
+
+  assert.is(connectA, 1);
+  assert.is(disconnectA, 1);
+  assert.is(connectB, 1, "B connected once");
+  assert.is(disconnectB, 0, "B not disconnected yet");
+});
+
+/**
+ * replace-component-key
+ * Changing key forces remount even with same component type.
+ */
+test("replace-component-key", () => {
+  const root = createRoot(document.body);
+  let connects = 0;
+  let disconnects = 0;
+
+  const one = <App key="one" counter={0} />;
+  one.addEventListener("connect", () => connects++);
+  one.addEventListener("disconnect", () => disconnects++);
+  root.render(one);
+  assert.is((document.querySelector(".value") as HTMLElement).textContent, "0");
+
+  const two = <App key="two" counter={1} />;
+  two.addEventListener("connect", () => connects++);
+  two.addEventListener("disconnect", () => disconnects++);
+  root.render(two);
+  assert.is((document.querySelector(".value") as HTMLElement).textContent, "1");
+
+  assert.is(connects, 2, "two separate mounts");
+  assert.is(disconnects, 1, "first host disconnected once");
+});
+
+await test.run();

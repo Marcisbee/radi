@@ -1,6 +1,6 @@
 import { assert, test } from "jsr:@marcisbee/rion";
-import { mount } from "../../test/utils.ts";
-import { createAbortSignal } from "../main.ts";
+
+import { createAbortSignal, createRoot } from "../main.ts";
 
 /**
  * Abortable component registers an abort event listener bound to its lifecycle.
@@ -32,17 +32,27 @@ test.before.each(() => {
 });
 
 /**
- * abort on removal
- * Mount component, remove from DOM, expect exactly one abort event.
+ * abort on unmount
+ * Mount component, unmount via root API, expect exactly one abort event.
  */
-test("abort on removal", async () => {
-  const root = await mount(<Abortable />, document.body);
-  assert.is(events.length, 0, "No abort before removal");
+test("abort on unmount", async () => {
+  const rootApi = createRoot(document.body);
+  const cmp = <Abortable />;
+  const connected = new Promise<HTMLElement>((resolve) => {
+    (cmp as EventTarget).addEventListener(
+      "connect",
+      (e) => resolve(e.target as HTMLElement),
+      { once: true },
+    );
+  });
+  rootApi.render(cmp);
+  await connected;
+  assert.is(events.length, 0, "No abort before unmount");
 
-  // Remove component from DOM -> should trigger abort.
-  root.parentNode!.removeChild(root);
+  // Unmount root -> should trigger abort.
+  rootApi.unmount();
 
-  // Allow microtasks to flush (mutation observers, etc.)
+  // Allow microtasks to flush.
   await Promise.resolve();
 
   assert.is(events.length, 1, "Abort fired exactly once");
@@ -54,17 +64,27 @@ test("abort on removal", async () => {
  * Removing an already removed element should not produce a second abort.
  */
 test("single abort event", async () => {
-  const root = await mount(<Abortable label="multi" />, document.body);
+  const rootApi = createRoot(document.body);
+  const cmp = <Abortable label="multi" />;
+  const connected = new Promise<HTMLElement>((resolve) => {
+    (cmp as EventTarget).addEventListener(
+      "connect",
+      (e) => resolve(e.target as HTMLElement),
+      { once: true },
+    );
+  });
+  rootApi.render(cmp);
+  await connected;
   assert.is(events.length, 0);
 
-  // First removal.
-  root.remove();
+  // First unmount.
+  rootApi.unmount();
   await Promise.resolve();
   assert.is(events.length, 1);
   assert.is(events[0], "multi:aborted");
 
-  // Second removal (noop).
-  root.remove();
+  // Second unmount (noop / idempotent).
+  rootApi.unmount();
   await Promise.resolve();
   assert.is(events.length, 1, "No duplicate abort events");
 });

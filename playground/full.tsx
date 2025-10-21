@@ -1,8 +1,8 @@
 import {
   createAbortSignal,
   createElement,
+  createRoot,
   Fragment,
-  render,
   update,
 } from "../src/main.ts";
 import { createChannel } from "../src/channel.ts";
@@ -616,4 +616,4 @@ function ErrorBoundary2(this: HTMLElement, props: JSX.PropsWithChildren) {
   return () => props().children;
 }
 
-render(<App name="World" />, document.body);
+createRoot(document.body).render(<App name="World" />);

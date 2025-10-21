@@ -6,11 +6,11 @@ import {
   useRef,
   useState,
 } from "npm:react";
-import { createRoot } from "npm:react-dom/client";
+import { createRoot as createRootReact } from "npm:react-dom/client";
 import { flushSync } from "npm:react-dom";
 
 import { waitForXPath } from "./bench.utils.ts";
-import { render, update } from "../main.ts";
+import { createRoot, update } from "../main.ts";
 
 const bench = new Bench();
 
@@ -120,6 +120,7 @@ const bench = new Bench();
   }
   let count = 0;
   let button: HTMLButtonElement | null = null;
+  let root: ReturnType<typeof createRoot> | null = null;
   bench.add(
     `radi`,
     async () => {
@@ -137,8 +138,13 @@ const bench = new Bench();
         count = 0;
         document.body.innerHTML = "";
         const cmp = <RadiCounter />;
-        render(cmp, document.body);
+        root = createRoot(document.body);
+        root.render(cmp);
         await waitForXPath(`//button[text()='0']`);
+      },
+      afterAll() {
+        root?.unmount();
+        root = null;
       },
     },
   );
@@ -163,8 +169,7 @@ const bench = new Bench();
     );
   }
 
-  let reactRoot: ReturnType<typeof createRoot> | null = null;
-
+  let reactRoot: ReturnType<typeof createRootReact> | null = null;
   bench.add(
     `react`,
     async () => {
@@ -181,7 +186,7 @@ const bench = new Bench();
       async beforeAll() {
         count = 0;
         document.body.innerHTML = "";
-        reactRoot = createRoot(document.body);
+        reactRoot = createRootReact(document.body);
         reactRoot.render(createElementReact(ReactCounter, null));
         await waitForXPath(`//button[text()='0']`);
       },
