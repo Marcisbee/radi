@@ -3,8 +3,7 @@
   "specifiers": {
     "jsr:@david/code-block-writer@^13.0.3": "13.0.3",
     "jsr:@deno/dnt@*": "0.42.3",
-    "jsr:@marcisbee/rion@*": "0.1.0",
-    "jsr:@marcisbee/rion@0.2": "0.2.0",
+    "jsr:@marcisbee/rion@0.3": "0.3.0",
     "jsr:@std/fmt@1": "1.0.8",
     "jsr:@std/fs@1": "1.0.14",
     "jsr:@std/path@1": "1.1.0",
@@ -33,14 +32,8 @@
         "jsr:@ts-morph/bootstrap"
       ]
     },
-    "@marcisbee/rion@0.1.0": {
-      "integrity": "d7a2898798899b9970afa8051acfe4dbcd96a1c06298e178f8ff5481cdd7af34",
-      "dependencies": [
-        "npm:@jridgewell/trace-mapping"
-      ]
-    },
-    "@marcisbee/rion@0.2.0": {
-      "integrity": "4c7fd1db3aaffcd5a94a7d4dcb71a30fda670128aab68f9887d98a749070e55d",
+    "@marcisbee/rion@0.3.0": {
+      "integrity": "f92acb6d6fff653d7ee8858627b7d2ebb1d53aaaa5f577789d55c2918bae1e57",
       "dependencies": [
         "npm:@jridgewell/trace-mapping",
         "npm:playwright"
@@ -296,7 +289,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@marcisbee/rion@0.2"
+      "jsr:@marcisbee/rion@0.3"
     ]
   }
 }

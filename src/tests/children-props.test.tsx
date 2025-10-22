@@ -269,7 +269,7 @@ test("children-null-removal", async () => {
   const echo = root.querySelector(".echo-reactive")!;
   assert.true(echo.innerHTML.includes("live"));
   (root as any).__toggle();
-  assert.true(!echo.innerHTML.includes("live"));
+  assert.excludes(echo.innerHTML, "live");
 });
 
 /* nested dynamic lists with key churn */

@@ -45,10 +45,10 @@ test("fallback-unsuspends-child", async () => {
   assert.contains(root.textContent, "I am suspended");
   await clock.fastForward(90);
   assert.contains(root.textContent, "I am suspended");
-  assert.false(root.textContent.includes("I am unsuspended"));
+  assert.excludes(root.textContent, "I am unsuspended");
   await clock.fastForward(10);
   assert.contains(root.textContent, "I am unsuspended");
-  assert.false(root.textContent.includes("Loading..."));
+  assert.excludes(root.textContent, "Loading...");
   assert.contains(root.textContent, "Extra");
 });
 
@@ -142,7 +142,7 @@ test("renders-immediate", async () => {
     </Suspense>,
     document.body,
   );
-  assert.false(root.textContent!.includes("Loading"));
+  assert.excludes(root.textContent, "Loading");
   assert.exists(root.querySelector(".immediate"));
 });
 
@@ -155,13 +155,13 @@ test("multi-stagger", async () => {
     document.body,
   );
   assert.contains(root.textContent!, "Wait");
-  assert.false(root.textContent!.includes("done"));
+  assert.excludes(root.textContent, "done");
   await clock.fastForward(55);
   assert.contains(root.textContent!, "Wait");
   assert.contains(root.textContent!, "done");
   assert.contains(root.textContent!, "pending");
   await clock.fastForward(30);
-  assert.false(root.textContent!.includes("Wait"));
+  assert.excludes(root.textContent, "Wait");
   assert.contains(root.textContent!, "done");
 });
 
@@ -208,7 +208,7 @@ test("mixed-delays", async () => {
   assert.contains(root.textContent!, "pending");
   assert.contains(root.textContent!, "Immediate");
   await clock.fastForward(40);
-  assert.false(root.textContent!.includes("Mix"));
+  assert.excludes(root.textContent, "Mix");
   assert.contains(root.textContent!, "Immediate");
   assert.contains(root.textContent!, "done");
   assert.elementExists(".immediate");
@@ -225,14 +225,14 @@ test("can-resuspend", async () => {
   assert.contains(root.textContent!, "Phase");
   assert.contains(root.textContent!, "s1");
   await clock.fastForward(35);
-  assert.false(root.textContent!.includes("Phase"));
+  assert.excludes(root.textContent, "Phase");
   assert.contains(root.textContent!, "s1-done");
   await clock.fastForward(35);
   assert.contains(root.textContent!, "Phase");
   assert.contains(root.textContent!, "s2");
   await clock.fastForward(40);
   assert.contains(root.textContent!, "s2-done");
-  assert.false(root.textContent!.includes("Phase"));
+  assert.excludes(root.textContent, "Phase");
 });
 
 await test.run();

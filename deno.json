@@ -11,6 +11,6 @@
     "./*": "./src/*.ts"
   },
   "imports": {
-    "@marcisbee/rion": "jsr:@marcisbee/rion@^0.2.0"
+    "@marcisbee/rion": "jsr:@marcisbee/rion@^0.3.0"
   }
 }

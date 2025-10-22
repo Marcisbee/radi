@@ -70,13 +70,19 @@ test("replace-component-type", () => {
   a.addEventListener("connect", () => connectA++);
   a.addEventListener("disconnect", () => disconnectA++);
   root.render(a);
-  assert.equal((document.querySelector(".which") as HTMLElement).textContent, "A");
+  assert.equal(
+    (document.querySelector(".which") as HTMLElement).textContent,
+    "A",
+  );
 
   const b = <AppB />;
   b.addEventListener("connect", () => connectB++);
   b.addEventListener("disconnect", () => disconnectB++);
   root.render(b);
-  assert.equal((document.querySelector(".which") as HTMLElement).textContent, "B");
+  assert.equal(
+    (document.querySelector(".which") as HTMLElement).textContent,
+    "B",
+  );
 
   assert.equal(connectA, 1);
   assert.equal(disconnectA, 1);
@@ -97,13 +103,19 @@ test("replace-component-key", () => {
   one.addEventListener("connect", () => connects++);
   one.addEventListener("disconnect", () => disconnects++);
   root.render(one);
-  assert.equal((document.querySelector(".value") as HTMLElement).textContent, "0");
+  assert.equal(
+    (document.querySelector(".value") as HTMLElement).textContent,
+    "0",
+  );
 
   const two = <App key="two" counter={1} />;
   two.addEventListener("connect", () => connects++);
   two.addEventListener("disconnect", () => disconnects++);
   root.render(two);
-  assert.equal((document.querySelector(".value") as HTMLElement).textContent, "1");
+  assert.equal(
+    (document.querySelector(".value") as HTMLElement).textContent,
+    "1",
+  );
 
   assert.equal(connects, 2, "two separate mounts");
   assert.equal(disconnects, 1, "first host disconnected once");

@@ -179,7 +179,7 @@ test("keyed-removal-preserves-others", async () => {
   const after = Array.from(list.children) as HTMLElement[];
   assert.equal(after.length, 2);
   const texts = after.map((n) => n.textContent);
-  assert.true(!texts.includes("b"));
+  assert.excludes(texts, "b");
   assert.true(after.includes(aNode));
   assert.true(after.includes(cNode));
   assert.true(!document.body.contains(bNode), "Removed node not in DOM");
