@@ -85,32 +85,4 @@ test("parent-dispatch-child-update", async () => {
   assert.equal(childUpdates, 1);
 });
 
-test("parent-dispatch-child-update2", async () => {
-  function Child() {
-    return <span className="child">child</span>;
-  }
-
-  function App() {
-    return () => (
-      <div className="parent">
-        <Child />
-      </div>
-    );
-  }
-
-  const parent = await mount(<App />, document.body);
-  const child = parent.querySelector(".child")!;
-
-  let childUpdates = 0;
-  child.addEventListener("update", () => {
-    childUpdates++;
-  });
-
-  // Dispatch update from parent; child listener should receive it once.
-  update(parent);
-  await Promise.resolve();
-
-  assert.equal(childUpdates, 1);
-});
-
 await test.run();

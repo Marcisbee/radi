@@ -429,61 +429,11 @@ let currentBuildingComponent: Element | null = null;
 /* -------------------------------------------------------------------------- */
 
 /** Generic element subtree walker with optional child-skip predicate. */
-function walkElements(
-  root: Node,
-  visit: (el: Element) => void,
-  skipChildren?: (el: Element) => boolean,
-): void {
-  let node: Node | null = root;
-  while (node) {
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const el = node as Element;
-      visit(el);
-      if (skipChildren && skipChildren(el)) {
-        // skip descending
-      } else if (el.firstChild) {
-        node = el.firstChild;
-        continue;
-      }
-    } else if (node.firstChild) {
-      node = node.firstChild;
-      continue;
-    }
-    while (node && node !== root && !node.nextSibling) {
-      node = node.parentNode;
-    }
-    if (!node || node === root) break;
-    node = node.nextSibling;
-  }
-}
 
 /**
  * Walk an element subtree and dispatch an event to each element node.
  * Uses unified walker; update events dedupe via __lastUpdateId.
  */
-export function dispatchEventSink(root: Node, event: Event): void {
-  const targets: Element[] = [];
-  if (event.type === "update") {
-    walkElements(
-      root,
-      (el) => {
-        if ((el as any).__lastUpdateId === currentUpdateDispatchId) return;
-        (el as any).__lastUpdateId = currentUpdateDispatchId;
-        targets.push(el);
-      },
-      (el) => el !== root && (el as any).__reactiveRoot,
-    );
-  } else {
-    walkElements(root, (el) => targets.push(el));
-  }
-  for (const el of targets) {
-    try {
-      el.dispatchEvent(event);
-    } catch (err) {
-      dispatchRenderError(el, err);
-    }
-  }
-}
 
 /* -------------------------------------------------------------------------- */
 /* Abort Signal                                                               */
@@ -578,21 +528,8 @@ function dispatchDisconnect(node: Node): void {
 }
 
 export function update(root: Node): void {
-  // Manual update cycle: mark flag so reused component hosts do NOT dispatch a second update.
-  isInManualUpdateCycle = true;
-  currentUpdateDispatchId++;
-  try {
-    for (const el of getElementsMarkedForUpdate(root, true)) {
-      el.dispatchEvent(createUpdateEvent());
-    }
-  } catch (err) {
-    if (root instanceof Element) {
-      dispatchRenderError(root, err);
-    } else {
-      console.error(err);
-    }
-  } finally {
-    isInManualUpdateCycle = false;
+  for (const el of getElementsMarkedForUpdate(root, true)) {
+    el.dispatchEvent(new Event("update"));
   }
 }
 
@@ -694,7 +631,7 @@ function patchElement(oldEl: Element, newEl: Element): boolean {
     if ((oAny as any).__propsRef) {
       (oAny as any).__propsRef.current = (nAny as any).__componentPending.props;
       delete (nAny as any).__componentPending;
-      dispatchEventSink(oAny, createUpdateEvent());
+      oAny.dispatchEvent(new Event("update"));
     }
     return true;
   }
@@ -1001,7 +938,7 @@ function reconcileRange(start: Comment, end: Comment, newNodes: Node[]): void {
       if (canReuseComponentHost(oldEl, newEl)) {
         oldEl.__propsRef.current = newEl.__componentPending.props;
         // Dispatch update to reused host (nested component hosts are excluded from manual update traversal).
-        oldEl.dispatchEvent(createUpdateEvent());
+        oldEl.dispatchEvent(new Event("update"));
         idx++;
         oldCur = oldCur.nextSibling;
         continue;
@@ -1359,84 +1296,18 @@ function clearContainerInitialChildren(container: HTMLElement): void {
 /* Update Scheduling                                                          */
 /* -------------------------------------------------------------------------- */
 
-let currentUpdateDispatchId = 0;
-let isInManualUpdateCycle = false;
-
 /** Create a new "update" Event instance. */
-function createUpdateEvent(): Event {
-  return new Event("update");
-}
 
-const scheduledUpdateRoots = new Set<Node>();
-let updateFlushScheduled = false;
+// (Removed update scheduling sets — no longer needed after simplifying manual update traversal)
 
-/**
- * Dispatch update events to all elements under root (skipping nested reactive roots).
- * Avoids duplicates via visited set.
- */
-function dispatchUpdateSink(root: Node, visited: Set<Element>): void {
-  const toDispatch: Element[] = [];
-  walkElements(
-    root,
-    (el) => {
-      if (visited.has(el)) return;
-      visited.add(el);
-      toDispatch.push(el);
-    },
-    (el) => el !== root && (el as any).__reactiveRoot,
-  );
-  for (const el of toDispatch) {
-    try {
-      el.dispatchEvent(createUpdateEvent());
-    } catch (err) {
-      dispatchRenderError(el, err);
-    }
-  }
-}
+// (Removed dispatchUpdateSink — manual updates now directly traverse via getElementsMarkedForUpdate)
 
 /** Schedule a microtask flush for all pending update roots. */
-function scheduleUpdateFlush(): void {
-  if (updateFlushScheduled) return;
-  updateFlushScheduled = true;
-  queueMicrotask(() => {
-    updateFlushScheduled = false;
-    const roots = Array.from(scheduledUpdateRoots);
-    scheduledUpdateRoots.clear();
-    const visited = new Set<Element>();
-    for (const r of roots) {
-      try {
-        dispatchUpdateSink(r, visited);
-      } catch (err) {
-        if (r instanceof Element) {
-          dispatchRenderError(r, err);
-        } else {
-          console.error(err);
-        }
-      }
-    }
-  });
-}
+// (Removed scheduleUpdateFlush — coalesced microtask batching no longer used)
 
-/** Mark an element for update dispatch inclusion. */
-function scheduleElementUpdate(el: Element): void {
-  scheduledUpdateRoots.add(el);
-  scheduleUpdateFlush();
-}
+// (Removed scheduleElementUpdate — direct update dispatch model)
 
 /**
  * Dispatch a global update cycle from a root Node.
  * Triggers component reactive evaluation and prop function re-execution.
  */
-// export function update(root: Node): void {
-//   currentUpdateDispatchId++;
-//   try {
-//     // dispatchUpdate(root);
-//     dispatchEventSink(root, createUpdateEvent());
-//   } catch (err) {
-//     if (root instanceof Element) {
-//       dispatchRenderError(root, err);
-//     } else {
-//       console.error(err);
-//     }
-//   }
-// }
