@@ -86,8 +86,8 @@ test("replace-component-type", () => {
 
   assert.equal(connectA, 1);
   assert.equal(disconnectA, 1);
-  assert.equal(connectB, 1, "B connected once");
-  assert.equal(disconnectB, 0, "B not disconnected yet");
+  assert.equal(connectB, 1);
+  assert.equal(disconnectB, 0);
 });
 
 /**
@@ -117,8 +117,8 @@ test("replace-component-key", () => {
     "1",
   );
 
-  assert.equal(connects, 2, "two separate mounts");
-  assert.equal(disconnects, 1, "first host disconnected once");
+  assert.equal(connects, 2);
+  assert.equal(disconnects, 1);
 });
 
 await test.run();

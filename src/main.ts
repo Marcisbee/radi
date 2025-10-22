@@ -1,3 +1,9 @@
+import {
+  dispatchLifecycle,
+  getElementsMarkedForUpdate,
+  LifecycleEvent,
+  onLifecycle,
+} from "./lifecycle.ts";
 import { Child, ReactiveGenerator, Subscribable } from "./types.ts";
 
 /** Internal extended element with optional component marker. */
@@ -12,6 +18,52 @@ type ComponentHost = ComponentElement & {
   __propsRef?: { current: any };
   __mounted?: boolean;
 };
+
+function connect(target: Node) {
+  return target.dispatchEvent(
+    new Event("connect", { bubbles: false, cancelable: false }),
+  );
+}
+
+function disconnect(target: Node) {
+  return target.dispatchEvent(
+    new Event("disconnect", { bubbles: false, cancelable: false }),
+  );
+}
+
+/** Custom Radi component host element with built-in connect/disconnect lifecycle. */
+export class RadiHostElement extends HTMLElement {
+  public __radiHost = true;
+
+  connectedCallback() {
+    connect(this);
+  }
+  disconnectedCallback() {
+    disconnect(this);
+  }
+}
+
+// Register the custom element if not already defined
+const RADI_HOST_TAG = "radi-host";
+if (!customElements.get(RADI_HOST_TAG)) {
+  customElements.define(RADI_HOST_TAG, RadiHostElement);
+}
+
+/**
+ * Determine if a node is a Radi component host.
+ * Uses a stable tag + marker property instead of instanceof to survive duplicate module copies.
+ */
+function isRadiHost(node: any): boolean {
+  return !!(node &&
+    (node.__radiHost || node.nodeName === RADI_HOST_TAG.toUpperCase()));
+}
+
+// Listen for connect events to flush component build queue
+// document.addEventListener("connect", (event) => {
+//   if (event.target instanceof RadiHostElement) {
+//     flushComponentBuildQueue();
+//   }
+// }, { passive: true, capture: true });
 
 /* -------------------------------------------------------------------------- */
 /* Fragment Helpers                                                           */
@@ -148,6 +200,8 @@ function subscribeAndReconcileRange(
         dispatchRenderError(start.parentNode as Element, err);
       }
     }
+    // console.log("DISC1");
+    (disconnectTarget || start).__reactiveEvent = true;
     (disconnectTarget || start)?.addEventListener?.("disconnect", () => {
       safelyRunUnsubscribe(unsub);
     });
@@ -171,6 +225,8 @@ function subscribeAndReconcileRange(
         dispatchRenderError(parentEl, err);
       }
     });
+    parentEl.__reactiveEvent = true;
+    // console.log("DISC2", parentEl.__reactiveRoot);
     parentEl.addEventListener("disconnect", () => {
       safelyRunUnsubscribe(unsub);
     });
@@ -273,15 +329,6 @@ function setPropValue(el: HTMLElement, key: string, value: unknown): void {
   } else {
     el.setAttribute(key, String(value));
   }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Lifecycle Event Dispatch                                                   */
-/* -------------------------------------------------------------------------- */
-
-/** Dispatch a lifecycle event ("connect" | "disconnect") within a subtree. */
-function dispatchLifecycle(node: Node, type: "connect" | "disconnect"): void {
-  dispatchEventSink(node, new Event(type));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -436,9 +483,6 @@ export function dispatchEventSink(root: Node, event: Event): void {
       dispatchRenderError(el, err);
     }
   }
-  if (event.type === "connect") {
-    flushComponentBuildQueue();
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -448,6 +492,7 @@ export function dispatchEventSink(root: Node, event: Event): void {
 /** Create an AbortSignal that aborts when the target Node disconnects. */
 export function createAbortSignal(target: Node): AbortSignal {
   const controller = new AbortController();
+  // target.__reactiveEvent = true;
   target.addEventListener("disconnect", () => controller.abort());
   return controller.signal;
 }
@@ -459,7 +504,9 @@ export function createAbortSignal(target: Node): AbortSignal {
 /** Dispatch connect lifecycle if node is an element. */
 function dispatchConnectIfElement(node: Node): void {
   if (node.nodeType === Node.ELEMENT_NODE) {
-    dispatchLifecycle(node, "connect");
+    // dispatchLifecycle("connect", node);
+    dispatchConnect(node);
+    // node.dispatchEvent(new LifecycleEvent("connect", node));
   }
 }
 
@@ -467,14 +514,16 @@ function dispatchConnectIfElement(node: Node): void {
 function dispatchDisconnectIfElement(node: Node): void {
   if (node.nodeType === Node.ELEMENT_NODE) {
     (node as any).__radiAlreadyDisconnected = true;
-    dispatchLifecycle(node, "disconnect");
+    // dispatchLifecycle("disconnect", node);
+    dispatchDisconnect(node);
   }
 }
 
 /** If a node is moving between parents, emit disconnect first. */
 function detachIfMoving(node: Node): void {
   if (node.isConnected && node.parentNode) {
-    dispatchDisconnectIfElement(node);
+    // dispatchDisconnectIfElement(node);
+    dispatchDisconnect(node);
   }
 }
 
@@ -486,7 +535,9 @@ function safeAppend(parent: Node & ParentNode, child: Node): void {
     if ((child as any).__deferConnect) {
       delete (child as any).__deferConnect;
     } else {
-      dispatchConnectIfElement(child);
+      // dispatchConnectIfElement(child);
+      // dispatchLifecycle("connect", child);
+      dispatchConnect(child);
     }
   }
 }
@@ -505,8 +556,43 @@ function safeInsertBefore(
 /** Remove while handling lifecycle dispatch. */
 function safeRemove(parent: Node & ParentNode, child: Node): void {
   if (child.parentNode === parent) {
-    dispatchDisconnectIfElement(child);
+    dispatchDisconnect(child);
     parent.removeChild(child);
+  }
+}
+
+function dispatchConnect(node: Node): void {
+  for (const el of getElementsMarkedForUpdate(node, false)) {
+    if (el !== node) {
+      connect(el);
+    }
+  }
+}
+
+function dispatchDisconnect(node: Node): void {
+  for (const el of getElementsMarkedForUpdate(node, false)) {
+    if (el !== node) {
+      disconnect(el);
+    }
+  }
+}
+
+export function update(root: Node): void {
+  // Manual update cycle: mark flag so reused component hosts do NOT dispatch a second update.
+  isInManualUpdateCycle = true;
+  currentUpdateDispatchId++;
+  try {
+    for (const el of getElementsMarkedForUpdate(root, true)) {
+      el.dispatchEvent(createUpdateEvent());
+    }
+  } catch (err) {
+    if (root instanceof Element) {
+      dispatchRenderError(root, err);
+    } else {
+      console.error(err);
+    }
+  } finally {
+    isInManualUpdateCycle = false;
   }
 }
 
@@ -914,6 +1000,7 @@ function reconcileRange(start: Comment, end: Comment, newNodes: Node[]): void {
       // Component host prop reconciliation (reuse host; update props; trigger update)
       if (canReuseComponentHost(oldEl, newEl)) {
         oldEl.__propsRef.current = newEl.__componentPending.props;
+        // Dispatch update to reused host (nested component hosts are excluded from manual update traversal).
         oldEl.dispatchEvent(createUpdateEvent());
         idx++;
         oldCur = oldCur.nextSibling;
@@ -1069,12 +1156,12 @@ function createComponentPlaceholder(
   props: Record<string, unknown> | null,
   childrenRaw: Child[],
 ): ComponentElement {
-  const placeholder = document.createElement(
-    "radi-host",
-  ) as ComponentElement & {
-    __componentPending?: { type: Function; props: any };
-    __deferConnect?: boolean;
-  };
+  const placeholder = document.createElement(RADI_HOST_TAG) as
+    & ComponentElement
+    & {
+      __componentPending?: { type: Function; props: any };
+      __deferConnect?: boolean;
+    };
 
   assignKeyIfPresent(placeholder, props);
   placeholder.style.display = "contents";
@@ -1099,7 +1186,8 @@ function createComponentPlaceholder(
 
   placeholder.addEventListener("connect", () => {
     queueComponentForBuild(placeholder as any);
-  });
+    flushComponentBuildQueue();
+  }, { passive: true, capture: true, once: true });
 
   return placeholder;
 }
@@ -1150,10 +1238,12 @@ function applyPropsToPlainElement(
       continue;
     }
     if (typeof value === "function") {
+      element.__reactiveRoot = true;
       bindFunctionProp(element, key, value as (el: Element) => unknown);
       continue;
     }
     if (isSubscribable(value)) {
+      element.__reactiveEvent = true;
       bindSubscribableProp(element, key, value);
       continue;
     }
@@ -1233,6 +1323,11 @@ export function createRoot(container: HTMLElement): {
       Array.isArray(built) ? (built as any) : [built as any],
     ) as Node[];
     reconcileRange(start, end, normalized);
+    // Host detection uses helper to avoid instanceof across duplicated module copies.
+    const isHost = isRadiHost(node as any);
+    if (!isHost) {
+      connect(node);
+    }
     return node as any;
   }
 
@@ -1265,6 +1360,7 @@ function clearContainerInitialChildren(container: HTMLElement): void {
 /* -------------------------------------------------------------------------- */
 
 let currentUpdateDispatchId = 0;
+let isInManualUpdateCycle = false;
 
 /** Create a new "update" Event instance. */
 function createUpdateEvent(): Event {
@@ -1331,15 +1427,16 @@ function scheduleElementUpdate(el: Element): void {
  * Dispatch a global update cycle from a root Node.
  * Triggers component reactive evaluation and prop function re-execution.
  */
-export function update(root: Node): void {
-  currentUpdateDispatchId++;
-  try {
-    dispatchEventSink(root, createUpdateEvent());
-  } catch (err) {
-    if (root instanceof Element) {
-      dispatchRenderError(root, err);
-    } else {
-      console.error(err);
-    }
-  }
-}
+// export function update(root: Node): void {
+//   currentUpdateDispatchId++;
+//   try {
+//     // dispatchUpdate(root);
+//     dispatchEventSink(root, createUpdateEvent());
+//   } catch (err) {
+//     if (root instanceof Element) {
+//       dispatchRenderError(root, err);
+//     } else {
+//       console.error(err);
+//     }
+//   }
+// }

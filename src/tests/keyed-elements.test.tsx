@@ -193,24 +193,24 @@ test("key-flip-remounts", async () => {
 
   const counter = () => root.querySelector(".render-counter") as HTMLElement;
 
-  assert.true(counter().textContent!.includes("renders:1"));
+  assert.contains(counter().textContent,"renders:1");
 
   rerenderBtn.click();
   await Promise.resolve();
-  assert.true(counter().textContent!.includes("renders:2"));
+  assert.contains(counter().textContent,"renders:2");
 
   rerenderBtn.click();
   await Promise.resolve();
-  assert.true(counter().textContent!.includes("renders:3"));
+  assert.contains(counter().textContent,"renders:3");
 
   flipBtn.click();
   await Promise.resolve();
   // Key changed; instance should remount resetting count to 1
-  assert.true(counter().textContent!.includes("renders:1"));
+  assert.contains(counter().textContent,"renders:1");
 
   rerenderBtn.click();
   await Promise.resolve();
-  assert.true(counter().textContent!.includes("renders:2"));
+  assert.contains(counter().textContent,"renders:2");
 });
 
 await test.run();

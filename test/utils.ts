@@ -5,17 +5,20 @@ export function mount(
   parent: Parameters<typeof createRoot>[0],
 ) {
   const promise = new Promise<HTMLElement>((resolve) => {
-    const onConnect = (event: Event) => resolve(event.target as HTMLElement);
+    const onConnect = () => resolve(element);
 
     // Attach listener before calling render so we catch synchronous "connect" events
     (element as EventTarget).addEventListener("connect", onConnect, {
       once: true,
+      passive: true,
     });
 
     // If the element is already connected, resolve immediately and remove the listener
     if ((element as Node).isConnected) {
-      (element as EventTarget).removeEventListener("connect", onConnect);
-      resolve(element as HTMLElement);
+      (element as EventTarget).removeEventListener("connect", onConnect, {
+        capture: true,
+      });
+      onConnect();
     }
   });
 

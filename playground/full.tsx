@@ -216,10 +216,10 @@ function Tab1(this: DocumentFragment) {
 function Tab2(this: DocumentFragment) {
   const events: string[] = [];
   this.addEventListener("connect", () => {
-    console.log("Connected 2", this.isConnected);
+    console.log("Connected 1", this.isConnected);
   });
   this.addEventListener("disconnect", () => {
-    console.log("Disconnected 2", this.isConnected);
+    console.log("Disconnected 1", this.isConnected);
   });
   return (
     <form
@@ -427,7 +427,7 @@ function linkStyles(component: Node, styles: HTMLStyleElement[]) {
   });
   component.addEventListener("update", () => {
     for (const style of styles) {
-      style.dispatchEvent(new Event("update"));
+      update(style);
     }
   });
 }
@@ -558,7 +558,7 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
       <Counter count={2} />
       <CounterSignal count={1} />
       <Drummer bpm={() => bpm} />
-      {/*<Drummer bpm={() => 120 - bpm} />*/}
+      <Drummer bpm={() => 120 - bpm} />
       <CustomInput defaultValue="Hey" />
       <Tabber />
       <hr />

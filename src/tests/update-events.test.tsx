@@ -71,7 +71,7 @@ test("parent-dispatch-child-update", async () => {
   }
 
   const parent = await mount(<App />, document.body);
-  const child = parent.querySelector(".child")!;
+  const child = parent.querySelector("radi-host radi-host")!;
 
   let childUpdates = 0;
   child.addEventListener("update", () => {
