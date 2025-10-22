@@ -210,13 +210,13 @@ test("large-keyed-table-renders-all-and-appends", async () => {
   assert.length(tbody.children, 0);
 
   // Generate 1000
-   generateBtn.click();
-   await Promise.resolve();
-   assert.length(root.querySelector("tbody")!.children, 100);
+  generateBtn.click();
+  await Promise.resolve();
+  assert.length(root.querySelector("tbody")!.children, 100);
 
   const originalRow2 = root.querySelector("tbody")!.children[1] as HTMLElement;
-   const originalRow999 = root.querySelector("tbody")!
-     .children[98] as HTMLElement;
+  const originalRow999 = root.querySelector("tbody")!
+    .children[98] as HTMLElement;
   const originalId2 = originalRow2.id;
   const originalId999 = originalRow999.id;
 
@@ -224,7 +224,7 @@ test("large-keyed-table-renders-all-and-appends", async () => {
   await Promise.resolve();
 
   const newRow2 = root.querySelector("tbody")!.children[1] as HTMLElement;
-   const newRow999 = root.querySelector("tbody")!.children[98] as HTMLElement;
+  const newRow999 = root.querySelector("tbody")!.children[98] as HTMLElement;
   assert.equal(newRow2.id, originalId999);
   assert.equal(newRow999.id, originalId2);
 });
@@ -235,7 +235,7 @@ test("update-rows", async () => {
   const generateBtn = root.querySelector(".btn-generate") as HTMLButtonElement;
   generateBtn.click();
   await Promise.resolve();
-   assert.length(root.querySelector("tbody")!.children, 100);
+  assert.length(root.querySelector("tbody")!.children, 100);
 
   const row0 = root.querySelector("tbody")!.children[0] as HTMLElement;
   const originalLabel = row0.querySelector(".col-label")!.textContent;
