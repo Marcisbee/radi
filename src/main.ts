@@ -1,9 +1,4 @@
-import {
-  dispatchLifecycle,
-  getElementsMarkedForUpdate,
-  LifecycleEvent,
-  onLifecycle,
-} from "./lifecycle.ts";
+import { getElementsMarkedForUpdate } from "./lifecycle.ts";
 import { Child, ReactiveGenerator, Subscribable } from "./types.ts";
 
 /** Internal extended element with optional component marker. */
@@ -454,9 +449,7 @@ export function createAbortSignal(target: Node): AbortSignal {
 /** Dispatch connect lifecycle if node is an element. */
 function dispatchConnectIfElement(node: Node): void {
   if (node.nodeType === Node.ELEMENT_NODE) {
-    // dispatchLifecycle("connect", node);
     dispatchConnect(node);
-    // node.dispatchEvent(new LifecycleEvent("connect", node));
   }
 }
 
@@ -464,7 +457,6 @@ function dispatchConnectIfElement(node: Node): void {
 function dispatchDisconnectIfElement(node: Node): void {
   if (node.nodeType === Node.ELEMENT_NODE) {
     (node as any).__radiAlreadyDisconnected = true;
-    // dispatchLifecycle("disconnect", node);
     dispatchDisconnect(node);
   }
 }
@@ -485,8 +477,6 @@ function safeAppend(parent: Node & ParentNode, child: Node): void {
     if ((child as any).__deferConnect) {
       delete (child as any).__deferConnect;
     } else {
-      // dispatchConnectIfElement(child);
-      // dispatchLifecycle("connect", child);
       dispatchConnect(child);
     }
   }
