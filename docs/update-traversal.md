@@ -1,264 +1,272 @@
-# Update Traversal Semantics in Radi
+# Flag-Based Update Traversal Semantics in Radi
 
-This document explains how the framework traverses the DOM to deliver `"update"`
-events. It covers:
+This document describes how Radi traverses the DOM to deliver `"update"` events,
+now using a compact flag bitmask (`__radiFlags`) instead of legacy boolean
+marker properties. It covers:
 
-- Core concepts (component hosts, reactive roots, eventable elements)
-- The traversal algorithm and its invariants
-- How duplication is prevented
-- Edge cases
-- Testing strategy
-- Usage recommendations and anti-patterns
-
----
-
-## Core Concepts
-
-Radi distinguishes three categories of elements for update propagation:
-
-1. Component Host A `<radi-host>` element created for a function component. It
-   may or may not be a reactive root depending on the component’s return value
-   (plain nodes vs a reactive generator function).
-
-2. Reactive Root An element whose content is produced by a reactive generator
-   (e.g. a function child, a component that returns a function, a
-   function-valued prop). Marked internally with `__reactiveRoot = true` and
-   subscribed to `"update"`.
-
-3. Eventable Element An element with reactive subscriptions (e.g. subscribables
-   bound via props) that must receive `"update"` to refresh derived state.
-   Marked with `__reactiveEvent = true`.
-
-The traversal selectively includes elements from these categories while
-preventing duplicate dispatches to nested component hosts under a reactive
-parent.
+- Flag taxonomy
+- Inclusion / exclusion rules
+- Duplicate prevention
+- Interaction with reconciliation (reuse vs remount)
+- Edge cases and examples
+- Testing guidance
+- Recommended usage patterns & anti‑patterns
+- FAQ
 
 ---
 
-## Goals of the Traversal
+## 1. Flag Taxonomy
 
-1. Deliver exactly one `"update"` event per eligible element per manual update
-   cycle (`update(node)`).
-2. Avoid cascading duplicate updates to component hosts that are already
-   refreshed implicitly during their parent’s reactive reconciliation.
-3. Preserve propagation when parents are structural (non-reactive) so nested
-   component hosts still receive updates.
-4. Maintain correctness for key-based reuse and remount semantics.
+Each relevant element is annotated (via helper functions) with one or more bits
+stored in `__radiFlags`:
 
----
+| Flag          | Bit      | Meaning                                                                 |
+| ------------- | -------- | ----------------------------------------------------------------------- |
+| COMPONENT     | `1 << 0` | A `<radi-host>` placeholder for a function component.                   |
+| REACTIVE_ROOT | `1 << 1` | Element whose DOM subtree is produced by a reactive generator function. |
+| EVENTABLE     | `1 << 2` | Element with subscriptions / reactive props needing `"update"`.         |
 
-## High-Level Behavior
+Flag setters:
 
-Calling `update(rootNode)` performs:
+- `markComponentHost(el)`
+- `markReactiveRoot(el)`
+- `markEventable(el)`
 
-- Increment of a global dispatch id (used elsewhere for potential dedupe).
-- A single pre-order DOM walk starting at `rootNode`.
-- Inclusion of:
-  - The root component host (if it is a component).
-  - Any reactive root (unless excluded—see below).
-  - Any element marked eventable.
-  - Nested component hosts only when NOT under a reactive ancestor.
-- Exclusion of nested component hosts that sit beneath any reactive root
-  ancestor (including if the root itself is reactive) to prevent
-  double-dispatch.
-- Independent component host reuse logic (during reconciliation) triggers a
-  single `"update"` for reused hosts whose props changed when invoked via a
-  render cycle.
+Predicates:
+
+- `isComponentHost(el)`
+- `isReactiveRoot(el)`
+- `isEventable(el)`
+
+Legacy fields removed: `__radiHost`, `__reactiveRoot`, `__reactiveEvent`.
 
 ---
 
-## Why Duplicates Happen (and the Fix)
+## 2. Traversal Overview
 
-Previously, nested component hosts inside an updating reactive parent could
-receive:
+Manual update cycles (`update(root)`) call `collectUpdateTargets(root)` which
+returns an ordered list of elements to receive a single `"update"` event.
 
-1. An `"update"` from the manual traversal.
-2. A second `"update"` from the reconciliation reuse path
-   (`canReuseComponentHost`).
+Traversal is a specialized pre-order walk with pruning rules designed to:
 
-This manifested as counters incrementing twice (e.g. `renders:1 -> renders:3`
-instead of `renders:2`) and failing tests like `key-flip-remounts` and nested
-reactive cases.
+1. Avoid duplicate reactive evaluations for nested component hosts.
+2. Keep runtime cost minimal by skipping subtrees that can only produce excluded
+   nodes.
+3. Preserve correctness for structural (non-reactive) parents.
 
-The fix:
-
-- Track reactive ancestor presence via a stack during traversal.
-- If an element is a component host and there is any reactive ancestor (root or
-  deeper), exclude it from the traversal list.
-- Rely on the reuse dispatch or remount behavior to trigger its single reactive
-  update.
+Lifecycle cascades (`connect` / `disconnect`) use
+`collectLifecycleTargets(root)`, a full descent walk (no pruning) ensuring every
+reactive root and eventable element receives the lifecycle notification
+necessary for subscription cleanup or generator initialization.
 
 ---
 
-## Inclusion & Exclusion Rules (Formalized)
+## 3. Inclusion & Exclusion Rules (Formal)
 
-Let:
+Let for an element `el`:
 
-- `R` = element is a reactive root (`__reactiveRoot`).
-- `C` = element is a component host (`__radiHost` or tag `RADI-HOST`).
-- `E` = element is eventable (`__reactiveEvent`).
-- `A` = we are inside any reactive ancestor (stack non-empty), excluding or
-  including root depending on its reactive state (current implementation counts
-  root if reactive).
+- `C` = COMPONENT flag set
+- `R` = REACTIVE_ROOT flag set
+- `E` = EVENTABLE flag set
+- `A` = currently under (descendant of) a reactive ancestor
+  (`reactiveDepth > 0`) — the root counts if it is reactive.
 
-For `update(root)`:
-
-Include element `el` if:
+Include `el` in update traversal if:
 
 - `(C && el === root)` OR
 - `(C && !A)` OR
-- `R` (and not excluded by nested component rule) OR
+- `R` OR
 - `E`
 
-Exclude if:
+Exclude `el` if:
 
-- `C && A && el !== root` (nested component under a reactive ancestor)
+- `C && A && el !== root`
 
-Skip descending into children of any reactive root during update (to reduce
-unnecessary traversal depth and avoid entering subtrees that would only produce
-excluded nested component hosts).
+Additionally:
 
----
+- Do not descend into children of any reactive root other than the root itself.
+  (Prune on `R && el !== root`)
 
-## Effects on Typical Structures
+Lifecycle traversal differs:
 
-1. Reactive Parent Hosting Plain Children All direct reactive elements and
-   eventable descendants receive updates; no exclusions.
-
-2. Reactive Parent Hosting Nested Components Parent receives update; nested
-   component hosts are excluded from traversal and updated via reuse dispatch
-   (if props change) or remain stable otherwise.
-
-3. Non-Reactive Parent Hosting Component Children Traversal includes the nested
-   component hosts (they are not under a reactive ancestor), so they directly
-   receive `"update"`.
-
-4. Deep Reactive Chain (Reactive → Reactive → Component) Only the top reactive
-   root is traversed; intermediate reactive roots are skipped for descent;
-   nested component hosts are excluded to prevent duplication.
+- Include elements with `R` or `E`.
+- Descend fully (no pruning).
+- Component hosts are not auto-included unless they also have `R` or `E`.
 
 ---
 
-## Remount vs Reuse
+## 4. Why Duplicate Updates Occurred Historically
 
-- Reuse occurs when keys and component identity match. Props are updated in
-  place, and a single `"update"` event is dispatched directly to the reused host
-  (not from traversal if nested under a reactive ancestor).
-- Remount occurs when the key changes or type differs; the old host disconnects,
-  new host connects, and the component function rebuilds state from scratch.
+Before pruning & exclusion logic:
 
-Implication:
+- A nested component host inside a reactive parent would be:
+  1. Explicitly included in the manual update traversal.
+  2. Also implicitly updated during reconciliation (props reuse dispatch).
+     Result: double `"update"` events → inflated render counters, failing tests.
 
-- Nested components with stable keys under reactive parents behave predictably
-  (single update per cycle).
-- Key changes still force remount resetting counters.
+Current fix:
 
----
-
-## Testing Strategy
-
-Added (or should add) dedicated tests for:
-
-1. Nested component under reactive ancestor receives exactly one update per
-   manual cycle.
-2. Nested component under non-reactive ancestor receives update directly via
-   traversal.
-3. Component remount on key flip resets internal counters.
-4. Reactive + nested reactive child (double reactive) does not duplicate
-   side-effects (e.g. trace push).
-5. Update propagation into eventable non-reactive elements (subscribable
-   bindings) remains intact.
-
-These tests isolate failure modes introduced by traversal changes and guard
-against regressions.
+- Exclude component hosts beneath any reactive ancestor.
+- Allow a single targeted `"update"` via reuse logic when props change.
 
 ---
 
-## Recommended Patterns
+## 5. Reconciliation Interaction
 
-- Use `update(this)` inside component event handlers to refresh that component
-  subtree.
-- Prefer function-returning components (reactive roots) when the component
-  manages internal dynamic lists or nested reactive content.
-- Avoid manually dispatching `"update"` to nested component hosts—let traversal
-  and reuse logic handle it.
+During reconciliation (key-based diff):
 
----
+- If a component host is reused (same component type + key), its props ref
+  updates and exactly one `"update"` event is dispatched directly on that host
+  (independent of traversal if under a reactive ancestor).
+- If keys or component types diverge → remount: disconnect old host, connect new
+  host, fresh build executed.
 
-## Anti-Patterns to Avoid
+Implications:
 
-- Calling `update()` on a deeply nested child repeatedly in rapid succession
-  when a higher-level update would suffice; this can lead to unnecessary work.
-- Depending on multiple side-effectful reactive generators within a single node
-  hierarchy for cumulative effects (e.g. pushing into arrays) without guarding
-  against double invocation—ensure idempotency or rely on the traversal
-  guarantees.
+- Stable keyed children under a reactive parent are only updated when their
+  props actually change.
+- Manual `update(parentReactiveRoot)` does not redundantly spike counter-based
+  side effects in nested components.
 
 ---
 
-## Future Considerations
+## 6. Typical Structures & Outcomes
 
-Potential improvements:
+1. Reactive parent with plain children
+   - Parent: included (`R`).
+   - Plain children: not directly included unless `E`.
+   - No pruning issues; minimal list.
 
-- Configurable traversal mode (e.g. include nested component hosts explicitly
-  for debugging).
-- Dev-only diagnostics flag to visualize the update inclusion set.
-- Performance optimization: caching last traversal shape for unchanged subtree
-  roots.
-- More explicit `UpdatePhase` markers to separate render-triggered update
-  dispatch from manual update cycles instead of using a boolean flag.
+2. Reactive parent with nested component hosts
+   - Parent: included.
+   - Nested hosts: excluded (under reactive ancestor).
+   - Reused hosts get localized `"update"` only when props change.
 
----
+3. Non-reactive parent with component children
+   - Component hosts included (no reactive ancestor).
+   - Each receives a direct `"update"` per manual cycle.
 
-## FAQ
+4. Chain: Reactive → Reactive → Component
+   - Only the top reactive root's children are pruned when encountering the next
+     reactive root; deeper nested component hosts under any reactive ancestor
+     are excluded.
+   - Prevents multiplicative evaluation.
 
-Q: Why not bubble `"update"` events? A: Bubbling would introduce ordering
-ambiguity and potential duplicate evaluations in nested reactive roots. Direct
-dispatch preserves deterministic evaluation.
-
-Q: Why exclude nested component hosts only under reactive ancestors? A: Reactive
-ancestors rerun a generator that virtually represents or touches the child
-component host. Dispatching traversal updates to that child host would double
-its reactive evaluation.
-
-Q: Do eventable elements (`__reactiveEvent`) ever get excluded? A: No. They are
-lightweight subscribers and exclusion would break expected propagation semantics
-for prop-bound subscribables.
+5. Eventable elements anywhere
+   - Always included (`E` never excluded), irrespective of reactive ancestry.
 
 ---
 
-## Practical Example (Described)
+## 7. Edge Cases
 
-Structure:
-
-- Root component host (reactive root) returns a list of keyed child component
-  hosts.
-- Manual `update(root)`:
-  - Traversal includes only the root host.
-  - Reconciliation reuses each keyed child host and dispatches exactly one
-    `"update"` to each.
-  - No duplicates, stable ordering guarantees preserved.
-
-Contrast:
-
-- Non-reactive parent `<div>` containing two component hosts.
-  - Manual `update(div)` includes both nested component hosts directly; no reuse
-    dispatch duplication.
+| Case                                       | Behavior                                                                                                           |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Root itself is a reactive component host   | Included once (root `C` + `R`), descendants pruned per rules.                                                      |
+| Component host inside non-reactive `<div>` | Included (no reactive ancestor).                                                                                   |
+| Detached subtree passed to `update(node)`  | Traversal runs; events dispatch only to that subtree; no side leaks.                                               |
+| Mixed flags (component also eventable)     | Inclusion determined once; eventable status doesn’t override exclusion when nested under reactive ancestor if `C`. |
+| Dynamically added flags mid-cycle          | Flags inspected at traversal time; additions after list creation require another cycle to pick up.                 |
 
 ---
 
-## Conclusion
+## 8. Testing Guidance
 
-The current traversal design balances correctness (single evaluation per update
-cycle) with flexibility (propagation through structural parents). Understanding
-these semantics helps avoid subtle state inconsistencies and supports writing
-predictable reactive components.
+Recommended unit tests:
 
-If you extend the lifecycle system, ensure new behaviors uphold:
+1. Single dispatch for nested component under reactive ancestor.
+2. Direct dispatch for component under non-reactive parent.
+3. Key flip causes remount (state reset, counter returns to initial).
+4. Double reactive chain yields no duplicate side effects.
+5. Eventable element still receives update under reactive ancestor.
+6. Reuse dispatch triggers one update when props change; none when stable.
+7. Pruned subtree: verify children of nested reactive root not traversed for
+   component hosts.
+8. Lifecycle cascade reaches deep eventable nodes (connect/disconnect).
 
-1. Single dispatch per node per cycle.
-2. Clear separation of render vs manual update triggers.
-3. No reliance on fragile identity checks (`instanceof`) across bundling
-   boundaries.
+Keep tests deterministic—avoid time-based assertions; rely on counters or trace
+arrays.
 
-Feel free to amend this document as the system evolves.
+---
+
+## 9. Recommended Patterns
+
+- Use `update(this)` inside component event handlers to refresh just that
+  component subtree.
+- Prefer function-returning components (reactive roots) for dynamic list
+  rendering and consolidated reactive logic.
+- Bind subscribables via props; rely on eventable refresh rather than manual
+  subscription micro-management.
+- Use keys sparingly and consistently for stable reuse; avoid changing keys
+  solely to force updates (consider explicit state changes instead).
+
+---
+
+## 10. Anti-Patterns
+
+- Firing `update()` repeatedly on deeply nested children instead of a higher
+  ancestor.
+- Introducing side-effectful operations inside reactive generators without
+  ensuring idempotence (generators can re-run).
+- Using key churn (random keys) to force remount semantics for state
+  resets—prefer explicit teardown logic or controlled reinitialization.
+- Manually dispatching `"update"` events to nested component hosts under
+  reactive parents—traversal exclusion prevents the need.
+
+---
+
+## 11. FAQ
+
+**Q: Why not bubble `"update"` events?**\
+Bubbling risks unordered evaluation and duplicate generator runs. Direct
+dispatch gives deterministic top-down control.
+
+**Q: Why exclude nested component hosts only under reactive ancestors?**\
+Reactive ancestors re-run generators that logically wrap or touch component
+hosts. Traversal updates would double their evaluation cost.
+
+**Q: Are EVENTABLE elements ever excluded?**\
+No. Lightweight subscription refresh must always occur.
+
+**Q: Can I force inclusion of excluded nested component hosts for debugging?**\
+You can temporarily remove the reactive parent flag or call `update(host)`
+directly on the child component host for targeted inspection.
+
+**Q: How do reused component hosts get updated if excluded from traversal?**\
+Reconciliation directly dispatches a single `"update"` when props change (reuse
+path).
+
+---
+
+## 12. Extensibility Guidelines
+
+When adding new behavior or flags:
+
+1. Maintain single-dispatch invariant per cycle.
+2. Document any new traversal pruning rationale.
+3. Avoid relying on fragile instance identity (`instanceof`)—continue tag/flag
+   approach.
+4. Provide dev-only diagnostics rather than altering core traversal semantics
+   for debugging.
+
+Potential future additions:
+
+- Dev mode visualization overlay for included targets.
+- Optional debug traversal that lists excluded component hosts.
+- Memoized traversal shape cache for static subtrees (profile before
+  implementing).
+
+---
+
+## 13. Summary
+
+The flag-based traversal system delivers predictable, minimal `"update"` events:
+
+- Compact bitmask storage.
+- Pruning prevents duplicate component host evaluations.
+- Reconciliation integrates cleanly with traversal semantics.
+- Eventable propagation remains intact across complex nested reactive
+  hierarchies.
+
+Understanding these rules ensures performant, correct reactive component design
+without subtle double-render pitfalls. Update this document as invariants
+evolve, keeping explicit reasoning tied to flag usage and pruning logic.

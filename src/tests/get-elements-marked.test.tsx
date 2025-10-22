@@ -1,16 +1,16 @@
 import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
-import { getElementsMarkedForUpdate } from "../lifecycle.ts";
+import { collectUpdateTargets } from "../lifecycle.ts";
 import { update } from "../main.ts";
 
 /**
  * Helpers
  */
-function debugMarkedLocal(root: Node, update = true): string[] {
-  return getElementsMarkedForUpdate(root, update).map((el) => el.nodeName);
+function debugMarkedLocal(root: Node): string[] {
+  return collectUpdateTargets(root).map((el) => el.nodeName);
 }
 function names(root: Node): string[] {
-  return debugMarkedLocal(root, true);
+  return debugMarkedLocal(root);
 }
 
 test.before.each(() => {

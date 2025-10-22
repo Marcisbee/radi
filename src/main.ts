@@ -1,4 +1,10 @@
-import { getElementsMarkedForUpdate } from "./lifecycle.ts";
+import {
+  collectLifecycleTargets,
+  collectUpdateTargets,
+  markComponentHost,
+  markEventable,
+  markReactiveRoot,
+} from "./lifecycle.ts";
 import { Child, ReactiveGenerator, Subscribable } from "./types.ts";
 
 /** Internal extended element with optional component marker. */
@@ -28,8 +34,6 @@ function disconnect(target: Node) {
 
 /** Custom Radi component host element with built-in connect/disconnect lifecycle. */
 export class RadiHostElement extends HTMLElement {
-  public __radiHost = true;
-
   connectedCallback() {
     connect(this);
   }
@@ -49,8 +53,7 @@ if (!customElements.get(RADI_HOST_TAG)) {
  * Uses a stable tag + marker property instead of instanceof to survive duplicate module copies.
  */
 function isRadiHost(node: any): boolean {
-  return !!(node &&
-    (node.__radiHost || node.nodeName === RADI_HOST_TAG.toUpperCase()));
+  return !!(node && node.nodeName === RADI_HOST_TAG.toUpperCase());
 }
 
 // Listen for connect events to flush component build queue
@@ -196,7 +199,9 @@ function subscribeAndReconcileRange(
       }
     }
     // console.log("DISC1");
-    (disconnectTarget || start).__reactiveEvent = true;
+    if (disconnectTarget) {
+      markEventable(disconnectTarget);
+    }
     (disconnectTarget || start)?.addEventListener?.("disconnect", () => {
       safelyRunUnsubscribe(unsub);
     });
@@ -220,7 +225,7 @@ function subscribeAndReconcileRange(
         dispatchRenderError(parentEl, err);
       }
     });
-    parentEl.__reactiveEvent = true;
+    markEventable(parentEl);
     // console.log("DISC2", parentEl.__reactiveRoot);
     parentEl.addEventListener("disconnect", () => {
       safelyRunUnsubscribe(unsub);
@@ -502,7 +507,7 @@ function safeRemove(parent: Node & ParentNode, child: Node): void {
 }
 
 function dispatchConnect(node: Node): void {
-  for (const el of getElementsMarkedForUpdate(node, false)) {
+  for (const el of collectLifecycleTargets(node)) {
     if (el !== node) {
       connect(el);
     }
@@ -510,7 +515,7 @@ function dispatchConnect(node: Node): void {
 }
 
 function dispatchDisconnect(node: Node): void {
-  for (const el of getElementsMarkedForUpdate(node, false)) {
+  for (const el of collectLifecycleTargets(node)) {
     if (el !== node) {
       disconnect(el);
     }
@@ -518,7 +523,7 @@ function dispatchDisconnect(node: Node): void {
 }
 
 export function update(root: Node): void {
-  for (const el of getElementsMarkedForUpdate(root, true)) {
+  for (const el of collectUpdateTargets(root)) {
     el.dispatchEvent(new Event("update"));
   }
 }
@@ -978,7 +983,7 @@ function setupReactiveRender(container: Element, fn: ReactiveGenerator): void {
       dispatchRenderError(container, err);
     }
   };
-  (container as any).__reactiveRoot = true;
+  markReactiveRoot(container);
   container.addEventListener("update", renderFn);
   renderFn();
 }
@@ -1089,6 +1094,7 @@ function createComponentPlaceholder(
       __componentPending?: { type: Function; props: any };
       __deferConnect?: boolean;
     };
+  markComponentHost(placeholder);
 
   assignKeyIfPresent(placeholder, props);
   placeholder.style.display = "contents";
@@ -1165,12 +1171,12 @@ function applyPropsToPlainElement(
       continue;
     }
     if (typeof value === "function") {
-      element.__reactiveRoot = true;
+      markReactiveRoot(element);
       bindFunctionProp(element, key, value as (el: Element) => unknown);
       continue;
     }
     if (isSubscribable(value)) {
-      element.__reactiveEvent = true;
+      markEventable(element);
       bindSubscribableProp(element, key, value);
       continue;
     }
