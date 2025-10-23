@@ -33,35 +33,33 @@
 /* -------------------------------------------------------------------------- */
 
 export {
-  createElement,          // JSX element/component factory (Radi semantics)
-  Fragment,               // Fragment token
-  createRoot,             // Root manager with reconcile-based rendering
-  createAbortSignal,      // AbortSignal tied to disconnect lifecycle
-  connect,                // Direct lifecycle event dispatch
+  connect, // Direct lifecycle event dispatch
+  createAbortSignal, // AbortSignal tied to disconnect lifecycle
+  createElement, // JSX element/component factory (Radi semantics)
+  createRoot, // Root manager with reconcile-based rendering
   disconnect,
   dispatchConnect,
   dispatchDisconnect,
-  update,                 // Manual update traversal dispatch
-} from './main.ts';
+  Fragment, // Fragment token
+  update, // Manual update traversal dispatch
+} from "./main.ts";
 
 /* -------------------------------------------------------------------------- */
 /* Universal renderer exports (for advanced/custom use)                       */
 /* -------------------------------------------------------------------------- */
 
 export {
-  createRenderer,
   createDomAdapter,
+  createRenderer,
   createServerStringAdapter, // Useful for isomorphic setups (optional client-side import)
   DOM_RENDERER,
-} from './renderer.ts';
+} from "./renderer.ts";
 
 /* -------------------------------------------------------------------------- */
 /* Convenience aliases from the preconfigured DOM universal renderer          */
 /* -------------------------------------------------------------------------- */
 
-import {
-  DOM_RENDERER,
-} from './renderer.ts';
+import { DOM_RENDERER } from "./renderer.ts";
 
 /**
  * Destructure DOM universal renderer for lower-level control.

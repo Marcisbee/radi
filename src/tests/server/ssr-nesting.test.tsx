@@ -12,12 +12,12 @@
  * with the public Child union; tests focus on string output correctness.
  */
 
-import { assert, test } from '@marcisbee/rion';
+import { assert, test } from "@marcisbee/rion";
 import {
-  renderToStringRoot,
   createElement as h,
   Fragment,
-} from '../../server.ts';
+  renderToStringRoot,
+} from "../../server.ts";
 
 /* -------------------------------------------------------------------------- */
 /* Local assertion helpers                                                     */
@@ -65,13 +65,13 @@ function sub<T>(value: T) {
 
 function Leaf(props: () => { label: string; flag?: boolean }) {
   return h(
-    'div',
-    { 'data-leaf': props().label },
+    "div",
+    { "data-leaf": props().label },
     props().label,
     7,
     props().flag ?? false,
     null,
-    h(Fragment, null, 'frag-part', h('i', null, 'italic')),
+    h(Fragment, null, "frag-part", h("i", null, "italic")),
   );
 }
 
@@ -80,17 +80,17 @@ function Middle(props: () => { label: string; extra?: string }) {
     Fragment,
     null,
     h(Leaf, { label: props().label, flag: true }),
-    h('span', null, props().extra || 'no-extra'),
-    sub('store-value'),
+    h("span", null, props().extra || "no-extra"),
+    sub("store-value"),
   );
 }
 
 function RootNest(props: () => { base: string }) {
   return [
-    h('header', null, 'Header:', props().base),
-    h(Middle, { label: props().base + '-mid', extra: 'X' }),
-    h(Middle, { label: props().base + '-alt' }),
-    h('footer', null, 'Footer'),
+    h("header", null, "Header:", props().base),
+    h(Middle, { label: props().base + "-mid", extra: "X" }),
+    h(Middle, { label: props().base + "-alt" }),
+    h("footer", null, "Footer"),
   ];
 }
 
@@ -98,101 +98,107 @@ function RootNest(props: () => { base: string }) {
 /* Tests                                                                       */
 /* -------------------------------------------------------------------------- */
 
-test('ssr: deep nested components & primitives', () => {
+test("ssr: deep nested components & primitives", () => {
   const html = renderToStringRoot(
-    h('section', { id: 'app' }, h(RootNest, { base: 'root' })),
+    h("section", { id: "app" }, h(RootNest, { base: "root" })),
   );
 
   // Top-level wrapper
   includes(html, '<section id="app">');
-  includes(html, '</section>');
+  includes(html, "</section>");
 
   // Component wrappers
-  atLeast(html, '<radi-component>', 3);
+  atLeast(html, "<radi-component>", 3);
 
   // Leaf + middle content
-  includes(html, 'Header:root');
-  includes(html, 'root-mid');
-  includes(html, 'root-alt');
-  includes(html, '<footer>Footer</footer>');
+  includes(html, "Header:root");
+  includes(html, "root-mid");
+  includes(html, "root-alt");
+  includes(html, "<footer>Footer</footer>");
 
   // Fragment + inner italic
-  includes(html, '<radi-fragment>');
-  includes(html, 'frag-part');
-  includes(html, '<i>italic</i>');
+  includes(html, "<radi-fragment>");
+  includes(html, "frag-part");
+  includes(html, "<i>italic</i>");
 
   // Subscribable one-shot insertion
-  includes(html, 'store-value');
+  includes(html, "store-value");
 
   // Boolean/null markers: flag=true yields only true + null (no false)
-    includes(html, '<!--true-->');
-    includes(html, '<!--null-->');
+  includes(html, "<!--true-->");
+  includes(html, "<!--null-->");
 });
 
-test('ssr: subscribable inside fragment sibling structure', () => {
+test("ssr: subscribable inside fragment sibling structure", () => {
   const html = renderToStringRoot(
-    h(Fragment, null,
-      sub('first-layer'),
-      h(Middle, { label: 'deep', extra: '<raw>' }),
+    h(
+      Fragment,
+      null,
+      sub("first-layer"),
+      h(Middle, { label: "deep", extra: "<raw>" }),
     ),
   );
 
-  includes(html, 'first-layer');
-  includes(html, 'deep');
-  includes(html, '&lt;raw&gt;'); // escaped extra value
+  includes(html, "first-layer");
+  includes(html, "deep");
+  includes(html, "&lt;raw&gt;"); // escaped extra value
   // Explicit extra provided; 'no-extra' placeholder should not appear
 });
 
-test('ssr: component error surfaces marker', () => {
+test("ssr: component error surfaces marker", () => {
   function Bad(_p: () => Record<string, unknown>) {
-    throw new Error('explode');
+    throw new Error("explode");
   }
   const html = renderToStringRoot(
-    h('div', null,
-      h(RootNest, { base: 'ok' }),
+    h(
+      "div",
+      null,
+      h(RootNest, { base: "ok" }),
       h(Bad, null),
-      h(Leaf, { label: 'final' }),
+      h(Leaf, { label: "final" }),
     ),
   );
 
-  includes(html, '<radi-component>');
-  includes(html, 'component-error');
-  includes(html, 'final');
+  includes(html, "<radi-component>");
+  includes(html, "component-error");
+  includes(html, "final");
 });
 
-test('ssr: mixed nesting with multiple fragments & components', () => {
+test("ssr: mixed nesting with multiple fragments & components", () => {
   const html = renderToStringRoot(
-    h(Fragment, null,
-      h(Leaf, { label: 'A' }),
-      h(Middle, { label: 'B' }),
-      h(RootNest, { base: 'C' }),
+    h(
+      Fragment,
+      null,
+      h(Leaf, { label: "A" }),
+      h(Middle, { label: "B" }),
+      h(RootNest, { base: "C" }),
     ),
   );
   includes(html, 'data-leaf="A"');
   includes(html, 'data-leaf="B"');
-  includes(html, 'Header:C');
-  atLeast(html, '<radi-component>', 3);
+  includes(html, "Header:C");
+  atLeast(html, "<radi-component>", 3);
 });
 
-test('ssr: ensure no second emission from multi-shot pattern', () => {
+test("ssr: ensure no second emission from multi-shot pattern", () => {
   const multi = {
     subscribe(fn: (v: string) => void) {
-      fn('once');
-      fn('twice');
+      fn("once");
+      fn("twice");
     },
   };
   const html = renderToStringRoot(
-    h('div', null, multi),
+    h("div", null, multi),
   );
-  includes(html, 'once');
-  notIncludes(html, 'twice');
+  includes(html, "once");
+  notIncludes(html, "twice");
 });
 
-test('ssr: boolean/null markers appear inside nested leaf only once per primitive', () => {
-  const html = renderToStringRoot(h(Leaf, { label: 'flags', flag: true }));
+test("ssr: boolean/null markers appear inside nested leaf only once per primitive", () => {
+  const html = renderToStringRoot(h(Leaf, { label: "flags", flag: true }));
   // Leaf with flag=true emits true + null markers (no false marker in its child list)
-  atLeast(html, '<!--true-->', 1);
-  atLeast(html, '<!--null-->', 1);
+  atLeast(html, "<!--true-->", 1);
+  atLeast(html, "<!--null-->", 1);
 });
 
 /* -------------------------------------------------------------------------- */

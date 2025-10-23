@@ -17,12 +17,12 @@ const bench = new Bench({
   bench.add(
     "radi",
     async () => {
-      (document.getElementById('clear') as HTMLButtonElement).click();
+      (document.getElementById("clear") as HTMLButtonElement).click();
       await waitForXPath("//tbody[not(tr)]");
     },
     {
       async beforeEach() {
-        (document.getElementById('run') as HTMLButtonElement).click();
+        (document.getElementById("run") as HTMLButtonElement).click();
         await waitForXPath("//tbody/tr[1000]");
       },
       async beforeAll() {
@@ -44,12 +44,12 @@ const bench = new Bench({
   bench.add(
     "vanilla",
     async () => {
-      (document.getElementById('clear') as HTMLButtonElement).click();
+      (document.getElementById("clear") as HTMLButtonElement).click();
       await waitForXPath("//tbody[not(tr)]");
     },
     {
       async beforeEach() {
-        (document.getElementById('run') as HTMLButtonElement).click();
+        (document.getElementById("run") as HTMLButtonElement).click();
         await waitForXPath("//tbody/tr[1000]");
       },
       async beforeAll() {
@@ -65,12 +65,12 @@ const bench = new Bench({
   bench.add(
     "react",
     async () => {
-      (document.getElementById('clear') as HTMLButtonElement).click();
+      (document.getElementById("clear") as HTMLButtonElement).click();
       await waitForXPath("//tbody[not(tr)]");
     },
     {
       async beforeEach() {
-        (document.getElementById('run') as HTMLButtonElement).click();
+        (document.getElementById("run") as HTMLButtonElement).click();
         await waitForXPath("//tbody/tr[1000]");
       },
       async beforeAll() {

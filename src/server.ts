@@ -35,13 +35,13 @@
  * because they depend on real browser `document` operations.
  */
 
-import type { Child } from './types.ts';
+import type { Child } from "./types.ts";
 import {
-  SERVER_RENDERER,
+  createDomAdapter, // exported for symmetry (may be useful in isomorphic setups)
   createRenderer,
   createServerStringAdapter,
-  createDomAdapter, // exported for symmetry (may be useful in isomorphic setups)
-} from './renderer.ts';
+  SERVER_RENDERER,
+} from "./renderer.ts";
 
 /* -------------------------------------------------------------------------- */
 /* Destructure preconfigured server renderer                                   */
@@ -65,7 +65,7 @@ const {
  */
 export function renderToStringRoot(child: Child): string {
   if (!renderToString) {
-    throw new Error('Server renderer missing renderToString implementation.');
+    throw new Error("Server renderer missing renderToString implementation.");
   }
   return renderToString(child);
 }
@@ -88,18 +88,18 @@ export { SERVER_RENDERER };
 
 /** Factory helpers for building custom server adapters/renderers. */
 export {
+  createDomAdapter, // intentionally exposed: allows hybrid/isomorphic patterns
   createRenderer,
   createServerStringAdapter,
-  createDomAdapter, // intentionally exposed: allows hybrid/isomorphic patterns
 };
 
 /** Low-level universal creation helpers (NOT the same as DOM Radi createElement). */
 export {
-  ssrCreateElement as createElement,
-  ssrFragment as Fragment,
-  ssrCreateTextNode as createTextNode,
-  ssrCreateComment as createComment,
   renderToString,
+  ssrCreateComment as createComment,
+  ssrCreateElement as createElement,
+  ssrCreateTextNode as createTextNode,
+  ssrFragment as Fragment,
 };
 
 /* -------------------------------------------------------------------------- */

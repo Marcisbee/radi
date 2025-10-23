@@ -23,8 +23,8 @@
 import {
   createElement as ssrCreateElement,
   Fragment as SSRFragment,
-} from './server.ts';
-import type { ComponentType } from './renderer.ts';
+} from "./server.ts";
+import type { ComponentType } from "./renderer.ts";
 
 type ServerChild = unknown;
 
@@ -91,10 +91,10 @@ export function jsxDEV(
   const p: Record<string, unknown> = props ? { ...props } : {};
   if (key != null) p.key = key;
   if (source) {
-    Object.defineProperty(p, '__source', { value: source, enumerable: false });
+    Object.defineProperty(p, "__source", { value: source, enumerable: false });
   }
   if (self) {
-    Object.defineProperty(p, '__self', { value: self, enumerable: false });
+    Object.defineProperty(p, "__self", { value: self, enumerable: false });
   }
   return prepare(type, p, key);
 }

@@ -18,4 +18,4 @@
  * This file intentionally only re-exports the symbols. The server runtime
  * already includes a `jsxDEV` factory variant suitable for dev transforms.
  */
-export * from './server-jsx-runtime.ts';
+export * from "./server-jsx-runtime.ts";

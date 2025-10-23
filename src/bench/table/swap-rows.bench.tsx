@@ -17,7 +17,7 @@ const bench = new Bench({
   bench.add(
     "radi",
     async () => {
-      (document.getElementById('swaprows') as HTMLButtonElement).click();
+      (document.getElementById("swaprows") as HTMLButtonElement).click();
       // Force layout read to avoid batching and ensure DOM is updated
       document.body.offsetHeight;
       // Wait for both swapped positions to exist (indexes 2 and 999) ensuring full table rendered
@@ -26,7 +26,7 @@ const bench = new Bench({
     },
     {
       async beforeEach() {
-        (document.getElementById('run') as HTMLButtonElement).click();
+        (document.getElementById("run") as HTMLButtonElement).click();
         await waitForXPath("//tbody/tr[1000]");
       },
       async beforeAll() {
@@ -48,12 +48,12 @@ const bench = new Bench({
   bench.add(
     "vanilla",
     async () => {
-      (document.getElementById('swaprows') as HTMLButtonElement).click();
+      (document.getElementById("swaprows") as HTMLButtonElement).click();
       await waitForXPath("//tbody/tr[1000]");
     },
     {
       async beforeEach() {
-        (document.getElementById('run') as HTMLButtonElement).click();
+        (document.getElementById("run") as HTMLButtonElement).click();
         await waitForXPath("//tbody/tr[1000]");
       },
       async beforeAll() {
@@ -69,12 +69,12 @@ const bench = new Bench({
   bench.add(
     "react",
     async () => {
-      (document.getElementById('swaprows') as HTMLButtonElement).click();
+      (document.getElementById("swaprows") as HTMLButtonElement).click();
       await waitForXPath("//tbody/tr[1000]");
     },
     {
       async beforeEach() {
-        (document.getElementById('run') as HTMLButtonElement).click();
+        (document.getElementById("run") as HTMLButtonElement).click();
         await waitForXPath("//tbody/tr[1000]");
       },
       async beforeAll() {

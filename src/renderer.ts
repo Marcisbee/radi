@@ -29,7 +29,7 @@
  * NOTE: This abstraction is intentionally minimal to keep core size small.
  */
 
-import type { Child, ReactiveGenerator, Subscribable } from './types.ts';
+import type { Child, ReactiveGenerator, Subscribable } from "./types.ts";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                       */
@@ -60,7 +60,11 @@ export interface RendererAdapter {
   setProperty(node: UniversalNode, name: string, value: unknown): void;
 
   // Tree mutation
-  insertNode(parent: UniversalNode, node: UniversalNode, anchor?: UniversalNode | null): void;
+  insertNode(
+    parent: UniversalNode,
+    node: UniversalNode,
+    anchor?: UniversalNode | null,
+  ): void;
   removeNode(parent: UniversalNode, node: UniversalNode): void;
 
   // Navigation helpers (used for serialization or future diffing)
@@ -77,7 +81,11 @@ export interface RendererAdapter {
 }
 
 export interface Renderer {
-  createElement(type: string | ComponentType, props: Record<string, unknown> | null, ...children: Child[]): UniversalNode;
+  createElement(
+    type: string | ComponentType,
+    props: Record<string, unknown> | null,
+    ...children: Child[]
+  ): UniversalNode;
   createTextNode(text: string): UniversalNode;
   createComment(text: string): UniversalNode;
   render(root: UniversalNode, child: Child): UniversalNode;
@@ -85,7 +93,9 @@ export interface Renderer {
   fragment(children: Child[]): UniversalNode;
 }
 
-export type ComponentType = (props: () => Record<string, unknown>) => Child | Child[];
+export type ComponentType = (
+  props: () => Record<string, unknown>,
+) => Child | Child[];
 
 /* -------------------------------------------------------------------------- */
 /* Utility Normalization                                                       */
@@ -100,12 +110,12 @@ function toChildArray(child: Child | Child[]): Child[] {
 }
 
 function isSubscribableValue(value: unknown): value is Subscribable<unknown> {
-  return !!value && typeof value === 'object' &&
-    typeof (value as { subscribe?: unknown }).subscribe === 'function';
+  return !!value && typeof value === "object" &&
+    typeof (value as { subscribe?: unknown }).subscribe === "function";
 }
 
 function _isReactiveFn(value: unknown): value is ReactiveGenerator {
-  return typeof value === 'function';
+  return typeof value === "function";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -133,7 +143,7 @@ function expandChild(
       queue.unshift(...item);
       continue;
     }
-    if (typeof item === 'function') {
+    if (typeof item === "function") {
       const produced = invokeReactive(item as ReactiveGenerator);
       queue.unshift(...toChildArray(produced));
       continue;
@@ -148,16 +158,19 @@ function expandChild(
 /* -------------------------------------------------------------------------- */
 
 /** Build a platform node from a single primitive child (string/number/boolean/null). */
-function buildPrimitiveNode(value: unknown, adapter: RendererAdapter): UniversalNode {
-  if (value == null) return adapter.createComment('null');
+function buildPrimitiveNode(
+  value: unknown,
+  adapter: RendererAdapter,
+): UniversalNode {
+  if (value == null) return adapter.createComment("null");
   switch (typeof value) {
-    case 'string':
-    case 'number':
+    case "string":
+    case "number":
       return adapter.createTextNode(String(value));
-    case 'boolean':
-      return adapter.createComment(value ? 'true' : 'false');
+    case "boolean":
+      return adapter.createComment(value ? "true" : "false");
     default:
-      return adapter.createComment('unsupported');
+      return adapter.createComment("unsupported");
   }
 }
 
@@ -178,7 +191,8 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
     }
   };
   function isUniversalNode(val: unknown): val is UniversalNode {
-    return !!val && typeof val === 'object' && 'node' in (val as Record<string, unknown>);
+    return !!val && typeof val === "object" &&
+      "node" in (val as Record<string, unknown>);
   }
 
   /**
@@ -202,7 +216,7 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
             adapter.insertNode(parent, prim);
           });
         } catch {
-          adapter.insertNode(parent, adapter.createComment('sub-error'));
+          adapter.insertNode(parent, adapter.createComment("sub-error"));
         }
         continue;
       }
@@ -220,7 +234,7 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
    */
   function fragment(children: Child[]): UniversalNode {
     // Simplified fragment representation as a lightweight element wrapper
-    const frag = adapter.createElement('radi-fragment');
+    const frag = adapter.createElement("radi-fragment");
     insertChildren(frag, children);
     return frag;
   }
@@ -228,8 +242,12 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
   /**
    * Create a universal element or component instance.
    */
-  function createElement(type: string | ComponentType, props: Record<string, unknown> | null, ...children: Child[]): UniversalNode {
-    if (typeof type === 'function') {
+  function createElement(
+    type: string | ComponentType,
+    props: Record<string, unknown> | null,
+    ...children: Child[]
+  ): UniversalNode {
+    if (typeof type === "function") {
       // Fragment sentinel: if the caller passes the internal fragment helper directly
       // (e.g. h(Fragment, null, ...children)), treat it as a fragment with provided children.
       if ((type as unknown) === fragment) {
@@ -241,10 +259,13 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
       try {
         produced = type(propsGetter);
       } catch {
-        produced = ['component-error'];
+        produced = ["component-error"];
       }
-      const componentWrapper = adapter.createElement('radi-component');
-      insertChildren(componentWrapper, expandChild(produced, adapter, runReactive));
+      const componentWrapper = adapter.createElement("radi-component");
+      insertChildren(
+        componentWrapper,
+        expandChild(produced, adapter, runReactive),
+      );
       return componentWrapper;
     }
 
@@ -278,10 +299,10 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
    * Builds a temporary root, inserts content, then serializes.
    */
   function renderToString(child: Child): string {
-    if (typeof adapter.serialize !== 'function') {
-      throw new Error('Adapter does not support serialization');
+    if (typeof adapter.serialize !== "function") {
+      throw new Error("Adapter does not support serialization");
     }
-    const root = adapter.createElement('radi-root-ssr');
+    const root = adapter.createElement("radi-root-ssr");
     render(root, child);
     return adapter.serialize(root);
   }
@@ -323,11 +344,11 @@ export function createDomAdapter(doc: Document = document): RendererAdapter {
     },
     setProperty(node: DomWrap, name: string, value: unknown): void {
       const n = node.node as any;
-      if (name === 'style' && value && typeof value === 'object') {
+      if (name === "style" && value && typeof value === "object") {
         Object.assign(n.style, value as Record<string, unknown>);
         return;
       }
-      if (name.startsWith('on') && typeof value === 'function') {
+      if (name.startsWith("on") && typeof value === "function") {
         const evt = name.slice(2).toLowerCase();
         n.addEventListener(evt, value);
         return;
@@ -380,7 +401,7 @@ export function createDomAdapter(doc: Document = document): RendererAdapter {
  */
 export function createServerStringAdapter(): RendererAdapter {
   interface VNode {
-    type: 'element' | 'text' | 'comment' | 'root';
+    type: "element" | "text" | "comment" | "root";
     tag?: string;
     text?: string;
     comment?: string;
@@ -389,7 +410,7 @@ export function createServerStringAdapter(): RendererAdapter {
     parent?: VNode | null;
   }
 
-  function make(type: VNode['type'], init: Partial<VNode> = {}): UniversalNode {
+  function make(type: VNode["type"], init: Partial<VNode> = {}): UniversalNode {
     const vnode: VNode = { type, children: [], parent: null, ...init };
     return {
       node: vnode,
@@ -407,20 +428,24 @@ export function createServerStringAdapter(): RendererAdapter {
 
   const adapter: RendererAdapter = {
     createElement(tag: string): UniversalNode {
-      return make('element', { tag, props: {} });
+      return make("element", { tag, props: {} });
     },
     createTextNode(text: string): UniversalNode {
-      return make('text', { text });
+      return make("text", { text });
     },
     createComment(text: string): UniversalNode {
-      return make('comment', { comment: text });
+      return make("comment", { comment: text });
     },
     setProperty(node: UniversalNode, name: string, value: unknown): void {
       const v = unwrap(node);
       if (!v.props) v.props = {};
       v.props[name] = value;
     },
-    insertNode(parent: UniversalNode, node: UniversalNode, anchor?: UniversalNode | null): void {
+    insertNode(
+      parent: UniversalNode,
+      node: UniversalNode,
+      anchor?: UniversalNode | null,
+    ): void {
       const p = unwrap(parent);
       const c = unwrap(node);
       c.parent = p;
@@ -460,46 +485,52 @@ export function createServerStringAdapter(): RendererAdapter {
       return next ? { node: next } as UniversalNode : null;
     },
     isTextNode(node: UniversalNode): boolean {
-      return unwrap(node).type === 'text';
+      return unwrap(node).type === "text";
     },
     serialize(root: UniversalNode): string {
       const v = unwrap(root);
       function esc(val: unknown): string {
         return String(val)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;');
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
       }
       function walk(n: VNode): string {
         switch (n.type) {
-          case 'text':
-            return esc(n.text ?? '');
-          case 'comment':
-            return `<!--${esc(n.comment ?? '')}-->`;
-          case 'element': {
+          case "text":
+            return esc(n.text ?? "");
+          case "comment":
+            return `<!--${esc(n.comment ?? "")}-->`;
+          case "element": {
             const attrs = n.props
               ? Object.entries(n.props)
                 // Include null-valued attributes (serialized as "null"); omit only undefined and functions.
-                .filter(([attr, val]) => val !== undefined && typeof val !== 'function')
+                .filter(([attr, val]) =>
+                  val !== undefined && typeof val !== "function"
+                )
                 .map(([attr, val]) => {
-                  const rendered = val === null ? 'null' : val;
+                  const rendered = val === null ? "null" : val;
                   return `${attr}="${esc(rendered)}"`;
-                }).join(' ')
-              : '';
+                }).join(" ")
+              : "";
             const open = attrs ? `<${n.tag} ${attrs}>` : `<${n.tag}>`;
-            const childrenHTML = n.children.map(walk).join('');
+            const childrenHTML = n.children.map(walk).join("");
             return `${open}${childrenHTML}</${n.tag}>`;
           }
-          case 'root':
-            return n.children.map(walk).join('');
+          case "root":
+            return n.children.map(walk).join("");
           default:
-            return '';
+            return "";
         }
       }
-      if (v.type === 'root') return walk(v);
+      if (v.type === "root") return walk(v);
       // Wrap non-root in a synthetic root for serialization
-      const syntheticRoot: VNode = { type: 'root', children: [v], parent: null };
+      const syntheticRoot: VNode = {
+        type: "root",
+        children: [v],
+        parent: null,
+      };
       return walk(syntheticRoot);
     },
   };

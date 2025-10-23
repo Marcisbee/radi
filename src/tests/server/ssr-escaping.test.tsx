@@ -1,10 +1,10 @@
 // @ts-nocheck
-import { assert, test } from '@marcisbee/rion';
+import { assert, test } from "@marcisbee/rion";
 import {
-  renderToStringRoot,
   createElement as h,
   Fragment,
-} from '../../server.ts';
+  renderToStringRoot,
+} from "../../server.ts";
 
 /**
  * SSR escaping & special character tests for Radi (rion test runner).
@@ -44,15 +44,15 @@ function notIncludes(html: string, fragment: string) {
 /* -------------------------------------------------------------------------- */
 
 function Echo(props: any) {
-  return h('span', null, props().value);
+  return h("span", null, props().value);
 }
 
 function Wrapper(props: any) {
   return h(
-    'div',
+    "div",
     { title: props().raw },
     h(Echo, { value: props().raw }),
-    h(Fragment, null, props().raw, ' / ', h('b', null, props().raw)),
+    h(Fragment, null, props().raw, " / ", h("b", null, props().raw)),
   );
 }
 
@@ -63,38 +63,36 @@ function Wrapper(props: any) {
 test('ssr: attribute escaping of <, >, &, "', () => {
   const raw = '<div class="x&y"> & " > <';
   const html = renderToStringRoot(
-    h('p', { 'data-raw': raw, title: raw }, 'content'),
+    h("p", { "data-raw": raw, title: raw }, "content"),
   );
   // Appears twice: data-raw and title
-  const escapedAttr = '&lt;div class=&quot;x&amp;y&quot;&gt; &amp; &quot; &gt; &lt;';
+  const escapedAttr =
+    "&lt;div class=&quot;x&amp;y&quot;&gt; &amp; &quot; &gt; &lt;";
   includes(html, `data-raw="${escapedAttr}"`);
   includes(html, `title="${escapedAttr}"`);
-  includes(html, '<p ');
-  includes(html, '>content</p>');
+  includes(html, "<p ");
+  includes(html, ">content</p>");
 });
 
-test('ssr: text content escaping retains structure', () => {
+test("ssr: text content escaping retains structure", () => {
   const raw = 'A&B <tag "quote">';
   const html = renderToStringRoot(
-    h('section', null,
-      raw,
-      h('em', null, raw),
-    ),
+    h("section", null, raw, h("em", null, raw)),
   );
-  const escaped = 'A&amp;B &lt;tag &quot;quote&quot;&gt;';
+  const escaped = "A&amp;B &lt;tag &quot;quote&quot;&gt;";
   includes(html, escaped);
   includes(html, `<em>${escaped}</em>`);
 });
 
-test('ssr: nested component & fragment escaping', () => {
+test("ssr: nested component & fragment escaping", () => {
   const raw = '<&"nested">';
   const html = renderToStringRoot(
     h(Wrapper, { raw }),
   );
-  const escaped = '&lt;&amp;&quot;nested&quot;&gt;';
+  const escaped = "&lt;&amp;&quot;nested&quot;&gt;";
   // Component + fragment wrappers
-  includes(html, '<radi-component>');
-  includes(html, '<radi-fragment>');
+  includes(html, "<radi-component>");
+  includes(html, "<radi-fragment>");
   // Escaped attribute
   includes(html, `title="${escaped}"`);
   // Echo span
@@ -103,42 +101,42 @@ test('ssr: nested component & fragment escaping', () => {
   includes(html, `<b>${escaped}</b>`);
 });
 
-test('ssr: idempotent escaping (pre-escaped string double-escapes)', () => {
-  const alreadyEscaped = '&lt;safe&gt;&amp;';
+test("ssr: idempotent escaping (pre-escaped string double-escapes)", () => {
+  const alreadyEscaped = "&lt;safe&gt;&amp;";
   const html = renderToStringRoot(
-    h('div', { title: alreadyEscaped }, alreadyEscaped),
+    h("div", { title: alreadyEscaped }, alreadyEscaped),
   );
   // Current serializer re-escapes ampersands
   includes(html, 'title="&amp;lt;safe&amp;gt;&amp;amp;"');
-  includes(html, '>&amp;lt;safe&amp;gt;&amp;amp;</div>');
+  includes(html, ">&amp;lt;safe&amp;gt;&amp;amp;</div>");
 });
 
-test('ssr: non-string attribute serialization & function omission', () => {
+test("ssr: non-string attribute serialization & function omission", () => {
   const html = renderToStringRoot(
-    h('div', {
+    h("div", {
       num: 123,
       boolTrue: true,
       boolFalse: false,
       nil: null,
-      obj: { a: 1 },    // becomes [object Object]
-      fn: () => 'ignored', // should not serialize
-    }, 'x'),
+      obj: { a: 1 }, // becomes [object Object]
+      fn: () => "ignored", // should not serialize
+    }, "x"),
   );
   includes(html, 'num="123"');
   includes(html, 'boolTrue="true"');
   includes(html, 'boolFalse="false"');
   includes(html, 'nil="null"');
   includes(html, 'obj="[object Object]"');
-  notIncludes(html, 'fn=');
+  notIncludes(html, "fn=");
 });
 
-test('ssr: comment nodes for boolean/null primitives', () => {
+test("ssr: comment nodes for boolean/null primitives", () => {
   const html = renderToStringRoot(
-    h('div', null, true, false, null),
+    h("div", null, true, false, null),
   );
-  includes(html, '<!--true-->');
-  includes(html, '<!--false-->');
-  includes(html, '<!--null-->');
+  includes(html, "<!--true-->");
+  includes(html, "<!--false-->");
+  includes(html, "<!--null-->");
 });
 
 /* -------------------------------------------------------------------------- */
