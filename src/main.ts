@@ -702,14 +702,17 @@ function reconcileNonKeyedChildren(oldEl: Element, newEl: Element): void {
   }
 }
 
-/** Keyed reconciliation strategy (map + positional reordering with pooled map). */
-const KEY_MAP_POOL: Map<string, Node>[] = [];
+/** Keyed reconciliation strategy (map pooling). */
+const KEY_NODE_MAP_POOL: Map<string, Node>[] = [];
+const MAX_KEY_NODE_MAP_POOL = 32;
 function acquireKeyMap(): Map<string, Node> {
-  return KEY_MAP_POOL.pop() ?? new Map();
+  return KEY_NODE_MAP_POOL.pop() ?? new Map();
 }
 function releaseKeyMap(m: Map<string, Node>): void {
   m.clear();
-  if (KEY_MAP_POOL.length < 32) KEY_MAP_POOL.push(m);
+  if (KEY_NODE_MAP_POOL.length < MAX_KEY_NODE_MAP_POOL) {
+    KEY_NODE_MAP_POOL.push(m);
+  }
 }
 function reconcileKeyedChildren(oldEl: Element, newEl: Element): void {
   const oldKeyMap = acquireKeyMap();
