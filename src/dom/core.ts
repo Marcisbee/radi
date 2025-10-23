@@ -3,23 +3,22 @@
  * Non-public implementation details kept here to keep the public API surface small.
  *
  * Responsibilities:
- * - Element building (primitive -> Node, arrays, reactive functions, subscribables)
  * - Component host placeholder creation and initial build queue
- * - Subscribable child handling (range reconciliation)
  * - Root/container cleanup helpers
+ * - Component lifecycle build + mounting
  *
  * Public API (main.ts) should import only what it needs from this module.
  */
-
+ 
 import { markComponentHost } from '../lifecycle.ts';
 import { dispatchRenderError } from '../error.ts';
 import type { Child, ReactiveGenerator } from '../types.ts';
-import { createFragmentBoundary, safeAppend } from './reconciler.ts';
-import { mountChild, setupReactiveRender } from './reactive.ts';
+import { safeAppend } from './reconciler.ts';
 import type { ComponentHost } from './reconciler.ts';
-import { normalizeToNodes } from './normalize.ts';
 import { applyPropsToPlainElement } from './props.ts';
-import { maybeBuildSubscribableChild } from './subscribeable.ts';
+import { normalizeToNodes } from './normalize.ts';
+import { buildElement } from './build.ts';
+import { mountChild, setupReactiveRender } from './reactive.ts';
 
 /* -------------------------------------------------------------------------- */
 /* Types & Constants                                                          */
@@ -53,76 +52,10 @@ export const RADI_HOST_TAG = 'radi-host';
  * - Fragment (array with boundary comments)
  * - Component host placeholder
  */
-export function buildElement(child: Child): Child {
-  if (typeof child === 'string' || typeof child === 'number') {
-    return document.createTextNode(String(child));
-  }
-  if (typeof child === 'boolean') {
-    return document.createComment(child ? 'true' : 'false');
-  }
-  if (typeof child === 'function') {
-    return (parent: Element) => {
-      const produced = (child as ReactiveGenerator)(parent);
-      return normalizeToNodes(
-        ([] as Child[]).concat(produced as Child).map(buildElement) as Child[],
-      );
-    };
-  }
-  {
-    const maybe = maybeBuildSubscribableChild(child);
-    if (maybe !== child) return maybe;
-  }
-  if (Array.isArray(child)) {
-    return buildArrayChild(child);
-  }
-  if (child == null) {
-    return document.createComment('null');
-  }
-  return child;
-}
+/* buildElement moved to build.ts */
 
 /** Build an array child into a fragment boundary wrapping normalized nodes (reactive functions deferred). */
-export function buildArrayChild(
-  childArray: Child[],
-  reactivePlaceholder = false,
-): Child {
-  const { start, end } = createFragmentBoundary();
-  const built = childArray.reduce<Child[]>((acc, ch) => {
-    const res = buildElement(ch);
-    if (Array.isArray(res)) {
-      for (const item of res) {
-        if (item) acc.push(item as Child);
-      }
-    } else if (res) {
-      acc.push(res as Child);
-    }
-    return acc;
-  }, []);
-  const normalized = normalizeToNodes(built).filter(
-    (n): n is Node | ReactiveGenerator => !!n,
-  );
-  if (!reactivePlaceholder) {
-    return [start, ...normalized, end];
-  }
-  // reactivePlaceholder: convert reactive functions into deferred mount comments
-  const out: Node[] = [];
-  for (const n of normalized) {
-    if (typeof n === 'function') {
-      const placeholder = document.createComment('deferred-reactive');
-      out.push(placeholder);
-      queueMicrotask(() => {
-        const parent = placeholder.parentNode as Element | null;
-        if (parent) {
-          setupReactiveRender(parent, n as ReactiveGenerator);
-          parent.removeChild(placeholder);
-        }
-      });
-    } else {
-      out.push(n);
-    }
-  }
-  return [start, ...out, end];
-}
+/* buildArrayChild moved to build.ts */
 
 /* -------------------------------------------------------------------------- */
 /* Component Build Queue                                                      */
@@ -231,12 +164,7 @@ export function createComponentPlaceholder(
   placeholder.style.display = 'contents';
 
   const rawChildren = childrenRaw;
-  let builtChildrenCache: Child[] | null = null;
-  const ensureBuiltChildren = (): Child[] => {
-    if (builtChildrenCache) return builtChildrenCache;
-    builtChildrenCache = rawChildren.map(buildElement);
-    return builtChildrenCache;
-  };
+  const ensureBuiltChildren = (): Child[] => rawChildren;
 
   placeholder.__componentPending = {
     type,

@@ -9,10 +9,8 @@ import {
   dispatchDisconnect,
 } from "../lifecycle.ts";
 import { dispatchRenderError } from "../error.ts";
-/* restored subscribable handling for nested subscriptions */
-import { isSubscribable } from "./is-subscribable.ts";
-import { buildSubscribableChild } from "./subscribeable.ts";
-import type { Child, ReactiveGenerator, Subscribable } from "../types.ts";
+import { maybeBuildSubscribableChild } from "./subscribeable.ts";
+import type { Child, ReactiveGenerator } from "../types.ts";
 import { normalizeToNodes } from "./normalize.ts";
 
 /* -------------------------------------------------------------------------- */
@@ -592,10 +590,7 @@ function buildElement(child: Child): Child {
       );
     };
   }
-  // restored subscribable child handling for nested store emissions
-  if (isSubscribable(child)) {
-    return buildSubscribableChild(child as unknown as Subscribable<unknown>);
-  }
+  // subscribable handling delegated to maybeBuildSubscribableChild in produceExpandedNodes
   if (Array.isArray(child)) {
     const { start, end } = createFragmentBoundary();
     const built = child
@@ -640,7 +635,8 @@ export function produceExpandedNodes(
       return [document.createComment(output ? "true" : "null")];
     }
   }
-  const built = alreadyBuilt ? output : buildElement(output as Child);
+  const initial = alreadyBuilt ? output : maybeBuildSubscribableChild(output);
+  const built = alreadyBuilt ? initial : buildElement(initial as Child);
   const arr = Array.isArray(built) ? built : [built];
   const normalized = normalizeToNodes(arr as Child[]);
   const expanded: Node[] = [];

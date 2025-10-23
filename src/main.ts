@@ -15,15 +15,19 @@ import {
   safeRemove,
 } from './dom/reconciler.ts';
 import { normalizeToNodes } from './dom/normalize.ts';
+import { buildElement, buildArrayChild } from './dom/build.ts';
 import {
-  buildElement,
-  buildArrayChild,
   createComponentPlaceholder,
   createPlainElement,
   currentBuildingComponent,
   clearContainerInitialChildren,
   FragmentSymbol as Fragment,
   RADI_HOST_TAG,
+} from './dom/core.ts';
+import type {
+  dispatchDisconnectIfElement as _dispatchDisconnectIfElement,
+  ComponentElement as _ComponentElement,
+  ComponentFn,
 } from './dom/core.ts';
 
 export {
@@ -62,7 +66,7 @@ if (!customElements.get(RADI_HOST_TAG)) {
  * Function components mount lazily after "connect" to allow error boundary setup.
  */
 export function createElement(
-  type: string | Function,
+  type: string | ComponentFn,
   props: Record<string, unknown> | null,
   ...childrenRaw: Child[]
 ): Child {
@@ -75,7 +79,7 @@ export function createElement(
   }
 
   if (typeof type === 'function') {
-    return createComponentPlaceholder(type, props, childrenRaw);
+    return createComponentPlaceholder(type as ComponentFn, props, childrenRaw);
   }
 
   return createPlainElement(type as string, props, buildNormalized());
