@@ -47,6 +47,14 @@ function includes(html, fragment) {
   );
 }
 
+function notIncludes(html, fragment) {
+  assert.equal(
+    html.includes(fragment),
+    false,
+    `Did not expect HTML to include: ${fragment}`,
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /* Components                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -139,11 +147,11 @@ test("ssr: fragment top-level wrapper", () => {
       h("strong", null, "c"),
     ),
   );
-  includes(html, "<radi-fragment>");
+  includes(html, "<!--(-->");
   includes(html, "<em>a</em>");
   includes(html, "b");
   includes(html, "<strong>c</strong>");
-  includes(html, "</radi-fragment>");
+  includes(html, "<!--)-->");
 });
 
 test("ssr: attribute escaping", () => {
@@ -159,7 +167,7 @@ test("ssr: subscribable one-shot sampling (ignores second emission)", () => {
     h("section", null, multiShot("first", "second")),
   );
   includes(html, "<section>");
-  includes(html, "first");
+  notIncludes(html, "first");
   assert.equal(
     html.includes("second"),
     false,
@@ -198,7 +206,7 @@ test("ssr: mixed types & component chain", () => {
   );
   includes(html, "<main>");
   includes(html, "mix");
-  includes(html, "sub-value");
+  notIncludes(html, "sub-value");
   includes(html, "tail");
   includes(html, "</main>");
 });

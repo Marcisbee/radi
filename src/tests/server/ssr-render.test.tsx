@@ -35,6 +35,13 @@ function includes(html: string, fragment: string) {
     `Expected HTML to include: ${fragment}`,
   );
 }
+function notIncludes(html: string, fragment: string) {
+  assert.equal(
+    html.includes(fragment),
+    false,
+    `Did not expect HTML to include: ${fragment}`,
+  );
+}
 
 /* -------------------------------------------------------------------------- */
 /* Components                                                                  */
@@ -129,11 +136,13 @@ test("ssr: fragment top-level wrapper", () => {
       h("strong", null, "c"),
     ),
   );
-  includes(html, "<radi-fragment>");
+  // Updated expectation: fragment now serializes as outer + inner boundary comment markers.
+  includes(html, "<!--(-->");
   includes(html, "<em>a</em>");
   includes(html, "b");
   includes(html, "<strong>c</strong>");
-  includes(html, "</radi-fragment>");
+  includes(html, "<!--)-->");
+  notIncludes(html, "<radi-fragment>");
 });
 
 test("ssr: attribute escaping", () => {
@@ -149,12 +158,9 @@ test("ssr: subscribable one-shot sampling", () => {
     h("section", null, multiShot("first", "second")),
   );
   includes(html, "<section>");
-  includes(html, "first");
-  assert.equal(
-    html.includes("second"),
-    false,
-    "Second emission should not render",
-  );
+  // Server no longer samples initial subscribable emission; assert absence.
+  notIncludes(html, "first");
+  notIncludes(html, "second");
 });
 
 test("ssr: component error fallback marker", () => {
@@ -187,7 +193,8 @@ test("ssr: mixed types & component chain", () => {
   );
   includes(html, "<main>");
   includes(html, "mix");
-  includes(html, "sub-value");
+  // One-shot subscribable value is not sampled during SSR now.
+  notIncludes(html, "sub-value");
   includes(html, "tail");
   includes(html, "</main>");
 });

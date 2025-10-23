@@ -183,11 +183,30 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
    * Internal reactive invocation strategy: for universal/server we just run once.
    */
   const runReactive = (fn: ReactiveGenerator): Child | Child[] => {
-    // Universal/server: invoke once; no retained reactive root element required.
+    // Execute reactive generator; collapse nested reactive (function returning function) into single fragment.
     try {
-      return fn(undefined as unknown as Element);
+      let produced = fn(undefined as unknown as Element);
+      if (typeof produced === "function") {
+        produced = (produced as ReactiveGenerator)(
+          undefined as unknown as Element,
+        );
+      }
+      const arr = toChildArray(produced);
+      // If output is a single fragment UniversalNode, avoid adding an extra wrapper boundary.
+      if (
+        arr.length === 1 &&
+        isUniversalNode(arr[0]) &&
+        (arr[0] as UniversalNode).tag === "radi-fragment"
+      ) {
+        return arr[0] as UniversalNode;
+      }
+      const start = adapter.createComment("(");
+      const end = adapter.createComment(")");
+      return [start, ...arr, end];
     } catch {
-      return []; // swallow errors; represent as empty output
+      const start = adapter.createComment("(");
+      const end = adapter.createComment(")");
+      return [start, end];
     }
   };
   function isUniversalNode(val: unknown): val is UniversalNode {
@@ -206,18 +225,11 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
         continue;
       }
       if (isSubscribableValue(child)) {
-        // Server/universal initial snapshot: subscribe immediately then ignore future updates.
-        try {
-          let initialSeen = false;
-          child.subscribe((val) => {
-            if (initialSeen) return;
-            initialSeen = true;
-            const prim = buildPrimitiveNode(val, adapter);
-            adapter.insertNode(parent, prim);
-          });
-        } catch {
-          adapter.insertNode(parent, adapter.createComment("sub-error"));
-        }
+        // Parity with client initial snapshot: emit empty fragment markers without sampling.
+        const start = adapter.createComment("(");
+        const end = adapter.createComment(")");
+        adapter.insertNode(parent, start);
+        adapter.insertNode(parent, end);
         continue;
       }
       if (isUniversalNode(child)) {
@@ -233,9 +245,12 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
    * Fragment creation using comment boundary markers (or adapter-equivalent).
    */
   function fragment(children: Child[]): UniversalNode {
-    // Simplified fragment representation as a lightweight element wrapper
+    // Replace reactive function children with deferred-reactive placeholders (client parity inside fragments).
+    const transformed: Child[] = children.map((c) =>
+      typeof c === "function" ? adapter.createComment("deferred-reactive") : c
+    );
     const frag = adapter.createElement("radi-fragment");
-    insertChildren(frag, children);
+    insertChildren(frag, transformed);
     return frag;
   }
 
@@ -260,6 +275,12 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
         produced = type(propsGetter);
       } catch {
         produced = ["component-error"];
+      }
+      // Parity: if component returns an array, wrap entire output in fragment boundary comments
+      if (Array.isArray(produced)) {
+        const startFrag = adapter.createComment("(");
+        const endFrag = adapter.createComment(")");
+        produced = [startFrag, ...produced, endFrag];
       }
       const componentWrapper = adapter.createElement("radi-host");
       adapter.setProperty(componentWrapper, "style", "display: contents;");
@@ -506,17 +527,137 @@ export function createServerStringAdapter(): RendererAdapter {
           case "element": {
             const attrs = n.props
               ? Object.entries(n.props)
-                // Include null-valued attributes (serialized as "null"); omit only undefined and functions.
+                // Include null-valued attributes ("null"); omit undefined, functions, and false booleans.
                 .filter(([attr, val]) =>
-                  val !== undefined && typeof val !== "function"
+                  typeof val !== "function" &&
+                  !(typeof val === "boolean" && val === false)
                 )
                 .map(([attr, val]) => {
+                  const tagName = n.tag || "";
+                  let name = attr;
+                  // Normalize className -> class
+                  if (name === "className") name = "class";
+                  // Normalize tabIndex -> tabindex
+                  if (name === "tabIndex") name = "tabindex";
+
+                  // Boolean attribute handling:
+                  // If true and attribute is valid boolean for this tag (approximation), emit empty value.
+                  // Else emit "true".
+                  const BOOLEAN_EMPTY_ATTRS = new Set([
+                    "disabled",
+                    "checked",
+                    "selected",
+                    "readonly",
+                    "multiple",
+                    "required",
+                    "autofocus",
+                    "autoplay",
+                    "controls",
+                    "loop",
+                    "muted",
+                    "open",
+                    "hidden",
+                  ]);
+                  const TAGS_WITH_DISABLED = new Set([
+                    "button",
+                    "input",
+                    "select",
+                    "textarea",
+                    "fieldset",
+                    "option",
+                    "optgroup",
+                  ]);
+
+                  if (typeof val === "boolean") {
+                    if (val === true) {
+                      if (
+                        (name === "disabled" &&
+                          TAGS_WITH_DISABLED.has(tagName)) ||
+                        BOOLEAN_EMPTY_ATTRS.has(name)
+                      ) {
+                        return `${name}=""`;
+                      }
+                      return `${name}="true"`;
+                    }
+                    return "";
+                  }
+
+                  // Style object serialization with empirical rules:
+                  // - camelCase -> kebab-case
+                  // - numeric zero length-like properties => 0px
+                  // - numeric positive length-like (without unit) omitted
+                  // - string numeric '0' => 0px
+                  // - omit invalid/boolean/null/undefined entries
+                  // - include number for non-length (opacity, z-index, flex-grow, line-height)
+                  if (
+                    name === "style" &&
+                    val &&
+                    typeof val === "object" &&
+                    !Array.isArray(val)
+                  ) {
+                    const styleObj = val as Record<string, unknown>;
+                    const lengthLike =
+                      /^(width|height|fontSize|margin|marginTop|marginRight|marginBottom|marginLeft|padding|paddingTop|paddingRight|paddingBottom|paddingLeft|top|right|bottom|left|border.*(Width|Radius))$/;
+                    const cssParts: string[] = [];
+                    for (const [k, vRaw] of Object.entries(styleObj)) {
+                      if (
+                        vRaw == null ||
+                        vRaw === "" ||
+                        typeof vRaw === "boolean" ||
+                        (typeof vRaw === "object" && vRaw !== null)
+                      ) {
+                        continue;
+                      }
+                      let vStr = String(vRaw);
+                      const isNumber = typeof vRaw === "number";
+                      const isPureNumberString = !isNumber &&
+                        /^[0-9]+$/.test(vStr);
+
+                      const isLengthProp = lengthLike.test(k);
+
+                      // Length-like handling
+                      if (isLengthProp) {
+                        if (
+                          (isNumber && vRaw === 0) ||
+                          (isPureNumberString && vStr === "0")
+                        ) {
+                          vStr = "0px";
+                        } else if (
+                          (isNumber && vRaw > 0) ||
+                          (isPureNumberString && vStr !== "0")
+                        ) {
+                          // Omit positive numeric length without unit
+                          continue;
+                        }
+                      }
+
+                      const cssKey = k.replace(/[A-Z]/g, (m) =>
+                        "-" + m.toLowerCase());
+                      cssParts.push(`${cssKey}: ${vStr};`);
+                    }
+                    const css = cssParts.join(" ");
+                    return css ? `style="${esc(css)}"` : "";
+                  }
+
+                  // Undefined: serialize literal "undefined"
+                  if (val === undefined) {
+                    return `${name}="undefined"`;
+                  }
+
+                  // Null -> "null" literal; others stringified
                   const rendered = val === null ? "null" : val;
-                  return `${attr}="${esc(rendered)}"`;
-                }).join(" ")
+                  return `${name}="${esc(rendered)}"`;
+                })
+                .filter(Boolean)
+                .join(" ")
               : "";
-            const open = attrs ? `<${n.tag} ${attrs}>` : `<${n.tag}>`;
             const childrenHTML = n.children.map(walk).join("");
+            // Fragment serialization: double boundary pairs (legacy client parity).
+            // Emits: <!--(--><!--(--> ... <!--)--><!--)-->
+            if (n.tag === "radi-fragment") {
+              return `<!--(--><!--(-->${childrenHTML}<!--)--><!--)-->`;
+            }
+            const open = attrs ? `<${n.tag} ${attrs}>` : `<${n.tag}>`;
             return `${open}${childrenHTML}</${n.tag}>`;
           }
           case "root":

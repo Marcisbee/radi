@@ -92,7 +92,7 @@ test("ssr: nested component & fragment escaping", () => {
   const escaped = "&lt;&amp;&quot;nested&quot;&gt;";
   // Component + fragment wrappers
   includes(html, '<radi-host style="display: contents;">');
-  includes(html, "<radi-fragment>");
+  includes(html, "<!--(-->");
   // Escaped attribute
   includes(html, `title="${escaped}"`);
   // Echo span
@@ -124,7 +124,7 @@ test("ssr: non-string attribute serialization & function omission", () => {
   );
   includes(html, 'num="123"');
   includes(html, 'boolTrue="true"');
-  includes(html, 'boolFalse="false"');
+  notIncludes(html, 'boolFalse="false"');
   includes(html, 'nil="null"');
   includes(html, 'obj="[object Object]"');
   notIncludes(html, "fn=");
