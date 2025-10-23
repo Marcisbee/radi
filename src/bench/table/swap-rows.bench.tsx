@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-inner-declarations
 import { Bench } from "npm:tinybench";
 import { waitForXPath } from "../bench.utils.ts";
-import { createRoot, update } from "../../client.ts";
+import { createRoot } from "../../client.ts";
 import * as Radi from "./frameworks/radi.tsx";
 import * as Vanilla from "./frameworks/vanilla.tsx";
 import * as React from "./frameworks/react.tsx";
@@ -17,7 +17,7 @@ const bench = new Bench({
   bench.add(
     "radi",
     async () => {
-      Radi.actionSwapRows();
+      (document.getElementById('swaprows') as HTMLButtonElement).click();
       // Force layout read to avoid batching and ensure DOM is updated
       document.body.offsetHeight;
       // Wait for both swapped positions to exist (indexes 2 and 999) ensuring full table rendered
@@ -25,10 +25,9 @@ const bench = new Bench({
       await waitForXPath("//tbody/tr[999]");
     },
     {
-      beforeEach() {
-        Radi.resetState();
-        Radi.setRows(Radi.buildData(1000));
-        update(Radi.table);
+      async beforeEach() {
+        (document.getElementById('run') as HTMLButtonElement).click();
+        await waitForXPath("//tbody/tr[1000]");
       },
       async beforeAll() {
         document.body.innerHTML = "";
@@ -49,12 +48,13 @@ const bench = new Bench({
   bench.add(
     "vanilla",
     async () => {
-      Vanilla.actionSwapRows();
+      (document.getElementById('swaprows') as HTMLButtonElement).click();
       await waitForXPath("//tbody/tr[1000]");
     },
     {
-      beforeEach() {
-        Vanilla.actionRun();
+      async beforeEach() {
+        (document.getElementById('run') as HTMLButtonElement).click();
+        await waitForXPath("//tbody/tr[1000]");
       },
       async beforeAll() {
         document.body.innerHTML = "";
@@ -69,12 +69,13 @@ const bench = new Bench({
   bench.add(
     "react",
     async () => {
-      React.actionSwapRows();
+      (document.getElementById('swaprows') as HTMLButtonElement).click();
       await waitForXPath("//tbody/tr[1000]");
     },
     {
-      beforeEach() {
-        React.actionRun();
+      async beforeEach() {
+        (document.getElementById('run') as HTMLButtonElement).click();
+        await waitForXPath("//tbody/tr[1000]");
       },
       async beforeAll() {
         document.body.innerHTML = "";

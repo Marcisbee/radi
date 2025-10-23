@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-inner-declarations
 import { Bench } from "npm:tinybench";
 import { waitForXPath } from "../bench.utils.ts";
-import { createRoot, update } from "../../client.ts";
+import { createRoot } from "../../client.ts";
 import * as Radi from "./frameworks/radi.tsx";
 import * as Vanilla from "./frameworks/vanilla.tsx";
 import * as React from "./frameworks/react.tsx";
@@ -17,13 +17,13 @@ const bench = new Bench({
   bench.add(
     "radi",
     async () => {
-      Radi.actionRunLots();
+      (document.getElementById("runlots") as HTMLButtonElement).click();
       await waitForXPath("//tbody/tr[10000]");
     },
     {
-      beforeEach() {
-        Radi.resetState();
-        update(Radi.table);
+      async beforeEach() {
+        (document.getElementById("clear") as HTMLButtonElement).click();
+        await waitForXPath("//tbody[not(tr)]");
       },
       async beforeAll() {
         document.body.innerHTML = "";
@@ -44,13 +44,13 @@ const bench = new Bench({
   bench.add(
     "vanilla",
     async () => {
-      Vanilla.actionRunLots();
+      (document.getElementById("runlots") as HTMLButtonElement).click();
       await waitForXPath("//tbody/tr[10000]");
     },
     {
-      beforeEach() {
-        Vanilla.resetState();
-        Vanilla.renderTable();
+      async beforeEach() {
+        (document.getElementById("clear") as HTMLButtonElement).click();
+        await waitForXPath("//tbody[not(tr)]");
       },
       async beforeAll() {
         document.body.innerHTML = "";
@@ -65,12 +65,13 @@ const bench = new Bench({
   bench.add(
     "react",
     async () => {
-      React.actionRunLots();
+      (document.getElementById("runlots") as HTMLButtonElement).click();
       await waitForXPath("//tbody/tr[10000]");
     },
     {
-      beforeEach() {
-        React.actionClear();
+      async beforeEach() {
+        (document.getElementById("clear") as HTMLButtonElement).click();
+        await waitForXPath("//tbody[not(tr)]");
       },
       async beforeAll() {
         document.body.innerHTML = "";

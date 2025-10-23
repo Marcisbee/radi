@@ -192,7 +192,7 @@ const Jumbotron = memo(({ dispatch }: any) => (
         <div className="col-sm-6 smallpad">
           <Button
             id="update"
-            cb={() => dispatch({ type: "UPDATE" })}
+            cb={() => flushSync(() => dispatch({ type: "UPDATE" }))}
             title="Update every 10th row"
           />
         </div>

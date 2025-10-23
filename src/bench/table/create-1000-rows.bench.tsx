@@ -17,12 +17,12 @@ const bench = new Bench({
   bench.add(
     "radi",
     async () => {
-      Radi.actionRun();
+      (document.getElementById('run') as HTMLButtonElement).click();
       await waitForXPath("//tbody/tr[1000]");
     },
     {
       beforeEach() {
-        Radi.actionClear();
+        (document.getElementById('clear') as HTMLButtonElement).click();
       },
       async beforeAll() {
         document.body.innerHTML = "";
@@ -43,13 +43,13 @@ const bench = new Bench({
   bench.add(
     "vanilla",
     async () => {
-      Vanilla.actionRun();
+      (document.getElementById('run') as HTMLButtonElement).click();
       await waitForXPath("//tbody/tr[1000]");
     },
     {
       beforeEach() {
-        Vanilla.resetState();
-        Vanilla.renderTable();
+        (document.getElementById('clear') as HTMLButtonElement).click();
+        // replaced direct render/reset with clear button click
       },
       async beforeAll() {
         document.body.innerHTML = "";
@@ -64,12 +64,12 @@ const bench = new Bench({
   bench.add(
     "react",
     async () => {
-      React.actionRun();
+      (document.getElementById('run') as HTMLButtonElement).click();
       await waitForXPath("//tbody/tr[1000]");
     },
     {
       beforeEach() {
-        React.actionClear();
+        (document.getElementById('clear') as HTMLButtonElement).click();
       },
       async beforeAll() {
         document.body.innerHTML = "";

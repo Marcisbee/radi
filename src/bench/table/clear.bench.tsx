@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-inner-declarations
 import { Bench } from "npm:tinybench";
 import { waitForXPath } from "../bench.utils.ts";
-import { createRoot, update } from "../../client.ts";
+import { createRoot } from "../../client.ts";
 import * as Radi from "./frameworks/radi.tsx";
 import * as Vanilla from "./frameworks/vanilla.tsx";
 import * as React from "./frameworks/react.tsx";
@@ -17,13 +17,13 @@ const bench = new Bench({
   bench.add(
     "radi",
     async () => {
-      Radi.actionClear();
+      (document.getElementById('clear') as HTMLButtonElement).click();
       await waitForXPath("//tbody[not(tr)]");
     },
     {
-      beforeEach() {
-        Radi.resetState();
-        Radi.actionRun();
+      async beforeEach() {
+        (document.getElementById('run') as HTMLButtonElement).click();
+        await waitForXPath("//tbody/tr[1000]");
       },
       async beforeAll() {
         document.body.innerHTML = "";
@@ -44,12 +44,13 @@ const bench = new Bench({
   bench.add(
     "vanilla",
     async () => {
-      Vanilla.actionClear();
+      (document.getElementById('clear') as HTMLButtonElement).click();
       await waitForXPath("//tbody[not(tr)]");
     },
     {
-      beforeEach() {
-        Vanilla.actionRun();
+      async beforeEach() {
+        (document.getElementById('run') as HTMLButtonElement).click();
+        await waitForXPath("//tbody/tr[1000]");
       },
       async beforeAll() {
         document.body.innerHTML = "";
@@ -64,12 +65,13 @@ const bench = new Bench({
   bench.add(
     "react",
     async () => {
-      React.actionClear();
+      (document.getElementById('clear') as HTMLButtonElement).click();
       await waitForXPath("//tbody[not(tr)]");
     },
     {
-      beforeEach() {
-        React.actionRun();
+      async beforeEach() {
+        (document.getElementById('run') as HTMLButtonElement).click();
+        await waitForXPath("//tbody/tr[1000]");
       },
       async beforeAll() {
         document.body.innerHTML = "";

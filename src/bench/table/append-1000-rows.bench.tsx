@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-inner-declarations
 import { Bench } from "npm:tinybench";
 import { waitForXPath } from "../bench.utils.ts";
-import { createRoot, update } from "../../client.ts";
+import { createRoot } from "../../client.ts";
 import * as Radi from "./frameworks/radi.tsx";
 import * as Vanilla from "./frameworks/vanilla.tsx";
 import * as React from "./frameworks/react.tsx";
@@ -17,14 +17,13 @@ const bench = new Bench({
   bench.add(
     "radi",
     async () => {
-      Radi.actionAdd();
+      (document.getElementById('add') as HTMLButtonElement).click();
       await waitForXPath("//tbody/tr[2000]");
     },
     {
-      beforeEach() {
-        Radi.resetState();
-        Radi.setRows(Radi.buildData(1000));
-        update(Radi.table);
+      async beforeEach() {
+        (document.getElementById('run') as HTMLButtonElement).click();
+        await waitForXPath("//tbody/tr[1000]");
       },
       async beforeAll() {
         document.body.innerHTML = "";
@@ -45,12 +44,13 @@ const bench = new Bench({
   bench.add(
     "vanilla",
     async () => {
-      Vanilla.actionAdd();
+      (document.getElementById('add') as HTMLButtonElement).click();
       await waitForXPath("//tbody/tr[2000]");
     },
     {
-      beforeEach() {
-        Vanilla.actionRun();
+      async beforeEach() {
+        (document.getElementById('run') as HTMLButtonElement).click();
+        await waitForXPath("//tbody/tr[1000]");
       },
       async beforeAll() {
         document.body.innerHTML = "";
@@ -65,12 +65,13 @@ const bench = new Bench({
   bench.add(
     "react",
     async () => {
-      React.actionAdd();
+      (document.getElementById('add') as HTMLButtonElement).click();
       await waitForXPath("//tbody/tr[2000]");
     },
     {
-      beforeEach() {
-        React.actionRun();
+      async beforeEach() {
+        (document.getElementById('run') as HTMLButtonElement).click();
+        await waitForXPath("//tbody/tr[1000]");
       },
       async beforeAll() {
         document.body.innerHTML = "";
