@@ -1,4 +1,4 @@
-import { createElement, update } from "./main.ts";
+import { createElement, update } from "./client.ts";
 
 /**
  * Dispatch a fresh "suspend" event from a descendant node.

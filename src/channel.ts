@@ -1,4 +1,4 @@
-import { update } from "./main.ts";
+import { update } from "./client.ts";
 
 type Updater<T> = T | ((prev: T | undefined) => T);
 

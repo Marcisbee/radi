@@ -1,4 +1,4 @@
-import { update } from "./main.ts";
+import { update } from "./client.ts";
 
 export function createSignal<T = any>(initialValue: T) {
   let value = initialValue;

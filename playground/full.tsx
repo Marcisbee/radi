@@ -4,7 +4,7 @@ import {
   createRoot,
   Fragment,
   update,
-} from "../src/main.ts";
+} from "../src/client.ts";
 import { createChannel } from "../src/channel.ts";
 import { suspend, Suspense, unsuspend } from "../src/suspense.ts";
 import { createSignal } from "../src/signal.ts";

@@ -1,4 +1,4 @@
-import { createRoot, Fragment, update } from "../src/main.ts";
+import { createRoot, Fragment, update } from "../src/client.ts";
 
 // --- Data sources ---
 const adjectives = [

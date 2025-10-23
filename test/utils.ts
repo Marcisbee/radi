@@ -1,4 +1,4 @@
-import { createRoot } from "../src/main.ts";
+import { createRoot } from "../src/client.ts";
 
 export function mount(
   element: Parameters<ReturnType<typeof createRoot>["render"]>[0],
