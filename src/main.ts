@@ -338,7 +338,7 @@ function setPropValue(el: HTMLElement, key: string, value: unknown): void {
 /* Component Build Queue                                                      */
 /* -------------------------------------------------------------------------- */
 
-let pendingComponentBuildQueue: ComponentHost[] = [];
+const pendingComponentBuildQueue: ComponentHost[] = [];
 let isFlushingComponentBuilds = false;
 
 /** Queue a component host for build if not already mounted. */
@@ -375,8 +375,8 @@ function buildComponentHost(host: ComponentHost): void {
 /** Mount output of a component build (Node | function | array). */
 function mountBuiltOutput(host: Element, output: Child): void {
   if (Array.isArray(output)) {
-    const nodes = normalizeToNodes(output as any);
-    for (const n of nodes) mountChild(host, n as any);
+    const nodes = normalizeToNodes(output as Child[]);
+    for (const n of nodes) mountChild(host, n);
   } else if (typeof output === "function") {
     setupReactiveRender(host, output as ReactiveGenerator);
   } else if (output instanceof Node) {
@@ -392,7 +392,8 @@ function flushComponentBuildQueue(): void {
   isFlushingComponentBuilds = true;
   try {
     while (pendingComponentBuildQueue.length) {
-      const host = pendingComponentBuildQueue.shift()!;
+      const host = pendingComponentBuildQueue.shift();
+      if (!host) break;
       buildComponentHost(host);
     }
   } finally {
@@ -582,42 +583,53 @@ function syncElementProperties(fromEl: Element, toEl: Element): void {
 function patchElement(oldEl: Element, newEl: Element): boolean {
   if (oldEl.nodeName !== newEl.nodeName) return false;
 
-  const oAny = oldEl as ComponentElement;
-  const nAny = newEl as ComponentElement;
+  const prev = oldEl as ComponentElement;
+  const next = newEl as ComponentElement;
 
-  const oldKey = (oAny as any).__key || oldEl.getAttribute("data-key");
-  const newKey = (nAny as any).__key || newEl.getAttribute("data-key");
+  const oldKey = (prev as { __key?: string }).__key ??
+    oldEl.getAttribute("data-key");
+  const newKey = (next as { __key?: string }).__key ??
+    newEl.getAttribute("data-key");
+
   if (oldKey !== newKey && (oldKey != null || newKey != null)) {
     return false;
   }
 
+  const nextPending = (next as {
+    __componentPending?: {
+      type: ComponentRenderFn;
+      props: Record<string, unknown>;
+    };
+  }).__componentPending;
+
   // Component host re-use reconciliation
   if (
-    oAny.__component &&
-    (nAny as any).__componentPending &&
-    oAny.__component === (nAny as any).__componentPending.type &&
+    prev.__component &&
+    nextPending &&
+    prev.__component === nextPending.type &&
     oldKey === newKey
   ) {
-    if ((oAny as any).__propsRef) {
-      (oAny as any).__propsRef.current = (nAny as any).__componentPending.props;
-      delete (nAny as any).__componentPending;
-      oAny.dispatchEvent(new Event("update"));
+    if (prev.__propsRef) {
+      prev.__propsRef.current = nextPending.props;
+      (next as { __componentPending?: undefined }).__componentPending =
+        undefined;
+      prev.dispatchEvent(new Event("update"));
     }
     return true;
   }
 
   if (
-    oAny.__component &&
-    (nAny as any).__componentPending &&
-    oAny.__component !== (nAny as any).__componentPending.type
+    prev.__component &&
+    nextPending &&
+    prev.__component !== nextPending.type
   ) {
     return false;
   }
 
   if (
-    oAny.__component &&
-    nAny.__component &&
-    oAny.__component !== nAny.__component
+    prev.__component &&
+    next.__component &&
+    prev.__component !== next.__component
   ) {
     return false;
   }
@@ -625,15 +637,6 @@ function patchElement(oldEl: Element, newEl: Element): boolean {
   syncElementProperties(oldEl, newEl);
   reconcileElementChildren(oldEl, newEl);
   return true;
-}
-
-/** Sync inline style text if changed. */
-function syncStyleIfChanged(oldEl: Element, newEl: Element): void {
-  const oldStyle = (oldEl as HTMLElement).style.cssText;
-  const newStyle = (newEl as HTMLElement).style.cssText;
-  if (oldStyle !== newStyle) {
-    (oldEl as HTMLElement).style.cssText = newStyle;
-  }
 }
 
 /** Reconcile children for an element, delegating keyed vs non-keyed strategies. */
@@ -879,14 +882,14 @@ function reconcileRange(start: Comment, end: Comment, newNodes: Node[]): void {
     }
     const newNode = newNodes[idx];
     if (!oldCur) {
-      safeInsertBefore(parent as any, newNode, end);
+      safeInsertBefore(parent as Node & ParentNode, newNode, end);
       idx++;
       continue;
     }
     if (!newNode) {
       while (oldCur && oldCur !== end) {
         const next: Node | null = oldCur.nextSibling;
-        safeRemove(parent as any, oldCur);
+        safeRemove(parent as Node & ParentNode, oldCur);
         oldCur = next;
       }
       break;
@@ -905,8 +908,8 @@ function reconcileRange(start: Comment, end: Comment, newNodes: Node[]): void {
       oldCur.nodeType === Node.ELEMENT_NODE &&
       newNode.nodeType === Node.ELEMENT_NODE
     ) {
-      const oldEl: any = oldCur;
-      const newEl: any = newNode;
+      const oldEl = oldCur as ComponentHost | Element;
+      const newEl = newNode as ComponentHost | Element;
       // Component host prop reconciliation (reuse host; update props; trigger update)
       if (canReuseComponentHost(oldEl, newEl)) {
         oldEl.__propsRef.current = newEl.__componentPending.props;
@@ -922,23 +925,31 @@ function reconcileRange(start: Comment, end: Comment, newNodes: Node[]): void {
         continue;
       }
     }
-    safeInsertBefore(parent as any, newNode, oldCur);
-    safeRemove(parent as any, oldCur);
+    safeInsertBefore(parent as Node & ParentNode, newNode, oldCur);
+    safeRemove(parent as Node & ParentNode, oldCur);
     oldCur = newNode.nextSibling;
     idx++;
   }
 }
 
 /** Determine if two nodes represent the same component host, permitting prop update reuse. */
-function canReuseComponentHost(oldEl: any, newEl: any): boolean {
-  return (
-    oldEl.__component &&
-    oldEl.__mounted &&
-    newEl.__componentPending &&
-    oldEl.__component === newEl.__componentPending.type &&
-    ((oldEl.__key || null) ===
-      (newEl.__key || newEl.getAttribute?.("data-key") || null))
-  );
+function canReuseComponentHost(
+  oldEl: ComponentHost,
+  newEl: ComponentHost,
+): boolean {
+  if (
+    !oldEl.__component ||
+    !oldEl.__mounted ||
+    !newEl.__componentPending ||
+    oldEl.__component !== newEl.__componentPending.type
+  ) {
+    return false;
+  }
+  const oldKey = (oldEl as { __key?: string }).__key ?? null;
+  const newKey = (newEl as { __key?: string }).__key ??
+    newEl.getAttribute?.("data-key") ??
+    null;
+  return oldKey === newKey;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1113,7 +1124,7 @@ function createPlainElement(
   assignKeyIfPresent(element, props);
   if (props) applyPropsToPlainElement(element, props);
   for (const c of normalizedChildren) {
-    mountChild(element, c as any);
+    mountChild(element, c);
   }
   return element;
 }
@@ -1229,17 +1240,15 @@ export function createRoot(container: HTMLElement): {
   container.append(start, end);
 
   function render(node: JSX.Element): HTMLElement {
-    const built = buildElement(node as any);
-    const normalized = normalizeToNodes(
-      Array.isArray(built) ? (built as any) : [built as any],
-    ) as Node[];
-    reconcileRange(start, end, normalized);
-    // Host detection uses helper to avoid instanceof across duplicated module copies.
-    const isHost = isComponentHost(node as any);
+    const built = buildElement(node as unknown as Child);
+    const builtArray: Child[] = Array.isArray(built) ? built : [built];
+    const normalized = normalizeToNodes(builtArray);
+    reconcileRange(start, end, normalized as Node[]);
+    const isHost = isComponentHost(node as unknown as Node);
     if (!isHost) {
-      connect(node);
+      connect(node as unknown as Node);
     }
-    return node as any;
+    return node as unknown as HTMLElement;
   }
 
   function unmount(): void {
@@ -1265,23 +1274,3 @@ function clearContainerInitialChildren(container: HTMLElement): void {
     c = next;
   }
 }
-
-/* -------------------------------------------------------------------------- */
-/* Update Scheduling                                                          */
-/* -------------------------------------------------------------------------- */
-
-/** Create a new "update" Event instance. */
-
-// (Removed update scheduling sets — no longer needed after simplifying manual update traversal)
-
-// (Removed dispatchUpdateSink — manual updates now directly traverse via getElementsMarkedForUpdate)
-
-/** Schedule a microtask flush for all pending update roots. */
-// (Removed scheduleUpdateFlush — coalesced microtask batching no longer used)
-
-// (Removed scheduleElementUpdate — direct update dispatch model)
-
-/**
- * Dispatch a global update cycle from a root Node.
- * Triggers component reactive evaluation and prop function re-execution.
- */
