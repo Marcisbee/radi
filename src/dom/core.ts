@@ -9,16 +9,16 @@
  *
  * Public API (main.ts) should import only what it needs from this module.
  */
- 
-import { markComponentHost } from '../lifecycle.ts';
-import { dispatchRenderError } from '../error.ts';
-import type { Child, ReactiveGenerator } from '../types.ts';
-import { safeAppend } from './reconciler.ts';
-import type { ComponentHost } from './reconciler.ts';
-import { applyPropsToPlainElement } from './props.ts';
-import { normalizeToNodes } from './normalize.ts';
-import { buildElement } from './build.ts';
-import { mountChild, setupReactiveRender } from './reactive.ts';
+
+import { markComponentHost } from "../lifecycle.ts";
+import { dispatchRenderError } from "../error.ts";
+import type { Child, ReactiveGenerator } from "../types.ts";
+import { safeAppend } from "./reconciler.ts";
+import type { ComponentHost } from "./reconciler.ts";
+
+import { normalizeToNodes } from "./normalize.ts";
+import { buildElement } from "./build.ts";
+import { mountChild, setupReactiveRender } from "./reactive.ts";
 
 /* -------------------------------------------------------------------------- */
 /* Types & Constants                                                          */
@@ -35,27 +35,7 @@ export type ComponentElement = HTMLElement & {
   [key: string]: unknown;
 };
 
-export const RADI_HOST_TAG = 'radi-host';
-
-/* -------------------------------------------------------------------------- */
-/* (Subscribable child logic moved to subscribeable.ts)                       */
-/* -------------------------------------------------------------------------- */
-
-/* -------------------------------------------------------------------------- */
-/* Element Building                                                           */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Build a single child into one of:
- * - DOM Node
- * - Reactive function (wrapped)
- * - Fragment (array with boundary comments)
- * - Component host placeholder
- */
-/* buildElement moved to build.ts */
-
-/** Build an array child into a fragment boundary wrapping normalized nodes (reactive functions deferred). */
-/* buildArrayChild moved to build.ts */
+export const RADI_HOST_TAG = "radi-host";
 
 /* -------------------------------------------------------------------------- */
 /* Component Build Queue                                                      */
@@ -107,7 +87,7 @@ function mountBuiltOutput(host: Element, output: Child): void {
   if (Array.isArray(output)) {
     const nodes = normalizeToNodes(output as Child[]);
     for (const n of nodes) mountChild(host, n);
-  } else if (typeof output === 'function') {
+  } else if (typeof output === "function") {
     setupReactiveRender(host, output as ReactiveGenerator);
   } else if (output instanceof Node) {
     safeAppend(host, output);
@@ -135,21 +115,7 @@ export function flushComponentBuildQueue(): void {
 /* Component Placeholder Creation                                             */
 /* -------------------------------------------------------------------------- */
 
-/** Assign a key from props to element if present (key or data-key). */
-export function assignKeyIfPresent(
-  el: ComponentElement,
-  props: Record<string, unknown> | null,
-): void {
-  if (!props) return;
-  const pAny = props as Record<string, unknown>;
-  if (pAny.key != null) {
-    el.__key = String(pAny.key);
-    el.setAttribute('data-key', String(pAny.key));
-    delete pAny.key;
-  } else if (pAny['data-key'] != null) {
-    el.__key = String(pAny['data-key']);
-  }
-}
+// key assignment logic in core.ts removed; component placeholder assigns key inline
 
 /** Create a component placeholder host element for deferred initial build. */
 export function createComponentPlaceholder(
@@ -160,8 +126,19 @@ export function createComponentPlaceholder(
   const placeholder = document.createElement(RADI_HOST_TAG) as ComponentElement;
   markComponentHost(placeholder);
 
-  assignKeyIfPresent(placeholder, props);
-  placeholder.style.display = 'contents';
+  // Inline key assignment (assignKeyIfPresent removed)
+  if (props) {
+    const pAny = props as Record<string, unknown>;
+    if (pAny.key != null) {
+      placeholder.__key = String(pAny.key);
+      placeholder.setAttribute("data-key", String(pAny.key));
+      delete pAny.key;
+    } else if (pAny["data-key"] != null) {
+      placeholder.__key = String(pAny["data-key"]);
+    }
+  }
+
+  placeholder.style.display = "contents";
 
   const rawChildren = childrenRaw;
   const ensureBuiltChildren = (): Child[] => rawChildren;
@@ -177,7 +154,7 @@ export function createComponentPlaceholder(
   };
 
   placeholder.addEventListener(
-    'connect',
+    "connect",
     () => {
       queueComponentForBuild(placeholder as ComponentHost);
       flushComponentBuildQueue();
@@ -188,24 +165,7 @@ export function createComponentPlaceholder(
   return placeholder;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Plain Element Creation                                                     */
-/* -------------------------------------------------------------------------- */
-
-/** Create and populate a plain DOM element with props and children. */
-export function createPlainElement(
-  type: string,
-  props: Record<string, unknown> | null,
-  normalizedChildren: (Node | ReactiveGenerator)[],
-): ComponentElement {
-  const element = document.createElement(type) as ComponentElement;
-  assignKeyIfPresent(element, props);
-  if (props) applyPropsToPlainElement(element, props);
-  for (const c of normalizedChildren) {
-    mountChild(element, c);
-  }
-  return element;
-}
+/* Plain element creation moved to build.ts */
 
 /* -------------------------------------------------------------------------- */
 /* Root Helpers                                                               */
@@ -216,7 +176,9 @@ export function dispatchDisconnectIfElement(node: Node): void {
   if (node.nodeType === Node.ELEMENT_NODE) {
     // dispatchDisconnect imported indirectly via lifecycle in main; avoid circular import
     // main.ts should wrap this with its own public unmount logic.
-    (node as Element).dispatchEvent(new CustomEvent('disconnect', { bubbles: true }));
+    (node as Element).dispatchEvent(
+      new CustomEvent("disconnect", { bubbles: true }),
+    );
   }
 }
 
@@ -236,4 +198,4 @@ export function clearContainerInitialChildren(container: HTMLElement): void {
 /* Convenience Exports                                                       */
 /* -------------------------------------------------------------------------- */
 
-export const FragmentSymbol = 'fragment'; // internal marker (main can re-export as Fragment)
+export const FragmentSymbol = "fragment"; // internal marker (main can re-export as Fragment)

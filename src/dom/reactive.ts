@@ -1,7 +1,12 @@
-import { createFragmentBoundary, produceExpandedNodes, reconcileRange, safeAppend } from './reconciler.ts';
-import { markReactiveRoot } from '../lifecycle.ts';
-import { dispatchRenderError } from '../error.ts';
-import type { ReactiveGenerator } from '../types.ts';
+import {
+  produceExpandedNodes,
+  reconcileRange,
+  safeAppend,
+} from "./reconciler.ts";
+import { createFragmentBoundary } from "./fragment.ts";
+import { markReactiveRoot } from "../lifecycle.ts";
+import { dispatchRenderError } from "../error.ts";
+import type { ReactiveGenerator } from "../types.ts";
 
 /**
  * Setup a reactive rendering region inside a container.
@@ -10,7 +15,10 @@ import type { ReactiveGenerator } from '../types.ts';
  *
  * The first render executes immediately so initial state is visible synchronously.
  */
-export function setupReactiveRender(container: Element, fn: ReactiveGenerator): void {
+export function setupReactiveRender(
+  container: Element,
+  fn: ReactiveGenerator,
+): void {
   const { start, end } = createFragmentBoundary();
   container.append(start, end);
 
@@ -25,7 +33,7 @@ export function setupReactiveRender(container: Element, fn: ReactiveGenerator): 
   };
 
   markReactiveRoot(container);
-  container.addEventListener('update', renderFn);
+  container.addEventListener("update", renderFn);
   renderFn();
 }
 
@@ -34,8 +42,11 @@ export function setupReactiveRender(container: Element, fn: ReactiveGenerator): 
  * - A concrete DOM Node (appended directly)
  * - A ReactiveGenerator function (wrapped in a reactive render region)
  */
-export function mountChild(parent: Element, nodeOrFn: Node | ReactiveGenerator): void {
-  if (typeof nodeOrFn === 'function') {
+export function mountChild(
+  parent: Element,
+  nodeOrFn: Node | ReactiveGenerator,
+): void {
+  if (typeof nodeOrFn === "function") {
     setupReactiveRender(parent, nodeOrFn as ReactiveGenerator);
   } else {
     safeAppend(parent, nodeOrFn);

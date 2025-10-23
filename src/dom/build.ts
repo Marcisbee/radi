@@ -1,8 +1,9 @@
-import type { Child, ReactiveGenerator } from '../types.ts';
-import { createFragmentBoundary } from './reconciler.ts';
-import { normalizeToNodes } from './normalize.ts';
-import { setupReactiveRender } from './reactive.ts';
-import { maybeBuildSubscribableChild } from './subscribeable.ts';
+import type { Child, ReactiveGenerator } from "../types.ts";
+import { createFragmentBoundary } from "./fragment.ts";
+import { normalizeToNodes } from "./normalize.ts";
+import { setupReactiveRender } from "./reactive.ts";
+import { maybeBuildSubscribableChild } from "./subscribeable.ts";
+import { applyPropsToPlainElement } from "./props.ts";
 
 /**
  * Build a single child value into one of:
@@ -17,14 +18,14 @@ import { maybeBuildSubscribableChild } from './subscribeable.ts';
  */
 export function buildElement(child: Child): Child {
   // Primitives
-  if (typeof child === 'string' || typeof child === 'number') {
+  if (typeof child === "string" || typeof child === "number") {
     return document.createTextNode(String(child));
   }
-  if (typeof child === 'boolean') {
-    return document.createComment(child ? 'true' : 'false');
+  if (typeof child === "boolean") {
+    return document.createComment(child ? "true" : "false");
   }
   // Reactive generator (function)
-  if (typeof child === 'function') {
+  if (typeof child === "function") {
     return (parent: Element) => {
       const produced = (child as ReactiveGenerator)(parent);
       const arr = ([] as Child[]).concat(produced as Child);
@@ -42,7 +43,7 @@ export function buildElement(child: Child): Child {
   }
   // Nullish => comment marker
   if (child == null) {
-    return document.createComment('null');
+    return document.createComment("null");
   }
   return child;
 }
@@ -84,8 +85,8 @@ export function buildArrayChild(
   // Deferred mounting path for reactive functions
   const out: Node[] = [];
   for (const n of normalized) {
-    if (typeof n === 'function') {
-      const placeholder = document.createComment('deferred-reactive');
+    if (typeof n === "function") {
+      const placeholder = document.createComment("deferred-reactive");
       out.push(placeholder);
       queueMicrotask(() => {
         const parent = placeholder.parentNode as Element | null;
@@ -99,4 +100,50 @@ export function buildArrayChild(
     }
   }
   return [start, ...out, end];
+}
+
+/* -------------------------------------------------------------------------- */
+/* Plain Element Creation (moved from core.ts)                                */
+/* -------------------------------------------------------------------------- */
+
+/** Assign a key from props to element if present (key or data-key). */
+function assignKeyIfPresent(
+  el: HTMLElement & { __key?: string },
+  props: Record<string, unknown> | null,
+): void {
+  if (!props) return;
+  const pAny = props as Record<string, unknown>;
+  if (pAny.key != null) {
+    el.__key = String(pAny.key);
+    el.setAttribute("data-key", String(pAny.key));
+    delete pAny.key;
+  } else if (pAny["data-key"] != null) {
+    el.__key = String(pAny["data-key"]);
+  }
+}
+
+/**
+ * Create and populate a plain DOM element with props and children.
+ * Mirrors previous implementation from core.ts; kept minimal to avoid
+ * circular imports (key assignment duplicated locally).
+ */
+export function createPlainElement(
+  type: string,
+  props: Record<string, unknown> | null,
+  normalizedChildren: (Node | ReactiveGenerator)[],
+): HTMLElement & { __key?: string } {
+  const element = document.createElement(type) as HTMLElement & {
+    __key?: string;
+  };
+  assignKeyIfPresent(element, props);
+  if (props) applyPropsToPlainElement(element, props);
+  for (const c of normalizedChildren) {
+    if (typeof c === "function") {
+      // Reactive generator child
+      setupReactiveRender(element, c as ReactiveGenerator);
+    } else {
+      element.append(c);
+    }
+  }
+  return element;
 }

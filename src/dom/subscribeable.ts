@@ -1,9 +1,10 @@
-import { createFragmentBoundary, produceExpandedNodes, reconcileRange } from './reconciler.ts';
-import { dispatchRenderError } from '../error.ts';
-import { markEventable } from '../lifecycle.ts';
-import type { Child, Subscribable } from '../types.ts';
-import { isSubscribable } from './is-subscribable.ts';
-import { setPropValue } from './props.ts';
+import { produceExpandedNodes, reconcileRange } from "./reconciler.ts";
+import { createFragmentBoundary } from "./fragment.ts";
+import { dispatchRenderError } from "../error.ts";
+import { markEventable } from "../lifecycle.ts";
+import type { Child, Subscribable } from "../types.ts";
+import { isSubscribable } from "./is-subscribable.ts";
+import { setPropValue } from "./props.ts";
 
 /**
  * Safely execute an unsubscribe variant (function or object with unsubscribe()).
@@ -12,11 +13,11 @@ export function safelyRunUnsubscribe(
   unsub: void | (() => void) | { unsubscribe(): void },
 ): void {
   try {
-    if (typeof unsub === 'function') {
+    if (typeof unsub === "function") {
       (unsub as () => void)();
     } else if (
       unsub &&
-      typeof (unsub as { unsubscribe?: unknown }).unsubscribe === 'function'
+      typeof (unsub as { unsubscribe?: unknown }).unsubscribe === "function"
     ) {
       (unsub as { unsubscribe(): void }).unsubscribe();
     }
@@ -37,7 +38,7 @@ export function subscribeAndReconcileRange(
   queueMicrotask(() => {
     const parentEl = start.parentNode as Element | null;
     if (!parentEl) return;
-    let previous: unknown = Symbol('radi_initial_range');
+    let previous: unknown = Symbol("radi_initial_range");
     const unsub = store.subscribe((value: unknown) => {
       if (Object.is(value, previous)) return;
       previous = value;
@@ -49,8 +50,10 @@ export function subscribeAndReconcileRange(
       }
     });
     markEventable(parentEl);
-    parentEl.addEventListener('disconnect', () => {
-      safelyRunUnsubscribe(unsub as (void | (() => void) | { unsubscribe(): void }));
+    parentEl.addEventListener("disconnect", () => {
+      safelyRunUnsubscribe(
+        unsub as (void | (() => void) | { unsubscribe(): void }),
+      );
     });
   });
 }
@@ -73,7 +76,7 @@ export function bindSubscribableProp(
   key: string,
   subscribable: Subscribable<unknown>,
 ): void {
-  let previous: unknown = Symbol('radi_initial_prop');
+  let previous: unknown = Symbol("radi_initial_prop");
   let unsub: void | (() => void) | { unsubscribe(): void };
   try {
     unsub = subscribable.subscribe((value: unknown) => {
@@ -89,8 +92,10 @@ export function bindSubscribableProp(
     dispatchRenderError(element, err);
   }
   markEventable(element);
-  element.addEventListener('disconnect', () => {
-    safelyRunUnsubscribe(unsub as (void | (() => void) | { unsubscribe(): void }));
+  element.addEventListener("disconnect", () => {
+    safelyRunUnsubscribe(
+      unsub as (void | (() => void) | { unsubscribe(): void }),
+    );
   });
 }
 

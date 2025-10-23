@@ -4,14 +4,12 @@
  * fragment (comment range) reconciliation, and component host reuse.
  */
 
-import {
-  dispatchConnect,
-  dispatchDisconnect,
-} from "../lifecycle.ts";
+import { dispatchConnect, dispatchDisconnect } from "../lifecycle.ts";
 import { dispatchRenderError } from "../error.ts";
 import { maybeBuildSubscribableChild } from "./subscribeable.ts";
 import type { Child, ReactiveGenerator } from "../types.ts";
 import { normalizeToNodes } from "./normalize.ts";
+import { createFragmentBoundary } from "./fragment.ts";
 
 /* -------------------------------------------------------------------------- */
 /* Component Host Types                                                       */
@@ -550,25 +548,6 @@ export function canReuseComponentHost(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Fragment Helpers                                                           */
-/* -------------------------------------------------------------------------- */
-
-export const FRAGMENT_START_TEMPLATE = document.createComment("(");
-export const FRAGMENT_END_TEMPLATE = document.createComment(")");
-
-export function createFragmentBoundary(): { start: Comment; end: Comment } {
-  return {
-    start: FRAGMENT_START_TEMPLATE.cloneNode() as Comment,
-    end: FRAGMENT_END_TEMPLATE.cloneNode() as Comment,
-  };
-}
-
-/* -------------------------------------------------------------------------- */
-/* Normalization (shared import)                                              */
-/* -------------------------------------------------------------------------- */
-// normalizeToNodes implementation moved to ./normalize.ts and imported above.
-
-/* -------------------------------------------------------------------------- */
 /* Element Building (minimal duplicate)                                       */
 /* -------------------------------------------------------------------------- */
 
@@ -659,9 +638,3 @@ export function produceExpandedNodes(
   }
   return expanded;
 }
-
-/* -------------------------------------------------------------------------- */
-/* Reactive Rendering + Mounting                                              */
-/* -------------------------------------------------------------------------- */
-
-/* Reactive rendering (setupReactiveRender, mountChild) moved to reactive.ts */

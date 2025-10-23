@@ -7,39 +7,39 @@ import {
   dispatchDisconnect,
   isComponentHost,
   update,
-} from './lifecycle.ts';
-import type { Child } from './types.ts';
+} from "./lifecycle.ts";
+import type { Child } from "./types.ts";
+import { reconcileRange, safeRemove } from "./dom/reconciler.ts";
+import { createFragmentBoundary } from "./dom/fragment.ts";
+import { normalizeToNodes } from "./dom/normalize.ts";
 import {
-  createFragmentBoundary,
-  reconcileRange,
-  safeRemove,
-} from './dom/reconciler.ts';
-import { normalizeToNodes } from './dom/normalize.ts';
-import { buildElement, buildArrayChild } from './dom/build.ts';
-import {
-  createComponentPlaceholder,
+  buildArrayChild,
+  buildElement,
   createPlainElement,
-  currentBuildingComponent,
+} from "./dom/build.ts";
+import {
   clearContainerInitialChildren,
+  createComponentPlaceholder,
+  currentBuildingComponent,
   FragmentSymbol as Fragment,
   RADI_HOST_TAG,
-} from './dom/core.ts';
+} from "./dom/core.ts";
 import type {
-  dispatchDisconnectIfElement as _dispatchDisconnectIfElement,
   ComponentElement as _ComponentElement,
   ComponentFn,
-} from './dom/core.ts';
+  dispatchDisconnectIfElement as _dispatchDisconnectIfElement,
+} from "./dom/core.ts";
 
 export {
   connect,
   createAbortSignal,
   createAbortSignalOnUpdate,
+  currentBuildingComponent,
   disconnect,
   dispatchConnect,
   dispatchDisconnect,
-  update,
-  currentBuildingComponent,
   Fragment,
+  update,
 };
 
 /** Custom Radi component host element with built-in connect/disconnect lifecycle. */
@@ -74,11 +74,11 @@ export function createElement(
     childrenRaw.map((c: Child) => buildElement(c) as Child);
   const buildNormalized = () => normalizeToNodes(buildChildrenArray());
 
-  if (type === 'fragment') {
+  if (type === "fragment") {
     return buildArrayChild(childrenRaw, true);
   }
 
-  if (typeof type === 'function') {
+  if (typeof type === "function") {
     return createComponentPlaceholder(type as ComponentFn, props, childrenRaw);
   }
 
