@@ -33,7 +33,7 @@ interface MiniFWComponent<P extends Record<string, unknown> = {}> {
 
 type ElementWithChildren<T> =
   & {
-    [K in Exclude<keyof T, keyof Node | "style" | "children">]?:
+    [K in Exclude<keyof T, keyof Node | "style" | "children" | "key">]?:
       Exclude<T[K], null | undefined> extends Function ? T[K]
         : Reactive<T[K]>;
   }
@@ -42,12 +42,13 @@ type ElementWithChildren<T> =
     onupdate?: (this: T, ev: Event & { target: T }) => any;
     onconnect?: (this: T, ev: Event & { target: T }) => any;
     ondisconnect?: (this: T, ev: Event & { target: T }) => any;
+    key?: string;
     children?: any | undefined;
   };
 
 type ElementWithoutChildren<T> =
   & {
-    [K in Exclude<keyof T, keyof Node | "style" | "children">]?:
+    [K in Exclude<keyof T, keyof Node | "style" | "children" | "key">]?:
       Exclude<T[K], null | undefined> extends Function ? T[K]
         : Reactive<T[K]>;
   }
@@ -56,6 +57,7 @@ type ElementWithoutChildren<T> =
     onupdate?: (this: T, ev: Event & { target: T }) => any;
     onconnect?: (this: T, ev: Event & { target: T }) => any;
     ondisconnect?: (this: T, ev: Event & { target: T }) => any;
+    key?: string;
   };
 
 /**

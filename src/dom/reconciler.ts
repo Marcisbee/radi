@@ -115,8 +115,7 @@ export function patchText(a: Node, b: Node): boolean {
 
 export function getNodeKey(node: Node): string | null {
   if (node.nodeType !== Node.ELEMENT_NODE) return null;
-  const el = node as Element & { __key?: string };
-  return el.__key ?? el.getAttribute("data-key");
+  return (node as Element & { __key?: string }).__key ?? null;
 }
 
 export function syncElementProperties(fromEl: Element, toEl: Element): void {
@@ -169,12 +168,10 @@ export function patchElement(oldEl: Element, newEl: Element): boolean {
   const prevHost = oldEl as ComponentHost;
   const nextHost = newEl as ComponentHost;
 
-  const oldKey = prevHost.__key ?? oldEl.getAttribute("data-key");
-  const newKey = nextHost.__key ?? newEl.getAttribute("data-key");
+  const oldKey = prevHost.__key;
+  const newKey = nextHost.__key;
 
-  if (oldKey !== newKey && (oldKey != null || newKey != null)) {
-    return false;
-  }
+  if (oldKey !== newKey) return false;
 
   const nextPending = nextHost.__componentPending;
 
@@ -542,9 +539,7 @@ export function canReuseComponentHost(
   ) {
     return false;
   }
-  const oldKey = oldEl.__key ?? null;
-  const newKey = newEl.__key ?? newEl.getAttribute?.("data-key") ?? null;
-  return oldKey === newKey;
+  return oldEl.__key === newEl.__key;
 }
 
 /* -------------------------------------------------------------------------- */

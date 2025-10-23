@@ -106,7 +106,7 @@ export function buildArrayChild(
 /* Plain Element Creation (moved from core.ts)                                */
 /* -------------------------------------------------------------------------- */
 
-/** Assign a key from props to element if present (key or data-key). */
+/** Assign a key from props to element if present (key only). */
 function assignKeyIfPresent(
   el: HTMLElement & { __key?: string },
   props: Record<string, unknown> | null,
@@ -115,10 +115,7 @@ function assignKeyIfPresent(
   const pAny = props as Record<string, unknown>;
   if (pAny.key != null) {
     el.__key = String(pAny.key);
-    el.setAttribute("data-key", String(pAny.key));
     delete pAny.key;
-  } else if (pAny["data-key"] != null) {
-    el.__key = String(pAny["data-key"]);
   }
 }
 

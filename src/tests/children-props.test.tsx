@@ -86,7 +86,7 @@ function DynamicParent(this: HTMLElement) {
   return () => (
     <EchoReactive>
       {items.map((v) => (
-        <span className="dyn" data-key={v}>
+        <span className="dyn" key={v}>
           {v}
         </span>
       ))}
@@ -284,9 +284,9 @@ function KeyChurn(this: HTMLElement) {
   return () => (
     <EchoReactive>
       {outer.map((o) => (
-        <div className="outer" data-key={o}>
+        <div className="outer" key={o}>
           {inner.map((i) => (
-            <span className="inner" data-key={i}>
+            <span className="inner" key={i}>
               {o}-{i}
             </span>
           ))}

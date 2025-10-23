@@ -69,7 +69,7 @@ function KeyedRemovalRoot(this: HTMLElement) {
         </button>
         <div className="list">
           {active.map((k) => (
-            <span data-key={k} className={"rem-item rem-" + k}>
+            <span key={k} className={"rem-item rem-" + k}>
               {k}
             </span>
           ))}

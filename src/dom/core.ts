@@ -131,10 +131,7 @@ export function createComponentPlaceholder(
     const pAny = props as Record<string, unknown>;
     if (pAny.key != null) {
       placeholder.__key = String(pAny.key);
-      placeholder.setAttribute("data-key", String(pAny.key));
       delete pAny.key;
-    } else if (pAny["data-key"] != null) {
-      placeholder.__key = String(pAny["data-key"]);
     }
   }
 
