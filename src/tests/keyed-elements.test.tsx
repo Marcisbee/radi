@@ -1,6 +1,6 @@
 import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
-import { update } from "../main.ts";
+import { update } from "../client.ts";
 
 /**
  * Item component displaying id and tracking render count to verify identity.

@@ -1,7 +1,7 @@
 /// <reference path="../jsx.d.ts" />
 import { assert, test } from "@marcisbee/rion";
 
-import { createAbortSignal, createRoot } from "../main.ts";
+import { createAbortSignal, createRoot } from "../client.ts";
 
 /**
  * Abortable component registers an abort event listener bound to its lifecycle.

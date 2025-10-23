@@ -1,7 +1,7 @@
 import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { createSignal } from "../signal.ts";
-import { update } from "../main.ts";
+import { update } from "../client.ts";
 
 /**
  * SignalThresholdTest

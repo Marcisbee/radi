@@ -1,5 +1,5 @@
 import { assert, clock, test } from "@marcisbee/rion";
-import { createElement, createRoot } from "../main.ts";
+import { createElement, createRoot } from "../client.ts";
 import { mount } from "../../test/utils.ts";
 
 /* -----------------------------------------------------------------------------

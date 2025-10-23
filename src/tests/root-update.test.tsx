@@ -1,5 +1,5 @@
 import { assert, test } from "@marcisbee/rion";
-import { createRoot, update } from "../main.ts";
+import { createRoot, update } from "../client.ts";
 
 /**
  * Component whose displayed count increments on each update event.

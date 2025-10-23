@@ -309,5 +309,5 @@ export function App(this: DocumentFragment) {
   );
 }
 
-// Import update from main
-import { update } from "../../../main.ts";
+// Import update from client
+import { update } from "../../../client.ts";

@@ -1,6 +1,6 @@
 import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
-import { createRoot } from "../main.ts";
+import { createRoot } from "../client.ts";
 
 /**
  * Utility to create a simple subscribable store compatible with Radi's

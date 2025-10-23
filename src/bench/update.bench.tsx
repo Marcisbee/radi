@@ -10,7 +10,7 @@ import { createRoot as createRootReact } from "npm:react-dom/client";
 import { flushSync } from "npm:react-dom";
 
 import { waitForXPath } from "./bench.utils.ts";
-import { createRoot, update } from "../main.ts";
+import { createRoot, update } from "../client.ts";
 
 const bench = new Bench();
 

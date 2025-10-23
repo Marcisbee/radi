@@ -1,5 +1,5 @@
 import { assert, test } from "@marcisbee/rion";
-import { createRoot } from "../main.ts";
+import { createRoot } from "../client.ts";
 
 /**
  * Simple component whose displayed value depends on its props.

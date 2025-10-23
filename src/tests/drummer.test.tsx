@@ -1,6 +1,6 @@
 import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
-import { createAbortSignal, update } from "../main.ts";
+import { createAbortSignal, update } from "../client.ts";
 
 /**
  * Drummer component.

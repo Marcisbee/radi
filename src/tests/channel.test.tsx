@@ -1,7 +1,7 @@
 import { assert, clock, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
 import { createChannel } from "../channel.ts";
-import { update } from "../main.ts";
+import { update } from "../client.ts";
 
 /**
  * ChannelTest Suite

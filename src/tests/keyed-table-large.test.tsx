@@ -1,6 +1,6 @@
 import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
-import { createElement, update } from "../main.ts";
+import { createElement, update } from "../client.ts";
 
 /**
  * Row type for table entries.

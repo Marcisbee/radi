@@ -7,7 +7,7 @@ import {
 import { createRoot as createRootReact } from "npm:react-dom/client";
 
 import { waitForXPath } from "./bench.utils.ts";
-import { createRoot } from "../main.ts";
+import { createRoot } from "../client.ts";
 
 const bench = new Bench();
 
