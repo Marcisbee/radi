@@ -17,7 +17,7 @@ export function applyStyleObject(
   styleObj: Record<string, string | number>,
 ): void {
   for (const k in styleObj) {
-    el.style.setProperty(k, String(styleObj[k]));
+    el.style[k as any] = String(styleObj[k]);
   }
 }
 
