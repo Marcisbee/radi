@@ -7,10 +7,11 @@
 import {
   dispatchConnect,
   dispatchDisconnect,
-  markReactiveRoot,
 } from "../lifecycle.ts";
 import { dispatchRenderError } from "../error.ts";
+/* restored subscribable handling for nested subscriptions */
 import { isSubscribable } from "./is-subscribable.ts";
+import { buildSubscribableChild } from "./subscribeable.ts";
 import type { Child, ReactiveGenerator, Subscribable } from "../types.ts";
 import { normalizeToNodes } from "./normalize.ts";
 
@@ -574,56 +575,8 @@ export function createFragmentBoundary(): { start: Comment; end: Comment } {
 /* -------------------------------------------------------------------------- */
 
 /* Subscription helpers for subscribable children */
-function safelyRunUnsubscribe(
-  unsub: void | (() => void) | { unsubscribe(): void },
-): void {
-  try {
-    if (typeof unsub === "function") {
-      (unsub as () => void)();
-    } else if (
-      unsub &&
-      typeof (unsub as { unsubscribe?: unknown }).unsubscribe === "function"
-    ) {
-      (unsub as { unsubscribe(): void }).unsubscribe();
-    }
-  } catch {
-    // swallow
-  }
-}
-
-/** Subscribe to a store and reconcile a fragment range for each distinct emission. */
-function subscribeAndReconcileRange(
-  store: Subscribable<unknown>,
-  start: Comment,
-  end: Comment,
-): void {
-  queueMicrotask(() => {
-    const parentEl = start.parentNode as Element | null;
-    if (!parentEl) return;
-    let prev: unknown = Symbol("radi_initial_range");
-    const unsub = store.subscribe((value: unknown) => {
-      if (Object.is(value, prev)) return;
-      prev = value;
-      try {
-        const expanded = produceExpandedNodes(parentEl, value, false);
-        reconcileRange(start, end, expanded);
-      } catch (err) {
-        dispatchRenderError(parentEl, err);
-      }
-    });
-    parentEl.addEventListener("disconnect", () => {
-      safelyRunUnsubscribe(unsub as any);
-    });
-  });
-}
-
-/** Build a subscribable child into a fragment whose interior updates reactively. */
-function buildSubscribableChild(store: Subscribable<unknown>): Child {
-  const { start, end } = createFragmentBoundary();
-  subscribeAndReconcileRange(store, start, end);
-  return [start, end];
-}
-
+/* Subscribable handling moved to subscribeable.ts (safelyRunUnsubscribe, subscribeAndReconcileRange, buildSubscribableChild).
+   buildElement here retains only primitive / function / array normalization to support produceExpandedNodes. */
 function buildElement(child: Child): Child {
   if (typeof child === "string" || typeof child === "number") {
     return document.createTextNode(String(child));
@@ -639,8 +592,9 @@ function buildElement(child: Child): Child {
       );
     };
   }
+  // restored subscribable child handling for nested store emissions
   if (isSubscribable(child)) {
-    return buildSubscribableChild(child as Subscribable<unknown>);
+    return buildSubscribableChild(child as unknown as Subscribable<unknown>);
   }
   if (Array.isArray(child)) {
     const { start, end } = createFragmentBoundary();
@@ -688,7 +642,7 @@ export function produceExpandedNodes(
   }
   const built = alreadyBuilt ? output : buildElement(output as Child);
   const arr = Array.isArray(built) ? built : [built];
-  const normalized = normalizeToNodes(arr as any);
+  const normalized = normalizeToNodes(arr as Child[]);
   const expanded: Node[] = [];
   for (const item of normalized) {
     if (item instanceof Node) {
@@ -714,33 +668,4 @@ export function produceExpandedNodes(
 /* Reactive Rendering + Mounting                                              */
 /* -------------------------------------------------------------------------- */
 
-export function setupReactiveRender(
-  container: Element,
-  fn: ReactiveGenerator,
-): void {
-  const { start, end } = createFragmentBoundary();
-  container.append(start, end);
-  const renderFn = () => {
-    try {
-      const produced = fn(container);
-      const expanded = produceExpandedNodes(container, produced, true);
-      reconcileRange(start, end, expanded);
-    } catch (err) {
-      dispatchRenderError(container, err);
-    }
-  };
-  markReactiveRoot(container);
-  container.addEventListener("update", renderFn);
-  renderFn();
-}
-
-export function mountChild(
-  parent: Element,
-  nodeOrFn: Node | ReactiveGenerator,
-): void {
-  if (typeof nodeOrFn === "function") {
-    setupReactiveRender(parent, nodeOrFn as ReactiveGenerator);
-  } else {
-    safeAppend(parent, nodeOrFn);
-  }
-}
+/* Reactive rendering (setupReactiveRender, mountChild) moved to reactive.ts */

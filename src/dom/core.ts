@@ -11,24 +11,15 @@
  * Public API (main.ts) should import only what it needs from this module.
  */
 
-import {
-  markComponentHost,
-  markEventable,
-} from '../lifecycle.ts';
+import { markComponentHost } from '../lifecycle.ts';
 import { dispatchRenderError } from '../error.ts';
-import type { Child, ReactiveGenerator, Subscribable } from '../types.ts';
-import {
-  createFragmentBoundary,
-  mountChild,
-  produceExpandedNodes,
-  reconcileRange,
-  safeAppend,
-  setupReactiveRender,
-} from './reconciler.ts';
+import type { Child, ReactiveGenerator } from '../types.ts';
+import { createFragmentBoundary, safeAppend } from './reconciler.ts';
+import { mountChild, setupReactiveRender } from './reactive.ts';
 import type { ComponentHost } from './reconciler.ts';
 import { normalizeToNodes } from './normalize.ts';
-import { isSubscribable } from './is-subscribable.ts';
 import { applyPropsToPlainElement } from './props.ts';
+import { maybeBuildSubscribableChild } from './subscribeable.ts';
 
 /* -------------------------------------------------------------------------- */
 /* Types & Constants                                                          */
@@ -48,68 +39,8 @@ export type ComponentElement = HTMLElement & {
 export const RADI_HOST_TAG = 'radi-host';
 
 /* -------------------------------------------------------------------------- */
-/* Subscribable Children                                                      */
+/* (Subscribable child logic moved to subscribeable.ts)                       */
 /* -------------------------------------------------------------------------- */
-
-/** Safely execute an unsubscribe structure (function or {unsubscribe}). */
-function safelyRunUnsubscribe(
-  unsub: void | (() => void) | { unsubscribe(): void },
-): void {
-  try {
-    if (typeof unsub === 'function') {
-      (unsub as () => void)();
-    } else if (
-      unsub &&
-      typeof (unsub as { unsubscribe?: unknown }).unsubscribe === 'function'
-    ) {
-      (unsub as { unsubscribe(): void }).unsubscribe();
-    }
-  } catch {
-    // swallow
-  }
-}
-
-/**
- * Subscribe to a store and reconcile a comment-delimited range on each emission.
- * Each distinct emitted value (by Object.is comparison) triggers a rebuild.
- */
-function subscribeAndReconcileRange(
-  store: Subscribable<unknown>,
-  start: Comment,
-  end: Comment,
-): void {
-  queueMicrotask(() => {
-    const parentEl = start.parentNode as Element | null;
-    if (!parentEl) return;
-    let previousValue: unknown = Symbol('radi_initial_range');
-    let unsub: void | (() => void) | { unsubscribe(): void };
-    try {
-      unsub = store.subscribe((value) => {
-        if (Object.is(value, previousValue)) return;
-        previousValue = value;
-        try {
-          const expanded = produceExpandedNodes(parentEl, value, false);
-          reconcileRange(start, end, expanded);
-        } catch (err) {
-          dispatchRenderError(parentEl, err);
-        }
-      });
-    } catch (err) {
-      dispatchRenderError(parentEl, err);
-    }
-    markEventable(parentEl);
-    parentEl.addEventListener('disconnect', () => {
-      safelyRunUnsubscribe(unsub);
-    });
-  });
-}
-
-/** Build a subscribable child into a fragment placeholder whose interior updates reactively. */
-export function buildSubscribableChild(storeObj: Subscribable<unknown>): Child {
-  const { start, end } = createFragmentBoundary();
-  subscribeAndReconcileRange(storeObj, start, end);
-  return [start, end];
-}
 
 /* -------------------------------------------------------------------------- */
 /* Element Building                                                           */
@@ -137,8 +68,9 @@ export function buildElement(child: Child): Child {
       );
     };
   }
-  if (isSubscribable(child)) {
-    return buildSubscribableChild(child as Subscribable<unknown>);
+  {
+    const maybe = maybeBuildSubscribableChild(child);
+    if (maybe !== child) return maybe;
   }
   if (Array.isArray(child)) {
     return buildArrayChild(child);
