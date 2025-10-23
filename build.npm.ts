@@ -26,11 +26,11 @@ async function start() {
       },
       {
         name: "./server/jsx-runtime",
-        path: "./src/server-jsx-runtime.ts",
+        path: "./src/server/jsx-runtime.ts",
       },
       {
         name: "./server/jsx-dev-runtime",
-        path: "./src/server-jsx-dev-runtime.ts",
+        path: "./src/server/jsx-dev-runtime.ts",
       },
     ],
     outDir: "./npm",

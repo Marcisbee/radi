@@ -115,7 +115,7 @@ test("ssr: nested components & fragment", () => {
   includes(html, "<i>italic</i>");
   includes(html, "<footer>Footer</footer>");
   // Component wrappers
-  const count = html.split("<radi-component>").length - 1;
+  const count = html.split('<radi-host style="display: contents;">').length - 1;
   assert.equal(count >= 3, true, "Expected multiple component wrappers");
 });
 
@@ -161,7 +161,7 @@ test("ssr: component error fallback marker", () => {
   const html = renderToStringRoot(
     h("div", null, h(ErrorComponent, null)),
   );
-  includes(html, "<radi-component>");
+  includes(html, '<radi-host style="display: contents;">');
   includes(html, "component-error");
 });
 

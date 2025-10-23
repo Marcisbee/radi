@@ -23,8 +23,8 @@
 import {
   createElement as ssrCreateElement,
   Fragment as SSRFragment,
-} from "./server.ts";
-import type { ComponentType } from "./renderer.ts";
+} from "../server.ts";
+import type { ComponentType } from "../renderer.ts";
 
 type ServerChild = unknown;
 

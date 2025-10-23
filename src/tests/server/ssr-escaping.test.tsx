@@ -91,7 +91,7 @@ test("ssr: nested component & fragment escaping", () => {
   );
   const escaped = "&lt;&amp;&quot;nested&quot;&gt;";
   // Component + fragment wrappers
-  includes(html, "<radi-component>");
+  includes(html, '<radi-host style="display: contents;">');
   includes(html, "<radi-fragment>");
   // Escaped attribute
   includes(html, `title="${escaped}"`);

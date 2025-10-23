@@ -108,7 +108,7 @@ test("ssr: deep nested components & primitives", () => {
   includes(html, "</section>");
 
   // Component wrappers
-  atLeast(html, "<radi-component>", 3);
+  atLeast(html, '<radi-host style="display: contents;">', 3);
 
   // Leaf + middle content
   includes(html, "Header:root");
@@ -159,7 +159,7 @@ test("ssr: component error surfaces marker", () => {
     ),
   );
 
-  includes(html, "<radi-component>");
+  includes(html, '<radi-host style="display: contents;">');
   includes(html, "component-error");
   includes(html, "final");
 });
@@ -177,7 +177,7 @@ test("ssr: mixed nesting with multiple fragments & components", () => {
   includes(html, 'data-leaf="A"');
   includes(html, 'data-leaf="B"');
   includes(html, "Header:C");
-  atLeast(html, "<radi-component>", 3);
+  atLeast(html, '<radi-host style="display: contents;">', 3);
 });
 
 test("ssr: ensure no second emission from multi-shot pattern", () => {

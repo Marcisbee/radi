@@ -261,7 +261,8 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
       } catch {
         produced = ["component-error"];
       }
-      const componentWrapper = adapter.createElement("radi-component");
+      const componentWrapper = adapter.createElement("radi-host");
+      adapter.setProperty(componentWrapper, "style", "display: contents;");
       insertChildren(
         componentWrapper,
         expandChild(produced, adapter, runReactive),
@@ -302,9 +303,9 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
     if (typeof adapter.serialize !== "function") {
       throw new Error("Adapter does not support serialization");
     }
-    const root = adapter.createElement("radi-root-ssr");
-    render(root, child);
-    return adapter.serialize(root);
+    // const root = adapter.createElement("radi-root-ssr");
+    // render(root, child);
+    return adapter.serialize(child);
   }
 
   return {
