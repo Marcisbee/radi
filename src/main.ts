@@ -1,36 +1,47 @@
 import {
-  collectLifecycleTargets,
-  collectUpdateTargets,
+  connect,
+  createAbortSignal,
+  createAbortSignalOnUpdate,
+  disconnect,
+  dispatchConnect,
+  dispatchDisconnect,
+  isComponentHost,
   markComponentHost,
   markEventable,
   markReactiveRoot,
+  update,
 } from "./lifecycle.ts";
-import { Child, ReactiveGenerator, Subscribable } from "./types.ts";
+import type { Child, ReactiveGenerator, Subscribable } from "./types.ts";
+
+export {
+  connect,
+  createAbortSignal,
+  createAbortSignalOnUpdate,
+  disconnect,
+  dispatchConnect,
+  dispatchDisconnect,
+  update,
+};
 
 /** Internal extended element with optional component marker. */
+type ComponentRenderFn = (this: HTMLElement, props: () => unknown) => unknown;
+
+interface ComponentPending {
+  type: ComponentRenderFn;
+  props: Record<string, unknown>;
+}
+
 type ComponentElement = HTMLElement & {
-  __component?: Function;
+  __component?: ComponentRenderFn;
   [key: string]: unknown;
 };
 
 /** Internal component host bookkeeping shape. */
 type ComponentHost = ComponentElement & {
-  __componentPending?: { type: (propsGetter: () => any) => any; props: any };
-  __propsRef?: { current: any };
+  __componentPending?: ComponentPending;
+  __propsRef?: { current: Record<string, unknown> };
   __mounted?: boolean;
 };
-
-function connect(target: Node) {
-  return target.dispatchEvent(
-    new Event("connect", { bubbles: false, cancelable: false }),
-  );
-}
-
-function disconnect(target: Node) {
-  return target.dispatchEvent(
-    new Event("disconnect", { bubbles: false, cancelable: false }),
-  );
-}
 
 /** Custom Radi component host element with built-in connect/disconnect lifecycle. */
 export class RadiHostElement extends HTMLElement {
@@ -46,14 +57,6 @@ export class RadiHostElement extends HTMLElement {
 const RADI_HOST_TAG = "radi-host";
 if (!customElements.get(RADI_HOST_TAG)) {
   customElements.define(RADI_HOST_TAG, RadiHostElement);
-}
-
-/**
- * Determine if a node is a Radi component host.
- * Uses a stable tag + marker property instead of instanceof to survive duplicate module copies.
- */
-function isRadiHost(node: any): boolean {
-  return !!(node && node.nodeName === RADI_HOST_TAG.toUpperCase());
 }
 
 // Listen for connect events to flush component build queue
@@ -88,15 +91,15 @@ function createFragmentBoundary(): { start: Comment; end: Comment } {
  */
 function normalizeToNodes(raw: Child | Child[]): (Node | ReactiveGenerator)[] {
   const out: (Node | ReactiveGenerator)[] = [];
-  const stack: any[] = Array.isArray(raw) ? [...raw] : [raw];
-  while (stack.length) {
-    const item = stack.shift();
+  const queue: (Child | Child[])[] = Array.isArray(raw) ? [...raw] : [raw];
+  while (queue.length) {
+    const item = queue.shift()!;
     if (item == null) {
       out.push(document.createComment("null"));
       continue;
     }
     if (Array.isArray(item)) {
-      stack.unshift(...item);
+      queue.unshift(...item);
       continue;
     }
     switch (typeof item) {
@@ -440,12 +443,6 @@ let currentBuildingComponent: Element | null = null;
 /* -------------------------------------------------------------------------- */
 
 /** Create an AbortSignal that aborts when the target Node disconnects. */
-export function createAbortSignal(target: Node): AbortSignal {
-  const controller = new AbortController();
-  // target.__reactiveEvent = true;
-  target.addEventListener("disconnect", () => controller.abort());
-  return controller.signal;
-}
 
 /* -------------------------------------------------------------------------- */
 /* DOM Operation Helpers                                                      */
@@ -503,28 +500,6 @@ function safeRemove(parent: Node & ParentNode, child: Node): void {
   if (child.parentNode === parent) {
     dispatchDisconnect(child);
     parent.removeChild(child);
-  }
-}
-
-function dispatchConnect(node: Node): void {
-  for (const el of collectLifecycleTargets(node)) {
-    if (el !== node) {
-      connect(el);
-    }
-  }
-}
-
-function dispatchDisconnect(node: Node): void {
-  for (const el of collectLifecycleTargets(node)) {
-    if (el !== node) {
-      disconnect(el);
-    }
-  }
-}
-
-export function update(root: Node): void {
-  for (const el of collectUpdateTargets(root)) {
-    el.dispatchEvent(new Event("update"));
   }
 }
 
@@ -1257,7 +1232,7 @@ export function createRoot(container: HTMLElement): {
     ) as Node[];
     reconcileRange(start, end, normalized);
     // Host detection uses helper to avoid instanceof across duplicated module copies.
-    const isHost = isRadiHost(node as any);
+    const isHost = isComponentHost(node as any);
     if (!isHost) {
       connect(node);
     }
