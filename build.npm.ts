@@ -9,12 +9,28 @@ async function start() {
     entryPoints: [
       "./src/main.ts",
       {
+        name: "./client",
+        path: "./src/client.ts",
+      },
+      {
+        name: "./server",
+        path: "./src/server.ts",
+      },
+      {
         name: "./jsx-runtime",
         path: "./src/jsx-runtime.ts",
       },
       {
         name: "./jsx-dev-runtime",
         path: "./src/jsx-dev-runtime.ts",
+      },
+      {
+        name: "./server/jsx-runtime",
+        path: "./src/server-jsx-runtime.ts",
+      },
+      {
+        name: "./server/jsx-dev-runtime",
+        path: "./src/server-jsx-dev-runtime.ts",
       },
     ],
     outDir: "./npm",
