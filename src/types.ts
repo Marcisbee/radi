@@ -29,6 +29,7 @@ export type Child =
   | null
   | undefined
   | Node
+  | { node: unknown } // structural match for UniversalNode (server renderer)
   | Child[]
   | ReactiveGenerator
   | Subscribable<unknown>;

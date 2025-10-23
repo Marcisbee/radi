@@ -230,6 +230,11 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
    */
   function createElement(type: string | ComponentType, props: Record<string, unknown> | null, ...children: Child[]): UniversalNode {
     if (typeof type === 'function') {
+      // Fragment sentinel: if the caller passes the internal fragment helper directly
+      // (e.g. h(Fragment, null, ...children)), treat it as a fragment with provided children.
+      if ((type as unknown) === fragment) {
+        return fragment(children);
+      }
       const propsObj = { ...(props || {}) };
       const propsGetter = () => propsObj as Record<string, unknown>;
       let produced: Child | Child[] = [];
@@ -475,8 +480,12 @@ export function createServerStringAdapter(): RendererAdapter {
           case 'element': {
             const attrs = n.props
               ? Object.entries(n.props)
-                .filter(([attr, val]) => val != null && typeof val !== 'function')
-                .map(([attr, val]) => `${attr}="${esc(val)}"`).join(' ')
+                // Include null-valued attributes (serialized as "null"); omit only undefined and functions.
+                .filter(([attr, val]) => val !== undefined && typeof val !== 'function')
+                .map(([attr, val]) => {
+                  const rendered = val === null ? 'null' : val;
+                  return `${attr}="${esc(rendered)}"`;
+                }).join(' ')
               : '';
             const open = attrs ? `<${n.tag} ${attrs}>` : `<${n.tag}>`;
             const childrenHTML = n.children.map(walk).join('');
