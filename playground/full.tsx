@@ -600,8 +600,39 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
         <ChildError />
       </ErrorBoundary>
       After
+      <hr />
+      Lifecycle Demo:
+      <EventLifecycleDemo />
     </div>
   );
+}
+
+function EventLifecycleDemo(this: HTMLElement) {
+  let i = 0;
+  console.log("RENDER COMPONENT");
+  this.addEventListener("connect", () => {
+    console.log("CONNECT", i);
+  });
+  this.addEventListener("disconnect", () => {
+    console.log("DISCONNECT", i);
+  });
+  this.addEventListener("update", () => {
+    console.log("UPDATE", i);
+  });
+  this.addEventListener("update", () => {
+    console.log("UPDATE CAPTURE", i);
+  }, { capture: true });
+  return () => (console.log("RENDER REACTIVE", i),
+    (
+      <button
+        onclick={() => {
+          i++;
+          update(this);
+        }}
+      >
+        {i}
+      </button>
+    ));
 }
 
 function Boom() {
