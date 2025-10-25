@@ -1,5 +1,4 @@
 // deno-lint-ignore-file no-inner-declarations
-import { emit } from "node:process";
 import { diff } from "./rework-diff.ts";
 
 export const Fragment = Symbol();
@@ -464,12 +463,16 @@ export function createElement(
 ) {
   const children: Node[] = childrenRaw.flatMap(buildElement);
 
+  if (type === Fragment) {
+    return children;
+  }
+
   if (typeof type === "function") {
     // const placeholder = document.createComment("");
     // const anchor = document.createComment("COMPONENT");
 
     let instance: Node[] | null = null;
-    const component = (p: Node & { reactiveComponent?: boolean }) => {
+    return (p: Node & { reactiveComponent?: boolean }) => {
       p.reactiveComponent = true;
       if (!instance) {
         const produced = type.call(p);
@@ -479,11 +482,11 @@ export function createElement(
       return instance;
     };
 
-    component.name2 = type.name || "Component";
+    // component.name2 = type.name || "Component";
 
-    // anchor.__elements = [].concat(component);
+    // // anchor.__elements = [].concat(component);
 
-    return component;
+    // return component;
 
     // try {
     //   return placeholder;
