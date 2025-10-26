@@ -1,12 +1,7 @@
 /**
- * Consolidated Radi client + DOM implementation in a single file.
- *
- * NOTE: In-progress refactor (Option C):
- *   - Will introduce a single expandToNodes() helper to replace:
- *       normalizeToNodes + produceExpandedNodes + maybeBuildSubscribableChild layering.
- *   - Keyed reconciliation retained.
- *
- * (Temporary header comment; remove after refactor complete.)
+ * Radi client + DOM implementation (single-file build).
+ * Exposes high-level element / root APIs plus keyed reconciliation & reactive regions.
+ * Internal helpers favor minimal passes and small surface area.
  */
 
 import {
@@ -119,14 +114,11 @@ function buildSubscribableChild(store: Subscribable<unknown>): Child {
 /* -------------------------------------------------------------------------- */
 /**
  * expandToNodes
- *  - Replaces normalizeToNodes + produceExpandedNodes layered passes.
- *  - Handles primitives, arrays, reactive generator functions, and subscribables.
- *  - When alreadyBuilt = true, assumes value may already contain Nodes (fast paths).
- *
- * NOTE:
- *  - Current code paths still call buildElement/maybeBuildSubscribableChild directly.
- *  - Next steps: migrate setupReactiveRender() & subscribeAndReconcileRange()
- *    to use this helper, then remove normalizeToNodes + produceExpandedNodes.
+ *  Converts an arbitrary value (child output, reactive emission, subscribable value)
+ *  into a flat array of concrete DOM Nodes. Executes reactive generator functions
+ *  (functions receiving parent) eagerly so their produced structure participates
+ *  in the same reconciliation frame. When alreadyBuilt=true, treats the input
+ *  as structurally processed and only performs final flattening / primitive wrapping.
  */
 function expandToNodes(
   parent: Element,
