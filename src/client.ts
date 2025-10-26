@@ -335,6 +335,34 @@ function queueComponentForBuild(host: ComponentElement): void {
 }
 
 /** Perform initial component build (invokes component function and mounts output). */
+function mountRealizedValue(parent: Element, val: unknown): void {
+  if (val == null) {
+    safeAppend(parent, document.createComment("null"));
+    return;
+  }
+  if (val instanceof Node) {
+    safeAppend(parent, val);
+    return;
+  }
+  const t = typeof val;
+  if (t === "string" || t === "number") {
+    safeAppend(parent, document.createTextNode(String(val)));
+    return;
+  }
+  if (t === "boolean") {
+    safeAppend(parent, document.createComment(val ? "true" : "false"));
+    return;
+  }
+  if (t === "function") {
+    setupReactiveRender(parent, val as ReactiveGenerator);
+    return;
+  }
+  if (Array.isArray(val)) {
+    for (const inner of val) mountRealizedValue(parent, inner);
+    return;
+  }
+  safeAppend(parent, document.createTextNode(String(val)));
+}
 function buildComponentHost(host: ComponentElement): void {
   const pending = host.__componentPending;
   if (!pending || host.__mounted) return;
@@ -353,35 +381,7 @@ function buildComponentHost(host: ComponentElement): void {
   currentBuildingComponent = host;
   try {
     const output = buildElement(pending.type.call(host, propsGetter) as Child);
-    function mountValue(val: unknown): void {
-      if (val == null) {
-        safeAppend(host, document.createComment("null"));
-        return;
-      }
-      if (val instanceof Node) {
-        safeAppend(host, val);
-        return;
-      }
-      const t = typeof val;
-      if (t === "string" || t === "number") {
-        safeAppend(host, document.createTextNode(String(val)));
-        return;
-      }
-      if (t === "boolean") {
-        safeAppend(host, document.createComment(val ? "true" : "false"));
-        return;
-      }
-      if (t === "function") {
-        setupReactiveRender(host, val as ReactiveGenerator);
-        return;
-      }
-      if (Array.isArray(val)) {
-        for (const inner of val) mountValue(inner);
-        return;
-      }
-      safeAppend(host, document.createTextNode(String(val)));
-    }
-    mountValue(output);
+    mountRealizedValue(host, output);
   } catch (err) {
     dispatchRenderError(host, err);
   } finally {
@@ -477,7 +477,7 @@ function createPlainElement(
     if (typeof c === "function") {
       setupReactiveRender(element, c as ReactiveGenerator);
     } else {
-      element.append(c);
+      mountRealizedValue(element, c);
     }
   }
   return element;
