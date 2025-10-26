@@ -14,7 +14,22 @@ type Child =
   | undefined
   | Node
   | Child[]
-  | ReactiveGenerator;
+  | ReactiveGenerator
+  | VNode;
+
+interface VNode {
+  __v: true;
+  type: string | ComponentFactory | typeof Fragment;
+  props: Record<string, unknown> | null;
+  children: Child[];
+  _node: Node | Node[] | null;
+  readonly ref: Node | Node[];
+}
+
+function isVNode(value: unknown): value is VNode {
+  return !!value && typeof value === "object" &&
+    (value as { __v?: unknown }).__v === true;
+}
 
 const tasks = new Set<() => void>();
 let microtaskScheduled = false;
@@ -58,15 +73,52 @@ interface ReactiveScope extends Comment {
 }
 
 function buildElement(child: Child): Node[] {
+  if (isVNode(child)) {
+    const realized = child.ref;
+    return Array.isArray(realized) ? realized : [realized];
+  }
+
   if (typeof child === "string" || typeof child === "number") {
     return [document.createTextNode(String(child))];
   }
+
   if (typeof child === "boolean") {
     return [document.createComment(child ? "true" : "false")];
   }
+
   if (typeof child === "function") {
     return [createReactiveScope(child as ReactiveGenerator)];
   }
+
+  if (
+    typeof child === "object" && child !== null && "subscribe" in child &&
+    typeof child.subscribe === "function"
+  ) {
+    let currentValue: any;
+    let initialized = false;
+    let subscription: { unsubscribe: () => void } | undefined;
+
+    // deno-lint-ignore no-inner-declarations
+    function subscribable(parent: ReactiveGenerator) {
+      subscription ??= child.subscribe((value: any) => {
+        currentValue = value;
+        if (initialized) {
+          update(parent);
+        }
+      });
+
+      on.call(parent, "disconnect", () => {
+        subscription?.unsubscribe();
+        subscription = undefined;
+      }, {
+        once: true,
+      });
+      initialized = true;
+      return currentValue;
+    }
+    return [createReactiveScope(subscribable)];
+  }
+
   if (Array.isArray(child)) {
     const fragmentChildren = child.flatMap(buildElement);
     return [
@@ -75,9 +127,11 @@ function buildElement(child: Child): Node[] {
       FRAGMENT_END_TEMPLATE.cloneNode(),
     ];
   }
+
   if (child == null) {
     return [document.createComment("null")];
   }
+
   return [child as Node];
 }
 
@@ -131,103 +185,14 @@ function createReactiveScope(generator: ReactiveGenerator): ReactiveScope {
   );
   target.reactiveChildren = [];
 
-  // const originalAddEventListener = target.addEventListener;
-  // const originalRemoveEventListener = target.removeEventListener;
-
-  // keep reactive listeners in a closure-scoped map: eventName -> (originalListener -> wrapper)
-  const reactiveListeners = new Map<
-    string,
-    Map<EventListenerOrEventListenerObject, EventListener>
-  >();
-
-  target.addEventListener = function (
-    name: string,
-    listener?: EventListenerOrEventListenerObject | null,
-    options?: boolean | AddEventListenerOptions,
-  ) {
-    if (
-      name === "update" || name === "connect" || name === "disconnect" ||
-      name === "request:update"
-    ) {
-      return on.call(target, name, listener, options);
-    }
-
-    if (!listener) return;
-
-    let byName = reactiveListeners.get(name);
-    if (!byName) {
-      byName = new Map();
-      reactiveListeners.set(name, byName);
-    }
-
-    const handler: EventListener = (e: Event) => {
-      const eventTarget = e.target as Node;
-      if (!isAncestorHelper(eventTarget, target)) return;
-
-      if (typeof listener === "function") {
-        (listener as EventListener)(e);
-      } else if (
-        typeof listener === "object" &&
-        listener !== null &&
-        "handleEvent" in listener &&
-        typeof (listener as EventListenerObject).handleEvent === "function"
-      ) {
-        (listener as EventListenerObject).handleEvent(e);
-      }
-    };
-
-    document.addEventListener(name, handler, { capture: true });
-    byName.set(listener, handler);
-  };
-
   // @TODO:
-  // 1. events must bubble to closest reactive scope only, currently captured at document level
-  // 2. rework rendering, must call component first, then render children etc
+  // --1. events must bubble to closest reactive scope only, currently captured at document level
+  // --2. rework rendering, must call component first, then render children etc
   //    - comment anchor -> component -> props -> children -> reactives
-  // 3. component
+  // --3. component
   // 4. subscribable
-  // 5. props
+  // --5. props
   // 6. keys
-
-  target.removeEventListener = function (
-    name: string,
-    listener?: EventListenerOrEventListenerObject | null,
-    options?: boolean | EventListenerOptions,
-  ) {
-    if (
-      name === "update" || name === "connect" || name === "disconnect" ||
-      name === "request:update"
-    ) {
-      return off.call(target, name, listener, options);
-    }
-
-    const byName = reactiveListeners.get(name);
-    if (!byName) return;
-
-    if (listener) {
-      const wrapper = byName.get(listener);
-      if (wrapper) {
-        document.removeEventListener(name, wrapper, { capture: true });
-        byName.delete(listener);
-      }
-    } else {
-      // remove all listeners for this event name
-      for (const wrapper of byName.values()) {
-        document.removeEventListener(name, wrapper, { capture: true });
-      }
-      reactiveListeners.delete(name);
-      return;
-    }
-
-    if (byName.size === 0) reactiveListeners.delete(name);
-  };
-
-  // target.addEventListener2 = (name: string, cb: any) => {
-  //   return document.body.call(target, name, ...args);
-  // };
-  // target.removeEventListener2 = (name: string, ...args: any[]) => {
-  //   return originalRemoveEventListener.call(target, name, ...args);
-  // };
 
   pendingConnections.push(target);
   const runGenerator = (): Node[] => {
@@ -237,9 +202,16 @@ function createReactiveScope(generator: ReactiveGenerator): ReactiveScope {
         ? produced
         : [produced];
       return producedList.flatMap(buildElement);
-    } catch (e) {
-      target.dispatchEvent(new Event("error", { bubbles: true }));
-      console.error("Error in reactive generator:", e);
+    } catch (error) {
+      console.error("Error in reactive generator:", error);
+      target.dispatchEvent(
+        new ErrorEvent("error", {
+          error,
+          bubbles: true,
+          composed: true,
+          cancelable: true,
+        }),
+      );
       return [document.createComment("error")];
     }
   };
@@ -315,20 +287,20 @@ function attachReactiveListeners(
         ...target.reactiveChildren,
       );
     }
-    target.addEventListener("disconnect", disconnect, {
+    on.call(target, "disconnect", disconnect, {
       capture: true,
       once: true,
     });
-    document.body.addEventListener("request:update", render, { capture: true });
+    on("request:update", render, { capture: true });
   }
 
-  target.addEventListener("connect", connect, { capture: true, once: true });
+  on.call(target, "connect", connect, { capture: true, once: true });
 }
 
 function traverseReactiveChildren(scopes: Node[], cb: (node: Node) => void) {
   for (const scope of scopes) {
     const xpathResult = document.evaluate(
-      ".//comment()",
+      ".//comment() | .//*[@host]",
       scope,
       null,
       XPathResult.ORDERED_NODE_ITERATOR_TYPE,
@@ -341,7 +313,7 @@ function traverseReactiveChildren(scopes: Node[], cb: (node: Node) => void) {
       node = xpathResult.iterateNext();
     }
     for (const c of commentNodes) {
-      if (c.reactiveChildren) cb(c);
+      if (c.reactiveChildren || c.reactiveComponent) cb(c);
     }
   }
 }
@@ -355,17 +327,19 @@ function flush() {
   for (const node of disconnects) node.dispatchEvent(new Event("disconnect"));
 }
 
-export function render(el: Node | Node[], target: HTMLElement) {
+export function render(el: Child | Child[], target: HTMLElement) {
   try {
-    if (Array.isArray(el)) target.append(...el);
-    else target.append(el);
-    return el;
+    const nodes: Node[] = Array.isArray(el)
+      ? el.flatMap(buildElement)
+      : buildElement(el);
+    target.append(...nodes);
+    return nodes.length === 1 ? nodes[0] : nodes;
   } finally {
     flush();
   }
 }
 
-export function renderClient(el: Node, target: HTMLElement) {
+export function renderClient(el: Child, target: HTMLElement) {
   const container = document.createElement("app");
   const comment = document.createComment("app");
   container.appendChild(comment);
@@ -396,7 +370,7 @@ function inlineDiff(a: Node[], b: Node[], c: Comment | Node): Node[] {
   );
 }
 
-function setGlobalStyle(selector, declarations) {
+function setGlobalStyle(selector: string, declarations: string) {
   const style = document.createElement("style");
   style.type = "text/css";
   style.appendChild(document.createTextNode(`${selector} { ${declarations} }`));
@@ -409,60 +383,89 @@ export function createElement(
   props: Record<string, unknown> | null,
   ...childrenRaw: Child[]
 ) {
-  if (typeof type === "function") {
-    let instance: Node[] | null = null;
-    let children: Node[];
-    const host = document.createElement(type.name || "host");
-    host.setAttribute("host", "");
+  // Return a lightweight VNode with lazy realization through the ref getter.
+  const vnode: VNode = {
+    __v: true,
+    type,
+    props,
+    children: childrenRaw,
+    _node: null,
+    get ref(): Node | Node[] {
+      if (this._node) return this._node;
+      this._node = realize();
+      return this._node;
+    },
+  };
 
-    // host.style.display = "contents";
-    host.reactiveComponent = true;
+  const realize = (): Node | Node[] => {
+    // Component (function)
+    if (typeof type === "function") {
+      let instance: Node[] | null = null;
+      // let childrenCache: Node[];
+      const host = document.createElement(type.name || "host");
+      host.setAttribute("host", "");
+      host.reactiveComponent = true;
 
-    host.appendChild(
-      createReactiveScope(
-        () => {
-          if (!instance) {
-            const produced = (type as ComponentFactory).call(host, () => ({
-              ...props,
-              get children() {
-                return children ??= childrenRaw.flatMap(buildElement);
-              },
-            }));
-            const list: Child[] = Array.isArray(produced)
-              ? produced
-              : [produced];
-            instance = list.flatMap(buildElement);
+      host.appendChild(
+        createReactiveScope(
+          (e) => {
+            on.call(e, "disconnect", () => {
+              pendingDisconnections.push(host);
+            }, { once: true, capture: true });
+            if (!instance) {
+              let cachedProps: Record<string, unknown> | null = null;
+              const produced = (type as ComponentFactory).call(
+                host,
+                () =>
+                  cachedProps ??= {
+                    ...props,
+                    children: childrenRaw.flatMap(buildElement),
+                  },
+              );
+              const list: Child[] = Array.isArray(produced)
+                ? produced
+                : [produced];
+              instance = list.flatMap(buildElement);
+            }
+            return instance;
+          },
+        ),
+      );
+
+      pendingConnections.push(host);
+      return host;
+    }
+
+    // Fragment: flatten children into nodes
+    if (type === Fragment) {
+      return childrenRaw.flatMap(buildElement);
+    }
+
+    // String element
+    if (typeof type === "string") {
+      const element = document.createElement(type);
+      if (props) {
+        for (const key in props) {
+          const value = (props as Record<string, unknown>)[key];
+          if (!key.startsWith("on") && typeof value === "function") {
+            // placeholder for future reactive prop handling
+          } else {
+            (element as unknown as Record<string, unknown>)[key] = value;
           }
-          return instance;
-        },
-      ),
-    );
-
-    pendingConnections.push(host);
-
-    return host;
-  }
-  const children: Node[] = childrenRaw.flatMap(buildElement);
-  if (type === Fragment) return children;
-  if (typeof type === "string") {
-    const element = document.createElement(type);
-    if (props) {
-      for (const key in props) {
-        const value = props[key];
-        if (!key.startsWith("on") && typeof value === "function") {
-          // placeholder for future reactive prop handling
-        } else {
-          (element as unknown as Record<string, unknown>)[key] = value;
         }
       }
+      const builtChildren = childrenRaw.flatMap(buildElement);
+      try {
+        return element;
+      } finally {
+        render(builtChildren, element);
+      }
     }
-    try {
-      return element;
-    } finally {
-      render(children, element);
-    }
-  }
-  return document.createComment("NOT IMPLEMENTED");
+
+    return document.createComment("NOT IMPLEMENTED");
+  };
+
+  return vnode as unknown as Node; // external code may still treat as Node-like
 }
 
 export function update(node: Node) {
@@ -474,8 +477,8 @@ export function update(node: Node) {
 }
 
 export function createRoot(target: HTMLElement) {
-  const out: { render(el: Node): Node; root: null | Node } = {
-    render(el: Node) {
+  const out: { render(el: Child): Node; root: null | Node } = {
+    render(el: Child) {
       return (out.root = renderClient(el, target));
     },
     root: null,
