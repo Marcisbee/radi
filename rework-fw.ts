@@ -1,4 +1,4 @@
-import { diff } from "./rework-diff.ts";
+import { diff, vdiff } from "./rework-diff.ts";
 
 export const Fragment = Symbol();
 
@@ -352,11 +352,30 @@ export function renderClient(el: Child, target: HTMLElement) {
   }
 }
 
-function inlineDiff(a: Node[], b: Node[], c: Comment | Node): Node[] {
+function isVNodeArray(list: unknown[]): boolean {
+  return list.some((v) => !!v && typeof v === 'object' && (v as { __v?: unknown }).__v === true);
+}
+function realizeVNodeToNodes(v: any): Node[] {
+  if (v && typeof v === 'object' && (v as { __v?: unknown }).__v === true) {
+    const ref = (v as any).ref;
+    return Array.isArray(ref) ? ref : [ref];
+  }
+  return [v as Node];
+}
+function inlineDiff(a: any[], b: any[], c: Comment | Node): Node[] {
+  const parent = c.parentElement;
+  if (!parent) return [];
+  const useVNode = isVNodeArray(a) || isVNodeArray(b);
+  if (useVNode) {
+    // vdiff operates structurally on realized top-level nodes of VNodes
+    vdiff(parent, a, b, c);
+    // Return realized future children (b) as Node[]
+    return b.flatMap(realizeVNodeToNodes);
+  }
   return diff(
-    c.parentElement,
-    a,
-    b,
+    parent,
+    a as Node[],
+    b as Node[],
     (e: Node, method: number) => {
       if ((e as Node).reactiveChildren) {
         if (method === -1) pendingDisconnections.push(e);
@@ -367,7 +386,7 @@ function inlineDiff(a: Node[], b: Node[], c: Comment | Node): Node[] {
       return e;
     },
     c,
-  );
+  ) as Node[];
 }
 
 function setGlobalStyle(selector: string, declarations: string) {

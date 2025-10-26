@@ -1,12 +1,5 @@
-/** @jsxRuntime classic */
-/** @jsx createElement */
-/** @jsxFrag Fragment */
 import { assert, test } from "@marcisbee/rion";
-import {
-  createElement,
-  createRoot,
-  Fragment, renderClient, update } from "../../rework-fw.ts";
-// import { createRoot, update } from "../client.ts";
+import { createRoot, update } from "../client.ts";
 
 /**
  * Component whose displayed count increments on each update event.
