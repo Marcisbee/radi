@@ -1,69 +1,67 @@
-import {
-  createAbortSignal,
-  createElement,
-  createRoot,
-  Fragment,
-  update,
-} from "../src/client.ts";
-import { createChannel } from "../src/channel.ts";
-import { suspend, Suspense, unsuspend } from "../src/suspense.ts";
-import { createSignal } from "../src/signal.ts";
+/** @jsxRuntime classic */
+/** @jsx createElement */
+/** @jsxFrag Fragment */
 
-const Theme = createChannel<"light" | "dark">("light");
+import { createAbortSignal, createElement, createRoot, update, Fragment } from "../src/client.ts";
 
-function ThemeProvider(
-  this: DocumentFragment,
-  props: JSX.PropsWithChildren,
-) {
-  // Provide (idempotent across re-renders unless you explicitly change value)
-  const theme = Theme.provide(this, "light");
-  // Example: toggle every 2s
-  setInterval(() => {
-    theme.set((prev) => (prev === "light" ? "dark" : "light"));
-  }, 2000);
-  return () => props().children;
-}
+// import { createElement, createRoot, Fragment, update } from "../rework-fw.ts";
+// import { createAbortSignal, update } from "../src/lifecycle.ts";
 
-function Badge(this: DocumentFragment) {
-  const theme = Theme.use(this);
-  return (
-    <div
-      style={() => ({
-        background: theme() === "dark" ? "#222" : "#eee",
-        color: theme() === "dark" ? "#eee" : "#222",
-        padding: "4px 8px",
-        borderRadius: "4px",
-      })}
-    >
-      Theme: {theme}
-      <button
-        type="button"
-        onclick={() => {
-          theme.set((prev) => (prev === "light" ? "dark" : "light"));
-        }}
-        style={{ marginLeft: "8px" }}
-      >
-        toggle
-      </button>
-      <button
-        type="button"
-        onclick={() => {
-          theme.update(); // force consumers to re-render without changing value
-        }}
-        style={{ marginLeft: "4px" }}
-      >
-        force update
-      </button>
-    </div>
-  );
-}
+// const Theme = createChannel<"light" | "dark">("light");
 
-function Nested(this: DocumentFragment) {
-  // Locally override provider:
-  Theme.provide(this, "dark");
-  const theme = Theme.use(this);
-  return <div>Nested local theme: {theme}</div>;
-}
+// function ThemeProvider(
+//   this: DocumentFragment,
+//   props: JSX.PropsWithChildren,
+// ) {
+//   // Provide (idempotent across re-renders unless you explicitly change value)
+//   const theme = Theme.provide(this, "light");
+//   // Example: toggle every 2s
+//   setInterval(() => {
+//     theme.set((prev) => (prev === "light" ? "dark" : "light"));
+//   }, 2000);
+//   return () => props().children;
+// }
+
+// function Badge(this: DocumentFragment) {
+//   const theme = Theme.use(this);
+//   return (
+//     <div
+//       style={() => ({
+//         background: theme() === "dark" ? "#222" : "#eee",
+//         color: theme() === "dark" ? "#eee" : "#222",
+//         padding: "4px 8px",
+//         borderRadius: "4px",
+//       })}
+//     >
+//       Theme: {theme}
+//       <button
+//         type="button"
+//         onclick={() => {
+//           theme.set((prev) => (prev === "light" ? "dark" : "light"));
+//         }}
+//         style={{ marginLeft: "8px" }}
+//       >
+//         toggle
+//       </button>
+//       <button
+//         type="button"
+//         onclick={() => {
+//           theme.update(); // force consumers to re-render without changing value
+//         }}
+//         style={{ marginLeft: "4px" }}
+//       >
+//         force update
+//       </button>
+//     </div>
+//   );
+// }
+
+// function Nested(this: DocumentFragment) {
+//   // Locally override provider:
+//   Theme.provide(this, "dark");
+//   const theme = Theme.use(this);
+//   return <div>Nested local theme: {theme}</div>;
+// }
 
 function SuspendedChild(this: DocumentFragment) {
   let state = "suspended";
@@ -83,27 +81,27 @@ function SuspendedChild(this: DocumentFragment) {
   );
 }
 
-function CounterSignal(
-  this: DocumentFragment,
-  props: JSX.Props<{ count: number }>,
-) {
-  const countSignal = createSignal(props().count);
+// function CounterSignal(
+//   this: DocumentFragment,
+//   props: JSX.Props<{ count: number }>,
+// ) {
+//   const countSignal = createSignal(props().count);
 
-  return (
-    <button
-      type="button"
-      onclick={() => {
-        countSignal(countSignal() + 1);
-      }}
-      disabled={countSignal((c) => c >= 10)}
-      style={{
-        color: "orange",
-      }}
-    >
-      Signal: {countSignal}
-    </button>
-  );
-}
+//   return (
+//     <button
+//       type="button"
+//       onclick={() => {
+//         countSignal(countSignal() + 1);
+//       }}
+//       disabled={countSignal((c) => c >= 10)}
+//       style={{
+//         color: "orange",
+//       }}
+//     >
+//       Signal: {countSignal}
+//     </button>
+//   );
+// }
 
 function Drummer(
   this: DocumentFragment,
@@ -201,6 +199,67 @@ function Counter(this: DocumentFragment, props: JSX.Props<{ count: number }>) {
       disabled={() => count >= 10}
     >
       {() => count}
+    </button>
+  );
+}
+
+let createNanoEvents = () => ({
+  emit(event, ...args) {
+    for (
+      let callbacks = this.events[event] || [],
+        i = 0,
+        length = callbacks.length;
+      i < length;
+      i++
+    ) {
+      callbacks[i](...args);
+    }
+  },
+  events: {},
+  on(event, cb) {
+    (this.events[event] ||= []).push(cb);
+    return () => {
+      this.events[event] = this.events[event]?.filter((i) => cb !== i);
+    };
+  },
+});
+
+function CounterSubscribable(
+  this: DocumentFragment,
+  props: JSX.Props<{ count: number }>,
+) {
+  const count = {
+    ev: createNanoEvents(),
+    _value: props().count,
+    get value() {
+      return this._value;
+    },
+    set value(v: number) {
+      this._value = v;
+      this.ev.emit("up", this._value);
+    },
+    subscribe(callback: () => void) {
+      console.log("SUBSCRIBE", this);
+      callback(this.value);
+      const off = this.ev.on("up", callback);
+      return {
+        unsubscribe: () => {
+          console.log("UNSUBSCRIBE");
+          off();
+        },
+      };
+    },
+  };
+
+  return (
+    <button
+      type="button"
+      onclick={() => {
+        count.value++;
+      }}
+      // disabled={() => count >= 10}
+    >
+      {count}
     </button>
   );
 }
@@ -417,17 +476,18 @@ function getRandomColor() {
 }
 
 function linkStyles(component: Node, styles: HTMLStyleElement[]) {
-  for (const style of styles) {
-    document.head.appendChild(style);
+  for (const ref of styles) {
+    document.head.appendChild(ref);
   }
   component.addEventListener("disconnect", () => {
-    for (const style of styles) {
-      style.remove();
+    for (const ref of styles) {
+      ref.remove();
     }
   });
   component.addEventListener("update", () => {
-    for (const style of styles) {
-      update(style);
+    console.log("Updating styles");
+    for (const ref of styles) {
+      update(ref);
     }
   });
 }
@@ -483,6 +543,10 @@ function ChildError() {
   return <h1>This is never reached</h1>;
 }
 
+// document.addEventListener("update", (e) => {
+//   console.log("++++", e.target, e.target.isConnected);
+// }, { capture: true });
+
 function ErrorBoundary(
   this: HTMLElement,
   props: JSX.PropsWithChildren<{ fallback: (err: Error) => JSX.Element }>,
@@ -495,8 +559,9 @@ function ErrorBoundary(
       e.preventDefault();
       e.stopPropagation();
 
-      const ce = e as CustomEvent;
-      error = ce?.detail?.error ?? null;
+      const ce = e as ErrorEvent;
+      error = ce?.error || new Error("Unknown error");
+
       update(this);
     },
   );
@@ -540,8 +605,8 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
     { signal },
   );
 
-  const ref = <strong>this is gray</strong>;
-  ref.style.color = "gray";
+  const el = <strong>this is gray</strong>;
+  el.style.color = "gray";
 
   const customElement = document.createElement("strong");
   customElement.innerHTML = "Hello from custom createElement";
@@ -552,17 +617,19 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
       <h1>
         Hey {() => props().name} {() => bpm}
       </h1>
-      {ref}
+      {el}
       <br />
       <Counter count={5} />
       <Counter count={2} />
-      <CounterSignal count={1} />
+      {/*<CounterSignal count={1} />*/}
+      <CounterSubscribable count={0} />
       <Drummer bpm={() => bpm} />
       <Drummer bpm={() => 120 - bpm} />
       <CustomInput defaultValue="Hey" />
       <Tabber />
       <hr />
-      <div>
+      {
+        /*<div>
         Suspense:
         <div>
           <Suspense fallback={<strong>Loading...</strong>}>
@@ -575,13 +642,16 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
             <AsyncChild />
           </Suspense>
         </div>
-      </div>
+      </div>*/
+      }
       <hr />
-      <ThemeProvider>
+      {
+        /*<ThemeProvider>
         <h1>Channel Demo</h1>
         <Badge />
         <Nested />
-      </ThemeProvider>
+      </ThemeProvider>*/
+      }
       <hr />
       <Sub1 />
       <hr />
@@ -599,10 +669,20 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
       >
         <ChildError />
       </ErrorBoundary>
+      {/*<ErrorBoundary2><Boom /></ErrorBoundary2>*/}
       After
       <hr />
       Lifecycle Demo:
       <EventLifecycleDemo />
+      <hr />
+      Event Propagation Demo:
+      <EventPropagationParent id="1">
+        <EventPropagationParent id="2" onevent={(e) => e.stopPropagation()}>
+          <EventPropagationParent id="3">
+            <EventPropagationDemoChild />
+          </EventPropagationParent>
+        </EventPropagationParent>
+      </EventPropagationParent>
     </div>
   );
 }
@@ -642,9 +722,154 @@ function Boom() {
 function ErrorBoundary2(this: HTMLElement, props: JSX.PropsWithChildren) {
   this.addEventListener("error", (e) => {
     e.preventDefault();
-    console.log("Caught:", (e as CustomEvent).detail.error);
+    console.log("Caught:", (e as ErrorEvent).error);
   });
   return () => props().children;
 }
 
 createRoot(document.body).render(<App name="World" />);
+
+/**
+ * Dispatch a fresh "suspend" event from a descendant node.
+ * Returns true if not prevented.
+ */
+export function suspend(target: Node): boolean {
+  return target.dispatchEvent(
+    new Event("suspend", {
+      bubbles: true,
+      composed: true,
+      cancelable: true,
+    }),
+  );
+}
+
+/**
+ * Dispatch a fresh "unsuspend" event from a descendant node.
+ * Returns true if not prevented.
+ */
+export function unsuspend(target: Node): boolean {
+  return target.dispatchEvent(
+    new Event("unsuspend", {
+      bubbles: true,
+      composed: true,
+      cancelable: true,
+    }),
+  );
+}
+
+/**
+ * Suspense component
+ * Shows fallback while one or more descendants are suspended.
+ * Child components that perform async work should call suspend(node) before starting
+ * and unsuspend(node) when resolved. Multiple overlapping suspensions are reference-counted.
+ *
+ * This implementation relies on the updated component build queue:
+ * - Suspense host builds first, installs listeners.
+ * - Descendant component builds that trigger suspend will bubble upward correctly.
+ */
+document.body.addEventListener("error", (e) => {
+  console.warn("Global error:", e);
+});
+export function Suspense(
+  this: HTMLElement,
+  props: JSX.PropsWithChildren<{ fallback: JSX.Element }>,
+) {
+  // Track number of active suspensions.
+  let pending = 0;
+  // Start by assuming children should render; suspend events may arrive during child build.
+  let showChildren = true;
+
+  const onSuspend = (e: Event) => {
+    console.log("onSuspend");
+    e.preventDefault();
+    e.stopPropagation();
+    if (pending === 0 && showChildren) {
+      showChildren = false;
+      update(this);
+    }
+    pending++;
+  };
+
+  const onUnsuspend = (e: Event) => {
+    console.log("onUnsuspend");
+    e.preventDefault();
+    e.stopPropagation();
+    if (pending > 0) pending--;
+    if (pending === 0 && !showChildren) {
+      showChildren = true;
+      update(this);
+    }
+  };
+
+  this.addEventListener("update", (e) => {
+    console.log("update");
+    e.preventDefault();
+    // QUESTION? Should we do this?
+    for (const child of props().children) {
+      if (child instanceof HTMLElement) {
+        if (child.isConnected) {
+          update(child);
+        }
+      }
+    }
+  });
+  this.addEventListener("suspend", onSuspend);
+  this.addEventListener("unsuspend", onUnsuspend);
+  this.addEventListener(
+    "disconnect",
+    () => {
+      console.log("disconnect");
+      this.removeEventListener("suspend", onSuspend);
+      this.removeEventListener("unsuspend", onUnsuspend);
+    },
+    { once: true },
+  );
+
+  return () => {
+    if (!showChildren) {
+      return [
+        createElement(
+          "suspended",
+          { style: { display: "none" } },
+          props().children,
+        ),
+        props().fallback,
+      ];
+    }
+
+    return [props().children];
+  };
+}
+
+function EventPropagationParent(
+  this: HTMLElement,
+  props: JSX.PropsWithChildren<{ id: string; onevent?: (e: Event) => void }>,
+) {
+  this.addEventListener("click", (e) => {
+    props().onevent?.(e);
+    console.log("DIV CLICK PARENT", props().id);
+  });
+
+  this.addEventListener("poop", (e) => {
+    console.log("POOP PARENT", props().id);
+  });
+
+  return () => props().children;
+}
+
+function EventPropagationDemoChild(this: HTMLElement) {
+  this.addEventListener("click", (e) => {
+    console.log("DIV CLICK CHILD");
+  });
+
+  return (
+    <button
+      type="button"
+      onclick={(e) => {
+        console.log("BUTTON CLICK");
+      }}
+    >
+      Click me
+    </button>
+  );
+}
