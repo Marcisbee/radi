@@ -1,12 +1,11 @@
-// deno-lint-ignore-file no-inner-declarations
 import { diff } from "./rework-diff.ts";
 
 export const Fragment = Symbol();
 
-/** A reactive function returns new child(ren) when invoked with the parent element. */
+type ComponentFactory = (
+  this: Node & { reactiveComponent?: boolean },
+) => Child | Child[];
 type ReactiveGenerator = (parent: Node) => Child | Child[];
-
-/** Primitive or structured child value accepted by createElement/buildElement. */
 type Child =
   | string
   | number
@@ -32,10 +31,7 @@ function runMicrotasks(task: () => void) {
 document.body.addEventListener("request:microtask", (e) => {
   e.stopImmediatePropagation();
   e.stopPropagation();
-
-  for (const task of tasks) {
-    task();
-  }
+  for (const task of tasks) task();
   tasks.clear();
   microtaskScheduled = false;
 }, { capture: true });
@@ -43,7 +39,6 @@ document.body.addEventListener("request:microtask", (e) => {
 const REACTIVE_TEMPLATE = document.createComment("<>");
 const FRAGMENT_START_TEMPLATE = document.createComment("<>");
 const FRAGMENT_END_TEMPLATE = document.createComment("</>");
-
 const DEBUG = false;
 let reactiveIdCounter = 0;
 
@@ -52,278 +47,26 @@ declare global {
     reactiveChildren?: Node[];
     reactiveComponent?: boolean;
   }
-  interface Event {
-    __surgicalUpdate?: boolean;
-  }
 }
 
-let createNanoEvents = () => ({
-  emit(event, ...args) {
-    for (
-      let callbacks = this.events[event] || [],
-        i = 0,
-        length = callbacks.length;
-      i < length;
-      i++
-    ) {
-      callbacks[i](...args);
-    }
-  },
-  events: {},
-  on(event, cb) {
-    (this.events[event] ||= []).push(cb);
-    return () => {
-      this.events[event] = this.events[event]?.filter((i) => cb !== i);
-    };
-  },
-});
+let pendingConnections: Node[] = [];
+let pendingDisconnections: Node[] = [];
 
-const EVENT_BUS = createNanoEvents();
+interface ReactiveScope extends Comment {
+  reactiveChildren: Node[];
+  reactiveComponent?: boolean;
+}
 
 function buildElement(child: Child): Node[] {
   if (typeof child === "string" || typeof child === "number") {
     return [document.createTextNode(String(child))];
   }
-
   if (typeof child === "boolean") {
     return [document.createComment(child ? "true" : "false")];
   }
-
   if (typeof child === "function") {
-    const target = REACTIVE_TEMPLATE.cloneNode() as Comment & {
-      reactiveChildren: Node[];
-      reactiveComponent?: boolean;
-    };
-    // if (DEBUG) {
-    target.textContent = String(
-      `${child.name2 || child.name || "$"}:${++reactiveIdCounter}`,
-    );
-    // }
-    target.reactiveChildren = [];
-    pendingConnections.push(target);
-
-    const runGenerator = (): Node[] => {
-      // Execute the generator. If it returns another single reactive function,
-      // flatten it (tail-call collapse) so we avoid creating an extra reactive layer.
-      const produced: Child | Child[] = (child as ReactiveGenerator)(target);
-      // while (typeof produced === "function") {
-      //   produced = (produced as ReactiveGenerator)(target);
-      // }
-      const producedList: Child[] = Array.isArray(produced)
-        ? produced
-        : [produced];
-      return producedList.flatMap(buildElement);
-    };
-
-    function render(e?: Event) {
-      const isInitial = !e;
-      if (isInitial) {
-        // console.log("initial", target.nodeValue);
-
-        target.reactiveChildren = inlineDiff(
-          target.reactiveChildren,
-          runGenerator(),
-          target,
-        );
-        flush();
-        return;
-      }
-
-      // console.log("update", target.nodeValue);
-
-      if (!target.isConnected) {
-        return;
-      }
-
-      const isSelf = e.target === target;
-      const isAncestor = isSelf || e.target instanceof Element &&
-          e.target.contains(target) ||
-        e.target.reactiveChildren?.find((ee) =>
-          target === ee || ee.contains(target)
-        );
-      // const isAncestor = e instanceof Element &&
-      //   e.contains(target);
-      // console.log({ isSelf, isAncestor, e: e.target, currentTarget: target });
-
-      if (!isAncestor) return;
-
-      // target.dispatchEvent(new Event("update"));
-
-      if (isSelf) {
-        e.stopPropagation();
-      }
-
-      // if (isSelf) {
-      // queueMicrotask(() => {
-      // let poop = target.reactiveChildren;
-      // pendingDisconnections.push(...target.reactiveChildren);
-      target.reactiveChildren = inlineDiff(
-        target.reactiveChildren,
-        runGenerator(),
-        target,
-      );
-      flush();
-
-      // @TODO can this be removed?
-      // traverseReactiveChildren(t, (childScope) => {
-      //   // if (!childScope.isConnected) {
-      //   console.log("-----------");
-      //   pendingDisconnections.push(childScope);
-      //   // }
-      // });
-      // flush();
-
-      // Propagate surgical updates to direct reactive children
-      // traverseReactiveChildren(target.reactiveChildren, (childScope) => {
-      //   console.log("TRAVERSE UPDATE", childScope);
-      //   childScope.dispatchEvent(new Event("update"));
-      // });
-      // flush();
-      // });
-      // }
-
-      // if (isSelf) {
-      //   const ev = new Event("update");
-      //   ev.__surgicalUpdate = true;
-      //   target.dispatchEvent(ev);
-      // }
-
-      // console.log(target, e)
-
-      // flush();
-      // Recompute this scope
-
-      // console.log({ pendingConnections, pendingDisconnections });
-
-      // flush();
-
-      // console.log("PROPAGATE SURGICAL UPDATES", target, e.target, e.currentTarget)
-
-      // console.log("EVENT", target);
-      // if (target === e.currentTarget) {
-      //   console.log("YEEEEP");
-      // }
-
-      // if (!target.isConnected) return;
-
-      // const eventTarget = e!.target as Node;
-      // const isSelf = eventTarget === target;
-      // const isAncestor = eventTarget instanceof Element &&
-      //   eventTarget.contains(target) || target.reactiveChildren?.find((ee) => eventTarget.contains(ee));
-      // console.log({ isSelf, isAncestor, eventTarget, currentTarget: target });
-      // if (!isSelf && !isAncestor) return;
-
-      // // Recompute this scope
-      // target.reactiveChildren = inlineDiff(
-      //   target.reactiveChildren,
-      //   runGenerator(),
-      //   target,
-      // );
-
-      // if (DEBUG) {
-      //   console.log(
-      //     "%cU " + target.textContent,
-      //     "color: orange",
-      //     ...target.reactiveChildren,
-      //   );
-      // }
-      // e.stopPropagation();
-
-      // // If this was a surgical update from an ancestor, don't re-dispatch
-      // if (e!.__surgicalUpdate) {
-      //   e.stopImmediatePropagation();
-      //   flush();
-      //   return;
-      // }
-
-      // // Propagate surgical updates to direct reactive children
-      // traverseReactiveChildren(target.reactiveChildren, (childScope) => {
-      //   const ev = new Event("update");
-      //   ev.__surgicalUpdate = true;
-      //   childScope.dispatchEvent(ev);
-      // });
-
-      // // console.log("PROPAGATE SURGICAL UPDATES", target, e.target, e.currentTarget)
-
-      // //   const ev = new Event('update');
-      // //   ev.__surgicalUpdate = true;
-      // //   target.dispatchEvent(ev);
-
-      // flush();
-    }
-
-    // let off: () => void;
-
-    function disconnect() {
-      // console.log("disconnect", target.nodeValue);
-      if (DEBUG) {
-        console.log(
-          "%c- " + target.textContent,
-          "color: red;background:pink",
-          ...target.reactiveChildren,
-        );
-      }
-
-      document.body.removeEventListener("request:update", render, {
-        capture: true,
-      });
-      // off?.();
-
-      // const parent = target.parentNode;
-      for (const el of target.reactiveChildren) {
-        if (el.isConnected) {
-          el.parentElement?.removeChild?.(el);
-          pendingDisconnections.push(el);
-        }
-      }
-      flush();
-    }
-
-    function connect() {
-      // unsubConnect();
-      target.removeEventListener("connect", connect, { capture: true });
-      // console.log("connect", target.nodeValue);
-      runMicrotasks(() => {
-        render();
-        // Need to dispatch connect after initial render because when first connect triggers event listeners are not connected in component yet
-        target.dispatchEvent(new Event("connect"));
-      });
-      if (DEBUG) {
-        console.log(
-          "%c+ " + target.textContent,
-          "color: green;background:lightgreen",
-          ...target.reactiveChildren,
-        );
-      }
-      target.addEventListener("disconnect", disconnect, {
-        capture: true,
-        once: true,
-        // passive: true,
-      });
-      // console.log("subscribe connect", target.nodeValue);
-      // off = EVENT_BUS.on("update", render);
-      document.body.addEventListener("request:update", render, {
-        capture: true,
-        // passive: true,
-      });
-    }
-
-    // const unsubConnect = EVENT_BUS.on("connect", (node) => {
-    //   if (node === target) {
-    //     connect();
-    //   }
-    // });
-    // queueMicrotask(connect);
-    // console.log("subscribe connect", target.nodeValue);
-    target.addEventListener("connect", connect, {
-      capture: true,
-      once: true,
-      // passive: true,
-    });
-
-    return [target];
+    return [createReactiveScope(child as ReactiveGenerator)];
   }
-
   if (Array.isArray(child)) {
     const fragmentChildren = child.flatMap(buildElement);
     return [
@@ -332,16 +75,255 @@ function buildElement(child: Child): Node[] {
       FRAGMENT_END_TEMPLATE.cloneNode(),
     ];
   }
-
   if (child == null) {
     return [document.createComment("null")];
   }
-
   return [child as Node];
 }
 
-let pendingConnections: Node[] = [];
-let pendingDisconnections: Node[] = [];
+function isAncestorHelper(eventTarget: Node, root: Node): boolean {
+  if (eventTarget === root) return true;
+
+  // We'll interleave walking up the DOM/host chain from eventTarget with a
+  // traversal of the root's reactiveChildren tree in a single loop. As we
+  // climb ancestors we add them to a set; as we traverse reactiveChildren we
+  // check membership against that set (or direct equality to eventTarget).
+  const ancestors = new Set<Node>();
+  const seen = new Set<Node>();
+  let cur: Node | null = eventTarget;
+
+  // Initialize stack with root's reactive children (if any).
+  const rootRc =
+    (root as Node & { reactiveChildren?: Node[] }).reactiveChildren;
+  const stack: Node[] = rootRc ? rootRc.slice() : [];
+
+  while (cur || stack.length) {
+    if (cur) {
+      if (cur === root) return true;
+      ancestors.add(cur);
+      // climb into shadow host if present (for ShadowRoot) without using `any`
+      const host = (cur as ShadowRoot).host as Node | undefined;
+      cur = host ?? cur.parentNode;
+      continue;
+    }
+
+    const n = stack.pop()!;
+    if (ancestors.has(n) || n === eventTarget) return true;
+
+    const rc = (n as Node & { reactiveChildren?: Node[] }).reactiveChildren;
+    if (rc && !seen.has(n)) {
+      seen.add(n);
+      // push children onto stack for DFS
+      for (let i = rc.length - 1; i >= 0; i--) stack.push(rc[i]);
+    }
+  }
+
+  return false;
+}
+
+const on = document.addEventListener;
+const off = document.removeEventListener;
+
+function createReactiveScope(generator: ReactiveGenerator): ReactiveScope {
+  const target = REACTIVE_TEMPLATE.cloneNode() as ReactiveScope;
+  target.textContent = String(
+    `${generator.name || "$"}:${++reactiveIdCounter}`,
+  );
+  target.reactiveChildren = [];
+
+  // const originalAddEventListener = target.addEventListener;
+  // const originalRemoveEventListener = target.removeEventListener;
+
+  // keep reactive listeners in a closure-scoped map: eventName -> (originalListener -> wrapper)
+  const reactiveListeners = new Map<
+    string,
+    Map<EventListenerOrEventListenerObject, EventListener>
+  >();
+
+  target.addEventListener = function (
+    name: string,
+    listener?: EventListenerOrEventListenerObject | null,
+    options?: boolean | AddEventListenerOptions,
+  ) {
+    if (
+      name === "update" || name === "connect" || name === "disconnect" ||
+      name === "request:update"
+    ) {
+      return on.call(target, name, listener, options);
+    }
+
+    if (!listener) return;
+
+    let byName = reactiveListeners.get(name);
+    if (!byName) {
+      byName = new Map();
+      reactiveListeners.set(name, byName);
+    }
+
+    const handler: EventListener = (e: Event) => {
+      const eventTarget = e.target as Node;
+      if (!isAncestorHelper(eventTarget, target)) return;
+
+      if (typeof listener === "function") {
+        (listener as EventListener)(e);
+      } else if (
+        typeof listener === "object" &&
+        listener !== null &&
+        "handleEvent" in listener &&
+        typeof (listener as EventListenerObject).handleEvent === "function"
+      ) {
+        (listener as EventListenerObject).handleEvent(e);
+      }
+    };
+
+    document.addEventListener(name, handler, { capture: true });
+    byName.set(listener, handler);
+  };
+
+  // @TODO:
+  // 1. events must bubble to closest reactive scope only, currently captured at document level
+  // 2. rework rendering, must call component first, then render children etc
+  //    - comment anchor -> component -> props -> children -> reactives
+  // 3. component
+  // 4. subscribable
+  // 5. props
+  // 6. keys
+
+  target.removeEventListener = function (
+    name: string,
+    listener?: EventListenerOrEventListenerObject | null,
+    options?: boolean | EventListenerOptions,
+  ) {
+    if (
+      name === "update" || name === "connect" || name === "disconnect" ||
+      name === "request:update"
+    ) {
+      return off.call(target, name, listener, options);
+    }
+
+    const byName = reactiveListeners.get(name);
+    if (!byName) return;
+
+    if (listener) {
+      const wrapper = byName.get(listener);
+      if (wrapper) {
+        document.removeEventListener(name, wrapper, { capture: true });
+        byName.delete(listener);
+      }
+    } else {
+      // remove all listeners for this event name
+      for (const wrapper of byName.values()) {
+        document.removeEventListener(name, wrapper, { capture: true });
+      }
+      reactiveListeners.delete(name);
+      return;
+    }
+
+    if (byName.size === 0) reactiveListeners.delete(name);
+  };
+
+  // target.addEventListener2 = (name: string, cb: any) => {
+  //   return document.body.call(target, name, ...args);
+  // };
+  // target.removeEventListener2 = (name: string, ...args: any[]) => {
+  //   return originalRemoveEventListener.call(target, name, ...args);
+  // };
+
+  pendingConnections.push(target);
+  const runGenerator = (): Node[] => {
+    try {
+      const produced = generator(target);
+      const producedList: Child[] = Array.isArray(produced)
+        ? produced
+        : [produced];
+      return producedList.flatMap(buildElement);
+    } catch (e) {
+      target.dispatchEvent(new Event("error", { bubbles: true }));
+      console.error("Error in reactive generator:", e);
+      return [document.createComment("error")];
+    }
+  };
+  attachReactiveListeners(target, runGenerator);
+  return target;
+}
+
+function attachReactiveListeners(
+  target: ReactiveScope,
+  runGenerator: () => Node[],
+) {
+  const apply = () => {
+    target.reactiveChildren = inlineDiff(
+      target.reactiveChildren,
+      runGenerator(),
+      target,
+    );
+  };
+
+  function render(e?: Event) {
+    const isInitial = !e;
+    if (isInitial) {
+      apply();
+      flush();
+      return;
+    }
+    if (!target.isConnected) return;
+    const isSelf = e!.target === target;
+    const eventTarget = e!.target as Node;
+    const isAncestor = isAncestorHelper(target, eventTarget);
+    // const isAncestor = isSelf ||
+    //   (eventTarget instanceof Element && eventTarget.contains(target)) ||
+    //   eventTarget.reactiveChildren?.find((n) =>
+    //     target === n || n.contains(target)
+    //   );
+    if (!isAncestor) return;
+    if (isSelf) e!.stopPropagation();
+    apply();
+    flush();
+  }
+
+  function disconnect() {
+    if (DEBUG) {
+      console.log(
+        "%c- " + target.textContent,
+        "color:red;background:pink",
+        ...target.reactiveChildren,
+      );
+    }
+    document.body.removeEventListener("request:update", render, {
+      capture: true,
+    });
+    for (const el of target.reactiveChildren) {
+      if (el.isConnected) {
+        el.parentElement?.removeChild?.(el);
+        pendingDisconnections.push(el);
+      }
+    }
+    flush();
+  }
+
+  function connect() {
+    target.removeEventListener("connect", connect, { capture: true });
+    runMicrotasks(() => {
+      render();
+      // Fire a second connect so nested scopes created during first render can observe it
+      target.dispatchEvent(new Event("connect"));
+    });
+    if (DEBUG) {
+      console.log(
+        "%c+ " + target.textContent,
+        "color:green;background:lightgreen",
+        ...target.reactiveChildren,
+      );
+    }
+    target.addEventListener("disconnect", disconnect, {
+      capture: true,
+      once: true,
+    });
+    document.body.addEventListener("request:update", render, { capture: true });
+  }
+
+  target.addEventListener("connect", connect, { capture: true, once: true });
+}
 
 function traverseReactiveChildren(scopes: Node[], cb: (node: Node) => void) {
   for (const scope of scopes) {
@@ -352,55 +334,31 @@ function traverseReactiveChildren(scopes: Node[], cb: (node: Node) => void) {
       XPathResult.ORDERED_NODE_ITERATOR_TYPE,
       null,
     );
-    const commentNodes = [];
+    const commentNodes: Node[] = [];
     let node = xpathResult.iterateNext();
     while (node) {
-      // cb(node);
       commentNodes.push(node);
       node = xpathResult.iterateNext();
     }
-    for (const commentNode of commentNodes) {
-      if (commentNode.reactiveChildren) {
-        cb(commentNode);
-      }
+    for (const c of commentNodes) {
+      if (c.reactiveChildren) cb(c);
     }
   }
 }
 
 function flush() {
-  // let connects = pendingConnections.splice(0, pendingConnections.length);
-  // let disconnects = pendingDisconnections.splice(0, pendingDisconnections.length);
-
-  // Ensure unique items in each array while preserving original order
   const connects = Array.from(new Set(pendingConnections));
   const disconnects = Array.from(new Set(pendingDisconnections));
-
   pendingConnections = [];
   pendingDisconnections = [];
-
-  // console.log({connects, disconnects})
-  for (const node of connects) {
-    // EVENT_BUS.emit("connect", node);
-    node.dispatchEvent(new Event("connect"));
-  }
-  for (const node of disconnects) {
-    // EVENT_BUS.emit("disconnect", node);
-    node.dispatchEvent(new Event("disconnect"));
-  }
+  for (const node of connects) node.dispatchEvent(new Event("connect"));
+  for (const node of disconnects) node.dispatchEvent(new Event("disconnect"));
 }
 
 export function render(el: Node | Node[], target: HTMLElement) {
   try {
-    // if (target.nodeType === Node.COMMENT_NODE) {
-    //   target.replaceWith(...[].concat(el));
-    //   return el;
-    // }
-
-    if (Array.isArray(el)) {
-      target.append(...el);
-    } else {
-      target.append(el);
-    }
+    if (Array.isArray(el)) target.append(...el);
+    else target.append(el);
     return el;
   } finally {
     flush();
@@ -410,17 +368,9 @@ export function render(el: Node | Node[], target: HTMLElement) {
 export function renderClient(el: Node, target: HTMLElement) {
   const container = document.createElement("app");
   const comment = document.createComment("app");
-
   container.appendChild(comment);
   target.appendChild(container);
-
-  inlineDiff(
-    [],
-    // [].concat(el).flatMap(buildElement),
-    buildElement(el),
-    comment,
-  );
-
+  inlineDiff([], buildElement(el), comment);
   try {
     return container;
   } finally {
@@ -428,27 +378,17 @@ export function renderClient(el: Node, target: HTMLElement) {
   }
 }
 
-function inlineDiff(
-  a: Node[],
-  b: Node[],
-  c: Comment | Node,
-): Node[] {
+function inlineDiff(a: Node[], b: Node[], c: Comment | Node): Node[] {
   return diff(
     c.parentElement,
     a,
     b,
     (e: Node, method: number) => {
       if ((e as Node).reactiveChildren) {
-        if (method === -1) {
-          pendingDisconnections.push(e);
-        }
-        if (method === 1) {
-          pendingConnections.push(e);
-        }
+        if (method === -1) pendingDisconnections.push(e);
+        if (method === 1) pendingConnections.push(e);
       } else if (method === -1) {
-        traverseReactiveChildren([e], (e2) => {
-          pendingDisconnections.push(e2);
-        });
+        traverseReactiveChildren([e], (e2) => pendingDisconnections.push(e2));
       }
       return e;
     },
@@ -456,107 +396,90 @@ function inlineDiff(
   );
 }
 
+function setGlobalStyle(selector, declarations) {
+  // declarations is a string like: "color: red; font-weight: bold;"
+  const style = document.createElement('style');
+  style.type = 'text/css';
+  style.appendChild(document.createTextNode(`${selector} { ${declarations} }`));
+  document.head.appendChild(style);
+}
+setGlobalStyle('[host]', 'display:contents;');
+
 export function createElement(
-  type: string | Function,
+  type: string | ComponentFactory | typeof Fragment,
   props: Record<string, unknown> | null,
   ...childrenRaw: Child[]
 ) {
-  const children: Node[] = childrenRaw.flatMap(buildElement);
-
-  if (type === Fragment) {
-    return children;
-  }
-
   if (typeof type === "function") {
-    // const placeholder = document.createComment("");
-    // const anchor = document.createComment("COMPONENT");
-
     let instance: Node[] | null = null;
-    return (p: Node & { reactiveComponent?: boolean }) => {
-      p.reactiveComponent = true;
-      if (!instance) {
-        const produced = type.call(p);
-        const list: Child[] = Array.isArray(produced) ? produced : [produced];
-        instance = list.flatMap(buildElement);
-      }
-      return instance;
-    };
+    let children: Node[];
+    const host = document.createElement(type.name || "host");
+    host.setAttribute("host", "");
 
-    // component.name2 = type.name || "Component";
+    // host.style.display = "contents";
+    host.reactiveComponent = true;
 
-    // // anchor.__elements = [].concat(component);
+    host.appendChild(
+      createReactiveScope(
+        () => {
+          if (!instance) {
+            const produced = (type as ComponentFactory).call(host, () => ({
+              ...props,
+              get children() {
+                return children ??= childrenRaw.flatMap(buildElement);
+              },
+            }));
+            const list: Child[] = Array.isArray(produced)
+              ? produced
+              : [produced];
+            instance = list.flatMap(buildElement);
+          }
+          return instance;
+        },
+      ),
+    );
 
-    // return component;
+    pendingConnections.push(host);
 
-    // try {
-    //   return placeholder;
-    // } finally {
-    //   render(component, placeholder);
-    // }
+    return host;
   }
-
+  const children: Node[] = childrenRaw.flatMap(buildElement);
+  if (type === Fragment) return children;
   if (typeof type === "string") {
     const element = document.createElement(type);
-
     if (props) {
       for (const key in props) {
         const value = props[key];
         if (!key.startsWith("on") && typeof value === "function") {
-          // ...
+          // placeholder for future reactive prop handling
         } else {
           (element as unknown as Record<string, unknown>)[key] = value;
         }
       }
     }
-
     try {
       return element;
     } finally {
       render(children, element);
-      // element.append(...[].concat(...children));
     }
   }
-
   return document.createComment("NOT IMPLEMENTED");
-  // return {
-  //   type,
-  //   props,
-  //   children,
-  // }
 }
 
 export function update(node: Node) {
   node.dispatchEvent(new Event("update"));
-  // queueMicrotask(() => {
-  //   node.dispatchEvent(new Event("request:update"));
-  // });
-
   traverseReactiveChildren(node.reactiveChildren ?? [node], (childScope) => {
     childScope.dispatchEvent(new Event("update"));
   });
-
   node.dispatchEvent(new Event("request:update"));
 }
 
 export function createRoot(target: HTMLElement) {
-  const out: {
-    render(el: Node): Node;
-    root: null | Node;
-  } = {
+  const out: { render(el: Node): Node; root: null | Node } = {
     render(el: Node) {
-      return out.root = renderClient(el, target);
+      return (out.root = renderClient(el, target));
     },
     root: null,
   };
-
   return out;
 }
-
-// document.body.addEventListener("update", (e) => {
-//   e.stopImmediatePropagation();
-//   EVENT_BUS.emit("update", e.target);
-//   console.log("UPDATE DISPATCHED")
-// }, {
-//   passive: true,
-//   capture: true,
-// })
