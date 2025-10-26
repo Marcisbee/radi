@@ -650,39 +650,21 @@ function getNodeKey(node: Node): string | null {
   return (node as Element & { __key?: string }).__key ?? null;
 }
 
-function syncElementProperties(fromEl: Element, toEl: Element): void {
-  const toAttrs = toEl.attributes;
-  for (let i = toAttrs.length - 1; i >= 0; i--) {
-    const attr = toAttrs[i];
-    const ns = attr.namespaceURI;
-    let name = attr.name;
-    const value = attr.value;
-    if (ns) {
-      name = attr.localName || name;
-      const existing = fromEl.getAttributeNS(ns, name);
-      if (existing !== value) {
-        if (attr.prefix === 'xmlns') name = attr.name;
-        fromEl.setAttributeNS(ns, name, value);
-      }
-    } else if (fromEl.getAttribute(name) !== value) {
-      fromEl.setAttribute(name, value);
-    }
+function syncElementProperties(targetEl: Element, sourceEl: Element): void {
+  // Simplified wholesale attr/style sync (no namespace diffing; small & fast)
+  const keep = new Set<string>();
+  for (let i = 0; i < sourceEl.attributes.length; i++) {
+    const a = sourceEl.attributes[i];
+    targetEl.setAttribute(a.name, a.value);
+    keep.add(a.name);
   }
-  const fromAttrs = fromEl.attributes;
-  for (let i = fromAttrs.length - 1; i >= 0; i--) {
-    const attr = fromAttrs[i];
-    const ns = attr.namespaceURI;
-    let name = attr.name;
-    if (ns) {
-      name = attr.localName || name;
-      if (!toEl.hasAttributeNS(ns, name)) fromEl.removeAttributeNS(ns, name);
-    } else if (!toEl.hasAttribute(name)) {
-      fromEl.removeAttribute(name);
-    }
+  for (let i = targetEl.attributes.length - 1; i >= 0; i--) {
+    const a = targetEl.attributes[i];
+    if (!keep.has(a.name)) targetEl.removeAttribute(a.name);
   }
-  const fromStyle = (fromEl as HTMLElement).style.cssText;
-  const toStyle = (toEl as HTMLElement).style.cssText;
-  if (fromStyle !== toStyle) (fromEl as HTMLElement).style.cssText = toStyle;
+  const t = targetEl as HTMLElement;
+  const s = sourceEl as HTMLElement;
+  if (t.style.cssText !== s.style.cssText) t.style.cssText = s.style.cssText;
 }
 
 interface ComponentHost extends HTMLElement {
