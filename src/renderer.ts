@@ -245,12 +245,9 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
    * Fragment creation using comment boundary markers (or adapter-equivalent).
    */
   function fragment(children: Child[]): UniversalNode {
-    // Replace reactive function children with deferred-reactive placeholders (client parity inside fragments).
-    const transformed: Child[] = children.map((c) =>
-      typeof c === "function" ? adapter.createComment("deferred-reactive") : c
-    );
+    // Preserve reactive function children; let downstream expansion handle execution.
     const frag = adapter.createElement("radi-fragment");
-    insertChildren(frag, transformed);
+    insertChildren(frag, children);
     return frag;
   }
 

@@ -628,8 +628,7 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
       <CustomInput defaultValue="Hey" />
       <Tabber />
       <hr />
-      {
-        /*<div>
+      <div>
         Suspense:
         <div>
           <Suspense fallback={<strong>Loading...</strong>}>
@@ -642,8 +641,7 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
             <AsyncChild />
           </Suspense>
         </div>
-      </div>*/
-      }
+      </div>
       <hr />
       {
         /*<ThemeProvider>
