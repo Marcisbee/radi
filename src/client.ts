@@ -91,7 +91,7 @@ function subscribeAndReconcileRange(
       if (Object.is(value, previous)) return;
       previous = value;
       try {
-        const expanded = expandToNodes(parentEl, value);
+        const expanded = realize(parentEl, value);
         reconcileRange(start, end, expanded);
       } catch (err) {
         dispatchRenderError(parentEl, err);
@@ -125,53 +125,60 @@ function buildSubscribableChild(store: Subscribable<unknown>): Child {
  *  in the same reconciliation frame. When alreadyBuilt=true, treats the input
  *  as structurally processed and only performs final flattening / primitive wrapping.
  */
-function expandToNodes(
-  parent: Element,
-  value: unknown,
-): Node[] {
+/**
+ * realize
+ *  Unified conversion of any Child-like value into concrete DOM Nodes.
+ *  Handles: null/boolean -> comment, string/number -> text, Node passthrough,
+ *  subscribable -> fragment anchors + subscription, function -> reactive scope execution,
+ *  arrays (deeply) -> flattened node list.
+ */
+function realize(parent: Element, value: unknown): Node[] {
   const queue: unknown[] = Array.isArray(value) ? [...value] : [value];
   const out: Node[] = [];
   while (queue.length) {
-    const item = queue.shift();
-    if (item == null) {
-      out.push(document.createComment("null"));
+    const v = queue.shift();
+    if (v == null) {
+      out.push(document.createComment('null'));
       continue;
     }
-    if (item instanceof Node) {
-      out.push(item);
+    if (v instanceof Node) {
+      out.push(v);
       continue;
     }
-    const t = typeof item;
-    if (t === "string" || t === "number") {
-      out.push(document.createTextNode(String(item)));
+    if (typeof v === 'string' || typeof v === 'number') {
+      out.push(document.createTextNode(String(v)));
       continue;
     }
-    if (t === "boolean") {
-      out.push(document.createComment(item ? "true" : "false"));
+    if (typeof v === 'boolean') {
+      out.push(document.createComment(v ? 'true' : 'false'));
       continue;
     }
-    if (isSubscribableValue(item)) {
-      queue.unshift(buildSubscribableChild(item as Subscribable<unknown>));
+    if (isSubscribableValue(v)) {
+      // Expand subscribable to its placeholder (fragment) and keep going.
+      const placeholder = buildSubscribableChild(v as Subscribable<unknown>);
+      if (Array.isArray(placeholder)) {
+        queue.unshift(...placeholder);
+      } else {
+        queue.unshift(placeholder);
+      }
       continue;
     }
-    if (t === "function") {
+    if (typeof v === 'function') {
       try {
-        const produced = (item as ReactiveGenerator)(parent);
-        if (Array.isArray(produced)) {
-          queue.unshift(...produced);
-        } else {
-          queue.unshift(produced);
-        }
+        const produced = (v as ReactiveGenerator)(parent);
+        if (Array.isArray(produced)) queue.unshift(...produced);
+        else queue.unshift(produced);
       } catch (err) {
         dispatchRenderError(parent, err);
       }
       continue;
     }
-    if (Array.isArray(item)) {
-      queue.unshift(...item);
+    if (Array.isArray(v)) {
+      queue.unshift(...v);
       continue;
     }
-    out.push(document.createTextNode(String(item)));
+    // Fallback: stringify
+    out.push(document.createTextNode(String(v)));
   }
   return out;
 }
@@ -293,7 +300,7 @@ function setupReactiveRender(
   const renderFn = () => {
     try {
       const produced = fn(container);
-      const expanded = expandToNodes(container, produced);
+      const expanded = realize(container, produced);
       reconcileRange(start, end, expanded);
     } catch (err) {
       dispatchRenderError(container, err);
@@ -335,33 +342,44 @@ function queueComponentForBuild(host: ComponentElement): void {
 }
 
 /** Perform initial component build (invokes component function and mounts output). */
-function mountRealizedValue(parent: Element, val: unknown): void {
-  if (val == null) {
-    safeAppend(parent, document.createComment("null"));
+function mountChild(parent: Element, value: unknown): void {
+  if (value == null) {
+    safeAppend(parent, document.createComment('null'));
     return;
   }
-  if (val instanceof Node) {
-    safeAppend(parent, val);
+  if (value instanceof Node) {
+    safeAppend(parent, value);
     return;
   }
-  const t = typeof val;
-  if (t === "string" || t === "number") {
-    safeAppend(parent, document.createTextNode(String(val)));
+  if (Array.isArray(value)) {
+    for (const v of value) mountChild(parent, v);
     return;
   }
-  if (t === "boolean") {
-    safeAppend(parent, document.createComment(val ? "true" : "false"));
+  if (isSubscribableValue(value)) {
+    const placeholder = buildSubscribableChild(value as Subscribable<unknown>);
+    if (Array.isArray(placeholder)) {
+      for (const p of placeholder) mountChild(parent, p);
+    } else {
+      mountChild(parent, placeholder);
+    }
     return;
   }
-  if (t === "function") {
-    setupReactiveRender(parent, val as ReactiveGenerator);
+  const t = typeof value;
+  if (t === 'string' || t === 'number') {
+    safeAppend(parent, document.createTextNode(String(value)));
     return;
   }
-  if (Array.isArray(val)) {
-    for (const inner of val) mountRealizedValue(parent, inner);
+  if (t === 'boolean') {
+    safeAppend(parent, document.createComment(value ? 'true' : 'false'));
     return;
   }
-  safeAppend(parent, document.createTextNode(String(val)));
+  if (t === 'function') {
+    // Treat as reactive generator – do NOT execute immediately
+    setupReactiveRender(parent, value as ReactiveGenerator);
+    return;
+  }
+  // Fallback
+  safeAppend(parent, document.createTextNode(String(value)));
 }
 function buildComponentHost(host: ComponentElement): void {
   const pending = host.__componentPending;
@@ -380,8 +398,8 @@ function buildComponentHost(host: ComponentElement): void {
   const prev = currentBuildingComponent;
   currentBuildingComponent = host;
   try {
-    const output = buildElement(pending.type.call(host, propsGetter) as Child);
-    mountRealizedValue(host, output);
+    const output = pending.type.call(host, propsGetter) as Child;
+    mountChild(host, output);
   } catch (err) {
     dispatchRenderError(host, err);
   } finally {
@@ -468,16 +486,14 @@ function createPlainElement(
   props: Record<string, unknown> | null,
   normalizedChildren: (Node | ReactiveGenerator)[],
 ): HTMLElement & { __key?: string } {
-  const element = document.createElement(type) as HTMLElement & {
-    __key?: string;
-  };
+  const element = document.createElement(type) as HTMLElement & { __key?: string };
   assignKeyIfPresent(element, props);
   if (props) applyPropsToPlainElement(element, props);
   for (const c of normalizedChildren) {
-    if (typeof c === "function") {
+    if (typeof c === 'function') {
       setupReactiveRender(element, c as ReactiveGenerator);
     } else {
-      mountRealizedValue(element, c);
+      for (const n of realize(element, c)) element.appendChild(n);
     }
   }
   return element;
@@ -487,43 +503,9 @@ function createPlainElement(
 /* Element Building                                                           */
 /* -------------------------------------------------------------------------- */
 
-function buildElement(child: Child): Child {
-  // Nullish first (covers undefined/null)
-  if (child == null) return document.createComment("null");
-  const t = typeof child;
-  // Primitives
-  if (t === "string" || t === "number") {
-    return document.createTextNode(String(child));
-  }
-  if (t === "boolean") return document.createComment(child ? "true" : "false");
-  // Subscribable (inline handling replaces maybeBuildSubscribableChild indirection)
-  if (isSubscribableValue(child)) {
-    return buildSubscribableChild(child as Subscribable<unknown>);
-  }
-  // Arrays
-  if (Array.isArray(child)) return buildArrayChild(child);
-  // Reactive generator (leave execution to expandToNodes so we avoid double-normalization)
-  if (t === "function") {
-    return (parent: Element) => (child as ReactiveGenerator)(parent);
-  }
-  // Node or unknown object (left as-is; expansion handles Nodes, others ignored)
-  return child;
-}
+// buildElement removed (logic unified into realize)
 
-function buildArrayChild(
-  childArray: Child[],
-): Child {
-  const { start, end } = createFragmentBoundary();
-  const built: Child[] = [];
-  for (const ch of childArray) {
-    const res = buildElement(ch);
-    if (Array.isArray(res)) {
-      for (const item of res) if (item != null) built.push(item as Child);
-    } else if (res != null) built.push(res);
-  }
-  const normalized = built as (Node | ReactiveGenerator)[];
-  return [start, ...normalized, end];
-}
+// buildArrayChild removed (arrays flattened by realize)
 
 /* -------------------------------------------------------------------------- */
 /* Reconciliation: Node Ops                                                   */
@@ -973,31 +955,27 @@ function createElement(
   props: Record<string, unknown> | null,
   ...childrenRaw: Child[]
 ): Child {
-  const buildChildrenArray = () =>
-    childrenRaw.map((c: Child) => buildElement(c) as Child);
   const buildNormalized = () => {
-    const raw = buildChildrenArray();
     const out: (Node | ReactiveGenerator)[] = [];
-    for (const item of raw) {
-      if (typeof item === "function") {
-        out.push(item as ReactiveGenerator);
-      } else if (Array.isArray(item)) {
-        for (const sub of item) {
-          if (typeof sub === "function") {
-            out.push(sub as ReactiveGenerator);
-          } else {
-            out.push(...expandToNodes(document.body, sub));
-          }
+    for (const raw of childrenRaw) {
+      if (typeof raw === 'function') {
+        out.push(raw as ReactiveGenerator);
+      } else if (Array.isArray(raw)) {
+        for (const sub of raw) {
+          if (typeof sub === 'function') out.push(sub as ReactiveGenerator);
+          else out.push(...realize(document.body, sub));
         }
       } else {
-        out.push(...expandToNodes(document.body, item));
+        out.push(...realize(document.body, raw));
       }
     }
     return out;
   };
 
   if (type === Fragment) {
-    return buildArrayChild(childrenRaw);
+    const { start, end } = createFragmentBoundary();
+    const realized = childrenRaw.flatMap((c) => realize(document.body, c));
+    return [start, ...realized, end];
   }
   if (typeof type === "function") {
     return createComponentPlaceholder(type as ComponentFn, props, childrenRaw);
@@ -1020,13 +998,12 @@ function createRoot(container: HTMLElement): {
   container.append(start, end);
 
   function render(node: JSX.Element): HTMLElement {
-    const built = buildElement(node as Child);
-    const concreteNodes = expandToNodes(container, built);
-    reconcileRange(start, end, concreteNodes);
-    if (built instanceof HTMLElement && !isComponentHost(built)) {
-      connect(built);
-    }
-    return built instanceof HTMLElement ? built : container;
+    const realized = realize(container, node as Child);
+    reconcileRange(start, end, realized);
+    // Return first element node if single root element
+    const single = realized.length === 1 ? realized[0] : null;
+    if (single instanceof HTMLElement && !isComponentHost(single)) connect(single);
+    return single instanceof HTMLElement ? single : container;
   }
 
   function unmount(): void {
