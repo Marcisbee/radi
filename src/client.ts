@@ -2,58 +2,36 @@
  * Radi client + DOM implementation (single-file build).
  * Exposes high-level element / root APIs plus keyed reconciliation & reactive regions.
  * Internal helpers favor minimal passes and small surface area.
- *
- * NOTE: Pending change requested: build components synchronously (remove deferred queue).
- * I currently do not have the exact line numbers + full function body for createComponentPlaceholder
- * and related queue helpers in this editing context. To safely perform the refactor we need the
- * precise existing text of:
- *   - queueComponentForBuild
- *   - flushComponentBuildQueue
- *   - buildComponentHost
- *   - createComponentPlaceholder
- * so they can be replaced exactly (the edit protocol requires exact old_text matches).
- *
- * Please provide (or re-share) those function bodies with line numbers, or re-enable project
- * file access so I can extract them and produce a minimal diff that:
- *   1. Removes the pendingComponentBuildQueue array + flags.
- *   2. Inlines component build inside createComponentPlaceholder:
- *        - Immediately assign __component / __propsRef / __mounted
- *        - Call component, build output, and mount with mountBuiltOutput
- *        - Skip the 'connect' listener / queue flush
- *   3. Removes the connect listener that triggers queue flush.
- *   4. Adjusts any usage expecting lazy build (tests relying on first connect) if necessary.
- *
- * Without the exact original text, supplying an edit block would risk mismatch and failure.
  */
 
 import {
   connect,
+  createAbortSignal,
+  createAbortSignalOnUpdate,
   disconnect,
   dispatchConnect,
   dispatchDisconnect,
-  update,
-  createAbortSignal,
-  createAbortSignalOnUpdate,
-  markComponentHost,
-  markReactiveRoot,
-  markEventable,
   isComponentHost,
-} from './lifecycle.ts';
-import type { Child, ReactiveGenerator, Subscribable } from './types.ts';
-import { dispatchRenderError } from './error.ts';
+  markComponentHost,
+  markEventable,
+  markReactiveRoot,
+  update,
+} from "./lifecycle.ts";
+import type { Child, ReactiveGenerator, Subscribable } from "./types.ts";
+import { dispatchRenderError } from "./error.ts";
 import {
-  createRenderer,
   createDomAdapter,
+  createRenderer,
   createServerStringAdapter,
   DOM_RENDERER,
-} from './renderer.ts';
+} from "./renderer.ts";
 
 /* -------------------------------------------------------------------------- */
 /* Fragment Boundary                                                          */
 /* -------------------------------------------------------------------------- */
 
-const FRAGMENT_START_TEMPLATE: Comment = document.createComment('(');
-const FRAGMENT_END_TEMPLATE: Comment = document.createComment(')');
+const FRAGMENT_START_TEMPLATE: Comment = document.createComment("(");
+const FRAGMENT_END_TEMPLATE: Comment = document.createComment(")");
 
 function createFragmentBoundary(): { start: Comment; end: Comment } {
   return {
@@ -72,13 +50,15 @@ function createFragmentBoundary(): { start: Comment; end: Comment } {
 /* Subscribable Helpers                                                       */
 /* -------------------------------------------------------------------------- */
 
-function isSubscribableValue<T = unknown>(value: unknown): value is Subscribable<T> {
+function isSubscribableValue<T = unknown>(
+  value: unknown,
+): value is Subscribable<T> {
   return !!(
     value &&
-    typeof value === 'object' &&
+    typeof value === "object" &&
     !Array.isArray(value) &&
     !(value instanceof Node) &&
-    typeof (value as { subscribe?: unknown }).subscribe === 'function'
+    typeof (value as { subscribe?: unknown }).subscribe === "function"
   );
 }
 
@@ -86,8 +66,11 @@ function safelyRunUnsubscribe(
   unsub: void | (() => void) | { unsubscribe(): void },
 ): void {
   try {
-    if (typeof unsub === 'function') unsub();
-    else if (typeof unsub === 'object' && unsub && typeof (unsub as { unsubscribe?: unknown }).unsubscribe === 'function') {
+    if (typeof unsub === "function") unsub();
+    else if (
+      typeof unsub === "object" && unsub &&
+      typeof (unsub as { unsubscribe?: unknown }).unsubscribe === "function"
+    ) {
       (unsub as { unsubscribe(): void }).unsubscribe();
     }
   } catch {
@@ -103,7 +86,7 @@ function subscribeAndReconcileRange(
   queueMicrotask(() => {
     const parentEl = start.parentNode as Element | null;
     if (!parentEl) return;
-    let previous: unknown = Symbol('radi_initial_range');
+    let previous: unknown = Symbol("radi_initial_range");
     const unsub = store.subscribe((value: unknown) => {
       if (Object.is(value, previous)) return;
       previous = value;
@@ -115,7 +98,7 @@ function subscribeAndReconcileRange(
       }
     });
     markEventable(parentEl);
-    parentEl.addEventListener('disconnect', () => {
+    parentEl.addEventListener("disconnect", () => {
       safelyRunUnsubscribe(
         unsub as (void | (() => void) | { unsubscribe(): void }),
       );
@@ -161,11 +144,11 @@ function expandToNodes(
     // Primitive early materialization
     if (value instanceof Node) return [value];
     const t0 = typeof value;
-    if (t0 === 'string' || t0 === 'number') {
+    if (t0 === "string" || t0 === "number") {
       return [document.createTextNode(String(value))];
     }
-    if (value == null || t0 === 'boolean') {
-      return [document.createComment(value ? 'true' : 'null')];
+    if (value == null || t0 === "boolean") {
+      return [document.createComment(value ? "true" : "null")];
     }
   }
 
@@ -188,7 +171,7 @@ function expandToNodes(
   while (queue.length) {
     const item = queue.shift();
     if (item == null) {
-      out.push(document.createComment('null'));
+      out.push(document.createComment("null"));
       continue;
     }
     if (item instanceof Node) {
@@ -196,15 +179,15 @@ function expandToNodes(
       continue;
     }
     const t = typeof item;
-    if (t === 'string' || t === 'number') {
+    if (t === "string" || t === "number") {
       out.push(document.createTextNode(String(item)));
       continue;
     }
-    if (t === 'boolean') {
-      out.push(document.createComment(item ? 'true' : 'false'));
+    if (t === "boolean") {
+      out.push(document.createComment(item ? "true" : "false"));
       continue;
     }
-    if (t === 'function') {
+    if (t === "function") {
       // Execute reactive generator immediately and enqueue its produced output
       // (restores original semantics prior to placeholder experiment).
       try {
@@ -232,7 +215,7 @@ function bindSubscribableProp(
   key: string,
   subscribable: Subscribable<unknown>,
 ): void {
-  let previous: unknown = Symbol('radi_initial_prop');
+  let previous: unknown = Symbol("radi_initial_prop");
   let unsub: void | (() => void) | { unsubscribe(): void };
   try {
     unsub = subscribable.subscribe((value: unknown) => {
@@ -248,7 +231,7 @@ function bindSubscribableProp(
     dispatchRenderError(element, err);
   }
   markEventable(element);
-  element.addEventListener('disconnect', () => {
+  element.addEventListener("disconnect", () => {
     safelyRunUnsubscribe(
       unsub as (void | (() => void) | { unsubscribe(): void }),
     );
@@ -273,7 +256,7 @@ function setPropValue(
   key: string,
   value: unknown,
 ): void {
-  if (key === 'style' && value && typeof value === 'object') {
+  if (key === "style" && value && typeof value === "object") {
     applyStyleObject(el, value as Record<string, string | number>);
   } else if (key in el) {
     (el as HTMLElement & Record<string, unknown>)[key] = value as unknown;
@@ -300,7 +283,7 @@ function bindFunctionProp(
       reportPropError(element, err);
     }
   };
-  element.addEventListener('update', evaluate);
+  element.addEventListener("update", evaluate);
   evaluate();
 }
 
@@ -310,14 +293,14 @@ function applyPropsToPlainElement(
 ): void {
   for (const key in props) {
     const value = props[key];
-    if (key.startsWith('on') && typeof value === 'function') {
+    if (key.startsWith("on") && typeof value === "function") {
       element.addEventListener(
         key.slice(2).toLowerCase(),
         value as EventListener,
       );
       continue;
     }
-    if (typeof value === 'function') {
+    if (typeof value === "function") {
       markReactiveRoot(element);
       bindFunctionProp(element, key, value as (el: Element) => unknown);
       continue;
@@ -352,11 +335,9 @@ function setupReactiveRender(
   };
 
   markReactiveRoot(container);
-  container.addEventListener('update', renderFn);
+  container.addEventListener("update", renderFn);
   renderFn();
 }
-
-
 
 /* -------------------------------------------------------------------------- */
 /* Component Placeholder & Build Queue                                        */
@@ -373,7 +354,7 @@ export interface ComponentElement extends HTMLElement {
   [key: string]: unknown;
 }
 
-const RADI_HOST_TAG = 'radi-host';
+const RADI_HOST_TAG = "radi-host";
 
 export let currentBuildingComponent: Element | null = null;
 
@@ -432,7 +413,7 @@ function flushComponentBuildQueue(): void {
 function mountBuiltOutput(host: Element, output: Child): void {
   function mountValue(val: unknown): void {
     if (val == null) {
-      safeAppend(host, document.createComment('null'));
+      safeAppend(host, document.createComment("null"));
       return;
     }
     if (val instanceof Node) {
@@ -440,15 +421,15 @@ function mountBuiltOutput(host: Element, output: Child): void {
       return;
     }
     const t = typeof val;
-    if (t === 'string' || t === 'number') {
+    if (t === "string" || t === "number") {
       safeAppend(host, document.createTextNode(String(val)));
       return;
     }
-    if (t === 'boolean') {
-      safeAppend(host, document.createComment(val ? 'true' : 'false'));
+    if (t === "boolean") {
+      safeAppend(host, document.createComment(val ? "true" : "false"));
       return;
     }
-    if (t === 'function') {
+    if (t === "function") {
       setupReactiveRender(host, val as ReactiveGenerator);
       return;
     }
@@ -476,7 +457,7 @@ function createComponentPlaceholder(
     delete propsRecord.key;
   }
 
-  placeholder.style.display = 'contents';
+  placeholder.style.display = "contents";
 
   const rawChildren = childrenRaw;
   const ensureBuiltChildren = (): Child[] => rawChildren;
@@ -492,7 +473,7 @@ function createComponentPlaceholder(
   };
 
   placeholder.addEventListener(
-    'connect',
+    "connect",
     () => {
       queueComponentForBuild(placeholder);
       flushComponentBuildQueue();
@@ -530,7 +511,7 @@ function createPlainElement(
   assignKeyIfPresent(element, props);
   if (props) applyPropsToPlainElement(element, props);
   for (const c of normalizedChildren) {
-    if (typeof c === 'function') {
+    if (typeof c === "function") {
       setupReactiveRender(element, c as ReactiveGenerator);
     } else {
       element.append(c);
@@ -545,17 +526,21 @@ function createPlainElement(
 
 function buildElement(child: Child): Child {
   // Nullish first (covers undefined/null)
-  if (child == null) return document.createComment('null');
+  if (child == null) return document.createComment("null");
   const t = typeof child;
   // Primitives
-  if (t === 'string' || t === 'number') return document.createTextNode(String(child));
-  if (t === 'boolean') return document.createComment(child ? 'true' : 'false');
+  if (t === "string" || t === "number") {
+    return document.createTextNode(String(child));
+  }
+  if (t === "boolean") return document.createComment(child ? "true" : "false");
   // Subscribable (inline handling replaces maybeBuildSubscribableChild indirection)
-  if (isSubscribableValue(child)) return buildSubscribableChild(child as Subscribable<unknown>);
+  if (isSubscribableValue(child)) {
+    return buildSubscribableChild(child as Subscribable<unknown>);
+  }
   // Arrays
   if (Array.isArray(child)) return buildArrayChild(child);
   // Reactive generator (leave execution to expandToNodes so we avoid double-normalization)
-  if (t === 'function') {
+  if (t === "function") {
     return (parent: Element) => (child as ReactiveGenerator)(parent);
   }
   // Node or unknown object (left as-is; expansion handles Nodes, others ignored)
@@ -705,7 +690,7 @@ function patchElement(oldEl: Element, newEl: Element): boolean {
     if (prevHost.__propsRef) {
       prevHost.__propsRef.current = nextPending.props;
       nextHost.__componentPending = undefined;
-      prevHost.dispatchEvent(new Event('update'));
+      prevHost.dispatchEvent(new Event("update"));
     }
     return true;
   }
@@ -730,8 +715,12 @@ function patchElement(oldEl: Element, newEl: Element): boolean {
 /* -------------------------------------------------------------------------- */
 
 function detectChildKeys(oldEl: Element, newEl: Element): boolean {
-  for (let c = newEl.firstChild; c; c = c.nextSibling) if (getNodeKey(c)) return true;
-  for (let c = oldEl.firstChild; c; c = c.nextSibling) if (getNodeKey(c)) return true;
+  for (let c = newEl.firstChild; c; c = c.nextSibling) {
+    if (getNodeKey(c)) return true;
+  }
+  for (let c = oldEl.firstChild; c; c = c.nextSibling) {
+    if (getNodeKey(c)) return true;
+  }
   return false;
 }
 
@@ -782,7 +771,11 @@ function reconcileNonKeyedChildren(
   }
 }
 
-function buildOldKeyMap(oldEl: Element, oldKeyMap: Map<string, Node>, unmatched: Node[]): void {
+function buildOldKeyMap(
+  oldEl: Element,
+  oldKeyMap: Map<string, Node>,
+  unmatched: Node[],
+): void {
   for (let c = oldEl.firstChild; c; c = c.nextSibling) {
     const k = getNodeKey(c);
     if (k) oldKeyMap.set(k, c);
@@ -800,13 +793,18 @@ function reconcileMatchedNode(match: Node, newPointer: Node): void {
     match.nodeType === Node.ELEMENT_NODE &&
     newPointer.nodeType === Node.ELEMENT_NODE
   ) {
-    if (match !== newPointer) patchElement(match as Element, newPointer as Element);
+    if (match !== newPointer) {
+      patchElement(match as Element, newPointer as Element);
+    }
   } else if (!patchText(match, newPointer) && match !== newPointer) {
     safeReplace(match.parentNode as ParentNode & Node, newPointer, match);
   }
 }
 
-function removeRemainingUnprocessed(oldEl: Element, processed: Set<Node>): void {
+function removeRemainingUnprocessed(
+  oldEl: Element,
+  processed: Set<Node>,
+): void {
   for (let c = oldEl.firstChild; c;) {
     const next = c.nextSibling;
     if (!processed.has(c) && !getNodeKey(c)) safeRemove(oldEl, c);
@@ -933,12 +931,14 @@ function reconcileRange(
         const inserted: Node[] = [];
         while (idx < newNodes.length) {
           const n = newNodes[idx++];
-            detachIfMoving(n);
-            frag.appendChild(n);
-            inserted.push(n);
+          detachIfMoving(n);
+          frag.appendChild(n);
+          inserted.push(n);
         }
         parent.insertBefore(frag, end);
-        for (const n of inserted) if (n.isConnected) dispatchConnectIfElement(n);
+        for (const n of inserted) {
+          if (n.isConnected) dispatchConnectIfElement(n);
+        }
       }
       break;
     }
@@ -976,7 +976,7 @@ function reconcileRange(
         if (oldEl.__propsRef && newEl.__componentPending) {
           oldEl.__propsRef.current = newEl.__componentPending.props;
           newEl.__componentPending = undefined;
-          oldEl.dispatchEvent(new Event('update'));
+          oldEl.dispatchEvent(new Event("update"));
         }
         idx++;
         oldCur = oldCur.nextSibling;
@@ -1032,7 +1032,7 @@ if (!customElements.get(RADI_HOST_TAG)) {
 /* Public Element Creation API                                                */
 /* -------------------------------------------------------------------------- */
 
-const Fragment = 'fragment';
+const Fragment = "fragment";
 
 function createElement(
   type: string | ComponentFn,
@@ -1045,11 +1045,11 @@ function createElement(
     const raw = buildChildrenArray();
     const out: (Node | ReactiveGenerator)[] = [];
     for (const item of raw) {
-      if (typeof item === 'function') {
+      if (typeof item === "function") {
         out.push(item as ReactiveGenerator);
       } else if (Array.isArray(item)) {
         for (const sub of item) {
-          if (typeof sub === 'function') {
+          if (typeof sub === "function") {
             out.push(sub as ReactiveGenerator);
           } else {
             out.push(...expandToNodes(document.body, sub, false));
@@ -1065,7 +1065,7 @@ function createElement(
   if (type === Fragment) {
     return buildArrayChild(childrenRaw);
   }
-  if (typeof type === 'function') {
+  if (typeof type === "function") {
     return createComponentPlaceholder(type as ComponentFn, props, childrenRaw);
   }
   return createPlainElement(type as string, props, buildNormalized());
@@ -1127,27 +1127,27 @@ const {
 export {
   // Lifecycle + control
   connect,
+  createAbortSignal,
+  createAbortSignalOnUpdate,
+  createDomAdapter,
+  // Core element APIs
+  createElement,
+  // Universal renderer constructors
+  createRenderer,
+  createRoot,
+  createServerStringAdapter,
   disconnect,
   dispatchConnect,
   dispatchDisconnect,
-  update,
-  createAbortSignal,
-  createAbortSignalOnUpdate,
-  // Core element APIs
-  createElement,
-  createRoot,
-  Fragment,
-  // Universal renderer constructors
-  createRenderer,
-  createDomAdapter,
-  createServerStringAdapter,
   DOM_RENDERER,
-  // Low-level renderer facades
-  domRender,
+  domCreateComment,
   domCreateElement,
   domCreateTextNode,
-  domCreateComment,
   domFragment,
+  // Low-level renderer facades
+  domRender,
+  Fragment,
   // Internal types
   RadiHostElement,
+  update,
 };
