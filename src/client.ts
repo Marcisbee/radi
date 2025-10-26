@@ -1,19 +1,12 @@
 /**
  * Consolidated Radi client + DOM implementation in a single file.
  *
- * This merges what previously lived across:
- *  - main.ts (public DOM framework API)
- *  - dom/* (build, normalize, reconciliation, reactive, subscribables, props, core)
- *  - client.ts (entrypoint / universal renderer bridge)
+ * NOTE: In-progress refactor (Option C):
+ *   - Will introduce a single expandToNodes() helper to replace:
+ *       normalizeToNodes + produceExpandedNodes + maybeBuildSubscribableChild layering.
+ *   - Keyed reconciliation retained.
  *
- * Public exports:
- *  - createElement / Fragment / createRoot
- *  - connect / disconnect / dispatchConnect / dispatchDisconnect / update
- *  - createAbortSignal / createAbortSignalOnUpdate
- *  - DOM universal renderer helpers (createRenderer/createDomAdapter/createServerStringAdapter/DOM_RENDERER)
- *  - Lower-level universal renderer aliases: domRender, domCreateElement, domCreateTextNode, domCreateComment, domFragment
- *
- * Internal implementation aims to stay small & focused (see AGENTS.md).
+ * (Temporary header comment; remove after refactor complete.)
  */
 
 import {
@@ -56,35 +49,7 @@ function createFragmentBoundary(): { start: Comment; end: Comment } {
 /* Normalization                                                              */
 /* -------------------------------------------------------------------------- */
 
-function normalizeToNodes(raw: Child | Child[]): (Node | ReactiveGenerator)[] {
-  const out: (Node | ReactiveGenerator)[] = [];
-  const queue: (Child | Child[])[] = Array.isArray(raw) ? [...raw] : [raw];
-  while (queue.length) {
-    const item = queue.shift()!;
-    if (item == null) {
-      out.push(document.createComment('null'));
-      continue;
-    }
-    if (Array.isArray(item)) {
-      queue.unshift(...item);
-      continue;
-    }
-    switch (typeof item) {
-      case 'string':
-      case 'number':
-        out.push(document.createTextNode(String(item)));
-        continue;
-      case 'boolean':
-        out.push(document.createComment(item ? 'true' : 'false'));
-        continue;
-      case 'function':
-        out.push(item as ReactiveGenerator);
-        continue;
-    }
-    if (item instanceof Node) out.push(item);
-  }
-  return out;
-}
+// normalizeToNodes removed (logic merged into expandToNodes)
 
 /* -------------------------------------------------------------------------- */
 /* Subscribable Helpers                                                       */
@@ -126,7 +91,7 @@ function subscribeAndReconcileRange(
       if (Object.is(value, previous)) return;
       previous = value;
       try {
-        const expanded = produceExpandedNodes(parentEl, value, false);
+        const expanded = expandToNodes(parentEl, value, false);
         reconcileRange(start, end, expanded);
       } catch (err) {
         dispatchRenderError(parentEl, err);
@@ -147,11 +112,105 @@ function buildSubscribableChild(store: Subscribable<unknown>): Child {
   return [start, end];
 }
 
-function maybeBuildSubscribableChild(value: unknown): Child {
-  if (isSubscribableValue(value)) {
-    return buildSubscribableChild(value as Subscribable<unknown>);
+// removed: subscribable handling now inlined inside buildElement / expandToNodes
+
+/* -------------------------------------------------------------------------- */
+/* Unified Expansion Helper (work-in-progress)                                */
+/* -------------------------------------------------------------------------- */
+/**
+ * expandToNodes
+ *  - Replaces normalizeToNodes + produceExpandedNodes layered passes.
+ *  - Handles primitives, arrays, reactive generator functions, and subscribables.
+ *  - When alreadyBuilt = true, assumes value may already contain Nodes (fast paths).
+ *
+ * NOTE:
+ *  - Current code paths still call buildElement/maybeBuildSubscribableChild directly.
+ *  - Next steps: migrate setupReactiveRender() & subscribeAndReconcileRange()
+ *    to use this helper, then remove normalizeToNodes + produceExpandedNodes.
+ */
+function expandToNodes(
+  parent: Element,
+  value: unknown,
+  alreadyBuilt: boolean,
+): Node[] {
+  // Fast already-built short-circuits
+  if (alreadyBuilt) {
+    if (value instanceof Node) return [value];
+    if (
+      Array.isArray(value) &&
+      value.length === 1 &&
+      value[0] instanceof Node
+    ) {
+      return [value[0]];
+    }
+  } else {
+    // Primitive early materialization
+    if (value instanceof Node) return [value];
+    const t0 = typeof value;
+    if (t0 === 'string' || t0 === 'number') {
+      return [document.createTextNode(String(value))];
+    }
+    if (value == null || t0 === 'boolean') {
+      return [document.createComment(value ? 'true' : 'null')];
+    }
   }
-  return value as Child;
+
+  // Subscribable expansion (only if not pre-built)
+  if (!alreadyBuilt && isSubscribableValue(value)) {
+    value = buildSubscribableChild(value as Subscribable<unknown>);
+  }
+
+  // Build structural forms (arrays / fragment tuples / reactive wrappers)
+  if (!alreadyBuilt) {
+    value = buildElement(value as Child);
+  }
+
+  // Flatten but DO NOT execute reactive generator functions here.
+  // We preserve them by skipping execution so higher-level mounting logic
+  // (component mounting / reactive region setup) can handle them properly.
+  const queue: unknown[] = Array.isArray(value) ? [...value] : [value];
+  const out: Node[] = [];
+
+  while (queue.length) {
+    const item = queue.shift();
+    if (item == null) {
+      out.push(document.createComment('null'));
+      continue;
+    }
+    if (item instanceof Node) {
+      out.push(item);
+      continue;
+    }
+    const t = typeof item;
+    if (t === 'string' || t === 'number') {
+      out.push(document.createTextNode(String(item)));
+      continue;
+    }
+    if (t === 'boolean') {
+      out.push(document.createComment(item ? 'true' : 'false'));
+      continue;
+    }
+    if (t === 'function') {
+      // Execute reactive generator immediately and enqueue its produced output
+      // (restores original semantics prior to placeholder experiment).
+      try {
+        const produced = (item as ReactiveGenerator)(parent);
+        if (Array.isArray(produced)) {
+          for (let i = 0; i < produced.length; i++) queue.push(produced[i]);
+        } else {
+          queue.push(produced);
+        }
+      } catch (err) {
+        dispatchRenderError(parent, err);
+      }
+      continue;
+    }
+    if (Array.isArray(item)) {
+      for (let i = 0; i < item.length; i++) queue.push(item[i]);
+    }
+  }
+
+  return out;
 }
 
 function bindSubscribableProp(
@@ -271,7 +330,7 @@ function setupReactiveRender(
   const renderFn = () => {
     try {
       const produced = fn(container);
-      const expanded = produceExpandedNodes(container, produced, true);
+      const expanded = expandToNodes(container, produced, true);
       reconcileRange(start, end, expanded);
     } catch (err) {
       dispatchRenderError(container, err);
@@ -283,16 +342,7 @@ function setupReactiveRender(
   renderFn();
 }
 
-function mountChild(
-  parent: Element,
-  nodeOrFn: Node | ReactiveGenerator,
-): void {
-  if (typeof nodeOrFn === 'function') {
-    setupReactiveRender(parent, nodeOrFn as ReactiveGenerator);
-  } else {
-    safeAppend(parent, nodeOrFn);
-  }
-}
+
 
 /* -------------------------------------------------------------------------- */
 /* Component Placeholder & Build Queue                                        */
@@ -347,16 +397,39 @@ function buildComponentHost(host: ComponentElement): void {
 }
 
 function mountBuiltOutput(host: Element, output: Child): void {
-  if (Array.isArray(output)) {
-    const nodes = normalizeToNodes(output);
-    for (const n of nodes) mountChild(host, n);
-  } else if (typeof output === 'function') {
-    setupReactiveRender(host, output as ReactiveGenerator);
-  } else if (output instanceof Node) {
-    safeAppend(host, output);
-  } else if (output != null) {
-    safeAppend(host, document.createTextNode(String(output)));
+  // Custom mount (bypasses expandToNodes so reactive generator functions become
+  // proper reactive regions instead of being executed eagerly here).
+  function mountValue(val: unknown): void {
+    if (val == null) {
+      safeAppend(host, document.createComment('null'));
+      return;
+    }
+    if (val instanceof Node) {
+      safeAppend(host, val);
+      return;
+    }
+    const t = typeof val;
+    if (t === 'string' || t === 'number') {
+      safeAppend(host, document.createTextNode(String(val)));
+      return;
+    }
+    if (t === 'boolean') {
+      safeAppend(host, document.createComment(val ? 'true' : 'false'));
+      return;
+    }
+    if (t === 'function') {
+      setupReactiveRender(host, val as ReactiveGenerator);
+      return;
+    }
+    if (Array.isArray(val)) {
+      for (const inner of val) mountValue(inner);
+      return;
+    }
+    // Fallback: coerce unknown object to string
+    safeAppend(host, document.createTextNode(String(val)));
   }
+
+  mountValue(output);
 }
 
 function flushComponentBuildQueue(): void {
@@ -457,29 +530,21 @@ function createPlainElement(
 /* -------------------------------------------------------------------------- */
 
 function buildElement(child: Child): Child {
-  if (typeof child === 'string' || typeof child === 'number') {
-    return document.createTextNode(String(child));
+  // Nullish first (covers undefined/null)
+  if (child == null) return document.createComment('null');
+  const t = typeof child;
+  // Primitives
+  if (t === 'string' || t === 'number') return document.createTextNode(String(child));
+  if (t === 'boolean') return document.createComment(child ? 'true' : 'false');
+  // Subscribable (inline handling replaces maybeBuildSubscribableChild indirection)
+  if (isSubscribableValue(child)) return buildSubscribableChild(child as Subscribable<unknown>);
+  // Arrays
+  if (Array.isArray(child)) return buildArrayChild(child);
+  // Reactive generator (leave execution to expandToNodes so we avoid double-normalization)
+  if (t === 'function') {
+    return (parent: Element) => (child as ReactiveGenerator)(parent);
   }
-  if (typeof child === 'boolean') {
-    return document.createComment(child ? 'true' : 'false');
-  }
-  if (typeof child === 'function') {
-    return (parent: Element) => {
-      const produced = (child as ReactiveGenerator)(parent);
-      const arr = ([] as Child[]).concat(produced as Child);
-      return normalizeToNodes(arr.map(buildElement) as Child[]);
-    };
-  }
-  {
-    const maybe = maybeBuildSubscribableChild(child);
-    if (maybe !== child) return maybe;
-  }
-  if (Array.isArray(child)) {
-    return buildArrayChild(child);
-  }
-  if (child == null) {
-    return document.createComment('null');
-  }
+  // Node or unknown object (left as-is; expansion handles Nodes, others ignored)
   return child;
 }
 
@@ -495,9 +560,8 @@ function buildArrayChild(
       for (const item of res) if (item != null) built.push(item as Child);
     } else if (res != null) built.push(res);
   }
-  const normalized = normalizeToNodes(built).filter(
-    (n): n is Node | ReactiveGenerator => !!n,
-  );
+  // Directly use built list (further normalization handled later by expandToNodes)
+  const normalized = built as (Node | ReactiveGenerator)[];
   if (!reactivePlaceholder) return [start, ...normalized, end];
   const out: Node[] = [];
   for (const n of normalized) {
@@ -952,52 +1016,7 @@ function reconcileRange(
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Produce Expanded Nodes (reactive + subscribable expansion)                 */
-/* -------------------------------------------------------------------------- */
-
-function produceExpandedNodes(
-  parent: Element,
-  output: unknown,
-  alreadyBuilt: boolean,
-): Node[] {
-  if (alreadyBuilt) {
-    if (output instanceof Node) return [output];
-    if (Array.isArray(output) && output.length === 1 && output[0] instanceof Node) {
-      return [output[0]];
-    }
-  } else {
-    if (output instanceof Node) return [output];
-    const t = typeof output;
-    if (t === 'string' || t === 'number') {
-      return [document.createTextNode(String(output))];
-    }
-    if (output == null || t === 'boolean') {
-      return [document.createComment(output ? 'true' : 'null')];
-    }
-  }
-  const initial = alreadyBuilt ? output : maybeBuildSubscribableChild(output);
-  const built = alreadyBuilt ? initial : buildElement(initial as Child);
-  const arr = Array.isArray(built) ? built : [built];
-  const normalized = normalizeToNodes(arr as Child[]);
-  const expanded: Node[] = [];
-  for (const item of normalized) {
-    if (item instanceof Node) {
-      expanded.push(item);
-      continue;
-    }
-    if (typeof item === 'function') {
-      try {
-        const innerProduced = (item as ReactiveGenerator)(parent);
-        const innerNorm = normalizeToNodes(innerProduced);
-        for (const inner of innerNorm) if (inner instanceof Node) expanded.push(inner);
-      } catch (err) {
-        dispatchRenderError(parent, err);
-      }
-    }
-  }
-  return expanded;
-}
+/* (produceExpandedNodes removed – unified by expandToNodes) */
 
 /* -------------------------------------------------------------------------- */
 /* Root Helpers                                                               */
@@ -1043,7 +1062,26 @@ function createElement(
 ): Child {
   const buildChildrenArray = () =>
     childrenRaw.map((c: Child) => buildElement(c) as Child);
-  const buildNormalized = () => normalizeToNodes(buildChildrenArray());
+  const buildNormalized = () => {
+    const raw = buildChildrenArray();
+    const out: (Node | ReactiveGenerator)[] = [];
+    for (const item of raw) {
+      if (typeof item === 'function') {
+        out.push(item as ReactiveGenerator);
+      } else if (Array.isArray(item)) {
+        for (const sub of item) {
+          if (typeof sub === 'function') {
+            out.push(sub as ReactiveGenerator);
+          } else {
+            out.push(...expandToNodes(document.body, sub, false));
+          }
+        }
+      } else {
+        out.push(...expandToNodes(document.body, item, true));
+      }
+    }
+    return out;
+  };
 
   if (type === Fragment) {
     return buildArrayChild(childrenRaw, true);
@@ -1070,10 +1108,7 @@ function createRoot(container: HTMLElement): {
 
   function render(node: JSX.Element): HTMLElement {
     const built = buildElement(node as Child);
-    const normalized = normalizeToNodes(Array.isArray(built) ? built : [built]);
-    const concreteNodes = normalized.filter(
-      (n): n is Node => n instanceof Node,
-    );
+    const concreteNodes = expandToNodes(container, built, true);
     reconcileRange(start, end, concreteNodes);
     if (built instanceof HTMLElement && !isComponentHost(built)) {
       connect(built);
