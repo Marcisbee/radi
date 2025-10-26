@@ -397,13 +397,12 @@ function inlineDiff(a: Node[], b: Node[], c: Comment | Node): Node[] {
 }
 
 function setGlobalStyle(selector, declarations) {
-  // declarations is a string like: "color: red; font-weight: bold;"
-  const style = document.createElement('style');
-  style.type = 'text/css';
+  const style = document.createElement("style");
+  style.type = "text/css";
   style.appendChild(document.createTextNode(`${selector} { ${declarations} }`));
   document.head.appendChild(style);
 }
-setGlobalStyle('[host]', 'display:contents;');
+setGlobalStyle("[host]", "display:contents;");
 
 export function createElement(
   type: string | ComponentFactory | typeof Fragment,
