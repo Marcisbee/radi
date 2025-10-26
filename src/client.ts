@@ -91,7 +91,7 @@ function subscribeAndReconcileRange(
       if (Object.is(value, previous)) return;
       previous = value;
       try {
-        const expanded = expandToNodes(parentEl, value, false);
+        const expanded = expandToNodes(parentEl, value);
         reconcileRange(start, end, expanded);
       } catch (err) {
         dispatchRenderError(parentEl, err);
@@ -128,46 +128,9 @@ function buildSubscribableChild(store: Subscribable<unknown>): Child {
 function expandToNodes(
   parent: Element,
   value: unknown,
-  alreadyBuilt: boolean,
 ): Node[] {
-  // Fast already-built short-circuits
-  if (alreadyBuilt) {
-    if (value instanceof Node) return [value];
-    if (
-      Array.isArray(value) &&
-      value.length === 1 &&
-      value[0] instanceof Node
-    ) {
-      return [value[0]];
-    }
-  } else {
-    // Primitive early materialization
-    if (value instanceof Node) return [value];
-    const t0 = typeof value;
-    if (t0 === "string" || t0 === "number") {
-      return [document.createTextNode(String(value))];
-    }
-    if (value == null || t0 === "boolean") {
-      return [document.createComment(value ? "true" : "null")];
-    }
-  }
-
-  // Subscribable expansion (only if not pre-built)
-  if (!alreadyBuilt && isSubscribableValue(value)) {
-    value = buildSubscribableChild(value as Subscribable<unknown>);
-  }
-
-  // Build structural forms (arrays / fragment tuples / reactive wrappers)
-  if (!alreadyBuilt) {
-    value = buildElement(value as Child);
-  }
-
-  // Flatten but DO NOT execute reactive generator functions here.
-  // We preserve them by skipping execution so higher-level mounting logic
-  // (component mounting / reactive region setup) can handle them properly.
   const queue: unknown[] = Array.isArray(value) ? [...value] : [value];
   const out: Node[] = [];
-
   while (queue.length) {
     const item = queue.shift();
     if (item == null) {
@@ -187,15 +150,17 @@ function expandToNodes(
       out.push(document.createComment(item ? "true" : "false"));
       continue;
     }
+    if (isSubscribableValue(item)) {
+      queue.unshift(buildSubscribableChild(item as Subscribable<unknown>));
+      continue;
+    }
     if (t === "function") {
-      // Execute reactive generator immediately and enqueue its produced output
-      // (restores original semantics prior to placeholder experiment).
       try {
         const produced = (item as ReactiveGenerator)(parent);
         if (Array.isArray(produced)) {
-          for (let i = 0; i < produced.length; i++) queue.push(produced[i]);
+          queue.unshift(...produced);
         } else {
-          queue.push(produced);
+          queue.unshift(produced);
         }
       } catch (err) {
         dispatchRenderError(parent, err);
@@ -203,10 +168,11 @@ function expandToNodes(
       continue;
     }
     if (Array.isArray(item)) {
-      for (let i = 0; i < item.length; i++) queue.push(item[i]);
+      queue.unshift(...item);
+      continue;
     }
+    out.push(document.createTextNode(String(item)));
   }
-
   return out;
 }
 
@@ -327,7 +293,7 @@ function setupReactiveRender(
   const renderFn = () => {
     try {
       const produced = fn(container);
-      const expanded = expandToNodes(container, produced, true);
+      const expanded = expandToNodes(container, produced);
       reconcileRange(start, end, expanded);
     } catch (err) {
       dispatchRenderError(container, err);
@@ -387,7 +353,35 @@ function buildComponentHost(host: ComponentElement): void {
   currentBuildingComponent = host;
   try {
     const output = buildElement(pending.type.call(host, propsGetter) as Child);
-    mountBuiltOutput(host, output);
+    function mountValue(val: unknown): void {
+      if (val == null) {
+        safeAppend(host, document.createComment("null"));
+        return;
+      }
+      if (val instanceof Node) {
+        safeAppend(host, val);
+        return;
+      }
+      const t = typeof val;
+      if (t === "string" || t === "number") {
+        safeAppend(host, document.createTextNode(String(val)));
+        return;
+      }
+      if (t === "boolean") {
+        safeAppend(host, document.createComment(val ? "true" : "false"));
+        return;
+      }
+      if (t === "function") {
+        setupReactiveRender(host, val as ReactiveGenerator);
+        return;
+      }
+      if (Array.isArray(val)) {
+        for (const inner of val) mountValue(inner);
+        return;
+      }
+      safeAppend(host, document.createTextNode(String(val)));
+    }
+    mountValue(output);
   } catch (err) {
     dispatchRenderError(host, err);
   } finally {
@@ -410,38 +404,7 @@ function flushComponentBuildQueue(): void {
   }
 }
 
-function mountBuiltOutput(host: Element, output: Child): void {
-  function mountValue(val: unknown): void {
-    if (val == null) {
-      safeAppend(host, document.createComment("null"));
-      return;
-    }
-    if (val instanceof Node) {
-      safeAppend(host, val);
-      return;
-    }
-    const t = typeof val;
-    if (t === "string" || t === "number") {
-      safeAppend(host, document.createTextNode(String(val)));
-      return;
-    }
-    if (t === "boolean") {
-      safeAppend(host, document.createComment(val ? "true" : "false"));
-      return;
-    }
-    if (t === "function") {
-      setupReactiveRender(host, val as ReactiveGenerator);
-      return;
-    }
-    if (Array.isArray(val)) {
-      for (const inner of val) mountValue(inner);
-      return;
-    }
-    safeAppend(host, document.createTextNode(String(val)));
-  }
 
-  mountValue(output);
-}
 
 function createComponentPlaceholder(
   type: ComponentFn,
@@ -652,33 +615,14 @@ function syncElementProperties(targetEl: Element, sourceEl: Element): void {
   if (t.style.cssText !== s.style.cssText) t.style.cssText = s.style.cssText;
 }
 
-interface ComponentHost extends HTMLElement {
-  __component?: ComponentFn;
-  __componentPending?: { type: ComponentFn; props: Record<string, unknown> };
-  __propsRef?: { current: Record<string, unknown> };
-  __mounted?: boolean;
-  __key?: string;
-}
 
-function canReuseComponentHost(
-  oldEl: ComponentHost,
-  newEl: ComponentHost,
-): boolean {
-  if (
-    !oldEl.__component ||
-    !oldEl.__mounted ||
-    !newEl.__componentPending ||
-    oldEl.__component !== newEl.__componentPending.type
-  ) {
-    return false;
-  }
-  return oldEl.__key === newEl.__key;
-}
+
+
 
 function patchElement(oldEl: Element, newEl: Element): boolean {
   if (oldEl.nodeName !== newEl.nodeName) return false;
-  const prevHost = oldEl as ComponentHost;
-  const nextHost = newEl as ComponentHost;
+  const prevHost = oldEl as ComponentElement;
+  const nextHost = newEl as ComponentElement;
   if (prevHost.__key !== nextHost.__key) return false;
 
   const nextPending = nextHost.__componentPending;
@@ -970,18 +914,8 @@ function reconcileRange(
       oldCur.nodeType === Node.ELEMENT_NODE &&
       newNode.nodeType === Node.ELEMENT_NODE
     ) {
-      const oldEl = oldCur as ComponentHost;
-      const newEl = newNode as ComponentHost;
-      if (canReuseComponentHost(oldEl, newEl)) {
-        if (oldEl.__propsRef && newEl.__componentPending) {
-          oldEl.__propsRef.current = newEl.__componentPending.props;
-          newEl.__componentPending = undefined;
-          oldEl.dispatchEvent(new Event("update"));
-        }
-        idx++;
-        oldCur = oldCur.nextSibling;
-        continue;
-      }
+      const oldEl = oldCur as ComponentElement;
+      const newEl = newNode as ComponentElement;
       if (patchElement(oldEl, newEl)) {
         oldCur = oldCur.nextSibling;
         idx++;
@@ -1052,11 +986,11 @@ function createElement(
           if (typeof sub === "function") {
             out.push(sub as ReactiveGenerator);
           } else {
-            out.push(...expandToNodes(document.body, sub, false));
+            out.push(...expandToNodes(document.body, sub));
           }
         }
       } else {
-        out.push(...expandToNodes(document.body, item, true));
+        out.push(...expandToNodes(document.body, item));
       }
     }
     return out;
@@ -1087,7 +1021,7 @@ function createRoot(container: HTMLElement): {
 
   function render(node: JSX.Element): HTMLElement {
     const built = buildElement(node as Child);
-    const concreteNodes = expandToNodes(container, built, true);
+    const concreteNodes = expandToNodes(container, built);
     reconcileRange(start, end, concreteNodes);
     if (built instanceof HTMLElement && !isComponentHost(built)) {
       connect(built);
