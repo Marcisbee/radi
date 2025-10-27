@@ -2,7 +2,7 @@
 /** @jsx createElement */
 /** @jsxFrag Fragment */
 
-import { createAbortSignal, createElement, createRoot, update, Fragment } from "../src/client.ts";
+import { createAbortSignal, createElement, createRoot, update, Fragment, memo } from "../src/client.ts";
 
 // import { createElement, createRoot, Fragment, update } from "../rework-fw.ts";
 // import { createAbortSignal, update } from "../src/lifecycle.ts";
@@ -681,8 +681,53 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
           </EventPropagationParent>
         </EventPropagationParent>
       </EventPropagationParent>
+      <hr />
+      Memo Demo:
+      <div>
+        <Memo1 />
+        <br />
+        <Memo2 />
+        <br />
+        <Memo3 />
+        <br />
+        <Memo4 />
+        <br />
+        <Memo5 />
+        <br />
+        <Memo6 />
+      </div>
     </div>
   );
+}
+
+function Memo6() {
+  let i = 0;
+  return () => <span>Memo6:{memo(() => i++, () => false)}</span>;
+}
+
+function Memo5() {
+  let i = 0;
+  return memo(() => <span>Memo5:{i++}</span>, () => false);
+}
+
+function Memo4() {
+  let i = 0;
+  return () => <span>Memo4:{memo(() => i++, () => true)}</span>;
+}
+
+function Memo3() {
+  let i = 0;
+  return memo(() => <span>Memo3:{i++}</span>, () => true);
+}
+
+function Memo2() {
+  let i = 0;
+  return <span>Memo2:{() => i++}</span>;
+}
+
+function Memo1() {
+  let i = 0;
+  return () => <span>Memo1:{i++}</span>;
 }
 
 function EventLifecycleDemo(this: HTMLElement) {
