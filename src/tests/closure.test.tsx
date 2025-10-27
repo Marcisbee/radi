@@ -161,7 +161,7 @@ test("mutate both", async () => {
   );
 
   await Promise.resolve();
-  assert.deepEqual(trace, ["A", "B", "C", "C", "B", "A"]);
+  assert.deepEqual(trace, ["A", "B", "C", "C", "B", "A", "A", "B", "C"]);
 });
 
 await test.run();

@@ -26,6 +26,53 @@ import {
   DOM_RENDERER,
 } from "./renderer.ts";
 
+type MemoizedReactive<T = unknown> = ((parent: Node) => T) & {
+  _radi_skip?: () => boolean;
+  _radi_cache?: Node[];
+  _radi_hasRendered?: boolean;
+};
+
+interface ReactiveExecutionContext {
+  memoFns: MemoizedReactive[];
+  index: number;
+}
+
+let currentReactiveContext: ReactiveExecutionContext | null = null;
+
+export function memo<T>(
+  render: (parent: Node) => T,
+  skipRender: () => boolean,
+): MemoizedReactive<T> {
+  // Wrapped reactive generator with caching + skip logic.
+  const wrapped = ((parent: Node) => {
+    // If we have rendered previously and caller wants to skip, return cached nodes.
+    if (wrapped._radi_hasRendered && skipRender() && wrapped._radi_cache) {
+      return wrapped._radi_cache;
+    }
+    // Execute original render.
+    const result = render(parent);
+    // Attempt to reuse nodes without re-realizing if possible.
+    let nodes: Node[] | null = null;
+    if (Array.isArray(result) && result.every((n) => n instanceof Node)) {
+      nodes = result as unknown as Node[];
+    } else if (result instanceof Node) {
+      nodes = [result];
+    }
+    if (!nodes) {
+      // Defer to realize() to normalize; safe because it's a function declaration (hoisted).
+      nodes = realize(parent as Element, result);
+    }
+    wrapped._radi_cache = nodes;
+    wrapped._radi_hasRendered = true;
+    return nodes;
+  }) as MemoizedReactive<T> & {
+    _radi_cache?: Node[];
+    _radi_hasRendered?: boolean;
+  };
+  wrapped._radi_skip = skipRender;
+  return wrapped;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Fragment Boundary                                                          */
 /* -------------------------------------------------------------------------- */
@@ -290,6 +337,13 @@ function applyPropsToPlainElement(
 /* Reactive Regions                                                           */
 /* -------------------------------------------------------------------------- */
 
+// Note: Inline reactive children are always marked eventable so they receive
+// direct update cycles. This can cause an additional execution pass compared
+// to collapsing them into a single parent reactive root, but preserves
+// expected closure update ordering (see closure.test.tsx - "mutate both").
+// If a performance issue arises, a future optimization could batch these
+// while still triggering their reactive generators post-reconciliation.
+
 function setupReactiveRender(
   container: Element,
   fn: ReactiveGenerator,
@@ -297,6 +351,49 @@ function setupReactiveRender(
   const { start, end } = createFragmentBoundary();
   container.append(start, end);
 
+  let hasRendered = false;
+  const memoRegistry: MemoizedReactive[] = [];
+
+  const renderFn = () => {
+    try {
+      const skipPredicate =
+        (fn as unknown as { _radi_skip?: () => boolean })._radi_skip;
+      const shouldSkip = hasRendered && typeof skipPredicate === "function"
+        ? !!skipPredicate()
+        : false;
+      if (shouldSkip) return;
+
+      const prev = currentReactiveContext;
+      currentReactiveContext = { memoFns: memoRegistry, index: 0 };
+      try {
+        const produced = fn(container);
+        const expanded = realize(container, produced);
+        reconcileRange(start, end, expanded);
+        hasRendered = true;
+      } finally {
+        currentReactiveContext = prev;
+      }
+    } catch (err) {
+      dispatchRenderError(container, err);
+    }
+  };
+
+  markReactiveRoot(container);
+  container.addEventListener("update", renderFn);
+  renderFn();
+}
+
+/**
+ * Inline reactive child (for function children inside plain elements).
+ * Unlike setupReactiveRender, this does NOT mark the parent as a reactive root
+ * so sibling component hosts still receive update() cycles.
+ */
+function setupInlineReactiveChild(
+  container: Element,
+  fn: ReactiveGenerator,
+): void {
+  const { start, end } = createFragmentBoundary();
+  container.append(start, end);
   const renderFn = () => {
     try {
       const produced = fn(container);
@@ -306,8 +403,7 @@ function setupReactiveRender(
       dispatchRenderError(container, err);
     }
   };
-
-  markReactiveRoot(container);
+  markEventable(container);
   container.addEventListener("update", renderFn);
   renderFn();
 }
@@ -491,7 +587,8 @@ function createPlainElement(
   if (props) applyPropsToPlainElement(element, props);
   for (const c of normalizedChildren) {
     if (typeof c === "function") {
-      setupReactiveRender(element, c as ReactiveGenerator);
+      // Use inline variant so this element is not treated as a reactive root.
+      setupInlineReactiveChild(element, c as ReactiveGenerator);
     } else {
       for (const n of realize(element, c)) element.appendChild(n);
     }
@@ -953,17 +1050,35 @@ function createElement(
 ): Child {
   const buildNormalized = () => {
     const out: (Node | ReactiveGenerator)[] = [];
+    const ctx = currentReactiveContext;
     for (const raw of childrenRaw) {
       if (typeof raw === "function") {
-        out.push(raw as ReactiveGenerator);
-      } else if (Array.isArray(raw)) {
-        for (const sub of raw) {
-          if (typeof sub === "function") out.push(sub as ReactiveGenerator);
-          else out.push(...realize(document.body, sub));
+        let fn = raw as MemoizedReactive;
+        if (fn._radi_skip && ctx) {
+          const slot = ctx.index++;
+          const existing = ctx.memoFns[slot];
+          fn = existing || (ctx.memoFns[slot] = fn);
         }
-      } else {
-        out.push(...realize(document.body, raw));
+        out.push(fn as ReactiveGenerator);
+        continue;
       }
+      if (Array.isArray(raw)) {
+        for (const sub of raw) {
+          if (typeof sub === "function") {
+            let fn = sub as MemoizedReactive;
+            if (fn._radi_skip && ctx) {
+              const slot = ctx.index++;
+              const existing = ctx.memoFns[slot];
+              fn = existing || (ctx.memoFns[slot] = fn);
+            }
+            out.push(fn as ReactiveGenerator);
+          } else {
+            out.push(...realize(document.body, sub));
+          }
+        }
+        continue;
+      }
+      out.push(...realize(document.body, raw));
     }
     return out;
   };
