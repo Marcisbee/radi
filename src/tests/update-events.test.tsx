@@ -85,4 +85,238 @@ test("parent-dispatch-child-update", async () => {
   assert.equal(childUpdates, 1);
 });
 
+test("update event calls once per update request 1", async () => {
+  function Child1(this: HTMLElement) {
+    return <div data-count={() => "test"} />;
+  }
+
+  function Child2(this: HTMLElement) {
+    let count = 0;
+    let count2 = 0;
+    this.addEventListener("update", () => count++);
+    return <div className="count">{() => count} : {() => count2++}</div>;
+  }
+
+  function App() {
+    return (
+      <div>
+        <Child1 />
+        <Child2 />
+      </div>
+    );
+  }
+
+  const container = await mount(<App />, document.body);
+
+  let updateCalls = 0;
+  container.addEventListener("update", () => {
+    updateCalls++;
+  });
+
+  update(container);
+  update(container);
+  update(container);
+  await Promise.resolve();
+
+  assert.equal(updateCalls, 3);
+
+  const countEl = container.querySelector(".count")!;
+  assert.equal(countEl.textContent, "3 : 3");
+});
+
+test("update event calls once per update request 2", async () => {
+  function Child1(this: HTMLElement) {
+    return <div data-count={() => "test"} />;
+  }
+
+  function Child2(this: HTMLElement) {
+    let count = 0;
+    let count2 = 0;
+    this.addEventListener("update", () => count++);
+    return <div className="count">{() => count} : {() => count2++}</div>;
+  }
+
+  function App() {
+    return () => (
+      <div>
+        <Child1 />
+        <Child2 />
+      </div>
+    );
+  }
+
+  const container = await mount(<App />, document.body);
+
+  let updateCalls = 0;
+  container.addEventListener("update", () => {
+    updateCalls++;
+  });
+
+  update(container);
+  update(container);
+  update(container);
+  await Promise.resolve();
+
+  assert.equal(updateCalls, 3);
+
+  const countEl = container.querySelector(".count")!;
+  assert.equal(countEl.textContent, "3 : 3");
+});
+
+test("update event calls once per update request 3", async () => {
+  function Child1(this: HTMLElement) {
+    return <div data-count="test" />;
+  }
+
+  function Child2(this: HTMLElement) {
+    let count = 0;
+    let count2 = 0;
+    this.addEventListener("update", () => count++);
+    return <div className="count">{() => count} : {() => count2++}</div>;
+  }
+
+  function App() {
+    return (
+      <div>
+        <Child1 />
+        <Child2 />
+      </div>
+    );
+  }
+
+  const container = await mount(<App />, document.body);
+
+  let updateCalls = 0;
+  container.addEventListener("update", () => {
+    updateCalls++;
+  });
+
+  update(container);
+  update(container);
+  update(container);
+  await Promise.resolve();
+
+  assert.equal(updateCalls, 3);
+
+  const countEl = container.querySelector(".count")!;
+  assert.equal(countEl.textContent, "3 : 3");
+});
+
+test("update event calls once per update request 4", async () => {
+  function Child1(this: HTMLElement) {
+    return () => <div data-count="test" />;
+  }
+
+  function Child2(this: HTMLElement) {
+    let count = 0;
+    let count2 = 0;
+    this.addEventListener("update", () => count++);
+    return <div className="count">{() => count} : {() => count2++}</div>;
+  }
+
+  function App() {
+    return (
+      <div>
+        <Child1 />
+        <Child2 />
+      </div>
+    );
+  }
+
+  const container = await mount(<App />, document.body);
+
+  let updateCalls = 0;
+  container.addEventListener("update", () => {
+    updateCalls++;
+  });
+
+  update(container);
+  update(container);
+  update(container);
+  await Promise.resolve();
+
+  assert.equal(updateCalls, 3);
+
+  const countEl = container.querySelector(".count")!;
+  assert.equal(countEl.textContent, "3 : 3");
+});
+
+test("update event calls once per update request 5", async () => {
+  function Child1(this: HTMLElement) {
+    return () => <div data-count="test" />;
+  }
+
+  function Child2(this: HTMLElement) {
+    let count = 0;
+    let count2 = 0;
+    this.addEventListener("update", () => count++);
+    return () => <div className="count">{() => count} : {() => count2++}</div>;
+  }
+
+  function App() {
+    return (
+      <div>
+        <Child1 />
+        <Child2 />
+      </div>
+    );
+  }
+
+  const container = await mount(<App />, document.body);
+
+  let updateCalls = 0;
+  container.addEventListener("update", () => {
+    updateCalls++;
+  });
+
+  update(container);
+  update(container);
+  update(container);
+  await Promise.resolve();
+
+  assert.equal(updateCalls, 3);
+
+  const countEl = container.querySelector(".count")!;
+  assert.equal(countEl.textContent, "3 : 3");
+});
+
+test("update event calls once per update request 5", async () => {
+  function Child1(this: HTMLElement) {
+    return () => <div data-count="test" />;
+  }
+
+  function Child2(this: HTMLElement) {
+    let count = 0;
+    let count2 = 0;
+    this.addEventListener("update", () => count++);
+    return () => <div className="count">{() => count} : {() => count2++}</div>;
+  }
+
+  function App() {
+    return (
+      <div>
+        {() => <Child1 />}
+        <Child2 />
+      </div>
+    );
+  }
+
+  const container = await mount(<App />, document.body);
+
+  let updateCalls = 0;
+  container.addEventListener("update", () => {
+    updateCalls++;
+  });
+
+  update(container);
+  update(container);
+  update(container);
+  await Promise.resolve();
+
+  assert.equal(updateCalls, 3);
+
+  const countEl = container.querySelector(".count")!;
+  assert.equal(countEl.textContent, "3 : 3");
+});
+
 await test.run();

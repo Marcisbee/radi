@@ -48,7 +48,7 @@ test("reuse-component-props", () => {
     root.render(<App counter={i} />);
     const valueEl = document.querySelector(".value") as HTMLDivElement | null;
     if (!valueEl) throw new Error("value element missing");
-    assert.equal(valueEl.textContent, String(i), "text reconciled");
+    assert.equal(valueEl.textContent, String(i));
   }
 
   assert.equal(connectCount, 1);

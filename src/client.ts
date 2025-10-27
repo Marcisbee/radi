@@ -321,7 +321,9 @@ function applyPropsToPlainElement(
       continue;
     }
     if (typeof value === "function") {
-      markReactiveRoot(element);
+      // Mark as eventable (not a reactive root) to prevent duplicate sibling
+      // component update dispatches triggered by function-valued props.
+      markEventable(element);
       bindFunctionProp(element, key, value as (el: Element) => unknown);
       continue;
     }
