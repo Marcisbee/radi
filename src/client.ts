@@ -634,10 +634,9 @@ function dispatchDisconnectIfElement(node: Node): void {
 
 function detachIfMoving(node: Node): void {
   const parent = node.parentNode;
-  if (parent) {
-    dispatchDisconnectIfElement(node);
-    parent.removeChild(node);
-  }
+  if (!parent) return;
+  dispatchDisconnectIfElement(node);
+  parent.removeChild(node);
 }
 
 function safeAppend(parent: ParentNode & Node, child: Node): void {
@@ -733,7 +732,10 @@ function patchElement(oldEl: Element, newEl: Element): boolean {
   }
 
   // Both realized component hosts with differing component functions.
-  if (prev.__component && next.__component && prev.__component !== next.__component) {
+  if (
+    prev.__component && next.__component &&
+    prev.__component !== next.__component
+  ) {
     return false;
   }
 
