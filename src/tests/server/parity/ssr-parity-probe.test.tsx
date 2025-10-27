@@ -94,7 +94,7 @@ function probe(id: string, nodeFactory: () => any): ProbeResult {
 
 function logResult(r: ProbeResult): void {
   // JSON line
-  console.log(JSON.stringify(r));
+  // console.log(JSON.stringify(r));
 }
 
 /* -------------------------------------------------------------------------- */

@@ -193,13 +193,8 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
       }
       const arr = toChildArray(produced);
       // If output is a single fragment UniversalNode, avoid adding an extra wrapper boundary.
-      if (
-        arr.length === 1 &&
-        isUniversalNode(arr[0]) &&
-        (arr[0] as UniversalNode).tag === "radi-fragment"
-      ) {
-        return arr[0] as UniversalNode;
-      }
+      // Removed fragment collapse optimization to retain outer reactive
+      // boundary markers even when a reactive returns a single fragment.
       const start = adapter.createComment("(");
       const end = adapter.createComment(")");
       return [start, ...arr, end];
@@ -245,9 +240,38 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
    * Fragment creation using comment boundary markers (or adapter-equivalent).
    */
   function fragment(children: Child[]): UniversalNode {
-    // Preserve reactive function children; let downstream expansion handle execution.
+    // SSR parity: reactive function children inside a Fragment are eagerly evaluated
+    // and inlined WITHOUT their own boundary markers. This matches the client
+    // Fragment implementation which calls realize() and executes function children
+    // directly (no placeholder comment pair per reactive). Subscribables still
+    // render as empty placeholder pairs (handled later by insertChildren).
     const frag = adapter.createElement("radi-fragment");
-    insertChildren(frag, children);
+    if (children && children.length) {
+      const processed: Child[] = [];
+      for (const c of children) {
+        if (typeof c === "function") {
+          try {
+            let produced: unknown = c as unknown;
+            // Collapse chains of functions (reactive returning reactive).
+            while (typeof produced === "function") {
+              produced = (produced as ReactiveGenerator)(
+                undefined as unknown as Element,
+              );
+            }
+            if (Array.isArray(produced)) {
+              processed.push(...produced as Child[]);
+            } else {
+              processed.push(produced as Child);
+            }
+          } catch {
+            // Swallow reactive errors in fragment inline context (client parity).
+          }
+        } else {
+          processed.push(c);
+        }
+      }
+      insertChildren(frag, processed);
+    }
     return frag;
   }
 
@@ -274,11 +298,8 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
         produced = ["component-error"];
       }
       // Parity: if component returns an array, wrap entire output in fragment boundary comments
-      if (Array.isArray(produced)) {
-        const startFrag = adapter.createComment("(");
-        const endFrag = adapter.createComment(")");
-        produced = [startFrag, ...produced, endFrag];
-      }
+      // Removed automatic wrapping of component array return values so that
+      // component hosts directly contain returned children (parity with client).
       const componentWrapper = adapter.createElement("radi-host");
       adapter.setProperty(componentWrapper, "style", "display: contents;");
       insertChildren(
@@ -652,7 +673,8 @@ export function createServerStringAdapter(): RendererAdapter {
             // Fragment serialization: double boundary pairs (legacy client parity).
             // Emits: <!--(--><!--(--> ... <!--)--><!--)-->
             if (n.tag === "radi-fragment") {
-              return `<!--(--><!--(-->${childrenHTML}<!--)--><!--)-->`;
+              // Single boundary pair to match client Fragment output.
+              return `<!--(-->${childrenHTML}<!--)-->`;
             }
             const open = attrs ? `<${n.tag} ${attrs}>` : `<${n.tag}>`;
             return `${open}${childrenHTML}</${n.tag}>`;
