@@ -195,35 +195,35 @@ function buildSubscribableChild(store: Subscribable<unknown>): Child {
  *  subscribable -> fragment anchors + subscription, function -> reactive scope execution,
  *  arrays (deeply) -> flattened node list.
  */
+function primitiveNode(v: unknown): Node | null {
+  if (v == null) return document.createComment("null");
+  if (typeof v === "string" || typeof v === "number") {
+    return document.createTextNode(String(v));
+  }
+  if (typeof v === "boolean") {
+    return document.createComment(v ? "true" : "false");
+  }
+  return null;
+}
+
 function realize(parent: Element, value: unknown): Node[] {
   const queue: unknown[] = Array.isArray(value) ? [...value] : [value];
   const out: Node[] = [];
   while (queue.length) {
     const v = queue.shift();
-    if (v == null) {
-      out.push(document.createComment("null"));
+    const prim = primitiveNode(v);
+    if (prim) {
+      out.push(prim);
       continue;
     }
     if (v instanceof Node) {
       out.push(v);
       continue;
     }
-    if (typeof v === "string" || typeof v === "number") {
-      out.push(document.createTextNode(String(v)));
-      continue;
-    }
-    if (typeof v === "boolean") {
-      out.push(document.createComment(v ? "true" : "false"));
-      continue;
-    }
     if (isSubscribableValue(v)) {
-      // Expand subscribable to its placeholder (fragment) and keep going.
       const placeholder = buildSubscribableChild(v as Subscribable<unknown>);
-      if (Array.isArray(placeholder)) {
-        queue.unshift(...placeholder);
-      } else {
-        queue.unshift(placeholder);
-      }
+      if (Array.isArray(placeholder)) queue.unshift(...placeholder);
+      else queue.unshift(placeholder);
       continue;
     }
     if (typeof v === "function") {
@@ -240,7 +240,6 @@ function realize(parent: Element, value: unknown): Node[] {
       queue.unshift(...v);
       continue;
     }
-    // Fallback: stringify
     out.push(document.createTextNode(String(v)));
   }
   return out;
@@ -278,14 +277,7 @@ function bindSubscribableProp(
 /* Props                                                                      */
 /* -------------------------------------------------------------------------- */
 
-function applyStyleObject(
-  el: HTMLElement,
-  styleObj: Record<string, string | number>,
-): void {
-  for (const k in styleObj) {
-    (el.style as unknown as Record<string, string>)[k] = String(styleObj[k]);
-  }
-}
+// (removed) style object handling now inlined inside setPropValue
 
 function setPropValue(
   el: HTMLElement,
@@ -293,12 +285,18 @@ function setPropValue(
   value: unknown,
 ): void {
   if (key === "style" && value && typeof value === "object") {
-    applyStyleObject(el, value as Record<string, string | number>);
-  } else if (key in el) {
-    (el as HTMLElement & Record<string, unknown>)[key] = value as unknown;
-  } else {
-    el.setAttribute(key, String(value));
+    for (const k in value as Record<string, string | number>) {
+      (el.style as unknown as Record<string, string>)[k] = String(
+        (value as Record<string, string | number>)[k],
+      );
+    }
+    return;
   }
+  if (key in el) {
+    (el as HTMLElement & Record<string, unknown>)[key] = value as unknown;
+    return;
+  }
+  el.setAttribute(key, String(value));
 }
 
 function reportPropError(element: HTMLElement, err: unknown): void {
@@ -714,33 +712,30 @@ function syncElementProperties(targetEl: Element, sourceEl: Element): void {
 
 function patchElement(oldEl: Element, newEl: Element): boolean {
   if (oldEl.nodeName !== newEl.nodeName) return false;
-  const prevHost = oldEl as ComponentElement;
-  const nextHost = newEl as ComponentElement;
-  if (prevHost.__key !== nextHost.__key) return false;
+  const prev = oldEl as ComponentElement;
+  const next = newEl as ComponentElement;
+  if (prev.__key !== next.__key) return false;
 
-  const nextPending = nextHost.__componentPending;
-  if (
-    prevHost.__component &&
-    nextPending &&
-    prevHost.__component === nextPending.type
-  ) {
-    if (prevHost.__propsRef) {
-      prevHost.__propsRef.current = nextPending.props;
-      nextHost.__componentPending = undefined;
-      prevHost.dispatchEvent(new Event("update"));
+  const pending = next.__componentPending;
+
+  // Pending update for same component type: reuse & update props.
+  if (prev.__component && pending) {
+    if (prev.__component === pending.type) {
+      if (prev.__propsRef) {
+        prev.__propsRef.current = pending.props;
+        next.__componentPending = undefined;
+        prev.dispatchEvent(new Event("update"));
+      }
+      return true;
     }
-    return true;
+    // Different pending type cannot patch in place.
+    return false;
   }
-  if (
-    prevHost.__component &&
-    nextPending &&
-    prevHost.__component !== nextPending.type
-  ) return false;
-  if (
-    prevHost.__component &&
-    nextHost.__component &&
-    prevHost.__component !== nextHost.__component
-  ) return false;
+
+  // Both realized component hosts with differing component functions.
+  if (prev.__component && next.__component && prev.__component !== next.__component) {
+    return false;
+  }
 
   syncElementProperties(oldEl, newEl);
   reconcileElementChildren(oldEl, newEl);
