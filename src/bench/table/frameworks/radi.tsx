@@ -1,5 +1,7 @@
 // Shared Radi framework implementation for table benchmarks
 
+import { createRoot, update } from "../../../client.ts";
+
 // --- Data sources ---
 export const adjectives = [
   "pretty",
@@ -291,7 +293,7 @@ export function Table(this: HTMLElement) {
   );
 }
 
-export function App(this: DocumentFragment) {
+function App(this: DocumentFragment) {
   return (
     <div className="container">
       <div className="jumbotron">
@@ -309,5 +311,20 @@ export function App(this: DocumentFragment) {
   );
 }
 
-// Import update from client
-import { update } from "../../../client.ts";
+export const title = "Radi";
+
+let testRoot: ReturnType<typeof createRoot> | null = null;
+
+export function mount() {
+  if (!testRoot) {
+    testRoot = createRoot(document.body);
+  }
+  testRoot.render(<App />);
+}
+
+export function unmount() {
+  if (testRoot) {
+    testRoot.unmount();
+    testRoot = null;
+  }
+}

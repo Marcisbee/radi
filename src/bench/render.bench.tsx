@@ -9,7 +9,11 @@ import { createRoot as createRootReact } from "npm:react-dom/client";
 import { waitForXPath } from "./bench.utils.ts";
 import { createRoot } from "../client.ts";
 
-const bench = new Bench();
+const bench = new Bench({
+  warmupIterations: 5,
+  time: 1,
+  iterations: 20,
+});
 
 {
   bench.add(

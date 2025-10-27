@@ -1,5 +1,5 @@
 // let observer: MutationObserver | null = null;
-const pendingPromises: Map<string, (element: Element) => void> = new Map();
+// const pendingPromises: Map<string, (element: Element) => void> = new Map();
 
 function getElement(xpath: string) {
   return document.evaluate(
@@ -11,36 +11,52 @@ function getElement(xpath: string) {
   ).singleNodeValue as Element | null;
 }
 
-const observer = new MutationObserver(() => {
-  for (const [xpath, resolve] of pendingPromises) {
-    const el = getElement(xpath);
-    if (el) {
-      pendingPromises.delete(xpath);
-      resolve(el);
-    }
-  }
-});
+// const observer = new MutationObserver(() => {
+//   for (const [xpath, resolve] of pendingPromises) {
+//     const el = getElement(xpath);
+//     if (el) {
+//       pendingPromises.delete(xpath);
+//       resolve(el);
+//     }
+//   }
+// });
 
-observer.observe(document.documentElement, {
-  childList: true,
-  subtree: true,
-  attributes: true,
-});
+// observer.observe(document.documentElement, {
+//   childList: true,
+//   subtree: true,
+//   attributes: true,
+// });
 
-export async function waitForXPath(xpath: string): Promise<Element> {
-  const el = getElement(xpath);
+export function waitForXPath<T extends Node>(
+  xpath: string,
+  timeoutMs: number = 4000,
+): Promise<T> {
+  const el = getElement(xpath) as any;
   if (el) {
-    return el;
+    return Promise.resolve(el);
   }
 
-  return new Promise((resolve, reject) => {
-    // Check immediately
-    const el = getElement(xpath);
-    if (el) {
-      return el;
+  // deno-lint-ignore no-async-promise-executor
+  return new Promise(async (resolve, reject) => {
+    // Double-check immediately to avoid races
+    const immediate = getElement(xpath) as any;
+    if (immediate) {
+      resolve(immediate);
+      return;
     }
 
-    // Add to pending promises
-    pendingPromises.set(xpath, resolve);
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+      cancelled = true;
+      reject(new Error(`Timeout waiting for XPath: ${xpath}`));
+    }, timeoutMs);
+
+    let el: any;
+    while (!(cancelled || (el = getElement(xpath)))) {
+      await new Promise<void>((res) => requestAnimationFrame(res as any));
+      clearTimeout(timer);
+      resolve(el!);
+    }
   });
 }

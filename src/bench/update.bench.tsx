@@ -12,7 +12,11 @@ import { flushSync } from "npm:react-dom";
 import { waitForXPath } from "./bench.utils.ts";
 import { createRoot, update } from "../client.ts";
 
-const bench = new Bench();
+const bench = new Bench({
+  warmupIterations: 5,
+  time: 1,
+  iterations: 1000,
+});
 
 {
   let count = 0;

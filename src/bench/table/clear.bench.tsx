@@ -1,10 +1,6 @@
-// deno-lint-ignore-file no-inner-declarations
-import { Bench } from "npm:tinybench";
+import { Bench, type FnOptions } from "npm:tinybench";
 import { waitForXPath } from "../bench.utils.ts";
-import { createRoot } from "../../client.ts";
-import * as Radi from "./frameworks/radi.tsx";
-import * as Vanilla from "./frameworks/vanilla.tsx";
-import * as React from "./frameworks/react.tsx";
+import { entries } from "./entries.ts";
 
 const bench = new Bench({
   warmupIterations: 5,
@@ -12,77 +8,26 @@ const bench = new Bench({
   iterations: 20,
 });
 
-{
-  let root: ReturnType<typeof createRoot> | null = null;
-  bench.add(
-    "radi",
-    async () => {
-      (document.getElementById("clear") as HTMLButtonElement).click();
-      await waitForXPath("//tbody[not(tr)]");
+for (const [name, { title, mount, unmount }] of entries) {
+  const hooks: FnOptions = {
+    async beforeEach() {
+      (document.getElementById("run") as HTMLButtonElement).click();
+      await waitForXPath("//tbody/tr[1000]");
     },
-    {
-      async beforeEach() {
-        (document.getElementById("run") as HTMLButtonElement).click();
-        await waitForXPath("//tbody/tr[1000]");
-      },
-      async beforeAll() {
-        document.body.innerHTML = "";
-        const cmp = <Radi.App />;
-        root = createRoot(document.body);
-        root.render(cmp);
-        await waitForXPath("//h1[text()='Radi']");
-      },
-      afterAll() {
-        root?.unmount();
-        root = null;
-      },
+    async beforeAll() {
+      document.body.innerHTML = "";
+      await mount();
+      await waitForXPath(`//h1[text()=${JSON.stringify(title)}]`);
     },
-  );
-}
+    async afterAll() {
+      await unmount();
+    },
+  };
 
-{
-  bench.add(
-    "vanilla",
-    async () => {
-      (document.getElementById("clear") as HTMLButtonElement).click();
-      await waitForXPath("//tbody[not(tr)]");
-    },
-    {
-      async beforeEach() {
-        (document.getElementById("run") as HTMLButtonElement).click();
-        await waitForXPath("//tbody/tr[1000]");
-      },
-      async beforeAll() {
-        document.body.innerHTML = "";
-        Vanilla.setupVanilla(document.body);
-        await waitForXPath("//h1[text()='Vanilla']");
-      },
-    },
-  );
-}
-
-{
-  bench.add(
-    "react",
-    async () => {
-      (document.getElementById("clear") as HTMLButtonElement).click();
-      await waitForXPath("//tbody[not(tr)]");
-    },
-    {
-      async beforeEach() {
-        (document.getElementById("run") as HTMLButtonElement).click();
-        await waitForXPath("//tbody/tr[1000]");
-      },
-      async beforeAll() {
-        document.body.innerHTML = "";
-        React.setupReact(document.body);
-        await waitForXPath("//h1[text()='React']");
-      },
-      afterAll() {
-        React.cleanupReact();
-      },
-    },
-  );
+  bench.add(name, async () => {
+    (document.getElementById("clear") as HTMLButtonElement).click();
+    await waitForXPath("//tbody[not(tr)]");
+  }, hooks);
 }
 
 await bench.run();

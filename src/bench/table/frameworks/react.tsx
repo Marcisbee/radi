@@ -3,11 +3,8 @@
 /** @jsxFrag React.Fragment */
 import React, { memo, useReducer } from "npm:react";
 import { createRoot } from "npm:react-dom/client";
-import { flushSync } from "npm:react-dom";
 
-let dispatch: any;
-
-const random = (max: number) => Math.round(Math.random() * 1000) % max;
+const random = (max) => Math.round(Math.random() * 1000) % max;
 
 const A = [
   "pretty",
@@ -67,8 +64,9 @@ const N = [
 
 let nextId = 1;
 
-const buildData = (count: number) => {
+const buildData = (count) => {
   const data = new Array(count);
+
   for (let i = 0; i < count; i++) {
     data[i] = {
       id: nextId++,
@@ -77,13 +75,15 @@ const buildData = (count: number) => {
       }`,
     };
   }
+
   return data;
 };
 
 const initialState = { data: [], selected: 0 };
 
-const listReducer = (state: any, action: any) => {
+const listReducer = (state, action) => {
   const { data, selected } = state;
+
   switch (action.type) {
     case "RUN":
       return { data: buildData(1000), selected: 0 };
@@ -93,10 +93,13 @@ const listReducer = (state: any, action: any) => {
       return { data: data.concat(buildData(1000)), selected };
     case "UPDATE": {
       const newData = data.slice(0);
+
       for (let i = 0; i < newData.length; i += 10) {
         const r = newData[i];
+
         newData[i] = { id: r.id, label: r.label + " !!!" };
       }
+
       return { data: newData, selected };
     }
     case "CLEAR":
@@ -111,7 +114,8 @@ const listReducer = (state: any, action: any) => {
       }
       return { data: newdata, selected };
     case "REMOVE": {
-      const idx = data.findIndex((d: any) => d.id === action.id);
+      const idx = data.findIndex((d) => d.id === action.id);
+
       return {
         data: [...data.slice(0, idx), ...data.slice(idx + 1)],
         selected,
@@ -125,24 +129,22 @@ const listReducer = (state: any, action: any) => {
 };
 
 const Row = memo(
-  ({ selected, item, dispatch }: any) => (
-    <tr className={selected === item.id ? "danger" : ""}>
+  ({ selected, item, dispatch }) => (
+    <tr className={selected ? "danger" : ""}>
       <td className="col-md-1">{item.id}</td>
       <td className="col-md-4">
-        <a
-          onClick={() =>
-            dispatch({ type: "SELECT", id: item.id })}
-        >
+        <a onClick={() => dispatch({ type: "SELECT", id: item.id })}>
           {item.label}
         </a>
       </td>
       <td className="col-md-1">
-        <a onClick={() => dispatch({ type: "REMOVE", id: item.id })}>
-          <span className="glyphicon glyphicon-remove" aria-hidden="true">
-          </span>
+        <a
+          onClick={() => dispatch({ type: "REMOVE", id: item.id })}
+        >
+          <span className="glyphicon glyphicon-remove" aria-hidden="true" />
         </a>
       </td>
-      <td className="col-md-6"></td>
+      <td className="col-md-6" />
     </tr>
   ),
   (prevProps, nextProps) =>
@@ -150,64 +152,56 @@ const Row = memo(
     prevProps.item === nextProps.item,
 );
 
-const Button = ({ id, cb, title }: any) => (
-  <button
-    type="button"
-    id={id}
-    className="btn btn-primary btn-block"
-    onClick={cb}
-  >
-    {title}
-  </button>
+const Button = ({ id, cb, title }) => (
+  <div className="col-sm-6 smallpad">
+    <button
+      type="button"
+      className="btn btn-primary btn-block"
+      id={id}
+      onClick={cb}
+    >
+      {title}
+    </button>
+  </div>
 );
 
-const Jumbotron = memo(({ dispatch }: any) => (
-  <div className="row">
-    <div className="col-md-6">
-      <h1>React</h1>
-    </div>
-    <div className="col-md-6">
-      <div className="row">
-        <div className="col-sm-6 smallpad">
+const Jumbotron = memo(({ dispatch }) => (
+  <div className="jumbotron">
+    <div className="row">
+      <div className="col-md-6">
+        <h1>React Hooks keyed</h1>
+      </div>
+      <div className="col-md-6">
+        <div className="row">
           <Button
             id="run"
-            cb={() => dispatch({ type: "RUN" })}
             title="Create 1,000 rows"
+            cb={() => dispatch({ type: "RUN" })}
           />
-        </div>
-        <div className="col-sm-6 smallpad">
           <Button
             id="runlots"
-            cb={() => dispatch({ type: "RUN_LOTS" })}
             title="Create 10,000 rows"
+            cb={() => dispatch({ type: "RUN_LOTS" })}
           />
-        </div>
-        <div className="col-sm-6 smallpad">
           <Button
             id="add"
-            cb={() => dispatch({ type: "ADD" })}
             title="Append 1,000 rows"
+            cb={() => dispatch({ type: "ADD" })}
           />
-        </div>
-        <div className="col-sm-6 smallpad">
           <Button
             id="update"
-            cb={() => flushSync(() => dispatch({ type: "UPDATE" }))}
             title="Update every 10th row"
+            cb={() => dispatch({ type: "UPDATE" })}
           />
-        </div>
-        <div className="col-sm-6 smallpad">
           <Button
             id="clear"
-            cb={() => dispatch({ type: "CLEAR" })}
             title="Clear"
+            cb={() => dispatch({ type: "CLEAR" })}
           />
-        </div>
-        <div className="col-sm-6 smallpad">
           <Button
             id="swaprows"
-            cb={() => dispatch({ type: "SWAP_ROWS" })}
             title="Swap Rows"
+            cb={() => dispatch({ type: "SWAP_ROWS" })}
           />
         </div>
       </div>
@@ -216,21 +210,18 @@ const Jumbotron = memo(({ dispatch }: any) => (
 ), () => true);
 
 const Main = () => {
-  const [state, d] = useReducer(listReducer, initialState);
-  dispatch = d;
+  const [{ data, selected }, dispatch] = useReducer(listReducer, initialState);
 
   return (
     <div className="container">
-      <div className="jumbotron">
-        <Jumbotron dispatch={dispatch} />
-      </div>
+      <Jumbotron dispatch={dispatch} />
       <table className="table table-hover table-striped test-data">
         <tbody>
-          {state.data.map((item: any) => (
+          {data.map((item) => (
             <Row
               key={item.id}
-              selected={state.selected}
               item={item}
+              selected={selected === item.id}
               dispatch={dispatch}
             />
           ))}
@@ -239,49 +230,25 @@ const Main = () => {
       <span
         className="preloadicon glyphicon glyphicon-remove"
         aria-hidden="true"
-      >
-      </span>
+      />
     </div>
   );
 };
 
-// --- Actions ---
-export function actionRun() {
-  flushSync(() => dispatch({ type: "RUN" }));
+export const title = "React Hooks keyed";
+
+let testRoot: ReturnType<typeof createRoot> = null;
+
+export function mount() {
+  if (!testRoot) {
+    testRoot = createRoot(document.body);
+  }
+  testRoot.render(<Main />);
 }
 
-export function actionRunLots() {
-  flushSync(() => dispatch({ type: "RUN_LOTS" }));
-}
-
-export function actionAdd() {
-  flushSync(() => dispatch({ type: "ADD" }));
-}
-
-export function actionUpdate() {
-  flushSync(() => dispatch({ type: "UPDATE" }));
-}
-
-export function actionClear() {
-  flushSync(() => dispatch({ type: "CLEAR" }));
-}
-
-export function actionSwapRows() {
-  flushSync(() => dispatch({ type: "SWAP_ROWS" }));
-  // Force a layout read to avoid React batching/microtask coalescing affecting timing
-  document.body.offsetHeight;
-}
-
-export let reactRoot: any = null;
-
-export function setupReact(container: HTMLElement) {
-  container.innerHTML = '<div id="react-root"></div>';
-  const mountPoint = document.getElementById("react-root")!;
-  reactRoot = createRoot(mountPoint);
-  reactRoot.render(<Main />);
-}
-
-export function cleanupReact() {
-  reactRoot?.unmount();
-  reactRoot = null;
+export function unmount() {
+  if (testRoot) {
+    testRoot.unmount();
+    testRoot = null;
+  }
 }
