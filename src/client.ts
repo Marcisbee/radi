@@ -45,12 +45,25 @@ export function memo<T>(
 ): MemoizedReactive<T> {
   // Wrapped reactive generator with caching + skip logic.
   const wrapped = ((parent: Node) => {
-    // If we have rendered previously and caller wants to skip, return cached nodes.
-    if (wrapped._radi_hasRendered && skipRender() && wrapped._radi_cache) {
-      return wrapped._radi_cache;
+    // Skip path: prefer primitive value, else cached nodes.
+    if (wrapped._radi_hasRendered && skipRender()) {
+      if ('_radi_value' in wrapped) return (wrapped as unknown as { _radi_value?: unknown })._radi_value;
+      if (wrapped._radi_cache) return wrapped._radi_cache;
     }
-    // Execute original render.
     const result = render(parent);
+
+    // Primitive / simple value path (used for function-valued props):
+    if (
+      result == null ||
+      typeof result === 'string' ||
+      typeof result === 'number' ||
+      typeof result === 'boolean'
+    ) {
+      (wrapped as unknown as { _radi_value?: unknown })._radi_value = result;
+      wrapped._radi_hasRendered = true;
+      return result;
+    }
+
     // Attempt to reuse nodes without re-realizing if possible.
     let nodes: Node[] | null = null;
     if (Array.isArray(result) && result.every((n) => n instanceof Node)) {
@@ -59,7 +72,7 @@ export function memo<T>(
       nodes = [result];
     }
     if (!nodes) {
-      // Defer to realize() to normalize; safe because it's a function declaration (hoisted).
+      // Normalize any non-node complex output (arrays / mixed) to nodes.
       nodes = realize(parent as Element, result);
     }
     wrapped._radi_cache = nodes;
@@ -68,6 +81,7 @@ export function memo<T>(
   }) as MemoizedReactive<T> & {
     _radi_cache?: Node[];
     _radi_hasRendered?: boolean;
+    _radi_value?: unknown;
   };
   wrapped._radi_skip = skipRender;
   return wrapped;
