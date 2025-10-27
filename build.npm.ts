@@ -7,7 +7,7 @@ async function start() {
   await dnt.build({
     skipSourceOutput: true,
     entryPoints: [
-      "./src/main.ts",
+      "./src/client.ts",
       {
         name: "./client",
         path: "./src/client.ts",

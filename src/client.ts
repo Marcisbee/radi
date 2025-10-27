@@ -138,19 +138,19 @@ function realize(parent: Element, value: unknown): Node[] {
   while (queue.length) {
     const v = queue.shift();
     if (v == null) {
-      out.push(document.createComment('null'));
+      out.push(document.createComment("null"));
       continue;
     }
     if (v instanceof Node) {
       out.push(v);
       continue;
     }
-    if (typeof v === 'string' || typeof v === 'number') {
+    if (typeof v === "string" || typeof v === "number") {
       out.push(document.createTextNode(String(v)));
       continue;
     }
-    if (typeof v === 'boolean') {
-      out.push(document.createComment(v ? 'true' : 'false'));
+    if (typeof v === "boolean") {
+      out.push(document.createComment(v ? "true" : "false"));
       continue;
     }
     if (isSubscribableValue(v)) {
@@ -163,7 +163,7 @@ function realize(parent: Element, value: unknown): Node[] {
       }
       continue;
     }
-    if (typeof v === 'function') {
+    if (typeof v === "function") {
       try {
         const produced = (v as ReactiveGenerator)(parent);
         if (Array.isArray(produced)) queue.unshift(...produced);
@@ -344,7 +344,7 @@ function queueComponentForBuild(host: ComponentElement): void {
 /** Perform initial component build (invokes component function and mounts output). */
 function mountChild(parent: Element, value: unknown): void {
   if (value == null) {
-    safeAppend(parent, document.createComment('null'));
+    safeAppend(parent, document.createComment("null"));
     return;
   }
   if (value instanceof Node) {
@@ -365,15 +365,15 @@ function mountChild(parent: Element, value: unknown): void {
     return;
   }
   const t = typeof value;
-  if (t === 'string' || t === 'number') {
+  if (t === "string" || t === "number") {
     safeAppend(parent, document.createTextNode(String(value)));
     return;
   }
-  if (t === 'boolean') {
-    safeAppend(parent, document.createComment(value ? 'true' : 'false'));
+  if (t === "boolean") {
+    safeAppend(parent, document.createComment(value ? "true" : "false"));
     return;
   }
-  if (t === 'function') {
+  if (t === "function") {
     // Treat as reactive generator – do NOT execute immediately
     setupReactiveRender(parent, value as ReactiveGenerator);
     return;
@@ -421,8 +421,6 @@ function flushComponentBuildQueue(): void {
     isFlushingComponentBuilds = false;
   }
 }
-
-
 
 function createComponentPlaceholder(
   type: ComponentFn,
@@ -486,11 +484,13 @@ function createPlainElement(
   props: Record<string, unknown> | null,
   normalizedChildren: (Node | ReactiveGenerator)[],
 ): HTMLElement & { __key?: string } {
-  const element = document.createElement(type) as HTMLElement & { __key?: string };
+  const element = document.createElement(type) as HTMLElement & {
+    __key?: string;
+  };
   assignKeyIfPresent(element, props);
   if (props) applyPropsToPlainElement(element, props);
   for (const c of normalizedChildren) {
-    if (typeof c === 'function') {
+    if (typeof c === "function") {
       setupReactiveRender(element, c as ReactiveGenerator);
     } else {
       for (const n of realize(element, c)) element.appendChild(n);
@@ -596,10 +596,6 @@ function syncElementProperties(targetEl: Element, sourceEl: Element): void {
   const s = sourceEl as HTMLElement;
   if (t.style.cssText !== s.style.cssText) t.style.cssText = s.style.cssText;
 }
-
-
-
-
 
 function patchElement(oldEl: Element, newEl: Element): boolean {
   if (oldEl.nodeName !== newEl.nodeName) return false;
@@ -958,11 +954,11 @@ function createElement(
   const buildNormalized = () => {
     const out: (Node | ReactiveGenerator)[] = [];
     for (const raw of childrenRaw) {
-      if (typeof raw === 'function') {
+      if (typeof raw === "function") {
         out.push(raw as ReactiveGenerator);
       } else if (Array.isArray(raw)) {
         for (const sub of raw) {
-          if (typeof sub === 'function') out.push(sub as ReactiveGenerator);
+          if (typeof sub === "function") out.push(sub as ReactiveGenerator);
           else out.push(...realize(document.body, sub));
         }
       } else {
@@ -1002,7 +998,9 @@ function createRoot(container: HTMLElement): {
     reconcileRange(start, end, realized);
     // Return first element node if single root element
     const single = realized.length === 1 ? realized[0] : null;
-    if (single instanceof HTMLElement && !isComponentHost(single)) connect(single);
+    if (single instanceof HTMLElement && !isComponentHost(single)) {
+      connect(single);
+    }
     return single instanceof HTMLElement ? single : container;
   }
 
