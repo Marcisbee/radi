@@ -14,10 +14,10 @@ function Input1(this: DocumentFragment) {
   console.log("Input1");
   this.addEventListener("update", (e) => {
     console.log("Input1 UPDATE 1");
-  }, {capture: true});
+  }, { capture: true });
   this.addEventListener("request:update", (e) => {
     console.log("Input1 UPDATE 2");
-  }, {capture: true});
+  }, { capture: true });
 
   this.addEventListener("connect", () => {
     console.log("Input1 CONNECT");
@@ -130,7 +130,7 @@ function Counter(this: HTMLElement) {
   let count = 0;
   this.addEventListener("update", () => {
     console.log("COUNTER UPDATE (CAPTURE)", count);
-  }, {capture: true});
+  }, { capture: true });
   this.addEventListener("update", () => {
     console.log("COUNTER UPDATE", count);
   });

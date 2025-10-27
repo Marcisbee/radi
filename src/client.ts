@@ -47,7 +47,9 @@ export function memo<T>(
   const wrapped = ((parent: Node) => {
     // Skip path: prefer primitive value, else cached nodes.
     if (wrapped._radi_hasRendered && skipRender()) {
-      if ('_radi_value' in wrapped) return (wrapped as unknown as { _radi_value?: unknown })._radi_value;
+      if ("_radi_value" in wrapped) {
+        return (wrapped as unknown as { _radi_value?: unknown })._radi_value;
+      }
       if (wrapped._radi_cache) return wrapped._radi_cache;
     }
     const result = render(parent);
@@ -55,9 +57,9 @@ export function memo<T>(
     // Primitive / simple value path (used for function-valued props):
     if (
       result == null ||
-      typeof result === 'string' ||
-      typeof result === 'number' ||
-      typeof result === 'boolean'
+      typeof result === "string" ||
+      typeof result === "number" ||
+      typeof result === "boolean"
     ) {
       (wrapped as unknown as { _radi_value?: unknown })._radi_value = result;
       wrapped._radi_hasRendered = true;

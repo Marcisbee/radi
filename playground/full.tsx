@@ -277,7 +277,7 @@ function CounterSubscribable(
         // expose emitter for compatibility
         ev: parent.ev,
       };
-    }
+    },
   };
 
   return (

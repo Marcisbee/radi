@@ -41,9 +41,7 @@ export const diff = (
   while (aStart < aEnd || bStart < bEnd) {
     if (aEnd === aStart) {
       const node = bEnd < bLength
-        ? (bStart
-          ? (get(b[bStart - 1], -0).nextSibling)
-          : get(b[bEnd], 0))
+        ? (bStart ? (get(b[bStart - 1], -0).nextSibling) : get(b[bEnd], 0))
         : before ?? null;
       while (bStart < bEnd) parentNode.insertBefore(get(b[bStart++], 1), node);
     } else if (bEnd === bStart) {
@@ -122,12 +120,17 @@ export const diff = (
  * - Components / fragments are realized (their .ref) before diffing.
  * - Prop removal when new prop missing or null/undefined.
  */
-type VNodeLike = { __v: true; ref: Node | Node[]; type: unknown; props?: Record<string, unknown> | null };
+type VNodeLike = {
+  __v: true;
+  ref: Node | Node[];
+  type: unknown;
+  props?: Record<string, unknown> | null;
+};
 type AnyEl = Element & { [key: string]: unknown };
 function isVNodeLike(v: unknown): v is VNodeLike {
   return !!v &&
-    typeof v === 'object' &&
-    '__v' in (v as Record<string, unknown>) &&
+    typeof v === "object" &&
+    "__v" in (v as Record<string, unknown>) &&
     (v as { __v?: unknown }).__v === true;
 }
 export const vdiff = (
@@ -151,17 +154,17 @@ export const vdiff = (
     const newV: VNodeLike = bVNodes[i];
     if (
       oldV && newV &&
-      typeof oldV === 'object' && typeof newV === 'object' &&
+      typeof oldV === "object" && typeof newV === "object" &&
       oldV.__v && newV.__v &&
       oldV.type === newV.type &&
-      typeof newV.type === 'string'
+      typeof newV.type === "string"
     ) {
       const el = toNode(oldV);
       if (el && (el as Node).nodeType === 1) {
         patchProps(
           el as AnyEl,
           (oldV.props || {}) as Record<string, unknown>,
-            (newV.props || {}) as Record<string, unknown>,
+          (newV.props || {}) as Record<string, unknown>,
         );
       }
     }
@@ -189,11 +192,14 @@ function patchProps(
   for (const k in oldProps) {
     if (!(k in newProps)) {
       try {
-        if (k.startsWith('on') && typeof oldProps[k] === 'function') {
+        if (k.startsWith("on") && typeof oldProps[k] === "function") {
           const eventName = k.slice(2).toLowerCase();
-            el.removeEventListener(eventName, oldProps[k] as unknown as EventListener);
+          el.removeEventListener(
+            eventName,
+            oldProps[k] as unknown as EventListener,
+          );
         } else {
-          (el as AnyEl)[k] = '';
+          (el as AnyEl)[k] = "";
           const elem = el as unknown as Element;
           if (elem.hasAttribute?.(k)) elem.removeAttribute(k);
         }
@@ -207,15 +213,15 @@ function patchProps(
     const ov = oldProps[k];
     if (nv === ov) continue;
     try {
-      if (k.startsWith('on') && typeof nv === 'function') {
+      if (k.startsWith("on") && typeof nv === "function") {
         const eventName = k.slice(2).toLowerCase();
-        if (typeof ov === 'function') {
+        if (typeof ov === "function") {
           el.removeEventListener(eventName, ov as unknown as EventListener);
         }
         el.addEventListener(eventName, nv as unknown as EventListener);
       } else {
         if (nv == null) {
-          (el as AnyEl)[k] = '';
+          (el as AnyEl)[k] = "";
           const elem = el as unknown as Element;
           if (elem.hasAttribute?.(k)) elem.removeAttribute(k);
         } else {

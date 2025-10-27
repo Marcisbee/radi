@@ -353,10 +353,12 @@ export function renderClient(el: Child, target: HTMLElement) {
 }
 
 function isVNodeArray(list: unknown[]): boolean {
-  return list.some((v) => !!v && typeof v === 'object' && (v as { __v?: unknown }).__v === true);
+  return list.some((v) =>
+    !!v && typeof v === "object" && (v as { __v?: unknown }).__v === true
+  );
 }
 function realizeVNodeToNodes(v: any): Node[] {
-  if (v && typeof v === 'object' && (v as { __v?: unknown }).__v === true) {
+  if (v && typeof v === "object" && (v as { __v?: unknown }).__v === true) {
     const ref = (v as any).ref;
     return Array.isArray(ref) ? ref : [ref];
   }
