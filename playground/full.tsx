@@ -2,66 +2,74 @@
 /** @jsx createElement */
 /** @jsxFrag Fragment */
 
-import { createAbortSignal, createElement, createRoot, update, Fragment, memo } from "../src/client.ts";
+import { createChannel } from "../src/channel.ts";
+import {
+  createAbortSignal,
+  createElement,
+  createRoot,
+  Fragment,
+  memo,
+  update,
+} from "../src/client.ts";
 
 // import { createElement, createRoot, Fragment, update } from "../rework-fw.ts";
 // import { createAbortSignal, update } from "../src/lifecycle.ts";
 
-// const Theme = createChannel<"light" | "dark">("light");
+const Theme = createChannel<"light" | "dark">("light");
 
-// function ThemeProvider(
-//   this: DocumentFragment,
-//   props: JSX.PropsWithChildren,
-// ) {
-//   // Provide (idempotent across re-renders unless you explicitly change value)
-//   const theme = Theme.provide(this, "light");
-//   // Example: toggle every 2s
-//   setInterval(() => {
-//     theme.set((prev) => (prev === "light" ? "dark" : "light"));
-//   }, 2000);
-//   return () => props().children;
-// }
+function ThemeProvider(
+  this: DocumentFragment,
+  props: JSX.PropsWithChildren,
+) {
+  // Provide (idempotent across re-renders unless you explicitly change value)
+  const theme = Theme.provide(this, "light");
+  // Example: toggle every 2s
+  setInterval(() => {
+    theme.set((prev) => (prev === "light" ? "dark" : "light"));
+  }, 2000);
+  return () => props().children;
+}
 
-// function Badge(this: DocumentFragment) {
-//   const theme = Theme.use(this);
-//   return (
-//     <div
-//       style={() => ({
-//         background: theme() === "dark" ? "#222" : "#eee",
-//         color: theme() === "dark" ? "#eee" : "#222",
-//         padding: "4px 8px",
-//         borderRadius: "4px",
-//       })}
-//     >
-//       Theme: {theme}
-//       <button
-//         type="button"
-//         onclick={() => {
-//           theme.set((prev) => (prev === "light" ? "dark" : "light"));
-//         }}
-//         style={{ marginLeft: "8px" }}
-//       >
-//         toggle
-//       </button>
-//       <button
-//         type="button"
-//         onclick={() => {
-//           theme.update(); // force consumers to re-render without changing value
-//         }}
-//         style={{ marginLeft: "4px" }}
-//       >
-//         force update
-//       </button>
-//     </div>
-//   );
-// }
+function Badge(this: DocumentFragment) {
+  const theme = Theme.use(this);
+  return (
+    <div
+      style={() => ({
+        background: theme() === "dark" ? "#222" : "#eee",
+        color: theme() === "dark" ? "#eee" : "#222",
+        padding: "4px 8px",
+        borderRadius: "4px",
+      })}
+    >
+      Theme: {theme}
+      <button
+        type="button"
+        onclick={() => {
+          theme.set((prev) => (prev === "light" ? "dark" : "light"));
+        }}
+        style={{ marginLeft: "8px" }}
+      >
+        toggle
+      </button>
+      <button
+        type="button"
+        onclick={() => {
+          theme.update(); // force consumers to re-render without changing value
+        }}
+        style={{ marginLeft: "4px" }}
+      >
+        force update
+      </button>
+    </div>
+  );
+}
 
-// function Nested(this: DocumentFragment) {
-//   // Locally override provider:
-//   Theme.provide(this, "dark");
-//   const theme = Theme.use(this);
-//   return <div>Nested local theme: {theme}</div>;
-// }
+function Nested(this: DocumentFragment) {
+  // Locally override provider:
+  Theme.provide(this, "dark");
+  const theme = Theme.use(this);
+  return <div>Nested local theme: {theme}</div>;
+}
 
 function SuspendedChild(this: DocumentFragment) {
   let state = "suspended";
@@ -249,6 +257,27 @@ function CounterSubscribable(
         },
       };
     },
+    map(transform: (v: number) => any) {
+      const parent = this;
+      return {
+        subscribe(callback: (v: any) => void) {
+          const wrapped = () => callback(transform(parent.value));
+          // call immediately with mapped value
+          wrapped();
+          const off = parent.ev.on("up", wrapped);
+          return {
+            unsubscribe: () => {
+              off();
+            },
+          };
+        },
+        get value() {
+          return transform(parent.value);
+        },
+        // expose emitter for compatibility
+        ev: parent.ev,
+      };
+    }
   };
 
   return (
@@ -257,7 +286,7 @@ function CounterSubscribable(
       onclick={() => {
         count.value++;
       }}
-      // disabled={() => count >= 10}
+      disabled={count.map((c) => c >= 10)}
     >
       {count}
     </button>
@@ -643,13 +672,11 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
         </div>
       </div>
       <hr />
-      {
-        /*<ThemeProvider>
+      <ThemeProvider>
         <h1>Channel Demo</h1>
         <Badge />
         <Nested />
-      </ThemeProvider>*/
-      }
+      </ThemeProvider>
       <hr />
       <Sub1 />
       <hr />
