@@ -23,7 +23,6 @@ import {
   createDomAdapter,
   createRenderer,
   createServerStringAdapter,
-  DOM_RENDERER,
 } from "./renderer.ts";
 
 type MemoizedReactive<T = unknown> = ((parent: Node) => T) & {
@@ -808,37 +807,27 @@ function reconcileNonKeyedChildren(
 function buildOldKeyMap(
   oldEl: Element,
   oldKeyMap: Map<string, Node>,
-  unmatched: Node[],
 ): void {
   for (let c = oldEl.firstChild; c; c = c.nextSibling) {
     const k = getNodeKey(c);
     if (k) oldKeyMap.set(k, c);
-    else unmatched.push(c);
   }
 }
 
-function advancePastKeyed(pointer: Node | null): Node | null {
-  while (pointer && getNodeKey(pointer)) pointer = pointer.nextSibling;
-  return pointer;
-}
+/* Inline skip helper removed: see keyed branch in reconcileKeyedChildren */
 
-function reconcileMatchedNode(match: Node, newPointer: Node): void {
-  if (
-    match.nodeType === Node.ELEMENT_NODE &&
-    newPointer.nodeType === Node.ELEMENT_NODE
-  ) {
-    if (match !== newPointer) {
-      patchElement(match as Element, newPointer as Element);
-    }
-  } else if (!patchText(match, newPointer) && match !== newPointer) {
-    safeReplace(match.parentNode as ParentNode & Node, newPointer, match);
-  }
-}
+/* Inline match patch logic removed: handled directly inside reconcileKeyedChildren */
 
-function removeRemainingUnprocessed(
+function finalizeKeyed(
   oldEl: Element,
+  oldKeyMap: Map<string, Node>,
   processed: Set<Node>,
 ): void {
+  // Remove any keyed nodes not processed.
+  for (const [, node] of oldKeyMap) {
+    if (!processed.has(node)) safeRemove(oldEl, node);
+  }
+  // Remove remaining unkeyed nodes not processed.
   for (let c = oldEl.firstChild; c;) {
     const next = c.nextSibling;
     if (!processed.has(c) && !getNodeKey(c)) safeRemove(oldEl, c);
@@ -846,21 +835,23 @@ function removeRemainingUnprocessed(
   }
 }
 
-function finalizeKeyed(
-  oldEl: Element,
-  oldKeyMap: Map<string, Node>,
-  processed: Set<Node>,
-): void {
-  for (const [, node] of oldKeyMap) {
-    if (!processed.has(node)) safeRemove(oldEl, node);
-  }
-  removeRemainingUnprocessed(oldEl, processed);
-}
-
+/**
+ * Keyed reconciliation phases:
+ * 1. Build map of old keyed children.
+ * 2. Stream new list:
+ *    - Non-keyed nodes pair against first available non-keyed old (skipping keyed).
+ *    - Keyed nodes: reuse & move into position before current scan pointer.
+ * 3. Patch reused nodes in place (text / element / component).
+ * 4. Insert new keyed / non-keyed nodes not reused.
+ * 5. Finalize: remove old keyed / unkeyed nodes not processed.
+ *
+ * Guarantees:
+ * - Stable instance preservation for same keys.
+ * - Single pass over new list + O(k) map lookups.
+ */
 function reconcileKeyedChildren(oldEl: Element, newEl: Element): void {
   const oldKeyMap = new Map<string, Node>();
-  const unmatchedOld: Node[] = [];
-  buildOldKeyMap(oldEl, oldKeyMap, unmatchedOld);
+  buildOldKeyMap(oldEl, oldKeyMap);
 
   let oldPointer: Node | null = oldEl.firstChild;
   const processed = new Set<Node>();
@@ -870,7 +861,10 @@ function reconcileKeyedChildren(oldEl: Element, newEl: Element): void {
     const newKey = getNodeKey(newPointer);
 
     if (!newKey) {
-      oldPointer = advancePastKeyed(oldPointer);
+      // Skip past any keyed nodes to find first non-keyed candidate for pairing.
+      while (oldPointer && getNodeKey(oldPointer)) {
+        oldPointer = oldPointer.nextSibling;
+      }
       if (!oldPointer) {
         safeAppend(oldEl, newPointer);
         newPointer = next;
@@ -908,6 +902,7 @@ function reconcileKeyedChildren(oldEl: Element, newEl: Element): void {
 
     const match = oldKeyMap.get(newKey);
     if (match) {
+      // Reuse keyed node; ensure it is positioned before current oldPointer.
       oldKeyMap.delete(newKey);
       processed.add(match);
       if (match === oldPointer) {
@@ -916,8 +911,19 @@ function reconcileKeyedChildren(oldEl: Element, newEl: Element): void {
         if (oldPointer) safeInsertBefore(oldEl, match, oldPointer);
         else safeAppend(oldEl, match);
       }
-      reconcileMatchedNode(match, newPointer);
+      // Inline patch logic (was reconcileMatchedNode):
+      if (
+        match.nodeType === Node.ELEMENT_NODE &&
+        newPointer.nodeType === Node.ELEMENT_NODE
+      ) {
+        if (match !== newPointer) {
+          patchElement(match as Element, newPointer as Element);
+        }
+      } else if (!patchText(match, newPointer) && match !== newPointer) {
+        safeReplace(match.parentNode as ParentNode & Node, newPointer, match);
+      }
     } else {
+      // New keyed node: insert before scan pointer.
       if (oldPointer) safeInsertBefore(oldEl, newPointer, oldPointer);
       else safeAppend(oldEl, newPointer);
     }
@@ -933,7 +939,28 @@ function reconcileElementChildren(oldEl: Element, newEl: Element): void {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Range Reconciliation                                                       */
+/* Range Reconciliation
+   Invariants:
+   - 'start' and 'end' are stable comment boundary markers; all dynamic nodes live between them.
+   - We perform a single linear walk merging two sequences: existing DOM siblings between markers and the newNodes array.
+   Phases:
+   1. Fast text-only single node patch shortcut.
+   2. While loop:
+      a. If we've consumed old nodes (hit 'end'), bulk-insert remaining new nodes via a fragment (preserving connect events).
+      b. If no oldCur (range initially empty), insert remaining new nodes before 'end'.
+      c. If no newNode (new list shorter), remove remaining old nodes until 'end'.
+      d. If identity equal (node reused), advance both pointers.
+      e. Try text patch.
+      f. Try element/component patch (patchElement handles component host logic).
+      g. Fallback: replace oldCur with newNode (safeInsertBefore + safeRemove).
+   Lifecycle:
+   - Uses safe* helpers ensuring connect/disconnect dispatching.
+   Complexity:
+   - O(n) where n = max(oldChildrenCount, newChildrenCount); minimal allocations.
+   Guarantees:
+   - Preserves relative order of reused nodes.
+   - Does not traverse outside boundary comments even if external DOM mutations occurred.
+*/
 /* -------------------------------------------------------------------------- */
 
 function reconcileRange(
@@ -1145,23 +1172,6 @@ function createRoot(container: HTMLElement): {
 
   return { root: container, render, unmount };
 }
-
-/* -------------------------------------------------------------------------- */
-/* Universal Renderer Aliases                                                 */
-/* -------------------------------------------------------------------------- */
-
-const {
-  render: domRender,
-  createElement: domCreateElement,
-  createTextNode: domCreateTextNode,
-  createComment: domCreateComment,
-  fragment: domFragment,
-  renderToString: _unusedDomRenderToString,
-} = DOM_RENDERER;
-
-/* -------------------------------------------------------------------------- */
-/* Exports                                                                    */
-/* -------------------------------------------------------------------------- */
 
 export {
   // Lifecycle + control
