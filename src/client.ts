@@ -140,7 +140,7 @@ function safelyRunUnsubscribe(
   }
 }
 
-function subscribeAndReconcileRange(
+function subscribeAndDiffRange(
   store: Subscribable<unknown>,
   start: Comment,
   end: Comment,
@@ -154,7 +154,7 @@ function subscribeAndReconcileRange(
       previous = value;
       try {
         const expanded = realize(parentEl, value);
-        reconcileRange(start, end, expanded);
+        diffRange(start, end, expanded);
       } catch (err) {
         dispatchRenderError(parentEl, err);
       }
@@ -170,7 +170,7 @@ function subscribeAndReconcileRange(
 
 function buildSubscribableChild(store: Subscribable<unknown>): Child {
   const { start, end } = createFragmentBoundary();
-  subscribeAndReconcileRange(store, start, end);
+  subscribeAndDiffRange(store, start, end);
   return [start, end];
 }
 
@@ -383,7 +383,7 @@ function setupReactiveRender(
       try {
         const produced = fn(container);
         const expanded = realize(container, produced);
-        reconcileRange(start, end, expanded);
+        diffRange(start, end, expanded);
         hasRendered = true;
       } finally {
         currentReactiveContext = prev;
@@ -413,7 +413,7 @@ function setupInlineReactiveChild(
     try {
       const produced = fn(container);
       const expanded = realize(container, produced);
-      reconcileRange(start, end, expanded);
+      diffRange(start, end, expanded);
     } catch (err) {
       dispatchRenderError(container, err);
     }
@@ -739,7 +739,7 @@ function patchElement(oldEl: Element, newEl: Element): boolean {
   }
 
   syncElementProperties(oldEl, newEl);
-  reconcileElementChildren(oldEl, newEl);
+  diffElementChildren(oldEl, newEl);
   return true;
 }
 
@@ -757,7 +757,7 @@ function detectChildKeys(oldEl: Element, newEl: Element): boolean {
   return false;
 }
 
-function reconcileNonKeyedChildren(
+function diffNonKeyedChildren(
   oldEl: Element,
   newEl: Element,
 ): void {
@@ -814,9 +814,9 @@ function buildOldKeyMap(
   }
 }
 
-/* Inline skip helper removed: see keyed branch in reconcileKeyedChildren */
+/* Inline skip helper removed: see keyed branch in diffKeyedChildren */
 
-/* Inline match patch logic removed: handled directly inside reconcileKeyedChildren */
+/* Inline match patch logic removed: handled directly inside diffKeyedChildren */
 
 function finalizeKeyed(
   oldEl: Element,
@@ -849,7 +849,7 @@ function finalizeKeyed(
  * - Stable instance preservation for same keys.
  * - Single pass over new list + O(k) map lookups.
  */
-function reconcileKeyedChildren(oldEl: Element, newEl: Element): void {
+function diffKeyedChildren(oldEl: Element, newEl: Element): void {
   const oldKeyMap = new Map<string, Node>();
   buildOldKeyMap(oldEl, oldKeyMap);
 
@@ -933,9 +933,9 @@ function reconcileKeyedChildren(oldEl: Element, newEl: Element): void {
   finalizeKeyed(oldEl, oldKeyMap, processed);
 }
 
-function reconcileElementChildren(oldEl: Element, newEl: Element): void {
-  if (!detectChildKeys(oldEl, newEl)) reconcileNonKeyedChildren(oldEl, newEl);
-  else reconcileKeyedChildren(oldEl, newEl);
+function diffElementChildren(oldEl: Element, newEl: Element): void {
+  if (!detectChildKeys(oldEl, newEl)) diffNonKeyedChildren(oldEl, newEl);
+  else diffKeyedChildren(oldEl, newEl);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -963,7 +963,7 @@ function reconcileElementChildren(oldEl: Element, newEl: Element): void {
 */
 /* -------------------------------------------------------------------------- */
 
-function reconcileRange(
+function diffRange(
   start: Comment,
   end: Comment,
   newNodes: Node[],
@@ -1152,7 +1152,7 @@ function createRoot(container: HTMLElement): {
 
   function render(node: JSX.Element): HTMLElement {
     const realized = realize(container, node as Child);
-    reconcileRange(start, end, realized);
+    diffRange(start, end, realized);
     // Return first element node if single root element
     const single = realized.length === 1 ? realized[0] : null;
     if (single instanceof HTMLElement && !isComponentHost(single)) {
