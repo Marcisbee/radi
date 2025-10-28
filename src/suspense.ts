@@ -69,12 +69,9 @@ export function Suspense(
 
   this.addEventListener("update", (e) => {
     e.preventDefault();
-    // QUESTION? Should we do this?
-    for (const child of props().children) {
-      if (child instanceof HTMLElement) {
-        if (child.isConnected) {
-          update(child);
-        }
+    for (const child of this.children) {
+      if (child?.isConnected) {
+        update(child);
       }
     }
   });
@@ -89,20 +86,18 @@ export function Suspense(
     { once: true },
   );
 
-  const child = props().children;
-
   return () => {
     if (!showChildren) {
       return [
         createElement(
           "suspended",
           { style: { display: "none" } },
-          child,
+          props().children,
         ),
         props().fallback,
       ];
     }
 
-    return [child];
+    return [props().children];
   };
 }
