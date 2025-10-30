@@ -79,7 +79,7 @@ function replace(childNew: Node, childOld: Node) {
   (childOld as any).replaceWith
     ? (childOld as any).replaceWith(childNew)
     : childOld.parentNode?.replaceChild(childNew, childOld);
-  flushConnectionQueue();
+  // flushConnectionQueue();
   sendConnectEvent(childNew);
   sendDisconnectEvent(childOld);
   return childNew;
@@ -105,7 +105,7 @@ function connect(child: Node, parent: Node) {
 
   parent.appendChild(child);
 
-  if (child.__component) {
+  if (child.__component && child.__instance === undefined) {
     // if (parent.isConnected) {
     //   build(child.__component(child), child);
     //   // queueMicrotask(() => {
@@ -155,7 +155,7 @@ function disconnect(child: Node) {
   (child as any).remove
     ? (child as any).remove()
     : child.parentNode?.removeChild(child);
-  flushConnectionQueue();
+  // flushConnectionQueue();
 
   sendDisconnectEvent(child);
   // child.dispatchEvent(new Event("disconnect"));
@@ -450,8 +450,10 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
             itemOld.__props?.key !== itemNew.__props?.key ||
             itemOld.__type !== itemNew.__type
           ) {
+            // connectQueue.clear();
             replace(itemNew, itemOld);
             build(itemNew.__component(itemNew), itemNew);
+            // flushConnectionQueue();
             arrayOut[ii] = itemNew;
             continue;
           }
@@ -574,6 +576,7 @@ updateTarget.addEventListener(
   "update",
   (e) => {
     e.stopImmediatePropagation();
+    connectQueue.clear();
     const node = (e as any).node;
     if (node instanceof Node) {
       updater(node);
