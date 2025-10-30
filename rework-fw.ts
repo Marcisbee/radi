@@ -51,6 +51,17 @@ microtaskTarget.addEventListener(
   { capture: true },
 );
 
+let connectQueue: Function[] = [];
+function queueConnection(fn: Function) {
+  connectQueue.push(fn);
+}
+function flushConnectionQueue() {
+  for (const a of connectQueue) {
+    a();
+  }
+  connectQueue = [];
+}
+
 function sendConnectEvent(target: Node) {
   if (!target.isConnected) {
     return;
@@ -93,9 +104,10 @@ function sendUpdateEvent(target: Node) {
 
 function replace(childNew: Node, childOld: Node) {
   // Safe replace (older TS lib may not declare replaceWith on Node)
-  ((childOld as any).replaceWith
+  (childOld as any).replaceWith
     ? (childOld as any).replaceWith(childNew)
-    : childOld.parentNode?.replaceChild(childNew, childOld));
+    : childOld.parentNode?.replaceChild(childNew, childOld);
+  flushConnectionQueue();
   sendConnectEvent(childNew);
   sendDisconnectEvent(childOld);
   return childNew;
@@ -107,9 +119,10 @@ function connect(child: Node, parent: Node) {
     parent.nodeType === Node.TEXT_NODE
   ) {
     // Preserve ordering of reactive children by appending after the last inserted child for this anchor.
-    const tail: Node = ((parent as any).__tail && (parent as any).__tail.isConnected)
-      ? (parent as any).__tail
-      : parent;
+    const tail: Node =
+      ((parent as any).__tail && (parent as any).__tail.isConnected)
+        ? (parent as any).__tail
+        : parent;
     (tail as any).after
       ? (tail as any).after(child)
       : tail.parentNode?.insertBefore(child, tail.nextSibling);
@@ -135,7 +148,7 @@ function connect(child: Node, parent: Node) {
     //   });
     // }
     // return child;
-    queueMicrotask(() => {
+    queueConnection(() => {
       if (!child.isConnected) {
         return;
       }
@@ -167,7 +180,10 @@ function disconnect(child: Node) {
     return child;
   }
 
-  (child as any).remove ? (child as any).remove() : child.parentNode?.removeChild(child);
+  (child as any).remove
+    ? (child as any).remove()
+    : child.parentNode?.removeChild(child);
+  flushConnectionQueue();
 
   sendDisconnectEvent(child);
   // child.dispatchEvent(new Event("disconnect"));
@@ -180,8 +196,8 @@ function disconnect(child: Node) {
 
 type AttrDescriptor = {
   key: string;
-  kind: 'attr' | 'style' | 'class' | 'event';
-  reactive?: 'pull' | 'push';
+  kind: "attr" | "style" | "class" | "event";
+  reactive?: "pull" | "push";
   get?: () => any;
   teardown?: () => void;
   apply: (el: HTMLElement, value: any) => void;
@@ -189,40 +205,40 @@ type AttrDescriptor = {
 
 function applyStyle(el: HTMLElement, v: any) {
   if (v == null) {
-    el.removeAttribute('style');
+    el.removeAttribute("style");
     return;
   }
-  if (typeof v === 'object') {
-    el.removeAttribute('style');
+  if (typeof v === "object") {
+    el.removeAttribute("style");
     for (const k in v) {
       (el.style as any)[k] = v[k];
     }
     return;
   }
-  el.setAttribute('style', v);
+  el.setAttribute("style", v);
 }
 
 function applyClass(el: HTMLElement, v: any) {
   if (v == null) {
-    el.removeAttribute('class');
+    el.removeAttribute("class");
     return;
   }
-  if (typeof v === 'object') {
+  if (typeof v === "object") {
     for (const cls in v) {
       if (v[cls]) el.classList.add(cls);
       else el.classList.remove(cls);
     }
-    if (!el.getAttribute('class') && el.classList.length === 0) {
-      el.removeAttribute('class');
+    if (!el.getAttribute("class") && el.classList.length === 0) {
+      el.removeAttribute("class");
     }
     return;
   }
-  el.setAttribute('class', v);
+  el.setAttribute("class", v);
 }
 
 function applyGeneric(el: HTMLElement, key: string, v: any) {
   if (v === true) {
-    el.setAttribute(key, '');
+    el.setAttribute(key, "");
   } else if (v === false || v == null) {
     el.removeAttribute(key);
   } else {
@@ -230,14 +246,18 @@ function applyGeneric(el: HTMLElement, key: string, v: any) {
   }
 }
 
-function createDescriptor(el: HTMLElement, rawKey: string, value: any): AttrDescriptor {
-  const key = rawKey === 'className' ? 'class' : rawKey;
+function createDescriptor(
+  el: HTMLElement,
+  rawKey: string,
+  value: any,
+): AttrDescriptor {
+  const key = rawKey === "className" ? "class" : rawKey;
 
-  if (key.startsWith('on') && typeof value === 'function') {
+  if (key.startsWith("on") && typeof value === "function") {
     const eventName = key.substring(2);
     return {
       key,
-      kind: 'event',
+      kind: "event",
       apply(target) {
         target.addEventListener(eventName, value);
       },
@@ -247,7 +267,7 @@ function createDescriptor(el: HTMLElement, rawKey: string, value: any): AttrDesc
     };
   }
 
-  if (value && typeof value.subscribe === 'function') {
+  if (value && typeof value.subscribe === "function") {
     let current: any;
     const sub = value.subscribe((v: any) => {
       current = v;
@@ -255,44 +275,44 @@ function createDescriptor(el: HTMLElement, rawKey: string, value: any): AttrDesc
     });
     const desc: AttrDescriptor = {
       key,
-      kind: key === 'style' ? 'style' : key === 'class' ? 'class' : 'attr',
-      reactive: 'push',
+      kind: key === "style" ? "style" : key === "class" ? "class" : "attr",
+      reactive: "push",
       get: () => current,
       apply(target, v) {
-        if (key === 'style') applyStyle(target, v);
-        else if (key === 'class') applyClass(target, v);
+        if (key === "style") applyStyle(target, v);
+        else if (key === "class") applyClass(target, v);
         else applyGeneric(target, key, v);
       },
       teardown() {
         sub?.unsubscribe?.();
       },
     };
-    el.setAttribute('_r', '');
+    el.setAttribute("_r", "");
     return desc;
   }
 
-  if (typeof value === 'function') {
+  if (typeof value === "function") {
     const desc: AttrDescriptor = {
       key,
-      kind: key === 'style' ? 'style' : key === 'class' ? 'class' : 'attr',
-      reactive: 'pull',
+      kind: key === "style" ? "style" : key === "class" ? "class" : "attr",
+      reactive: "pull",
       get: () => value(el),
       apply(target, v) {
-        if (key === 'style') applyStyle(target, v);
-        else if (key === 'class') applyClass(target, v);
+        if (key === "style") applyStyle(target, v);
+        else if (key === "class") applyClass(target, v);
         else applyGeneric(target, key, v);
       },
     };
-    el.setAttribute('_r', '');
+    el.setAttribute("_r", "");
     return desc;
   }
 
   return {
     key,
-    kind: key === 'style' ? 'style' : key === 'class' ? 'class' : 'attr',
+    kind: key === "style" ? "style" : key === "class" ? "class" : "attr",
     apply(target) {
-      if (key === 'style') applyStyle(target, value);
-      else if (key === 'class') applyClass(target, value);
+      if (key === "style") applyStyle(target, value);
+      else if (key === "class") applyClass(target, value);
       else applyGeneric(target, key, value);
     },
   };
@@ -312,20 +332,23 @@ function mountDescriptor(el: HTMLElement, desc: AttrDescriptor) {
   const existing = el.__attr_descriptors.get(desc.key);
   if (existing) {
     existing.teardown?.();
-    if (existing.kind !== 'event' && !desc.reactive) {
+    if (existing.kind !== "event" && !desc.reactive) {
       el.removeAttribute(existing.key);
     }
   }
   el.__attr_descriptors.set(desc.key, desc);
   if (desc.reactive) {
     el.__reactive_attributes ??= new Map<string, (node: HTMLElement) => void>();
-    el.__reactive_attributes.set(desc.key, (node) => descriptorApply(node as HTMLElement, desc.key));
+    el.__reactive_attributes.set(
+      desc.key,
+      (node) => descriptorApply(node as HTMLElement, desc.key),
+    );
   } else {
     if (el.__reactive_attributes?.has(desc.key)) {
       el.__reactive_attributes.delete(desc.key);
     }
   }
-  if (desc.kind === 'event') {
+  if (desc.kind === "event") {
     desc.apply(el, undefined);
   } else {
     descriptorApply(el, desc.key);
@@ -337,7 +360,7 @@ function unmountMissing(el: HTMLElement, nextKeys: Set<string>) {
   for (const [key, desc] of el.__attr_descriptors) {
     if (!nextKeys.has(key)) {
       desc.teardown?.();
-      if (desc.kind !== 'event') {
+      if (desc.kind !== "event") {
         el.removeAttribute(key);
       }
       el.__attr_descriptors.delete(key);
@@ -348,7 +371,7 @@ function unmountMissing(el: HTMLElement, nextKeys: Set<string>) {
 
 function updateProps(el: HTMLElement, props: Record<string, any> | null) {
   const keys = props ? Object.keys(props) : [];
-  const normalized = keys.map(k => k === 'className' ? 'class' : k);
+  const normalized = keys.map((k) => k === "className" ? "class" : k);
   const set = new Set(normalized);
   unmountMissing(el, set);
   for (const rawKey of keys) {
@@ -457,6 +480,7 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
           ) {
             replace(itemNew, itemOld);
             build(itemNew.__component(itemNew), itemNew);
+            flushConnectionQueue();
             arrayOut[ii] = itemNew;
             continue;
           }
@@ -531,7 +555,9 @@ function runUpdate(target: Node) {
         (target as any).__render?.(target);
       }
     } else if ("__reactive_attributes" in target) {
-      for (const update of (target as any).__reactive_attributes?.values?.() || []) {
+      for (
+        const update of (target as any).__reactive_attributes?.values?.() || []
+      ) {
         (update as any)(target as any);
       }
     }
@@ -688,7 +714,9 @@ function build(a: any, parent: Node): BuiltNode {
     connect(anchor, parent);
     anchor.__render_id = currentUpdateId;
     const built = build(a(anchor), parent);
-    anchor.__reactive_children = Array.isArray(built) ? (built as Node[]) : [built as Node];
+    anchor.__reactive_children = Array.isArray(built)
+      ? (built as Node[])
+      : [built as Node];
     buildRender(anchor, a);
     return anchor;
   }
@@ -760,9 +788,15 @@ export function createRoot(target: HTMLElement) {
   }
   const out: Root = {
     render(el: Child): Node {
-      sendConnectEvent(el as any);
-      const built = build(el, target);
-      return (out.root = (Array.isArray(built) ? document.createComment('fragment') : built) as Node);
+      try {
+        sendConnectEvent(el as any);
+        const built = build(el, target);
+        return (out.root = (Array.isArray(built)
+          ? document.createComment("fragment")
+          : built) as Node);
+      } finally {
+        flushConnectionQueue();
+      }
     },
     root: null,
     unmount() {

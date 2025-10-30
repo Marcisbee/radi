@@ -1,1202 +1,920 @@
-/**
- * Radi client + DOM implementation (single-file build).
- * Exposes high-level element / root APIs plus keyed reconciliation & reactive regions.
- * Internal helpers favor minimal passes and small surface area.
- */
+const tasks = new Set<() => void>();
 
-import {
-  connect,
-  createAbortSignal,
-  createAbortSignalOnUpdate,
-  disconnect,
-  dispatchConnect,
-  dispatchDisconnect,
-  isComponentHost,
-  markComponentHost,
-  markEventable,
-  markReactiveRoot,
-  update,
-} from "./lifecycle.ts";
-import type { Child, ReactiveGenerator, Subscribable } from "./types.ts";
-import { dispatchRenderError } from "./error.ts";
-import {
-  createDomAdapter,
-  createRenderer,
-  createServerStringAdapter,
-} from "./renderer.ts";
-
-type MemoizedReactive<T = unknown> = ((parent: Node) => T) & {
-  _radi_skip?: () => boolean;
-  _radi_cache?: Node[];
-  _radi_hasRendered?: boolean;
-};
-
-interface ReactiveExecutionContext {
-  memoFns: MemoizedReactive[];
-  index: number;
-}
-
-let currentReactiveContext: ReactiveExecutionContext | null = null;
-
-export function memo<T>(
-  render: (parent: Node) => T,
-  skipRender: () => boolean,
-): MemoizedReactive<T> {
-  // Wrapped reactive generator with caching + skip logic.
-  const wrapped = ((parent: Node) => {
-    // Skip path: prefer primitive value, else cached nodes.
-    if (wrapped._radi_hasRendered && skipRender()) {
-      if ("_radi_value" in wrapped) {
-        return (wrapped as unknown as { _radi_value?: unknown })._radi_value;
-      }
-      if (wrapped._radi_cache) return wrapped._radi_cache;
-    }
-    const result = render(parent);
-
-    // Primitive / simple value path (used for function-valued props):
-    if (
-      result == null ||
-      typeof result === "string" ||
-      typeof result === "number" ||
-      typeof result === "boolean"
-    ) {
-      (wrapped as unknown as { _radi_value?: unknown })._radi_value = result;
-      wrapped._radi_hasRendered = true;
-      return result;
-    }
-
-    // Attempt to reuse nodes without re-realizing if possible.
-    let nodes: Node[] | null = null;
-    if (Array.isArray(result) && result.every((n) => n instanceof Node)) {
-      nodes = result as unknown as Node[];
-    } else if (result instanceof Node) {
-      nodes = [result];
-    }
-    if (!nodes) {
-      // Normalize any non-node complex output (arrays / mixed) to nodes.
-      nodes = realize(parent as Element, result);
-    }
-    wrapped._radi_cache = nodes;
-    wrapped._radi_hasRendered = true;
-    return nodes;
-  }) as MemoizedReactive<T> & {
-    _radi_cache?: Node[];
-    _radi_hasRendered?: boolean;
-    _radi_value?: unknown;
-  };
-  wrapped._radi_skip = skipRender;
-  return wrapped;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Fragment Boundary                                                          */
-/* -------------------------------------------------------------------------- */
-
-const FRAGMENT_START_TEMPLATE: Comment = document.createComment("(");
-const FRAGMENT_END_TEMPLATE: Comment = document.createComment(")");
-
-function createFragmentBoundary(): { start: Comment; end: Comment } {
-  return {
-    start: FRAGMENT_START_TEMPLATE.cloneNode() as Comment,
-    end: FRAGMENT_END_TEMPLATE.cloneNode() as Comment,
-  };
-}
-
-/* -------------------------------------------------------------------------- */
-/* Normalization                                                              */
-/* -------------------------------------------------------------------------- */
-
-// normalizeToNodes removed (logic merged into expandToNodes)
-
-/* -------------------------------------------------------------------------- */
-/* Subscribable Helpers                                                       */
-/* -------------------------------------------------------------------------- */
-
-function isSubscribableValue<T = unknown>(
-  value: unknown,
-): value is Subscribable<T> {
-  return !!(
-    value &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    !(value instanceof Node) &&
-    typeof (value as { subscribe?: unknown }).subscribe === "function"
-  );
-}
-
-function safelyRunUnsubscribe(
-  unsub: void | (() => void) | { unsubscribe(): void },
-): void {
-  try {
-    if (typeof unsub === "function") unsub();
-    else if (
-      typeof unsub === "object" && unsub &&
-      typeof (unsub as { unsubscribe?: unknown }).unsubscribe === "function"
-    ) {
-      (unsub as { unsubscribe(): void }).unsubscribe();
-    }
-  } catch {
-    // ignore
+// Type augmentations for custom reactive fields used on Node/HTMLElement
+declare global {
+  interface Node {
+    onconnect?: (e: Event) => void;
+    ondisconnect?: (e: Event) => void;
+    onupdate?: (e: Event) => void;
+    __component?: (anchor: Node) => any;
+    __reactive_children?: Node[];
+    __tail?: Node | null;
+    __render_id?: number;
+    __render?: (anchor: Node) => void;
+    __memo?: () => boolean;
+    __reactive_attributes?: Map<string, (el: HTMLElement) => void>;
+    __type?: Function;
+    __props?: Record<string, any>;
+    __instance?: any;
+  }
+  interface HTMLElement {
+    __attr_descriptors?: Map<string, AttrDescriptor>;
+    __reactive_attributes?: Map<string, (el: HTMLElement) => void>;
+    __raw_props?: Record<string, any> | null;
+    __props?: Record<string, any>;
   }
 }
 
-function subscribeAndDiffRange(
-  store: Subscribable<unknown>,
-  start: Comment,
-  end: Comment,
-): void {
-  queueMicrotask(() => {
-    const parentEl = start.parentNode as Element | null;
-    if (!parentEl) return;
-    let previous: unknown = Symbol("radi_initial_range");
-    const unsub = store.subscribe((value: unknown) => {
-      if (Object.is(value, previous)) return;
-      previous = value;
-      try {
-        const expanded = realize(parentEl, value);
-        diffRange(start, end, expanded);
-      } catch (err) {
-        dispatchRenderError(parentEl, err);
+type Child = any;
+
+const connectQueue = new Set<Function>();
+function queueConnection(fn: Function) {
+  connectQueue.add(fn);
+}
+function flushConnectionQueue() {
+  for (const task of connectQueue) task();
+  tasks.clear();
+}
+
+function sendConnectEvent(target: Node) {
+  if (!target.isConnected) {
+    return;
+  }
+  if (target.onconnect || target.__component || target.__reactive_children) {
+    queueMicrotask(() => {
+      if (!target.isConnected) {
+        return;
       }
+      target.dispatchEvent(new Event("connect"));
     });
-    markEventable(parentEl);
-    parentEl.addEventListener("disconnect", () => {
-      safelyRunUnsubscribe(
-        unsub as (void | (() => void) | { unsubscribe(): void }),
-      );
+  }
+}
+
+function sendDisconnectEvent(target: Node) {
+  if (target.isConnected) {
+    return;
+  }
+  if (target.ondisconnect || target.__component || target.__reactive_children) {
+    queueMicrotask(() => {
+      target.dispatchEvent(new Event("disconnect"));
     });
-  });
-}
-
-function buildSubscribableChild(store: Subscribable<unknown>): Child {
-  const { start, end } = createFragmentBoundary();
-  subscribeAndDiffRange(store, start, end);
-  return [start, end];
-}
-
-// removed: subscribable handling now inlined inside buildElement / expandToNodes
-
-/* -------------------------------------------------------------------------- */
-/* Unified Expansion Helper (work-in-progress)                                */
-/* -------------------------------------------------------------------------- */
-/**
- * expandToNodes
- *  Converts an arbitrary value (child output, reactive emission, subscribable value)
- *  into a flat array of concrete DOM Nodes. Executes reactive generator functions
- *  (functions receiving parent) eagerly so their produced structure participates
- *  in the same reconciliation frame. When alreadyBuilt=true, treats the input
- *  as structurally processed and only performs final flattening / primitive wrapping.
- */
-/**
- * realize
- *  Unified conversion of any Child-like value into concrete DOM Nodes.
- *  Handles: null/boolean -> comment, string/number -> text, Node passthrough,
- *  subscribable -> fragment anchors + subscription, function -> reactive scope execution,
- *  arrays (deeply) -> flattened node list.
- */
-function primitiveNode(v: unknown): Node | null {
-  if (v == null) return document.createComment("null");
-  if (typeof v === "string" || typeof v === "number") {
-    return document.createTextNode(String(v));
-  }
-  if (typeof v === "boolean") {
-    return document.createComment(v ? "true" : "false");
-  }
-  return null;
-}
-
-function realize(parent: Element, value: unknown): Node[] {
-  const queue: unknown[] = Array.isArray(value) ? [...value] : [value];
-  const out: Node[] = [];
-  while (queue.length) {
-    const v = queue.shift();
-    const prim = primitiveNode(v);
-    if (prim) {
-      out.push(prim);
-      continue;
-    }
-    if (v instanceof Node) {
-      out.push(v);
-      continue;
-    }
-    if (isSubscribableValue(v)) {
-      const placeholder = buildSubscribableChild(v as Subscribable<unknown>);
-      if (Array.isArray(placeholder)) queue.unshift(...placeholder);
-      else queue.unshift(placeholder);
-      continue;
-    }
-    if (typeof v === "function") {
-      try {
-        const produced = (v as ReactiveGenerator)(parent);
-        if (Array.isArray(produced)) queue.unshift(...produced);
-        else queue.unshift(produced);
-      } catch (err) {
-        dispatchRenderError(parent, err);
-      }
-      continue;
-    }
-    if (Array.isArray(v)) {
-      queue.unshift(...v);
-      continue;
-    }
-    out.push(document.createTextNode(String(v)));
-  }
-  return out;
-}
-
-function bindSubscribableProp(
-  element: HTMLElement,
-  key: string,
-  subscribable: Subscribable<unknown>,
-): void {
-  let previous: unknown = Symbol("radi_initial_prop");
-  let unsub: void | (() => void) | { unsubscribe(): void };
-  try {
-    unsub = subscribable.subscribe((value: unknown) => {
-      if (Object.is(value, previous)) return;
-      previous = value;
-      try {
-        setPropValue(element, key, value);
-      } catch (err) {
-        dispatchRenderError(element, err);
-      }
-    });
-  } catch (err) {
-    dispatchRenderError(element, err);
-  }
-  markEventable(element);
-  element.addEventListener("disconnect", () => {
-    safelyRunUnsubscribe(
-      unsub as (void | (() => void) | { unsubscribe(): void }),
-    );
-  });
-}
-
-/* -------------------------------------------------------------------------- */
-/* Props                                                                      */
-/* -------------------------------------------------------------------------- */
-
-// (removed) style object handling now inlined inside setPropValue
-
-function setPropValue(
-  el: HTMLElement,
-  key: string,
-  value: unknown,
-): void {
-  if (key === "style" && value && typeof value === "object") {
-    for (const k in value as Record<string, string | number>) {
-      (el.style as unknown as Record<string, string>)[k] = String(
-        (value as Record<string, string | number>)[k],
-      );
-    }
-    return;
-  }
-  if (key in el) {
-    (el as HTMLElement & Record<string, unknown>)[key] = value as unknown;
-    return;
-  }
-  el.setAttribute(key, String(value));
-}
-
-function reportPropError(element: HTMLElement, err: unknown): void {
-  const boundary = !element.isConnected ? currentBuildingComponent : null;
-  dispatchRenderError(boundary || element, err);
-}
-
-function bindFunctionProp(
-  element: HTMLElement,
-  key: string,
-  value: (el: Element) => unknown,
-): void {
-  const evaluate = () => {
-    try {
-      const v = value(element);
-      setPropValue(element, key, v);
-    } catch (err) {
-      reportPropError(element, err);
-    }
-  };
-  element.addEventListener("update", evaluate);
-  evaluate();
-}
-
-function applyPropsToPlainElement(
-  element: HTMLElement,
-  props: Record<string, unknown>,
-): void {
-  for (const key in props) {
-    const value = props[key];
-    if (key.startsWith("on") && typeof value === "function") {
-      element.addEventListener(
-        key.slice(2).toLowerCase(),
-        value as EventListener,
-      );
-      continue;
-    }
-    if (typeof value === "function") {
-      // Mark as eventable (not a reactive root) to prevent duplicate sibling
-      // component update dispatches triggered by function-valued props.
-      markEventable(element);
-      bindFunctionProp(element, key, value as (el: Element) => unknown);
-      continue;
-    }
-    if (isSubscribableValue(value)) {
-      bindSubscribableProp(element, key, value);
-      continue;
-    }
-    setPropValue(element, key, value);
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Reactive Regions                                                           */
-/* -------------------------------------------------------------------------- */
-
-// Note: Inline reactive children are always marked eventable so they receive
-// direct update cycles. This can cause an additional execution pass compared
-// to collapsing them into a single parent reactive root, but preserves
-// expected closure update ordering (see closure.test.tsx - "mutate both").
-// If a performance issue arises, a future optimization could batch these
-// while still triggering their reactive generators post-reconciliation.
-
-function setupReactiveRender(
-  container: Element,
-  fn: ReactiveGenerator,
-): void {
-  const { start, end } = createFragmentBoundary();
-  container.append(start, end);
-
-  let hasRendered = false;
-  const memoRegistry: MemoizedReactive[] = [];
-
-  const renderFn = () => {
-    try {
-      const skipPredicate =
-        (fn as unknown as { _radi_skip?: () => boolean })._radi_skip;
-      const shouldSkip = hasRendered && typeof skipPredicate === "function"
-        ? !!skipPredicate()
-        : false;
-      if (shouldSkip) return;
-
-      const prev = currentReactiveContext;
-      currentReactiveContext = { memoFns: memoRegistry, index: 0 };
-      try {
-        const produced = fn(container);
-        const expanded = realize(container, produced);
-        diffRange(start, end, expanded);
-        hasRendered = true;
-      } finally {
-        currentReactiveContext = prev;
-      }
-    } catch (err) {
-      dispatchRenderError(container, err);
-    }
-  };
-
-  markReactiveRoot(container);
-  container.addEventListener("update", renderFn);
-  renderFn();
-}
-
-/**
- * Inline reactive child (for function children inside plain elements).
- * Unlike setupReactiveRender, this does NOT mark the parent as a reactive root
- * so sibling component hosts still receive update() cycles.
- */
-function setupInlineReactiveChild(
-  container: Element,
-  fn: ReactiveGenerator,
-): void {
-  const { start, end } = createFragmentBoundary();
-  container.append(start, end);
-  const renderFn = () => {
-    try {
-      const produced = fn(container);
-      const expanded = realize(container, produced);
-      diffRange(start, end, expanded);
-    } catch (err) {
-      dispatchRenderError(container, err);
-    }
-  };
-  markEventable(container);
-  container.addEventListener("update", renderFn);
-  renderFn();
-}
-
-/* -------------------------------------------------------------------------- */
-/* Component Placeholder & Build Queue                                        */
-/* -------------------------------------------------------------------------- */
-
-export type ComponentFn = (this: HTMLElement, props: () => unknown) => Child;
-
-export interface ComponentElement extends HTMLElement {
-  __component?: ComponentFn;
-  __componentPending?: { type: ComponentFn; props: Record<string, unknown> };
-  __propsRef?: { current: Record<string, unknown> };
-  __mounted?: boolean;
-  __key?: string;
-  [key: string]: unknown;
-}
-
-const RADI_HOST_TAG = "radi-host";
-
-export let currentBuildingComponent: Element | null = null;
-
-/* Lazy component build queue (reintroduced for correct lifecycle ordering) */
-const pendingComponentBuildQueue: ComponentElement[] = [];
-let isFlushingComponentBuilds = false;
-
-/** Queue a component host for initial build if not already mounted. */
-function queueComponentForBuild(host: ComponentElement): void {
-  if (host.__mounted) return;
-  pendingComponentBuildQueue.push(host);
-}
-
-/** Perform initial component build (invokes component function and mounts output). */
-function mountChild(parent: Element, value: unknown): void {
-  if (value == null) {
-    safeAppend(parent, document.createComment("null"));
-    return;
-  }
-  if (value instanceof Node) {
-    safeAppend(parent, value);
-    return;
-  }
-  if (Array.isArray(value)) {
-    for (const v of value) mountChild(parent, v);
-    return;
-  }
-  if (isSubscribableValue(value)) {
-    const placeholder = buildSubscribableChild(value as Subscribable<unknown>);
-    if (Array.isArray(placeholder)) {
-      for (const p of placeholder) mountChild(parent, p);
-    } else {
-      mountChild(parent, placeholder);
-    }
-    return;
-  }
-  const t = typeof value;
-  if (t === "string" || t === "number") {
-    safeAppend(parent, document.createTextNode(String(value)));
-    return;
-  }
-  if (t === "boolean") {
-    safeAppend(parent, document.createComment(value ? "true" : "false"));
-    return;
-  }
-  if (t === "function") {
-    // Treat as reactive generator – do NOT execute immediately
-    setupReactiveRender(parent, value as ReactiveGenerator);
-    return;
-  }
-  // Fallback
-  safeAppend(parent, document.createTextNode(String(value)));
-}
-function buildComponentHost(host: ComponentElement): void {
-  const pending = host.__componentPending;
-  if (!pending || host.__mounted) return;
-
-  const propsRef: { current: Record<string, unknown> } = {
-    current: pending.props as Record<string, unknown>,
-  };
-  const propsGetter = (): Record<string, unknown> => propsRef.current;
-
-  host.__component = pending.type;
-  host.__propsRef = propsRef;
-  host.__mounted = true;
-  delete host.__componentPending;
-
-  const prev = currentBuildingComponent;
-  currentBuildingComponent = host;
-  try {
-    const output = pending.type.call(host, propsGetter) as Child;
-    mountChild(host, output);
-  } catch (err) {
-    dispatchRenderError(host, err);
-  } finally {
-    currentBuildingComponent = prev;
-  }
-}
-
-/** Flush queued component builds (breadth-first). */
-function flushComponentBuildQueue(): void {
-  if (isFlushingComponentBuilds) return;
-  isFlushingComponentBuilds = true;
-  try {
-    while (pendingComponentBuildQueue.length) {
-      const host = pendingComponentBuildQueue.shift();
-      if (!host) break;
-      buildComponentHost(host);
-    }
-  } finally {
-    isFlushingComponentBuilds = false;
-  }
-}
-
-function createComponentPlaceholder(
-  type: ComponentFn,
-  props: Record<string, unknown> | null,
-  childrenRaw: Child[],
-): ComponentElement {
-  const placeholder = document.createElement(RADI_HOST_TAG) as ComponentElement;
-  markComponentHost(placeholder);
-
-  if (props && (props as Record<string, unknown>).key != null) {
-    const propsRecord = props as Record<string, unknown>;
-    placeholder.__key = String(propsRecord.key);
-    delete propsRecord.key;
-  }
-
-  placeholder.style.display = "contents";
-
-  const rawChildren = childrenRaw;
-  const ensureBuiltChildren = (): Child[] => rawChildren;
-
-  placeholder.__componentPending = {
-    type,
-    props: {
-      ...(props || {}),
-      get children() {
-        return ensureBuiltChildren();
-      },
-    },
-  };
-
-  placeholder.addEventListener(
-    "connect",
-    () => {
-      queueComponentForBuild(placeholder);
-      flushComponentBuildQueue();
-    },
-    { passive: true, capture: true, once: true },
-  );
-
-  return placeholder;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Plain Element Creation                                                     */
-/* -------------------------------------------------------------------------- */
-
-function assignKeyIfPresent(
-  el: HTMLElement & { __key?: string },
-  props: Record<string, unknown> | null,
-): void {
-  if (!props) return;
-  const pAny = props as Record<string, unknown>;
-  if (pAny.key != null) {
-    el.__key = String(pAny.key);
-    delete pAny.key;
-  }
-}
-
-function createPlainElement(
-  type: string,
-  props: Record<string, unknown> | null,
-  normalizedChildren: (Node | ReactiveGenerator)[],
-): HTMLElement & { __key?: string } {
-  const element = document.createElement(type) as HTMLElement & {
-    __key?: string;
-  };
-  assignKeyIfPresent(element, props);
-  if (props) applyPropsToPlainElement(element, props);
-  for (const c of normalizedChildren) {
-    if (typeof c === "function") {
-      // Use inline variant so this element is not treated as a reactive root.
-      setupInlineReactiveChild(element, c as ReactiveGenerator);
-    } else {
-      for (const n of realize(element, c)) element.appendChild(n);
-    }
-  }
-  return element;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Element Building                                                           */
-/* -------------------------------------------------------------------------- */
-
-// buildElement removed (logic unified into realize)
-
-// buildArrayChild removed (arrays flattened by realize)
-
-/* -------------------------------------------------------------------------- */
-/* Reconciliation: Node Ops                                                   */
-/* -------------------------------------------------------------------------- */
-
-function dispatchConnectIfElement(node: Node): void {
-  if (node.nodeType === Node.ELEMENT_NODE) dispatchConnect(node);
-}
-
-function dispatchDisconnectIfElement(node: Node): void {
-  if (node.nodeType === Node.ELEMENT_NODE) dispatchDisconnect(node);
-}
-
-function detachIfMoving(node: Node): void {
-  const parent = node.parentNode;
-  if (!parent) return;
-  dispatchDisconnectIfElement(node);
-  parent.removeChild(node);
-}
-
-function safeAppend(parent: ParentNode & Node, child: Node): void {
-  detachIfMoving(child);
-  parent.appendChild(child);
-  if (child.isConnected) dispatchConnectIfElement(child);
-}
-
-function safeInsertBefore(
-  parent: ParentNode & Node,
-  child: Node,
-  before: Node | null,
-): void {
-  detachIfMoving(child);
-  parent.insertBefore(child, before);
-  if (child.isConnected) dispatchConnectIfElement(child);
-}
-
-function safeRemove(parent: ParentNode & Node, child: Node): void {
-  if (child.parentNode === parent) {
-    dispatchDisconnectIfElement(child);
-    parent.removeChild(child);
-  }
-}
-
-function safeReplace(
-  parent: ParentNode & Node,
-  next: Node,
-  prev: Node,
-): void {
-  detachIfMoving(next);
-  dispatchDisconnectIfElement(prev);
-  parent.replaceChild(next, prev);
-  if (next.isConnected) dispatchConnectIfElement(next);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Reconciliation: Patch Helpers                                              */
-/* -------------------------------------------------------------------------- */
-
-function patchText(a: Node, b: Node): boolean {
-  if (a.nodeType === Node.TEXT_NODE && b.nodeType === Node.TEXT_NODE) {
-    const ta = a as Text;
-    const tb = b as Text;
-    if (ta.nodeValue !== tb.nodeValue) ta.nodeValue = tb.nodeValue;
+function sendUpdateEvent(target: Node) {
+  if (!target.isConnected) {
     return true;
   }
-  return false;
-}
-
-function getNodeKey(node: Node): string | null {
-  if (node.nodeType !== Node.ELEMENT_NODE) return null;
-  return (node as Element & { __key?: string }).__key ?? null;
-}
-
-function syncElementProperties(targetEl: Element, sourceEl: Element): void {
-  // Simplified wholesale attr/style sync (no namespace diffing; small & fast)
-  const keep = new Set<string>();
-  for (let i = 0; i < sourceEl.attributes.length; i++) {
-    const a = sourceEl.attributes[i];
-    targetEl.setAttribute(a.name, a.value);
-    keep.add(a.name);
-  }
-  for (let i = targetEl.attributes.length - 1; i >= 0; i--) {
-    const a = targetEl.attributes[i];
-    if (!keep.has(a.name)) targetEl.removeAttribute(a.name);
-  }
-  const t = targetEl as HTMLElement;
-  const s = sourceEl as HTMLElement;
-  if (t.style.cssText !== s.style.cssText) t.style.cssText = s.style.cssText;
-}
-
-function patchElement(oldEl: Element, newEl: Element): boolean {
-  if (oldEl.nodeName !== newEl.nodeName) return false;
-  const prev = oldEl as ComponentElement;
-  const next = newEl as ComponentElement;
-  if (prev.__key !== next.__key) return false;
-
-  const pending = next.__componentPending;
-
-  // Pending update for same component type: reuse & update props.
-  if (prev.__component && pending) {
-    if (prev.__component === pending.type) {
-      if (prev.__propsRef) {
-        prev.__propsRef.current = pending.props;
-        next.__componentPending = undefined;
-        prev.dispatchEvent(new Event("update"));
-      }
-      return true;
-    }
-    // Different pending type cannot patch in place.
-    return false;
-  }
-
-  // Both realized component hosts with differing component functions.
   if (
-    prev.__component && next.__component &&
-    prev.__component !== next.__component
+    target.onupdate || target.__component || target.__reactive_children ||
+    target.__reactive_attributes
   ) {
-    return false;
+    return target.dispatchEvent(new Event("update", { cancelable: true }));
   }
-
-  syncElementProperties(oldEl, newEl);
-  diffElementChildren(oldEl, newEl);
   return true;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Reconciliation: Children (Non-Keyed / Keyed)                               */
-/* -------------------------------------------------------------------------- */
-
-function detectChildKeys(oldEl: Element, newEl: Element): boolean {
-  for (let c = newEl.firstChild; c; c = c.nextSibling) {
-    if (getNodeKey(c)) return true;
-  }
-  for (let c = oldEl.firstChild; c; c = c.nextSibling) {
-    if (getNodeKey(c)) return true;
-  }
-  return false;
+function replace(childNew: Node, childOld: Node) {
+  // Safe replace (older TS lib may not declare replaceWith on Node)
+  (childOld as any).replaceWith
+    ? (childOld as any).replaceWith(childNew)
+    : childOld.parentNode?.replaceChild(childNew, childOld);
+  flushConnectionQueue();
+  sendConnectEvent(childNew);
+  sendDisconnectEvent(childOld);
+  return childNew;
 }
 
-function diffNonKeyedChildren(
-  oldEl: Element,
-  newEl: Element,
-): void {
-  let oldChild: Node | null = oldEl.firstChild;
-  let newChild: Node | null = newEl.firstChild;
-  while (oldChild || newChild) {
-    if (!oldChild) {
-      const next = newChild!.nextSibling;
-      safeAppend(oldEl, newChild!);
-      newChild = next;
-      continue;
-    }
-    if (!newChild) {
-      const nextOld = oldChild.nextSibling;
-      safeRemove(oldEl, oldChild);
-      oldChild = nextOld;
-      continue;
-    }
-    if (oldChild === newChild) {
-      oldChild = oldChild.nextSibling;
-      newChild = newChild.nextSibling;
-      continue;
-    }
-    if (patchText(oldChild, newChild)) {
-      oldChild = oldChild.nextSibling;
-      newChild = newChild.nextSibling;
-      continue;
-    }
-    if (
-      oldChild.nodeType === Node.ELEMENT_NODE &&
-      newChild.nodeType === Node.ELEMENT_NODE &&
-      patchElement(oldChild as Element, newChild as Element)
-    ) {
-      oldChild = oldChild.nextSibling;
-      newChild = newChild.nextSibling;
-      continue;
-    }
-    const replaceTarget = oldChild;
-    const nextOld = oldChild.nextSibling;
-    const nextNew = newChild.nextSibling;
-    safeReplace(oldEl, newChild, replaceTarget);
-    oldChild = nextOld;
-    newChild = nextNew;
-  }
-}
-
-function buildOldKeyMap(
-  oldEl: Element,
-  oldKeyMap: Map<string, Node>,
-): void {
-  for (let c = oldEl.firstChild; c; c = c.nextSibling) {
-    const k = getNodeKey(c);
-    if (k) oldKeyMap.set(k, c);
-  }
-}
-
-/* Inline skip helper removed: see keyed branch in diffKeyedChildren */
-
-/* Inline match patch logic removed: handled directly inside diffKeyedChildren */
-
-function finalizeKeyed(
-  oldEl: Element,
-  oldKeyMap: Map<string, Node>,
-  processed: Set<Node>,
-): void {
-  // Remove any keyed nodes not processed.
-  for (const [, node] of oldKeyMap) {
-    if (!processed.has(node)) safeRemove(oldEl, node);
-  }
-  // Remove remaining unkeyed nodes not processed.
-  for (let c = oldEl.firstChild; c;) {
-    const next = c.nextSibling;
-    if (!processed.has(c) && !getNodeKey(c)) safeRemove(oldEl, c);
-    c = next;
-  }
-}
-
-/**
- * Keyed reconciliation phases:
- * 1. Build map of old keyed children.
- * 2. Stream new list:
- *    - Non-keyed nodes pair against first available non-keyed old (skipping keyed).
- *    - Keyed nodes: reuse & move into position before current scan pointer.
- * 3. Patch reused nodes in place (text / element / component).
- * 4. Insert new keyed / non-keyed nodes not reused.
- * 5. Finalize: remove old keyed / unkeyed nodes not processed.
- *
- * Guarantees:
- * - Stable instance preservation for same keys.
- * - Single pass over new list + O(k) map lookups.
- */
-function diffKeyedChildren(oldEl: Element, newEl: Element): void {
-  const oldKeyMap = new Map<string, Node>();
-  buildOldKeyMap(oldEl, oldKeyMap);
-
-  let oldPointer: Node | null = oldEl.firstChild;
-  const processed = new Set<Node>();
-
-  for (let newPointer = newEl.firstChild; newPointer;) {
-    const next = newPointer.nextSibling;
-    const newKey = getNodeKey(newPointer);
-
-    if (!newKey) {
-      // Skip past any keyed nodes to find first non-keyed candidate for pairing.
-      while (oldPointer && getNodeKey(oldPointer)) {
-        oldPointer = oldPointer.nextSibling;
-      }
-      if (!oldPointer) {
-        safeAppend(oldEl, newPointer);
-        newPointer = next;
-        continue;
-      }
-      if (oldPointer === newPointer) {
-        processed.add(oldPointer);
-        oldPointer = oldPointer.nextSibling;
-        newPointer = next;
-        continue;
-      }
-      if (patchText(oldPointer, newPointer)) {
-        processed.add(oldPointer);
-        oldPointer = oldPointer.nextSibling;
-        newPointer = next;
-        continue;
-      }
-      if (
-        oldPointer.nodeType === Node.ELEMENT_NODE &&
-        newPointer.nodeType === Node.ELEMENT_NODE &&
-        patchElement(oldPointer as Element, newPointer as Element)
-      ) {
-        processed.add(oldPointer);
-        oldPointer = oldPointer.nextSibling;
-        newPointer = next;
-        continue;
-      }
-      const nextOld = oldPointer.nextSibling;
-      safeReplace(oldEl, newPointer, oldPointer);
-      processed.add(newPointer);
-      oldPointer = nextOld;
-      newPointer = next;
-      continue;
-    }
-
-    const match = oldKeyMap.get(newKey);
-    if (match) {
-      // Reuse keyed node; ensure it is positioned before current oldPointer.
-      oldKeyMap.delete(newKey);
-      processed.add(match);
-      if (match === oldPointer) {
-        oldPointer = oldPointer.nextSibling;
-      } else {
-        if (oldPointer) safeInsertBefore(oldEl, match, oldPointer);
-        else safeAppend(oldEl, match);
-      }
-      // Inline patch logic (was reconcileMatchedNode):
-      if (
-        match.nodeType === Node.ELEMENT_NODE &&
-        newPointer.nodeType === Node.ELEMENT_NODE
-      ) {
-        if (match !== newPointer) {
-          patchElement(match as Element, newPointer as Element);
-        }
-      } else if (!patchText(match, newPointer) && match !== newPointer) {
-        safeReplace(match.parentNode as ParentNode & Node, newPointer, match);
-      }
-    } else {
-      // New keyed node: insert before scan pointer.
-      if (oldPointer) safeInsertBefore(oldEl, newPointer, oldPointer);
-      else safeAppend(oldEl, newPointer);
-    }
-    newPointer = next;
-  }
-
-  finalizeKeyed(oldEl, oldKeyMap, processed);
-}
-
-function diffElementChildren(oldEl: Element, newEl: Element): void {
-  if (!detectChildKeys(oldEl, newEl)) diffNonKeyedChildren(oldEl, newEl);
-  else diffKeyedChildren(oldEl, newEl);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Range Reconciliation
-   Invariants:
-   - 'start' and 'end' are stable comment boundary markers; all dynamic nodes live between them.
-   - We perform a single linear walk merging two sequences: existing DOM siblings between markers and the newNodes array.
-   Phases:
-   1. Fast text-only single node patch shortcut.
-   2. While loop:
-      a. If we've consumed old nodes (hit 'end'), bulk-insert remaining new nodes via a fragment (preserving connect events).
-      b. If no oldCur (range initially empty), insert remaining new nodes before 'end'.
-      c. If no newNode (new list shorter), remove remaining old nodes until 'end'.
-      d. If identity equal (node reused), advance both pointers.
-      e. Try text patch.
-      f. Try element/component patch (patchElement handles component host logic).
-      g. Fallback: replace oldCur with newNode (safeInsertBefore + safeRemove).
-   Lifecycle:
-   - Uses safe* helpers ensuring connect/disconnect dispatching.
-   Complexity:
-   - O(n) where n = max(oldChildrenCount, newChildrenCount); minimal allocations.
-   Guarantees:
-   - Preserves relative order of reused nodes.
-   - Does not traverse outside boundary comments even if external DOM mutations occurred.
-*/
-/* -------------------------------------------------------------------------- */
-
-function diffRange(
-  start: Comment,
-  end: Comment,
-  newNodes: Node[],
-): void {
-  const parent = start.parentNode;
-  if (!parent || end.parentNode !== parent) return;
-
-  let oldCur: Node | null = start.nextSibling;
-  let idx = 0;
-
+function connect(child: Node, parent: Node) {
   if (
-    oldCur &&
-    oldCur.nextSibling === end &&
-    newNodes.length === 1 &&
-    oldCur.nodeType === Node.TEXT_NODE &&
-    newNodes[0].nodeType === Node.TEXT_NODE
+    parent.nodeType === Node.COMMENT_NODE ||
+    parent.nodeType === Node.TEXT_NODE
   ) {
-    patchText(oldCur, newNodes[0]);
+    // Preserve ordering of reactive children by appending after the last inserted child for this anchor.
+    const tail: Node =
+      ((parent as any).__tail && (parent as any).__tail.isConnected)
+        ? (parent as any).__tail
+        : parent;
+    (tail as any).after
+      ? (tail as any).after(child)
+      : tail.parentNode?.insertBefore(child, tail.nextSibling);
+    (parent as any).__tail = child;
+    sendConnectEvent(child);
+    return child;
+  }
+
+  parent.appendChild(child);
+
+  if (child.__component) {
+    // if (parent.isConnected) {
+    //   build(child.__component(child), child);
+    //   // queueMicrotask(() => {
+    //   child.dispatchEvent(new Event("connect"));
+    //   // });
+    // } else {
+    //   runAfterConnected(() => {
+    //     build(child.__component(child), child);
+    //     // queueMicrotask(() => {
+    //     child.dispatchEvent(new Event("connect"));
+    //     // });
+    //   });
+    // }
+    // return child;
+    queueConnection(() => {
+      if (!child.isConnected) {
+        return;
+      }
+      build((child.__component as any)?.(child), child);
+      // queueMicrotask(() => {
+      // child.dispatchEvent(new Event('connect'));
+      // });
+    });
+  }
+
+  sendConnectEvent(child);
+
+  return child;
+}
+
+function disconnect(child: Node) {
+  if (child?.nodeType === Node.COMMENT_NODE && "__reactive_children" in child) {
+    for (const cc of child.__reactive_children || []) {
+      disconnect(cc);
+    }
+
+    if ("__tail" in child) (child as any).__tail = null;
+  }
+
+  if (Array.isArray(child)) {
+    for (const c of child) {
+      disconnect(c);
+    }
+    return child;
+  }
+
+  (child as any).remove
+    ? (child as any).remove()
+    : child.parentNode?.removeChild(child);
+  flushConnectionQueue();
+
+  sendDisconnectEvent(child);
+  // child.dispatchEvent(new Event("disconnect"));
+  // for (const el of traverseReactiveChildren([child])) {
+  //   el.dispatchEvent(new Event("disconnect"));
+  // }
+
+  return child;
+}
+
+type AttrDescriptor = {
+  key: string;
+  kind: "attr" | "style" | "class" | "event";
+  reactive?: "pull" | "push";
+  get?: () => any;
+  teardown?: () => void;
+  apply: (el: HTMLElement, value: any) => void;
+};
+
+function applyStyle(el: HTMLElement, v: any) {
+  if (v == null) {
+    el.removeAttribute("style");
+    return;
+  }
+  if (typeof v === "object") {
+    el.removeAttribute("style");
+    for (const k in v) {
+      (el.style as any)[k] = v[k];
+    }
+    return;
+  }
+  el.setAttribute("style", v);
+}
+
+function applyClass(el: HTMLElement, v: any) {
+  if (v == null) {
+    el.removeAttribute("class");
+    return;
+  }
+  if (typeof v === "object") {
+    for (const cls in v) {
+      if (v[cls]) el.classList.add(cls);
+      else el.classList.remove(cls);
+    }
+    if (!el.getAttribute("class") && el.classList.length === 0) {
+      el.removeAttribute("class");
+    }
+    return;
+  }
+  el.setAttribute("class", v);
+}
+
+function applyGeneric(el: HTMLElement, key: string, v: any) {
+  if (v === true) {
+    el.setAttribute(key, "");
+  } else if (v === false || v == null) {
+    el.removeAttribute(key);
+  } else {
+    el.setAttribute(key, v);
+  }
+}
+
+function createDescriptor(
+  el: HTMLElement,
+  rawKey: string,
+  value: any,
+): AttrDescriptor {
+  const key = rawKey === "className" ? "class" : rawKey;
+
+  if (key.startsWith("on") && typeof value === "function") {
+    const eventName = key.substring(2);
+    return {
+      key,
+      kind: "event",
+      apply(target) {
+        target.addEventListener(eventName, value);
+      },
+      teardown() {
+        el.removeEventListener(eventName, value);
+      },
+    };
+  }
+
+  if (value && typeof value.subscribe === "function") {
+    let current: any;
+    const sub = value.subscribe((v: any) => {
+      current = v;
+      descriptorApply(el, key);
+    });
+    const desc: AttrDescriptor = {
+      key,
+      kind: key === "style" ? "style" : key === "class" ? "class" : "attr",
+      reactive: "push",
+      get: () => current,
+      apply(target, v) {
+        if (key === "style") applyStyle(target, v);
+        else if (key === "class") applyClass(target, v);
+        else applyGeneric(target, key, v);
+      },
+      teardown() {
+        sub?.unsubscribe?.();
+      },
+    };
+    el.setAttribute("_r", "");
+    return desc;
+  }
+
+  if (typeof value === "function") {
+    const desc: AttrDescriptor = {
+      key,
+      kind: key === "style" ? "style" : key === "class" ? "class" : "attr",
+      reactive: "pull",
+      get: () => value(el),
+      apply(target, v) {
+        if (key === "style") applyStyle(target, v);
+        else if (key === "class") applyClass(target, v);
+        else applyGeneric(target, key, v);
+      },
+    };
+    el.setAttribute("_r", "");
+    return desc;
+  }
+
+  return {
+    key,
+    kind: key === "style" ? "style" : key === "class" ? "class" : "attr",
+    apply(target) {
+      if (key === "style") applyStyle(target, value);
+      else if (key === "class") applyClass(target, value);
+      else applyGeneric(target, key, value);
+    },
+  };
+}
+
+function descriptorApply(el: HTMLElement, key: string) {
+  const map = el.__attr_descriptors;
+  if (!map) return;
+  const desc = map.get(key);
+  if (!desc) return;
+  const v = desc.reactive ? desc.get?.() : undefined;
+  desc.apply(el, desc.reactive ? v : undefined);
+}
+
+function mountDescriptor(el: HTMLElement, desc: AttrDescriptor) {
+  el.__attr_descriptors ??= new Map();
+  const existing = el.__attr_descriptors.get(desc.key);
+  if (existing) {
+    existing.teardown?.();
+    if (existing.kind !== "event" && !desc.reactive) {
+      el.removeAttribute(existing.key);
+    }
+  }
+  el.__attr_descriptors.set(desc.key, desc);
+  if (desc.reactive) {
+    el.__reactive_attributes ??= new Map<string, (node: HTMLElement) => void>();
+    el.__reactive_attributes.set(
+      desc.key,
+      (node) => descriptorApply(node as HTMLElement, desc.key),
+    );
+  } else {
+    if (el.__reactive_attributes?.has(desc.key)) {
+      el.__reactive_attributes.delete(desc.key);
+    }
+  }
+  if (desc.kind === "event") {
+    desc.apply(el, undefined);
+  } else {
+    descriptorApply(el, desc.key);
+  }
+}
+
+function unmountMissing(el: HTMLElement, nextKeys: Set<string>) {
+  if (!el.__attr_descriptors) return;
+  for (const [key, desc] of el.__attr_descriptors) {
+    if (!nextKeys.has(key)) {
+      desc.teardown?.();
+      if (desc.kind !== "event") {
+        el.removeAttribute(key);
+      }
+      el.__attr_descriptors.delete(key);
+      el.__reactive_attributes?.delete(key);
+    }
+  }
+}
+
+function updateProps(el: HTMLElement, props: Record<string, any> | null) {
+  const keys = props ? Object.keys(props) : [];
+  const normalized = keys.map((k) => k === "className" ? "class" : k);
+  const set = new Set(normalized);
+  unmountMissing(el, set);
+  for (const rawKey of keys) {
+    const value = props![rawKey];
+    const desc = createDescriptor(el, rawKey, value);
+    mountDescriptor(el, desc);
+  }
+  el.__raw_props = props;
+}
+
+declare global {
+  interface HTMLElement {
+    __attr_descriptors?: Map<string, AttrDescriptor>;
+    __reactive_attributes?: Map<string, (el: HTMLElement) => void>;
+    __raw_props?: Record<string, any> | null;
+  }
+}
+
+function buildRender(parent: Anchor, fn: (parent: Anchor) => any) {
+  parent.__render = () => {
+    (parent as any).__tail = parent;
+    parent.__reactive_children = ([] as any[]).concat(
+      diff(parent.__reactive_children, fn(parent), parent),
+    );
+  };
+}
+
+function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
+  if (parent.__render_id === currentUpdateId) {
+    // Already processed this branch for this update; return the last known children if tracked
+    return (parent.__reactive_children as Node[]) || [];
+  }
+
+  const arrayOld = Array.isArray(valueOld) ? valueOld : [valueOld];
+  const arrayNew = Array.isArray(valueNew) ? valueNew : [valueNew];
+  const arrayOut = Array(arrayNew.length);
+
+  let i = 0;
+  for (const itemNew of arrayNew) {
+    const ii = i++;
+    const itemOld = arrayOld[ii];
+
+    if (itemOld === undefined) {
+      arrayOut[ii] = build(itemNew, parent);
+      continue;
+    }
+
+    if (Array.isArray(itemOld)) {
+      if (Array.isArray(itemNew)) {
+        const output = diff(itemOld, itemNew, parent);
+        arrayOut[ii] = Array.isArray(output) ? output : [output];
+        continue;
+      }
+    }
+
+    if (itemOld === itemNew) {
+      arrayOut[ii] = itemOld;
+      continue;
+    }
+
+    if (
+      itemOld.nodeType === Node.COMMENT_NODE &&
+      "__reactive_children" in itemOld
+    ) {
+      if (typeof itemNew === "function") {
+        // Handled by updater(...)
+        // Removed redundant self-assignment of __memo
+        buildRender(itemOld, itemNew);
+        arrayOut[ii] = itemOld;
+        continue;
+      }
+
+      if (
+        itemNew.nodeType === Node.COMMENT_NODE &&
+        "__reactive_children" in itemNew
+      ) {
+        // Handled by updater(...)
+        arrayOut[ii] = itemOld;
+        continue;
+      }
+    }
+
+    if (itemOld.nodeType === Node.TEXT_NODE) {
+      if (typeof itemNew === "string" || typeof itemNew === "number") {
+        itemOld.nodeValue = itemNew;
+        arrayOut[ii] = itemOld;
+        continue;
+      }
+
+      if (itemNew?.nodeType === Node.TEXT_NODE) {
+        itemOld.nodeValue = itemNew.nodeValue;
+        arrayOut[ii] = itemOld;
+        continue;
+      }
+    }
+
+    if (itemOld.nodeType === Node.ELEMENT_NODE) {
+      if (
+        itemNew?.nodeType === Node.ELEMENT_NODE &&
+        itemOld.nodeName === itemNew.nodeName
+      ) {
+        if (itemNew.__component) {
+          if (
+            itemOld.__props?.key !== itemNew.__props?.key ||
+            itemOld.__type !== itemNew.__type
+          ) {
+            replace(itemNew, itemOld);
+            build(itemNew.__component(itemNew), itemNew);
+            arrayOut[ii] = itemNew;
+            continue;
+          }
+
+          itemOld.__props = itemNew.__props;
+          itemOld.__component = itemNew.__component;
+          // buildRender(itemOld as any, itemOld.__component);
+          arrayOut[ii] = itemOld;
+          continue;
+        }
+
+        if (itemNew.__raw_props) {
+          updateProps(itemOld as HTMLElement, itemNew.__raw_props);
+        } else {
+          updateProps(itemOld as HTMLElement, null);
+        }
+
+        diff(
+          Array.from(itemOld.childNodes),
+          Array.from(itemNew.childNodes),
+          itemOld,
+        );
+
+        arrayOut[ii] = itemOld;
+        continue;
+      }
+
+      if (itemNew?.nodeType === Node.ELEMENT_NODE) {
+        replace(itemNew, itemOld);
+        arrayOut[ii] = itemNew;
+        continue;
+      }
+
+      // arrayOut[ii] = build(itemNew, parent);
+      // disconnect(itemOld);
+      // continue;
+    }
+
+    // console.warn('DANGER', { itemNew, itemOld });
+    // For reactive anchor parents, preserve relative ordering on replacement
+    if (
+      (parent.nodeType === Node.COMMENT_NODE ||
+        parent.nodeType === Node.TEXT_NODE) &&
+      itemOld?.nodeType
+    ) {
+      const builtNode = build(itemNew, parent) as Node;
+      replace(builtNode, itemOld as Node);
+      disconnect(itemOld as Node);
+      arrayOut[ii] = builtNode;
+      continue;
+    }
+
+    arrayOut[ii] = build(itemNew, parent);
+    disconnect(itemOld);
+  }
+
+  for (const toRemove of arrayOld.slice(arrayNew.length)) {
+    disconnect(toRemove);
+  }
+
+  return arrayOut;
+}
+
+function runUpdate(target: Node) {
+  if (!sendUpdateEvent(target)) {
+    return false;
+  }
+  // target.dispatchEvent(new Event("update"));
+  if (target.isConnected && target.__render_id !== currentUpdateId) {
+    if ("__render" in target) {
+      if (!(target as any).__memo?.()) {
+        (target as any).__render?.(target);
+      }
+    } else if ("__reactive_attributes" in target) {
+      for (
+        const update of (target as any).__reactive_attributes?.values?.() || []
+      ) {
+        (update as any)(target as any);
+      }
+    }
+    target.__render_id = currentUpdateId;
+  }
+  return true;
+}
+
+function updater(target: Node) {
+  currentUpdateId += 1;
+  // console.log("UPDATE", currentUpdateId, target);
+
+  if (!runUpdate(target)) {
     return;
   }
 
-  while ((oldCur && oldCur !== end) || idx < newNodes.length) {
-    if (oldCur === end) {
-      if (idx < newNodes.length) {
-        const frag = document.createDocumentFragment();
-        const inserted: Node[] = [];
-        while (idx < newNodes.length) {
-          const n = newNodes[idx++];
-          detachIfMoving(n);
-          frag.appendChild(n);
-          inserted.push(n);
-        }
-        parent.insertBefore(frag, end);
-        for (const n of inserted) {
-          if (n.isConnected) dispatchConnectIfElement(n);
-        }
-      }
-      break;
-    }
-    const newNode = newNodes[idx];
-    if (!oldCur) {
-      safeInsertBefore(parent as ParentNode & Node, newNode, end);
-      idx++;
-      continue;
-    }
-    if (!newNode) {
-      while (oldCur && oldCur !== end) {
-        const next: Node | null = oldCur.nextSibling;
-        safeRemove(parent as ParentNode & Node, oldCur);
-        oldCur = next;
-      }
-      break;
-    }
-    if (oldCur === newNode) {
-      oldCur = oldCur.nextSibling;
-      idx++;
-      continue;
-    }
-    if (patchText(oldCur, newNode)) {
-      oldCur = oldCur.nextSibling;
-      idx++;
-      continue;
-    }
-    if (
-      oldCur.nodeType === Node.ELEMENT_NODE &&
-      newNode.nodeType === Node.ELEMENT_NODE
+  if (target.__reactive_children) {
+    // target.dispatchEvent(new Event("update"))
+    for (
+      const toUpdate of traverseReactiveChildren(
+        [].concat(target.__reactive_children || []),
+      )
     ) {
-      const oldEl = oldCur as ComponentElement;
-      const newEl = newNode as ComponentElement;
-      if (patchElement(oldEl, newEl)) {
-        oldCur = oldCur.nextSibling;
-        idx++;
-        continue;
+      // toUpdate.dispatchEvent(new Event("update"))
+      runUpdate(toUpdate);
+    }
+  } else {
+    for (const toUpdate of traverseReactiveChildren([target])) {
+      // toUpdate.dispatchEvent(new Event("update"))
+      runUpdate(toUpdate);
+    }
+  }
+}
+
+class UpdateEvent extends Event {
+  constructor(public node: Node) {
+    super("update");
+  }
+}
+
+const updateTarget = new EventTarget();
+updateTarget.addEventListener(
+  "update",
+  (e) => {
+    e.stopImmediatePropagation();
+    const node = (e as any).node;
+    if (node instanceof Node) {
+      updater(node);
+    }
+  },
+  { capture: true, passive: true },
+);
+
+// const updateEventId = `update:${Date.now()}`;
+let currentUpdateId: number = 0;
+// document.addEventListener(
+//   updateEventId,
+//   (e) => {
+//     e.stopImmediatePropagation();
+//     if (e.target instanceof Node) {
+//       updater(e.target);
+//     }
+//   },
+//   { capture: true },
+// );
+
+function traverseReactiveChildren(scopes: Node[]) {
+  const reactive: Anchor[] = [];
+
+  for (const scope of scopes) {
+    const xpathResult = document.evaluate(
+      ".//comment() | .//*[@_r] | .//host",
+      scope,
+      null,
+      XPathResult.ORDERED_NODE_ITERATOR_TYPE,
+      null,
+    );
+    let node = xpathResult.iterateNext();
+    while (node) {
+      if ("__reactive_children" in node || "__reactive_attributes" in node) {
+        reactive.push(node as any);
       }
+      node = xpathResult.iterateNext();
     }
-    safeInsertBefore(parent as ParentNode & Node, newNode, oldCur);
-    safeRemove(parent as ParentNode & Node, oldCur);
-    oldCur = newNode.nextSibling;
-    idx++;
   }
+  return reactive;
 }
 
-/* (produceExpandedNodes removed – unified by expandToNodes) */
+type BuiltNode = (Node | Node[]) | BuiltNode[];
+type Anchor = Node & {
+  __reactive_children: Node[];
+  __render_id: number;
+  __render: (anchor: Anchor) => void;
+};
+type ComponentHost = Node & {
+  __type: Function;
+  __key: string | undefined;
+  __instance: BuiltNode;
+  __component: (anchor: ComponentHost) => BuiltNode;
+};
 
-/* -------------------------------------------------------------------------- */
-/* Root Helpers                                                               */
-/* -------------------------------------------------------------------------- */
+let i = 0;
+function build(a: any, parent: Node): BuiltNode {
+  if (Array.isArray(a)) {
+    return a.map((child) => build(child, parent));
+  }
 
-function clearContainerInitialChildren(container: HTMLElement): void {
-  for (let c = container.firstChild; c;) {
-    const next = c.nextSibling;
-    if (c.parentNode === container) {
-      dispatchDisconnectIfElement(c);
-      container.removeChild(c);
+  if (typeof a === "string") {
+    const node = document.createTextNode(a);
+    connect(node, parent);
+    return node;
+  }
+
+  if (typeof a === "number") {
+    const node = document.createTextNode(String(a));
+    connect(node, parent);
+    return node;
+  }
+
+  if (typeof a === "boolean") {
+    const node = document.createComment(String(a));
+    connect(node, parent);
+    return node;
+  }
+
+  if (a == null) {
+    const node = document.createComment("null");
+    connect(node, parent);
+    return node;
+  }
+
+  if (typeof a?.subscribe === "function") {
+    const b = a;
+    let value: unknown;
+    let anchor: Node | null = null;
+    const unsub = b.subscribe((v: unknown) => {
+      value = v;
+      if (anchor) {
+        update(anchor);
+      }
+    });
+    a = (e: Node): unknown => {
+      anchor = e;
+      (e as Node).addEventListener?.("disconnect", () => {
+        (unsub as any)?.unsubscribe?.();
+      }, { once: true });
+      return value;
+    };
+  }
+
+  if (typeof a === "function") {
+    const anchor = document.createComment("$") as any as Anchor;
+    // const anchor = document.createComment("$" + i++) as any as Anchor;
+    connect(anchor, parent);
+    anchor.__render_id = currentUpdateId;
+    const built = build(a(anchor), parent);
+    anchor.__reactive_children = Array.isArray(built)
+      ? (built as Node[])
+      : [built as Node];
+    buildRender(anchor, a);
+    return anchor;
+  }
+
+  connect(a, parent);
+  return a;
+}
+
+export const Fragment = Symbol("Fragment");
+
+export function createElement(
+  type: string | Function,
+  props: null | Record<string, any>,
+  ...children: any[]
+): Node {
+  if (typeof type === "string") {
+    const element = document.createElement(type);
+    element.__raw_props = props;
+    if (props) {
+      updateProps(element, props);
     }
-    c = next;
+    build(children, element);
+    return element;
   }
-}
 
-/* -------------------------------------------------------------------------- */
-/* Custom Element Registration                                                */
-/* -------------------------------------------------------------------------- */
-
-class RadiHostElement extends HTMLElement {
-  connectedCallback() {
-    connect(this);
-  }
-  disconnectedCallback() {
-    disconnect(this);
-  }
-}
-if (!customElements.get(RADI_HOST_TAG)) {
-  customElements.define(RADI_HOST_TAG, RadiHostElement);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Public Element Creation API                                                */
-/* -------------------------------------------------------------------------- */
-
-const Fragment = "fragment";
-
-function createElement(
-  type: string | ComponentFn,
-  props: Record<string, unknown> | null,
-  ...childrenRaw: Child[]
-): Child {
-  const buildNormalized = () => {
-    const out: (Node | ReactiveGenerator)[] = [];
-    const ctx = currentReactiveContext;
-    for (const raw of childrenRaw) {
-      if (typeof raw === "function") {
-        let fn = raw as MemoizedReactive;
-        if (fn._radi_skip && ctx) {
-          const slot = ctx.index++;
-          const existing = ctx.memoFns[slot];
-          fn = existing || (ctx.memoFns[slot] = fn);
+  if (typeof type === "function") {
+    const host = document.createElement("host") as any as ComponentHost;
+    host.__type = type;
+    host.__props = { ...(props || {}), children };
+    host.__component = (anchor) => {
+      try {
+        if (!host.__instance || props?.key !== host.__props?.key) {
+          return (host.__instance = type.call(host, () => (host.__props)));
         }
-        out.push(fn as ReactiveGenerator);
-        continue;
-      }
-      if (Array.isArray(raw)) {
-        for (const sub of raw) {
-          if (typeof sub === "function") {
-            let fn = sub as MemoizedReactive;
-            if (fn._radi_skip && ctx) {
-              const slot = ctx.index++;
-              const existing = ctx.memoFns[slot];
-              fn = existing || (ctx.memoFns[slot] = fn);
-            }
-            out.push(fn as ReactiveGenerator);
-          } else {
-            out.push(...realize(document.body, sub));
+        return host.__instance;
+      } catch (error) {
+        queueMicrotask(() => {
+          if (
+            host.dispatchEvent(
+              new ErrorEvent("error", {
+                error,
+                bubbles: true,
+                composed: true,
+                cancelable: true,
+              }),
+            )
+          ) {
+            console.error(type?.name, error);
           }
-        }
-        continue;
+        });
       }
-      out.push(...realize(document.body, raw));
-    }
-    return out;
-  };
+      return `(ERROR in ${type?.name})`;
+    };
+    return host;
+  }
 
   if (type === Fragment) {
-    const { start, end } = createFragmentBoundary();
-    const realized = childrenRaw.flatMap((c) => realize(document.body, c));
-    return [start, ...realized, end];
+    return props?.children || [];
   }
-  if (typeof type === "function") {
-    return createComponentPlaceholder(type as ComponentFn, props, childrenRaw);
-  }
-  return createPlainElement(type as string, props, buildNormalized());
+
+  return document.createTextNode("<UNHANDLED>");
 }
 
-/* -------------------------------------------------------------------------- */
-/* Root Management                                                            */
-/* -------------------------------------------------------------------------- */
-
-function createRoot(container: HTMLElement): {
-  root: HTMLElement;
-  render: (node: JSX.Element) => HTMLElement;
-  unmount: () => void;
-} {
-  clearContainerInitialChildren(container);
-
-  const { start, end } = createFragmentBoundary();
-  container.append(start, end);
-
-  function render(node: JSX.Element): HTMLElement {
-    const realized = realize(container, node as Child);
-    diffRange(start, end, realized);
-    // Return first element node if single root element
-    const single = realized.length === 1 ? realized[0] : null;
-    if (single instanceof HTMLElement && !isComponentHost(single)) {
-      connect(single);
-    }
-    return single instanceof HTMLElement ? single : container;
+export function createRoot(target: HTMLElement) {
+  interface Root {
+    render(el: Child): Node;
+    root: Node | null;
+    unmount(): void;
   }
-
-  function unmount(): void {
-    let cur: Node | null = start.nextSibling;
-    while (cur && cur !== end) {
-      const next = cur.nextSibling;
-      safeRemove(container, cur);
-      cur = next;
-    }
-  }
-
-  return { root: container, render, unmount };
+  const out: Root = {
+    render(el: Child): Node {
+      try {
+        return (out.root = build(el, target) as Node);
+      } finally {
+        flushConnectionQueue();
+        el.dispatchEvent(new Event("connect"));
+      }
+    },
+    root: null,
+    unmount() {
+      if (out.root) {
+        disconnect(out.root);
+        out.root = null;
+      }
+    },
+  };
+  return out;
 }
 
-export {
-  // Lifecycle + control
-  connect,
-  createAbortSignal,
-  createAbortSignalOnUpdate,
-  createDomAdapter,
-  // Core element APIs
-  createElement,
-  // Universal renderer constructors
-  createRenderer,
-  createRoot,
-  createServerStringAdapter,
-  disconnect,
-  dispatchConnect,
-  dispatchDisconnect,
-  DOM_RENDERER,
-  domCreateComment,
-  domCreateElement,
-  domCreateTextNode,
-  domFragment,
-  // Low-level renderer facades
-  domRender,
-  Fragment,
-  // Internal types
-  RadiHostElement,
-  update,
-};
+export function update(target: Node) {
+  return updateTarget.dispatchEvent(new UpdateEvent(target));
+  // return target.dispatchEvent(new Event(updateEventId));
+}
+
+export function memo(fn: () => any, shouldMemo: () => boolean) {
+  return (anchor: any) => {
+    (anchor as any).__memo = shouldMemo;
+    return fn(anchor);
+  };
+}
+
+// function Counter(this: HTMLElement, props: any) {
+//   let count = props().start || 0;
+//   console.log('render only once');
+//   return (
+//     <button
+//       style={() =>
+//         'color: #' +
+//         ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, '0')
+//       }
+//       onclick={() => {
+//         count++;
+//         this.dispatchEvent(new Event('update'));
+//       }}
+//     >
+//       {() => count}
+//     </button>
+//   );
+// }
+
+// function PassThru(this: HTMLElement, props: any) {
+//   console.log('FIRST');
+
+//   this.addEventListener('error', (e) => {
+//     console.log('ERROR????', e);
+//   });
+
+//   return <h1 style="color:orange">{() => props().children}</h1>;
+// }
+
+// function Child(this: HTMLElement, props: any) {
+//   throw new Error('poop');
+//   console.log('SECOND');
+//   return <i>Poop</i>;
+// }
+
+// function App(this: HTMLElement) {
+//   let count = 0;
+
+//   return (
+//     <div>
+//       <h1>Hello {() => (count % 2 ? 'world' : <i>Mars</i>)}!</h1>
+//       <h3>{() => Math.random()}</h3>
+//       <h3>{Math.random()}</h3>
+//       <div>
+//         {'A '}
+//         {() => {
+//           console.log('A1');
+//           const color =
+//             '#' +
+//             ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, '0');
+//           return [
+//             [
+//               [
+//                 [
+//                   [
+//                     String(count),
+//                     h(
+//                       'strong',
+//                       {
+//                         style: 'color:' + color,
+//                       },
+//                       ' B ',
+//                       color
+//                     ),
+//                   ],
+//                 ],
+//                 ' (',
+//                 () => (
+//                   console.log('A2'),
+//                   () => (console.log('A3'), count % 2 ? 'Hey' : null)
+//                 ),
+//                 ')',
+//               ],
+//               1,
+//             ],
+//           ];
+//         }}
+//       </div>
+//       <PassThru>
+//         A <Child /> B
+//       </PassThru>
+//       <button
+//         type="button"
+//         onclick={() => {
+//           count++;
+//           this.dispatchEvent(new Event('update'));
+//         }}
+//       >
+//         asd
+//       </button>
+//       <hr />
+//       {() => (
+//         console.log('EVERY TIME', count), (<Counter key={count} start={5} />)
+//       )}
+//       {memo(
+//         () => (
+//           console.log('EVERY SECOND', count),
+//           (<Counter key={count} start={5} />)
+//         ),
+//         () => count % 2
+//       )}
+//     </div>
+//   );
+// }
+
+// console.clear();
+// render(<App />, document.body);
+
+export function createAbortSignal(target: Node): AbortSignal {
+  const controller = new AbortController();
+  target.addEventListener("disconnect", () => controller.abort(), {
+    once: true,
+  });
+  return controller.signal;
+}
+
+export function createAbortSignalOnUpdate(target: Node): AbortSignal {
+  const controller = new AbortController();
+  function onAbort() {
+    target.removeEventListener("update", onAbort);
+    target.removeEventListener("disconnect", onAbort);
+  }
+  controller.signal.addEventListener("abort", onAbort, { once: true });
+  target.addEventListener("update", () => controller.abort(), { once: true });
+  target.addEventListener("disconnect", () => controller.abort(), {
+    once: true,
+  });
+  return controller.signal;
+}

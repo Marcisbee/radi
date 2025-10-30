@@ -49,9 +49,9 @@ test("initial-sync-value", async () => {
 
   assert.snapshot.html(
     root,
-    `<radi-host style="display: contents;">
-      <div class="store-host"><!--(-->A<!--)--></div>
-    </radi-host>`,
+    `<host>
+      <div class="store-host"><!--$-->A</div>
+    </host>`,
   );
 });
 
@@ -88,16 +88,8 @@ test("no-duplicate-nodes", async () => {
   store.set("Z");
 
   assert.equal(host.textContent, "Z");
-  // Only one child text node inside the fragment range.
-  const comments = Array.from(host.childNodes).filter(
-    (n) => n.nodeType === Node.COMMENT_NODE,
-  );
-  const texts = Array.from(host.childNodes).filter(
-    (n) => n.nodeType === Node.TEXT_NODE,
-  );
-  // Expect two comments (fragment boundary) and one text node.
-  assert.equal(comments.length, 2);
-  assert.equal(texts.length, 1);
+
+  assert.snapshot.html(host, `<div class="store-host"><!--$-->Z</div>`);
 });
 
 test("unsubscribe-on-disconnect", async () => {
@@ -154,7 +146,7 @@ test("late-first-emission", async () => {
 
   // Between the two boundary comments there should be no text initially.
   const raw = host.innerHTML;
-  assert.equal(raw, "<!--(--><!--)-->");
+  assert.equal(raw, "<!--$--><!--null-->");
 
   // First emission
   store.set("L1");

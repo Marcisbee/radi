@@ -1,6 +1,6 @@
 import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
-import { update } from "../../rework-fw.ts";
+import { update } from "../client.ts";
 
 /**
  * Counter component and related tests.

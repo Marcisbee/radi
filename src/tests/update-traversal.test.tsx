@@ -57,7 +57,7 @@ function ReactiveList(this: HTMLElement) {
 
 test("nested component under reactive parent single update per cycle", async () => {
   const root = await mount(<ParentReactive />, document.body);
-  const childHost = root.querySelector("radi-host radi-host") as HTMLElement;
+  const childHost = root.querySelector("host") as HTMLElement;
   assert.true(!!childHost, "child host exists");
 
   let childUpdates = 0;
@@ -66,22 +66,22 @@ test("nested component under reactive parent single update per cycle", async () 
   const text = () =>
     (childHost.querySelector(".child-count") as HTMLElement).textContent!;
 
-  assert.equal(text(), "1", "initial render count 1");
+  assert.equal(text(), "1");
   update(root);
   await Promise.resolve();
-  assert.equal(childUpdates, 1, "one update event dispatched");
-  assert.equal(text(), "2", "render count incremented once");
+  assert.equal(childUpdates, 1);
+  assert.equal(text(), "2");
 
   update(root);
   await Promise.resolve();
-  assert.equal(childUpdates, 2, "second update event dispatched");
-  assert.equal(text(), "3", "render count incremented once again (no double)");
+  assert.equal(childUpdates, 2);
+  assert.equal(text(), "3");
 });
 
 test("nested component under non-reactive parent receives update via traversal", async () => {
   const root = await mount(<ParentNonReactive />, document.body);
-  // ParentNonReactive returns plain div; child component host is first radi-host inside root host.
-  const childHost = root.querySelector("radi-host radi-host") as HTMLElement;
+  // ParentNonReactive returns plain div; child component host is first host inside root host.
+  const childHost = root.querySelector("host") as HTMLElement;
   assert.true(!!childHost, "child host exists");
 
   let received = 0;

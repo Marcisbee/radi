@@ -71,7 +71,7 @@ test("parent-dispatch-child-update", async () => {
   }
 
   const parent = await mount(<App />, document.body);
-  const child = parent.querySelector("radi-host radi-host")!;
+  const child = parent.querySelector("host")!;
 
   let childUpdates = 0;
   child.addEventListener("update", () => {
@@ -263,6 +263,8 @@ test("update event calls once per update request 5", async () => {
   }
 
   const container = await mount(<App />, document.body);
+  await Promise.resolve(); // ensure component tree built
+  await Promise.resolve(); // ensure component tree built
 
   let updateCalls = 0;
   container.addEventListener("update", () => {

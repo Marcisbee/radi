@@ -1,8 +1,4 @@
-/** @jsxRuntime classic */
-/** @jsx createElement */
-/** @jsxFrag Fragment */
-
-import { createElement, createRoot, Fragment, update } from "../rework-fw.ts";
+import { createElement, createRoot, Fragment, update } from "../src/client.ts";
 import { createAbortSignal } from "../src/lifecycle.ts";
 
 // const Theme = createChannel<"light" | "dark">("light");

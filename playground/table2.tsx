@@ -1,9 +1,6 @@
-/** @jsxRuntime classic */
-/** @jsx createElement */
-/** @jsxFrag Fragment */
-// import { createElement, Fragment, createRoot, update } from "../src/client.ts";
+import { createElement, Fragment, createRoot, update } from "../src/client.ts";
 
-import { createElement, createRoot, Fragment, memo, update } from "../rework-fw.ts";
+// import { createElement, createRoot, Fragment, memo, update } from "../rework-fw.ts";
 
 // --- Data sources ---
 export const adjectives = [
