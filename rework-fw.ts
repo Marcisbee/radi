@@ -51,13 +51,17 @@ function sendDisconnectEvent(target: Node) {
 
 function sendUpdateEvent(target: Node) {
   if (!target.isConnected) {
-    return false;
+    return true;
   }
-  if (target.onupdate || target.__component || target.__reactive_children || target.__reactive_attributes) {
+  if (
+    target.onupdate || target.__component || target.__reactive_children ||
+    target.__reactive_attributes
+  ) {
     // queueMicrotask(() => {
-     return target.dispatchEvent(new Event("update"));
+    return target.dispatchEvent(new Event("update", { cancelable: true }));
     // });
   }
+  return true;
 }
 
 function replace(childNew: Node, childOld: Node) {
@@ -386,7 +390,7 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
 
 function runUpdate(target: Node) {
   if (!sendUpdateEvent(target)) {
-    return;
+    return false;
   }
   // target.dispatchEvent(new Event("update"));
   if (target.isConnected && target.__render_id !== currentUpdateId) {
@@ -401,13 +405,16 @@ function runUpdate(target: Node) {
     }
     target.__render_id = currentUpdateId;
   }
+  return true;
 }
 
 function updater(target: Node) {
   currentUpdateId += 1;
   // console.log("UPDATE", currentUpdateId, target);
 
-  runUpdate(target);
+  if (!runUpdate(target)) {
+    return;
+  }
 
   if (target.__reactive_children) {
     // target.dispatchEvent(new Event("update"))
