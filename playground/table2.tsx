@@ -1,7 +1,12 @@
-import { createRoot, Fragment, update, memo } from "../src/client.ts";
+/** @jsxRuntime classic */
+/** @jsx createElement */
+/** @jsxFrag Fragment */
+// import { createElement, Fragment, createRoot, update } from "../src/client.ts";
+
+import { createElement, createRoot, Fragment, memo, update } from "../rework-fw.ts";
 
 // --- Data sources ---
-const adjectives = [
+export const adjectives = [
   "pretty",
   "large",
   "big",
@@ -28,7 +33,7 @@ const adjectives = [
   "expensive",
   "fancy",
 ];
-const colours = [
+export const colours = [
   "red",
   "yellow",
   "blue",
@@ -41,7 +46,7 @@ const colours = [
   "black",
   "orange",
 ];
-const nouns = [
+export const nouns = [
   "table",
   "chair",
   "house",
@@ -58,18 +63,29 @@ const nouns = [
 ];
 
 // --- App state (module-local) ---
-type Row = { id: number; label: string; selected: boolean };
+export type Row = { id: number; label: string; selected: boolean };
 
-let rows: Row[] = [];
-let nextId = 1;
-let selectedIndex = -1;
+export let rows: Row[] = [];
+export let nextId = 1;
+export let selectedIndex = -1;
+
+export function resetState() {
+  rows = [];
+  nextId = 1;
+  selectedIndex = -1;
+}
+
+export function setRows(newRows: Row[]) {
+  rows = newRows;
+  selectedIndex = -1;
+}
 
 // Random helpers mirror the lit-html app behavior
-function rand(max: number): number {
+export function rand(max: number): number {
   return Math.round(Math.random() * 1000) % max;
 }
 
-function buildData(count: number): Row[] {
+export function buildData(count: number): Row[] {
   const out: Row[] = [];
   for (let i = 0; i < count; i++) {
     out.push({
@@ -83,33 +99,33 @@ function buildData(count: number): Row[] {
   return out;
 }
 
-let table: HTMLElement;
+export let table: HTMLElement;
 
 // --- Actions (match lit-html app semantics) ---
-function actionRun(root: DocumentFragment) {
+export function actionRun() {
   rows = buildData(1000);
   selectedIndex = -1;
   update(table);
 }
 
-function actionRunLots(root: DocumentFragment) {
+export function actionRunLots() {
   rows = buildData(10000);
   selectedIndex = -1;
   update(table);
 }
 
-function actionAdd(root: DocumentFragment) {
+export function actionAdd() {
   rows = rows.concat(buildData(1000));
   update(table);
 }
 
-function actionClear(root: DocumentFragment) {
+export function actionClear() {
   rows = [];
   selectedIndex = -1;
   update(table);
 }
 
-function actionSwapRows(root: DocumentFragment) {
+export function actionSwapRows() {
   // Swap 2nd and 999th rows when length > 998 (same threshold as lit-html app)
   if (rows.length > 998) {
     const tmp = rows[1];
@@ -122,18 +138,17 @@ function actionSwapRows(root: DocumentFragment) {
   update(table);
 }
 
-function actionUpdate(root: DocumentFragment) {
+export function actionUpdate() {
   for (let i = 0; i < rows.length; i += 10) {
     rows[i].label += " !!!";
   }
   update(table);
 }
 
-function actionDelete(root: DocumentFragment, id: number) {
+export function actionDelete(id: number) {
   const idx = rows.findIndex((r) => r.id === id);
   if (idx !== -1) {
     rows.splice(idx, 1);
-    // Fix selectedIndex if deletion affects it
     if (selectedIndex === idx) {
       selectedIndex = -1;
     } else if (selectedIndex > idx) {
@@ -143,7 +158,7 @@ function actionDelete(root: DocumentFragment, id: number) {
   update(table);
 }
 
-function actionSelect(root: DocumentFragment, id: number) {
+export function actionSelect(id: number) {
   if (selectedIndex > -1 && rows[selectedIndex]) {
     rows[selectedIndex].selected = false;
   }
@@ -155,11 +170,11 @@ function actionSelect(root: DocumentFragment, id: number) {
 }
 
 // --- Components ---
-function Toolbar(this: DocumentFragment) {
+export function Toolbar(this: DocumentFragment) {
   return (
     <div className="row">
       <div className="col-md-6">
-        <h1>Radi</h1>
+        <h1>Radi2</h1>
       </div>
       <div className="col-md-6">
         <div className="row">
@@ -168,7 +183,7 @@ function Toolbar(this: DocumentFragment) {
               type="button"
               id="run"
               className="btn btn-primary btn-block"
-              onclick={() => actionRun(this)}
+              onclick={() => actionRun()}
             >
               Create 1,000 rows
             </button>
@@ -178,7 +193,7 @@ function Toolbar(this: DocumentFragment) {
               type="button"
               id="runlots"
               className="btn btn-primary btn-block"
-              onclick={() => actionRunLots(this)}
+              onclick={() => actionRunLots()}
             >
               Create 10,000 rows
             </button>
@@ -188,7 +203,7 @@ function Toolbar(this: DocumentFragment) {
               type="button"
               id="add"
               className="btn btn-primary btn-block"
-              onclick={() => actionAdd(this)}
+              onclick={() => actionAdd()}
             >
               Append 1,000 rows
             </button>
@@ -198,7 +213,7 @@ function Toolbar(this: DocumentFragment) {
               type="button"
               id="update"
               className="btn btn-primary btn-block"
-              onclick={() => actionUpdate(this)}
+              onclick={() => actionUpdate()}
             >
               Update every 10th row
             </button>
@@ -208,7 +223,7 @@ function Toolbar(this: DocumentFragment) {
               type="button"
               id="clear"
               className="btn btn-primary btn-block"
-              onclick={() => actionClear(this)}
+              onclick={() => actionClear()}
             >
               Clear
             </button>
@@ -218,7 +233,7 @@ function Toolbar(this: DocumentFragment) {
               type="button"
               id="swaprows"
               className="btn btn-primary btn-block"
-              onclick={() => actionSwapRows(this)}
+              onclick={() => actionSwapRows()}
             >
               Swap Rows
             </button>
@@ -229,7 +244,9 @@ function Toolbar(this: DocumentFragment) {
   );
 }
 
-function Table(this: HTMLElement) {
+// Row component removed; inline row mapping used in Table for benchmarks
+
+export function Table(this: HTMLElement) {
   // Delegate clicks to identify select/delete just like the lit-html `@click` on <table>
   this.addEventListener("click", (e: Event) => {
     const target = e.target as HTMLElement;
@@ -240,20 +257,21 @@ function Table(this: HTMLElement) {
     const id = parseInt(tr.id, 10);
     const interaction = td.getAttribute("data-interaction");
     if (interaction === "delete") {
-      actionDelete(this.ownerDocument!.createDocumentFragment(), id);
+      actionDelete(id);
     } else {
-      actionSelect(this.ownerDocument!.createDocumentFragment(), id);
+      actionSelect(id);
     }
   });
 
   table = this;
 
-  let lastItemCountStatic;
+  let len;
+
   return (
     <table className="table table-hover table-striped test-data">
       <tbody>
         {memo(() =>
-          rows.map((item, index) => (
+          (rows.map((item, index) => (
             <tr
               key={String(item.id)}
               id={String(item.id)}
@@ -274,33 +292,11 @@ function Table(this: HTMLElement) {
               </td>
               <td className="col-md-6"></td>
             </tr>
-          )), () => {
-            const changed = lastItemCountStatic !== rows.length;
-            lastItemCountStatic = rows.length;
+          ))), () => {
+            const changed = len !== rows.length;
+            len = rows.length;
             return !changed;
           })}
-        {/*{rows.map((item) => (
-          <tr
-            // key={String(item.id)}
-            id={String(item.id)}
-            className={item.selected ? "danger" : ""}
-          >
-            <td className="col-md-1">{item.id}</td>
-            <td className="col-md-4">
-              <a>{item.label}</a>
-            </td>
-            <td data-interaction="delete" className="col-md-1">
-              <a>
-                <span
-                  className="glyphicon glyphicon-remove"
-                  aria-hidden="true"
-                >
-                </span>
-              </a>
-            </td>
-            <td className="col-md-6"></td>
-          </tr>
-        ))}*/}
       </tbody>
     </table>
   );
