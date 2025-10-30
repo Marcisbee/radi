@@ -1,4 +1,4 @@
-import { createElement, Fragment, createRoot, update } from "../src/client.ts";
+import { createElement, Fragment, createRoot, update, memo } from "../src/client.ts";
 
 // import { createElement, createRoot, Fragment, memo, update } from "../rework-fw.ts";
 
