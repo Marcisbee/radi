@@ -1,4 +1,31 @@
 const tasks = new Set<() => void>();
+
+// Type augmentations for custom reactive fields used on Node/HTMLElement
+declare global {
+  interface Node {
+    onconnect?: (e: Event) => void;
+    ondisconnect?: (e: Event) => void;
+    onupdate?: (e: Event) => void;
+    __component?: (anchor: Node) => any;
+    __reactive_children?: Node[];
+    __tail?: Node | null;
+    __render_id?: number;
+    __render?: (anchor: Node) => void;
+    __memo?: () => boolean;
+    __reactive_attributes?: Map<string, (el: HTMLElement) => void>;
+    __type?: Function;
+    __props?: Record<string, any>;
+    __instance?: any;
+  }
+  interface HTMLElement {
+    __attr_descriptors?: Map<string, AttrDescriptor>;
+    __reactive_attributes?: Map<string, (el: HTMLElement) => void>;
+    __raw_props?: Record<string, any> | null;
+    __props?: Record<string, any>;
+  }
+}
+
+type Child = any;
 let microtaskScheduled = false;
 
 function runAfterConnected(task: () => void) {
@@ -65,14 +92,12 @@ function sendUpdateEvent(target: Node) {
 }
 
 function replace(childNew: Node, childOld: Node) {
-  childOld.replaceWith(childNew);
-  // queueMicrotask(() => {
+  // Safe replace (older TS lib may not declare replaceWith on Node)
+  ((childOld as any).replaceWith
+    ? (childOld as any).replaceWith(childNew)
+    : childOld.parentNode?.replaceChild(childNew, childOld));
   sendConnectEvent(childNew);
   sendDisconnectEvent(childOld);
-  // for (const el of traverseReactiveChildren([childOld])) {
-  //   el.dispatchEvent(new Event("disconnect"));
-  // }
-  // });
   return childNew;
 }
 
@@ -82,12 +107,14 @@ function connect(child: Node, parent: Node) {
     parent.nodeType === Node.TEXT_NODE
   ) {
     // Preserve ordering of reactive children by appending after the last inserted child for this anchor.
-    const tail: Node = parent?.__tail.isConnected ? parent.__tail : parent;
-    tail.after(child);
-    parent.__tail = child;
-    // queueMicrotask(() => {
+    const tail: Node = ((parent as any).__tail && (parent as any).__tail.isConnected)
+      ? (parent as any).__tail
+      : parent;
+    (tail as any).after
+      ? (tail as any).after(child)
+      : tail.parentNode?.insertBefore(child, tail.nextSibling);
+    (parent as any).__tail = child;
     sendConnectEvent(child);
-    // });
     return child;
   }
 
@@ -112,7 +139,7 @@ function connect(child: Node, parent: Node) {
       if (!child.isConnected) {
         return;
       }
-      build(child.__component(child), child);
+      build((child.__component as any)?.(child), child);
       // queueMicrotask(() => {
       // child.dispatchEvent(new Event('connect'));
       // });
@@ -140,7 +167,7 @@ function disconnect(child: Node) {
     return child;
   }
 
-  child.remove();
+  (child as any).remove ? (child as any).remove() : child.parentNode?.removeChild(child);
 
   sendDisconnectEvent(child);
   // child.dispatchEvent(new Event("disconnect"));
@@ -151,91 +178,192 @@ function disconnect(child: Node) {
   return child;
 }
 
-function setReactiveAttribute(
-  element: HTMLElement,
-  key: string,
-  value: (element: HTMLElement) => any,
-) {
-  element.setAttribute("_r", "");
-  element.__reactive_attributes ??= new Map<string, (target: Node) => void>();
-  const update = (e: HTMLElement) => {
-    const v = value(e);
-    if (v === false || v == null) {
-      e.removeAttribute(key);
-    } else if (v === true) {
-      e.setAttribute(key, "");
-    } else {
-      e.setAttribute(key, v);
-    }
-  };
-  element.__reactive_attributes.set(key, update);
-  return update;
-}
+type AttrDescriptor = {
+  key: string;
+  kind: 'attr' | 'style' | 'class' | 'event';
+  reactive?: 'pull' | 'push';
+  get?: () => any;
+  teardown?: () => void;
+  apply: (el: HTMLElement, value: any) => void;
+};
 
-function diffAttributes(fromNode: Element, toNode: Element) {
-  var toNodeAttrs = toNode.attributes;
-  var attr;
-  var attrName;
-  var attrNamespaceURI;
-  var attrValue;
-  var fromValue;
-
-  toNode.__reactive_attributes = fromNode.__reactive_attributes;
-  if (fromNode.__reactive_attributes instanceof Map) {
-    fromNode.__reactive_attributes.clear();
-  }
-
-  // document-fragments dont have attributes so lets not do anything
-  if (toNode.nodeType === 11 || fromNode.nodeType === 11) {
+function applyStyle(el: HTMLElement, v: any) {
+  if (v == null) {
+    el.removeAttribute('style');
     return;
   }
-
-  // update attributes on original DOM element
-  for (var i = toNodeAttrs.length - 1; i >= 0; i--) {
-    attr = toNodeAttrs[i];
-    attrName = attr.name;
-    attrNamespaceURI = attr.namespaceURI;
-    attrValue = attr.value;
-
-    if (attrNamespaceURI) {
-      attrName = attr.localName || attrName;
-      fromValue = fromNode.getAttributeNS(attrNamespaceURI, attrName);
-
-      if (fromValue !== attrValue) {
-        if (attr.prefix === "xmlns") {
-          attrName = attr.name; // It's not allowed to set an attribute with the XMLNS namespace without specifying the `xmlns` prefix
-        }
-        fromNode.setAttributeNS(attrNamespaceURI, attrName, attrValue);
-      }
-    } else {
-      fromValue = fromNode.getAttribute(attrName);
-
-      if (fromValue !== attrValue) {
-        fromNode.setAttribute(attrName, attrValue);
-      }
+  if (typeof v === 'object') {
+    el.removeAttribute('style');
+    for (const k in v) {
+      (el.style as any)[k] = v[k];
     }
+    return;
+  }
+  el.setAttribute('style', v);
+}
+
+function applyClass(el: HTMLElement, v: any) {
+  if (v == null) {
+    el.removeAttribute('class');
+    return;
+  }
+  if (typeof v === 'object') {
+    for (const cls in v) {
+      if (v[cls]) el.classList.add(cls);
+      else el.classList.remove(cls);
+    }
+    if (!el.getAttribute('class') && el.classList.length === 0) {
+      el.removeAttribute('class');
+    }
+    return;
+  }
+  el.setAttribute('class', v);
+}
+
+function applyGeneric(el: HTMLElement, key: string, v: any) {
+  if (v === true) {
+    el.setAttribute(key, '');
+  } else if (v === false || v == null) {
+    el.removeAttribute(key);
+  } else {
+    el.setAttribute(key, v);
+  }
+}
+
+function createDescriptor(el: HTMLElement, rawKey: string, value: any): AttrDescriptor {
+  const key = rawKey === 'className' ? 'class' : rawKey;
+
+  if (key.startsWith('on') && typeof value === 'function') {
+    const eventName = key.substring(2);
+    return {
+      key,
+      kind: 'event',
+      apply(target) {
+        target.addEventListener(eventName, value);
+      },
+      teardown() {
+        el.removeEventListener(eventName, value);
+      },
+    };
   }
 
-  // Remove any extra attributes found on the original DOM element that
-  // weren't found on the target element.
-  var fromNodeAttrs = fromNode.attributes;
+  if (value && typeof value.subscribe === 'function') {
+    let current: any;
+    const sub = value.subscribe((v: any) => {
+      current = v;
+      descriptorApply(el, key);
+    });
+    const desc: AttrDescriptor = {
+      key,
+      kind: key === 'style' ? 'style' : key === 'class' ? 'class' : 'attr',
+      reactive: 'push',
+      get: () => current,
+      apply(target, v) {
+        if (key === 'style') applyStyle(target, v);
+        else if (key === 'class') applyClass(target, v);
+        else applyGeneric(target, key, v);
+      },
+      teardown() {
+        sub?.unsubscribe?.();
+      },
+    };
+    el.setAttribute('_r', '');
+    return desc;
+  }
 
-  for (var d = fromNodeAttrs.length - 1; d >= 0; d--) {
-    attr = fromNodeAttrs[d];
-    attrName = attr.name;
-    attrNamespaceURI = attr.namespaceURI;
+  if (typeof value === 'function') {
+    const desc: AttrDescriptor = {
+      key,
+      kind: key === 'style' ? 'style' : key === 'class' ? 'class' : 'attr',
+      reactive: 'pull',
+      get: () => value(el),
+      apply(target, v) {
+        if (key === 'style') applyStyle(target, v);
+        else if (key === 'class') applyClass(target, v);
+        else applyGeneric(target, key, v);
+      },
+    };
+    el.setAttribute('_r', '');
+    return desc;
+  }
 
-    if (attrNamespaceURI) {
-      attrName = attr.localName || attrName;
+  return {
+    key,
+    kind: key === 'style' ? 'style' : key === 'class' ? 'class' : 'attr',
+    apply(target) {
+      if (key === 'style') applyStyle(target, value);
+      else if (key === 'class') applyClass(target, value);
+      else applyGeneric(target, key, value);
+    },
+  };
+}
 
-      if (!toNode.hasAttributeNS(attrNamespaceURI, attrName)) {
-        fromNode.removeAttributeNS(attrNamespaceURI, attrName);
-      }
-    } else {
-      if (!toNode.hasAttribute(attrName)) {
-        fromNode.removeAttribute(attrName);
-      }
+function descriptorApply(el: HTMLElement, key: string) {
+  const map = el.__attr_descriptors;
+  if (!map) return;
+  const desc = map.get(key);
+  if (!desc) return;
+  const v = desc.reactive ? desc.get?.() : undefined;
+  desc.apply(el, desc.reactive ? v : undefined);
+}
+
+function mountDescriptor(el: HTMLElement, desc: AttrDescriptor) {
+  el.__attr_descriptors ??= new Map();
+  const existing = el.__attr_descriptors.get(desc.key);
+  if (existing) {
+    existing.teardown?.();
+    if (existing.kind !== 'event' && !desc.reactive) {
+      el.removeAttribute(existing.key);
     }
+  }
+  el.__attr_descriptors.set(desc.key, desc);
+  if (desc.reactive) {
+    el.__reactive_attributes ??= new Map<string, (node: HTMLElement) => void>();
+    el.__reactive_attributes.set(desc.key, (node) => descriptorApply(node as HTMLElement, desc.key));
+  } else {
+    if (el.__reactive_attributes?.has(desc.key)) {
+      el.__reactive_attributes.delete(desc.key);
+    }
+  }
+  if (desc.kind === 'event') {
+    desc.apply(el, undefined);
+  } else {
+    descriptorApply(el, desc.key);
+  }
+}
+
+function unmountMissing(el: HTMLElement, nextKeys: Set<string>) {
+  if (!el.__attr_descriptors) return;
+  for (const [key, desc] of el.__attr_descriptors) {
+    if (!nextKeys.has(key)) {
+      desc.teardown?.();
+      if (desc.kind !== 'event') {
+        el.removeAttribute(key);
+      }
+      el.__attr_descriptors.delete(key);
+      el.__reactive_attributes?.delete(key);
+    }
+  }
+}
+
+function updateProps(el: HTMLElement, props: Record<string, any> | null) {
+  const keys = props ? Object.keys(props) : [];
+  const normalized = keys.map(k => k === 'className' ? 'class' : k);
+  const set = new Set(normalized);
+  unmountMissing(el, set);
+  for (const rawKey of keys) {
+    const value = props![rawKey];
+    const desc = createDescriptor(el, rawKey, value);
+    mountDescriptor(el, desc);
+  }
+  el.__raw_props = props;
+}
+
+declare global {
+  interface HTMLElement {
+    __attr_descriptors?: Map<string, AttrDescriptor>;
+    __reactive_attributes?: Map<string, (el: HTMLElement) => void>;
+    __raw_props?: Record<string, any> | null;
   }
 }
 
@@ -287,7 +415,7 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
     ) {
       if (typeof itemNew === "function") {
         // Handled by updater(...)
-        itemOld.__memo = itemOld.__memo;
+        // Removed redundant self-assignment of __memo
         buildRender(itemOld, itemNew);
         arrayOut[ii] = itemOld;
         continue;
@@ -340,7 +468,11 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
           continue;
         }
 
-        diffAttributes(itemOld, itemNew);
+        if (itemNew.__raw_props) {
+          updateProps(itemOld as HTMLElement, itemNew.__raw_props);
+        } else {
+          updateProps(itemOld as HTMLElement, null);
+        }
 
         diff(
           Array.from(itemOld.childNodes),
@@ -395,12 +527,12 @@ function runUpdate(target: Node) {
   // target.dispatchEvent(new Event("update"));
   if (target.isConnected && target.__render_id !== currentUpdateId) {
     if ("__render" in target) {
-      if (!target.__memo?.()) {
-        target.__render(target);
+      if (!(target as any).__memo?.()) {
+        (target as any).__render?.(target);
       }
     } else if ("__reactive_attributes" in target) {
-      for (const update of target.__reactive_attributes.values()) {
-        update(target);
+      for (const update of (target as any).__reactive_attributes?.values?.() || []) {
+        (update as any)(target as any);
       }
     }
     target.__render_id = currentUpdateId;
@@ -445,8 +577,9 @@ updateTarget.addEventListener(
   "update",
   (e) => {
     e.stopImmediatePropagation();
-    if (e.node instanceof Node) {
-      updater(e.node);
+    const node = (e as any).node;
+    if (node instanceof Node) {
+      updater(node);
     }
   },
   { capture: true, passive: true },
@@ -532,18 +665,18 @@ function build(a: any, parent: Node): BuiltNode {
 
   if (typeof a?.subscribe === "function") {
     const b = a;
-    let value;
-    let anchor;
-    const unsub = b.subscribe((v) => {
+    let value: unknown;
+    let anchor: Node | null = null;
+    const unsub = b.subscribe((v: unknown) => {
       value = v;
       if (anchor) {
         update(anchor);
       }
     });
-    a = (e) => {
+    a = (e: Node): unknown => {
       anchor = e;
-      e.addEventListener("disconnect", () => {
-        unsub?.unsubscribe?.();
+      (e as Node).addEventListener?.("disconnect", () => {
+        (unsub as any)?.unsubscribe?.();
       }, { once: true });
       return value;
     };
@@ -554,7 +687,8 @@ function build(a: any, parent: Node): BuiltNode {
     // const anchor = document.createComment("$" + i++) as any as Anchor;
     connect(anchor, parent);
     anchor.__render_id = currentUpdateId;
-    anchor.__reactive_children = ([] as any[]).concat(build(a(anchor), parent));
+    const built = build(a(anchor), parent);
+    anchor.__reactive_children = Array.isArray(built) ? (built as Node[]) : [built as Node];
     buildRender(anchor, a);
     return anchor;
   }
@@ -572,173 +706,9 @@ export function createElement(
 ): Node {
   if (typeof type === "string") {
     const element = document.createElement(type);
+    element.__raw_props = props;
     if (props) {
-      for (const key in props) {
-        const value = props[key];
-        const attrKey = key === "className" ? "class" : key;
-        // subscribable (has .subscribe)
-        if (value && typeof value.subscribe === "function") {
-          if (attrKey === "style") {
-            element.setAttribute("_r", "");
-            element.__reactive_attributes ??= new Map<
-              string,
-              (target: Node) => void
-            >();
-            let current: any;
-            const update = (e: HTMLElement) => {
-              const v = current;
-              if (v && typeof v === "object") {
-                for (const k in v) {
-                  (e.style as any)[k] = v[k];
-                }
-              } else if (v == null) {
-                e.removeAttribute("style");
-              } else {
-                e.setAttribute("style", v);
-              }
-            };
-            element.__reactive_attributes.set("style", update);
-            const sub = value.subscribe((v: any) => {
-              current = v;
-              update(element as any);
-            });
-            element.addEventListener(
-              "disconnect",
-              () => {
-                sub?.unsubscribe?.();
-              },
-              { once: true },
-            );
-          } else if (attrKey === "class") {
-            element.setAttribute("_r", "");
-            element.__reactive_attributes ??= new Map<
-              string,
-              (target: Node) => void
-            >();
-            let current: any;
-            const update = (e: HTMLElement) => {
-              const v = current;
-              if (v && typeof v === "object") {
-                for (const cls in v) {
-                  if (v[cls]) e.classList.add(cls);
-                  else e.classList.remove(cls);
-                }
-              } else if (v == null) {
-                e.removeAttribute("class");
-              } else {
-                e.setAttribute("class", v);
-              }
-            };
-            element.__reactive_attributes.set("class", update);
-            const sub = value.subscribe((v: any) => {
-              current = v;
-              update(element as any);
-            });
-            element.addEventListener(
-              "disconnect",
-              () => {
-                sub?.unsubscribe?.();
-              },
-              { once: true },
-            );
-          } else {
-            let current: any;
-            const update = setReactiveAttribute(
-              element as any,
-              attrKey,
-              () => current,
-            );
-            const sub = value.subscribe((v: any) => {
-              current = v;
-              update(element as any);
-            });
-            element.addEventListener(
-              "disconnect",
-              () => {
-                sub?.unsubscribe?.();
-              },
-              { once: true },
-            );
-          }
-          continue;
-        }
-        if (attrKey === "style") {
-          if (typeof value === "function") {
-            // reactive style object or string
-            element.setAttribute("_r", "");
-            element.__reactive_attributes ??= new Map<
-              string,
-              (target: Node) => void
-            >();
-            const update = (e: HTMLElement) => {
-              const v = value(e);
-              if (v && typeof v === "object") {
-                for (const k in v) {
-                  (e.style as any)[k] = v[k];
-                }
-              } else if (v == null) {
-                e.removeAttribute("style");
-              } else {
-                e.setAttribute("style", v);
-              }
-            };
-            element.__reactive_attributes.set("style", update);
-            update(element as any);
-          } else if (value && typeof value === "object") {
-            for (const k in value) {
-              (element.style as any)[k] = value[k];
-            }
-          } else if (value != null) {
-            element.setAttribute("style", value);
-          }
-          continue;
-        }
-        if (attrKey === "class") {
-          if (typeof value === "function") {
-            element.setAttribute("_r", "");
-            element.__reactive_attributes ??= new Map<
-              string,
-              (target: Node) => void
-            >();
-            const update = (e: HTMLElement) => {
-              const v = value(e);
-              if (v && typeof v === "object") {
-                for (const cls in v) {
-                  if (v[cls]) e.classList.add(cls);
-                  else e.classList.remove(cls);
-                }
-              } else if (v == null) {
-                e.removeAttribute("class");
-              } else {
-                e.setAttribute("class", v);
-              }
-            };
-            element.__reactive_attributes.set("class", update);
-            update(element as any);
-          } else if (value && typeof value === "object") {
-            for (const cls in value) {
-              if (value[cls]) element.classList.add(cls);
-              else element.classList.remove(cls);
-            }
-          } else if (value != null) {
-            element.setAttribute("class", value);
-          }
-          continue;
-        }
-        if (key.startsWith("on")) {
-          element.addEventListener(key.substring(2), value);
-        } else if (typeof value === "function") {
-          setReactiveAttribute(element as any, attrKey, value)(element as any);
-        } else {
-          if (value === true) {
-            element.setAttribute(attrKey, "");
-          } else if (value === false || value == null) {
-            continue;
-          } else {
-            element.setAttribute(attrKey, value);
-          }
-        }
-      }
+      updateProps(element, props);
     }
     build(children, element);
     return element;
@@ -747,15 +717,12 @@ export function createElement(
   if (typeof type === "function") {
     const host = document.createElement("host") as any as ComponentHost;
     host.__type = type;
-    // @TODO: figure out a better solution to this:
-    host.__props = { ...props, children };
+    host.__props = { ...(props || {}), children };
     host.__component = (anchor) => {
       try {
         if (!host.__instance || props?.key !== host.__props?.key) {
-          // host.__props = props;
           return (host.__instance = type.call(host, () => (host.__props)));
         }
-        // host.__props = props;
         return host.__instance;
       } catch (error) {
         queueMicrotask(() => {
@@ -786,10 +753,16 @@ export function createElement(
 }
 
 export function createRoot(target: HTMLElement) {
-  const out: { render(el: Child): Node; root: null | Node } = {
-    render(el: Child) {
-      sendConnectEvent(el);
-      return (out.root = build(el, target));
+  interface Root {
+    render(el: Child): Node;
+    root: Node | null;
+    unmount(): void;
+  }
+  const out: Root = {
+    render(el: Child): Node {
+      sendConnectEvent(el as any);
+      const built = build(el, target);
+      return (out.root = (Array.isArray(built) ? document.createComment('fragment') : built) as Node);
     },
     root: null,
     unmount() {
@@ -808,8 +781,8 @@ export function update(target: Node) {
 }
 
 export function memo(fn: () => any, shouldMemo: () => boolean) {
-  return (anchor) => {
-    anchor.__memo = shouldMemo;
+  return (anchor: any) => {
+    (anchor as any).__memo = shouldMemo;
     return fn(anchor);
   };
 }
