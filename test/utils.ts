@@ -1,4 +1,4 @@
-import { createRoot } from "../src/client.ts";
+import { createRoot } from "../rework-fw.ts";
 
 export function mount(
   element: Parameters<ReturnType<typeof createRoot>["render"]>[0],
@@ -24,5 +24,5 @@ export function mount(
 
   const { render } = createRoot(parent);
   render(element);
-  return promise;
+  return Promise.resolve(element);
 }

@@ -1,6 +1,6 @@
 import { assert, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
-import { update } from "../client.ts";
+import { update } from "../../rework-fw.ts";
 
 /**
  * Counter component and related tests.
@@ -17,15 +17,15 @@ import { update } from "../client.ts";
  * - no-duplicate-nodes: re-renders do not duplicate existing DOM nodes.
  */
 function Counter(this: HTMLElement) {
-  let state = { count: 0 };
+  let count = 0;
 
   return (
     <div className="counter">
-      <span>{() => String(state.count)}</span>
+      <span>{() => String(count)}</span>
       <button
         className="btn-inc"
         onclick={() => {
-          state = { count: state.count + 1 };
+          count++;
           update(this);
         }}
       >
@@ -40,12 +40,12 @@ test("render", async () => {
 
   assert.snapshot.html(
     container,
-    `<radi-host style="display: contents;">
+    `<host>
       <div class="counter">
-        <span><!--(-->0<!--)--></span>
+        <span><!--$-->0</span>
         <button class="btn-inc">Increment</button>
       </div>
-    </radi-host>`,
+    </host>`,
   );
 });
 
@@ -82,7 +82,7 @@ test("instances-isolated", async () => {
     document.body,
   );
 
-  const counters = container.querySelectorAll("radi-host");
+  const counters = container.querySelectorAll("host");
   assert.equal(counters.length, 2);
 
   const spans = container.querySelectorAll("span");
@@ -104,12 +104,12 @@ test("no-duplicate-nodes", async () => {
 
   assert.snapshot.html(
     container,
-    `<radi-host style="display: contents;">
+    `<host>
       <div class="counter">
-        <span><!--(-->0<!--)--></span>
+        <span><!--$-->0</span>
         <button class="btn-inc">Increment</button>
       </div>
-    </radi-host>`,
+    </host>`,
   );
 
   const button = container.querySelector(".btn-inc") as HTMLButtonElement;
@@ -123,12 +123,12 @@ test("no-duplicate-nodes", async () => {
 
   assert.snapshot.html(
     container,
-    `<radi-host style="display: contents;">
+    `<host>
       <div class="counter">
-        <span><!--(-->2<!--)--></span>
+        <span><!--$-->2</span>
         <button class="btn-inc">Increment</button>
       </div>
-    </radi-host>`,
+    </host>`,
   );
 });
 

@@ -1,5 +1,5 @@
 import { assert, clock, test } from "@marcisbee/rion";
-import { createElement, createRoot } from "../client.ts";
+import { createElement, createRoot } from "../../rework-fw.ts";
 import { mount } from "../../test/utils.ts";
 
 /* -----------------------------------------------------------------------------
@@ -28,7 +28,7 @@ test("primitives", () => {
   render(node as any);
 
   const div = host.querySelector("div")!;
-  assert.exists(div, "div should exist");
+  assert.exists(div);
   assert.contains(div.textContent, "hello42");
 
   // Count comment nodes (false, null, undefined => 3 comments)
@@ -48,7 +48,7 @@ test("array-flatten", () => {
   render(nested);
 
   const div = container.querySelector("div")!;
-  assert.exists(div, "div should exist");
+  assert.exists(div);
   assert.contains(div.textContent, "abc");
 
   // Expect at least one comment for null
@@ -56,7 +56,7 @@ test("array-flatten", () => {
     n.nodeType === Node.COMMENT_NODE &&
     /null/.test((n as Comment).textContent || "")
   );
-  assert.exists(comments.length >= 1, "null should produce a comment node");
+  assert.exists(comments.length >= 1);
 });
 
 function ExampleComponent(
@@ -81,10 +81,7 @@ test("component", async () => {
   const div = mounted.querySelector(".ex")!;
   assert.exists(div);
   assert.equal(div.textContent, "Xchild");
-  assert.equal(
-    mounted.tagName.toLowerCase().startsWith("radi-host"),
-    true,
-  );
+  assert.equal(mounted.tagName, "HOST");
 });
 
 test("subscribable", async () => {

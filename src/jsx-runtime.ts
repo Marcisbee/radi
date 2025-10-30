@@ -1,4 +1,4 @@
-import { createElement, Fragment as RadiFragment } from "./client.ts";
+import { createElement, Fragment as RadiFragment } from "../rework-fw.ts";
 
 type RadiChild = any; // Accept the permissive child types used by createElement.
 
