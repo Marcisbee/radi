@@ -5,13 +5,15 @@ function runAfterConnected(task: () => void) {
   tasks.add(task);
   if (microtaskScheduled) return;
   microtaskScheduled = true;
-  document.body.dispatchEvent(
-    new Event("request:microtask2", { cancelable: true }),
+  microtaskTarget.dispatchEvent(
+    new Event("microtask", { cancelable: true }),
   );
 }
 
-document.addEventListener(
-  "request:microtask2",
+const microtaskTarget = new EventTarget();
+
+microtaskTarget.addEventListener(
+  "microtask",
   (e) => {
     e.stopImmediatePropagation();
     e.stopPropagation();
@@ -22,16 +24,51 @@ document.addEventListener(
   { capture: true },
 );
 
+function sendConnectEvent(target: Node) {
+  if (!target.isConnected) {
+    return;
+  }
+  if (target.onconnect || target.__component || target.__reactive_children) {
+    queueMicrotask(() => {
+      if (!target.isConnected) {
+        return;
+      }
+      target.dispatchEvent(new Event("connect"));
+    });
+  }
+}
+
+function sendDisconnectEvent(target: Node) {
+  if (target.isConnected) {
+    return;
+  }
+  if (target.ondisconnect || target.__component || target.__reactive_children) {
+    queueMicrotask(() => {
+      target.dispatchEvent(new Event("disconnect"));
+    });
+  }
+}
+
+function sendUpdateEvent(target: Node) {
+  if (!target.isConnected) {
+    return false;
+  }
+  if (target.onupdate || target.__component || target.__reactive_children || target.__reactive_attributes) {
+    // queueMicrotask(() => {
+     return target.dispatchEvent(new Event("update"));
+    // });
+  }
+}
+
 function replace(childNew: Node, childOld: Node) {
   childOld.replaceWith(childNew);
-  queueMicrotask(() => {
-    childNew.dispatchEvent(new Event("connect"));
-
-    childOld.dispatchEvent(new Event("disconnect"));
-    // for (const el of traverseReactiveChildren([childOld])) {
-    //   el.dispatchEvent(new Event("disconnect"));
-    // }
-  });
+  // queueMicrotask(() => {
+  sendConnectEvent(childNew);
+  sendDisconnectEvent(childOld);
+  // for (const el of traverseReactiveChildren([childOld])) {
+  //   el.dispatchEvent(new Event("disconnect"));
+  // }
+  // });
   return childNew;
 }
 
@@ -45,7 +82,7 @@ function connect(child: Node, parent: Node) {
     tail.after(child);
     parent.__tail = child;
     // queueMicrotask(() => {
-    child.dispatchEvent(new Event("connect"));
+    sendConnectEvent(child);
     // });
     return child;
   }
@@ -53,25 +90,32 @@ function connect(child: Node, parent: Node) {
   parent.appendChild(child);
 
   if (child.__component) {
-    if (parent.isConnected) {
+    // if (parent.isConnected) {
+    //   build(child.__component(child), child);
+    //   // queueMicrotask(() => {
+    //   child.dispatchEvent(new Event("connect"));
+    //   // });
+    // } else {
+    //   runAfterConnected(() => {
+    //     build(child.__component(child), child);
+    //     // queueMicrotask(() => {
+    //     child.dispatchEvent(new Event("connect"));
+    //     // });
+    //   });
+    // }
+    // return child;
+    queueMicrotask(() => {
+      if (!child.isConnected) {
+        return;
+      }
       build(child.__component(child), child);
       // queueMicrotask(() => {
-      child.dispatchEvent(new Event("connect"));
+      // child.dispatchEvent(new Event('connect'));
       // });
-    } else {
-      runAfterConnected(() => {
-        build(child.__component(child), child);
-        // queueMicrotask(() => {
-        child.dispatchEvent(new Event("connect"));
-        // });
-      });
-    }
-    return child;
+    });
   }
 
-  queueMicrotask(() => {
-    child.dispatchEvent(new Event("connect"));
-  });
+  sendConnectEvent(child);
 
   return child;
 }
@@ -85,9 +129,17 @@ function disconnect(child: Node) {
     if ("__tail" in child) (child as any).__tail = null;
   }
 
+  if (Array.isArray(child)) {
+    for (const c of child) {
+      disconnect(c);
+    }
+    return child;
+  }
+
   child.remove();
 
-  child.dispatchEvent(new Event("disconnect"));
+  sendDisconnectEvent(child);
+  // child.dispatchEvent(new Event("disconnect"));
   // for (const el of traverseReactiveChildren([child])) {
   //   el.dispatchEvent(new Event("disconnect"));
   // }
@@ -98,16 +150,21 @@ function disconnect(child: Node) {
 function setReactiveAttribute(
   element: HTMLElement,
   key: string,
-  value: (element: HTMLElement) => void,
+  value: (element: HTMLElement) => any,
 ) {
   element.setAttribute("_r", "");
   element.__reactive_attributes ??= new Map<string, (target: Node) => void>();
-  const update = (e) => {
-    e.setAttribute(key, value(e));
+  const update = (e: HTMLElement) => {
+    const v = value(e);
+    if (v === false || v == null) {
+      e.removeAttribute(key);
+    } else if (v === true) {
+      e.setAttribute(key, "");
+    } else {
+      e.setAttribute(key, v);
+    }
   };
-
   element.__reactive_attributes.set(key, update);
-
   return update;
 }
 
@@ -263,7 +320,8 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
       ) {
         if (itemNew.__component) {
           if (
-            itemOld.__props?.key !== itemNew.__props?.key || itemOld.__type !== itemNew.__type
+            itemOld.__props?.key !== itemNew.__props?.key ||
+            itemOld.__type !== itemNew.__type
           ) {
             replace(itemNew, itemOld);
             build(itemNew.__component(itemNew), itemNew);
@@ -327,7 +385,10 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
 }
 
 function runUpdate(target: Node) {
-  target.dispatchEvent(new Event("update"));
+  if (!sendUpdateEvent(target)) {
+    return;
+  }
+  // target.dispatchEvent(new Event("update"));
   if (target.isConnected && target.__render_id !== currentUpdateId) {
     if ("__render" in target) {
       if (!target.__memo?.()) {
@@ -343,7 +404,7 @@ function runUpdate(target: Node) {
 }
 
 function updater(target: Node) {
-  currentUpdateId = Date.now();
+  currentUpdateId += 1;
   // console.log("UPDATE", currentUpdateId, target);
 
   runUpdate(target);
@@ -366,18 +427,36 @@ function updater(target: Node) {
   }
 }
 
-const updateEventId = `update:${Date.now()}`;
-let currentUpdateId: number;
-document.addEventListener(
-  updateEventId,
+class UpdateEvent extends Event {
+  constructor(public node: Node) {
+    super("update");
+  }
+}
+
+const updateTarget = new EventTarget();
+updateTarget.addEventListener(
+  "update",
   (e) => {
     e.stopImmediatePropagation();
-    if (e.target instanceof Node) {
-      updater(e.target);
+    if (e.node instanceof Node) {
+      updater(e.node);
     }
   },
   { capture: true, passive: true },
 );
+
+// const updateEventId = `update:${Date.now()}`;
+let currentUpdateId: number = 0;
+// document.addEventListener(
+//   updateEventId,
+//   (e) => {
+//     e.stopImmediatePropagation();
+//     if (e.target instanceof Node) {
+//       updater(e.target);
+//     }
+//   },
+//   { capture: true },
+// );
 
 function traverseReactiveChildren(scopes: Node[]) {
   const reactive: Anchor[] = [];
@@ -449,7 +528,6 @@ function build(a: any, parent: Node): BuiltNode {
     let value;
     let anchor;
     const unsub = b.subscribe((v) => {
-      console.log("up1");
       value = v;
       if (anchor) {
         update(anchor);
@@ -460,13 +538,13 @@ function build(a: any, parent: Node): BuiltNode {
       e.addEventListener("disconnect", () => {
         unsub?.unsubscribe?.();
       }, { once: true });
-      console.log("up2");
       return value;
     };
   }
 
   if (typeof a === "function") {
-    const anchor = document.createComment("$" + i++) as any as Anchor;
+    const anchor = document.createComment("$") as any as Anchor;
+    // const anchor = document.createComment("$" + i++) as any as Anchor;
     connect(anchor, parent);
     anchor.__render_id = currentUpdateId;
     anchor.__reactive_children = ([] as any[]).concat(build(a(anchor), parent));
@@ -490,12 +568,168 @@ export function createElement(
     if (props) {
       for (const key in props) {
         const value = props[key];
+        const attrKey = key === "className" ? "class" : key;
+        // subscribable (has .subscribe)
+        if (value && typeof value.subscribe === "function") {
+          if (attrKey === "style") {
+            element.setAttribute("_r", "");
+            element.__reactive_attributes ??= new Map<
+              string,
+              (target: Node) => void
+            >();
+            let current: any;
+            const update = (e: HTMLElement) => {
+              const v = current;
+              if (v && typeof v === "object") {
+                for (const k in v) {
+                  (e.style as any)[k] = v[k];
+                }
+              } else if (v == null) {
+                e.removeAttribute("style");
+              } else {
+                e.setAttribute("style", v);
+              }
+            };
+            element.__reactive_attributes.set("style", update);
+            const sub = value.subscribe((v: any) => {
+              current = v;
+              update(element as any);
+            });
+            element.addEventListener(
+              "disconnect",
+              () => {
+                sub?.unsubscribe?.();
+              },
+              { once: true },
+            );
+          } else if (attrKey === "class") {
+            element.setAttribute("_r", "");
+            element.__reactive_attributes ??= new Map<
+              string,
+              (target: Node) => void
+            >();
+            let current: any;
+            const update = (e: HTMLElement) => {
+              const v = current;
+              if (v && typeof v === "object") {
+                for (const cls in v) {
+                  if (v[cls]) e.classList.add(cls);
+                  else e.classList.remove(cls);
+                }
+              } else if (v == null) {
+                e.removeAttribute("class");
+              } else {
+                e.setAttribute("class", v);
+              }
+            };
+            element.__reactive_attributes.set("class", update);
+            const sub = value.subscribe((v: any) => {
+              current = v;
+              update(element as any);
+            });
+            element.addEventListener(
+              "disconnect",
+              () => {
+                sub?.unsubscribe?.();
+              },
+              { once: true },
+            );
+          } else {
+            let current: any;
+            const update = setReactiveAttribute(
+              element as any,
+              attrKey,
+              () => current,
+            );
+            const sub = value.subscribe((v: any) => {
+              current = v;
+              update(element as any);
+            });
+            element.addEventListener(
+              "disconnect",
+              () => {
+                sub?.unsubscribe?.();
+              },
+              { once: true },
+            );
+          }
+          continue;
+        }
+        if (attrKey === "style") {
+          if (typeof value === "function") {
+            // reactive style object or string
+            element.setAttribute("_r", "");
+            element.__reactive_attributes ??= new Map<
+              string,
+              (target: Node) => void
+            >();
+            const update = (e: HTMLElement) => {
+              const v = value(e);
+              if (v && typeof v === "object") {
+                for (const k in v) {
+                  (e.style as any)[k] = v[k];
+                }
+              } else if (v == null) {
+                e.removeAttribute("style");
+              } else {
+                e.setAttribute("style", v);
+              }
+            };
+            element.__reactive_attributes.set("style", update);
+            update(element as any);
+          } else if (value && typeof value === "object") {
+            for (const k in value) {
+              (element.style as any)[k] = value[k];
+            }
+          } else if (value != null) {
+            element.setAttribute("style", value);
+          }
+          continue;
+        }
+        if (attrKey === "class") {
+          if (typeof value === "function") {
+            element.setAttribute("_r", "");
+            element.__reactive_attributes ??= new Map<
+              string,
+              (target: Node) => void
+            >();
+            const update = (e: HTMLElement) => {
+              const v = value(e);
+              if (v && typeof v === "object") {
+                for (const cls in v) {
+                  if (v[cls]) e.classList.add(cls);
+                  else e.classList.remove(cls);
+                }
+              } else if (v == null) {
+                e.removeAttribute("class");
+              } else {
+                e.setAttribute("class", v);
+              }
+            };
+            element.__reactive_attributes.set("class", update);
+            update(element as any);
+          } else if (value && typeof value === "object") {
+            for (const cls in value) {
+              if (value[cls]) element.classList.add(cls);
+              else element.classList.remove(cls);
+            }
+          } else if (value != null) {
+            element.setAttribute("class", value);
+          }
+          continue;
+        }
         if (key.startsWith("on")) {
           element.addEventListener(key.substring(2), value);
         } else if (typeof value === "function") {
-          setReactiveAttribute(element, key, value)(element);
+          setReactiveAttribute(element as any, attrKey, value)(element as any);
         } else {
-          element.setAttribute(key, value);
+          if (value === true) {
+            element.setAttribute(attrKey, "");
+          } else if (value === false || value == null) {
+            continue;
+          } else {
+            element.setAttribute(attrKey, value);
+          }
         }
       }
     }
@@ -507,17 +741,14 @@ export function createElement(
     const host = document.createElement("host") as any as ComponentHost;
     host.__type = type;
     // @TODO: figure out a better solution to this:
-    host.__props = props;
+    host.__props = { ...props, children };
     host.__component = (anchor) => {
       try {
         if (!host.__instance || props?.key !== host.__props?.key) {
-          host.__props = props;
-          return (host.__instance = type.call(host, () => ({
-            ...host.__props,
-            children,
-          })));
+          // host.__props = props;
+          return (host.__instance = type.call(host, () => (host.__props)));
         }
-        host.__props = props;
+        // host.__props = props;
         return host.__instance;
       } catch (error) {
         queueMicrotask(() => {
@@ -550,6 +781,7 @@ export function createElement(
 export function createRoot(target: HTMLElement) {
   const out: { render(el: Child): Node; root: null | Node } = {
     render(el: Child) {
+      sendConnectEvent(el);
       return (out.root = build(el, target));
     },
     root: null,
@@ -564,7 +796,8 @@ export function createRoot(target: HTMLElement) {
 }
 
 export function update(target: Node) {
-  return target.dispatchEvent(new Event(updateEventId));
+  return updateTarget.dispatchEvent(new UpdateEvent(target));
+  // return target.dispatchEvent(new Event(updateEventId));
 }
 
 export function memo(fn: () => any, shouldMemo: () => boolean) {
