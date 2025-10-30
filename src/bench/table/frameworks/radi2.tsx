@@ -1,7 +1,7 @@
 /** @jsxRuntime classic */
 /** @jsx createElement */
 /** @jsxFrag Fragment */
-import { createRoot, update, memo, createElement, Fragment } from "../../../client.ts";
+import { createRoot, update, memo, createElement, Fragment } from "../../../../rework-fw.ts";
 
 // --- Data sources ---
 export const adjectives = [
@@ -172,7 +172,7 @@ export function Toolbar(this: DocumentFragment) {
   return (
     <div className="row">
       <div className="col-md-6">
-        <h1>Radi</h1>
+        <h1>Radi2</h1>
       </div>
       <div className="col-md-6">
         <div className="row">
@@ -317,7 +317,7 @@ function App(this: DocumentFragment) {
   );
 }
 
-export const title = "Radi";
+export const title = "Radi2";
 
 let testRoot: ReturnType<typeof createRoot> | null = null;
 

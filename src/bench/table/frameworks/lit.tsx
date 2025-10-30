@@ -129,7 +129,7 @@ export class Store {
   }
 }
 
-const store = new Store();
+let store = new Store();
 
 @customElement("main-element")
 export class MainElement extends LitElement {
@@ -138,6 +138,11 @@ export class MainElement extends LitElement {
 
   @property()
   _selected = store.selected;
+
+  createRenderRoot() {
+    // ensure the element uses an open shadow root
+    return this.attachShadow({ mode: "open" });
+  }
 
   render() {
     return html`
@@ -297,8 +302,9 @@ export class MainElement extends LitElement {
 export const title = "Lit keyed";
 
 export function mount() {
+  store = new Store();
   document.body.innerHTML = "<main-element></main-element>";
-  // debugger
+  debugger;
 }
 
 export function unmount() {

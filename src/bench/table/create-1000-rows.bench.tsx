@@ -21,11 +21,10 @@ for (const [name, { title, mount, unmount }] of entries) {
       await mount();
       await waitForXPath(`//h1[text()=${JSON.stringify(title)}]`);
       await waitForXPath("//button[@id='clear']");
-
-      // debugger;
     },
     async afterAll() {
       await unmount();
+      document.body.innerHTML = "";
     },
   };
 

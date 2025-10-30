@@ -1,6 +1,3 @@
-// let observer: MutationObserver | null = null;
-// const pendingPromises: Map<string, (element: Element) => void> = new Map();
-
 function getElement(xpath: string) {
   return document.evaluate(
     xpath,
@@ -11,28 +8,12 @@ function getElement(xpath: string) {
   ).singleNodeValue as Element | null;
 }
 
-// const observer = new MutationObserver(() => {
-//   for (const [xpath, resolve] of pendingPromises) {
-//     const el = getElement(xpath);
-//     if (el) {
-//       pendingPromises.delete(xpath);
-//       resolve(el);
-//     }
-//   }
-// });
-
-// observer.observe(document.documentElement, {
-//   childList: true,
-//   subtree: true,
-//   attributes: true,
-// });
-
 export function waitForXPath<T extends Node>(
   xpath: string,
   timeoutMs: number = 4000,
 ): Promise<T> {
   const el = getElement(xpath) as any;
-  if (el) {
+  if (el?.isConnected) {
     return Promise.resolve(el);
   }
 
@@ -40,7 +21,7 @@ export function waitForXPath<T extends Node>(
   return new Promise(async (resolve, reject) => {
     // Double-check immediately to avoid races
     const immediate = getElement(xpath) as any;
-    if (immediate) {
+    if (immediate?.isConnected) {
       resolve(immediate);
       return;
     }
@@ -52,11 +33,25 @@ export function waitForXPath<T extends Node>(
       reject(new Error(`Timeout waiting for XPath: ${xpath}`));
     }, timeoutMs);
 
-    let el: any;
-    while (!(cancelled || (el = getElement(xpath)))) {
-      await new Promise<void>((res) => requestAnimationFrame(res as any));
-      clearTimeout(timer);
-      resolve(el!);
+    try {
+      while (!cancelled) {
+        const candidate = getElement(xpath) as any;
+        if (candidate?.isConnected) {
+          if (!cancelled) {
+            cancelled = true;
+            clearTimeout(timer);
+            resolve(candidate);
+          }
+          return;
+        }
+        await new Promise<void>((res) => requestAnimationFrame(res as any));
+      }
+    } catch (err) {
+      if (!cancelled) {
+        cancelled = true;
+        clearTimeout(timer);
+        reject(err);
+      }
     }
   });
 }

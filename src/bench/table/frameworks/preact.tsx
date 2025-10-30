@@ -5,6 +5,9 @@ import { batch, signal, useComputed } from "npm:@preact/signals";
 import { For } from "npm:@preact/signals/utils";
 import { Fragment, h, render } from "npm:preact";
 
+export const title = "Preact Signals Keyed";
+
+export function mount() {
 let idCounter = 1;
 const adjectives = [
     "pretty",
@@ -178,9 +181,6 @@ const App = () => {
   );
 };
 
-export const title = "Preact Signals Keyed";
-
-export function mount() {
   render(<App />, document.body);
 }
 
