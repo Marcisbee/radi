@@ -1,508 +1,683 @@
-import { diff, vdiff } from "./rework-diff.ts";
-
-export const Fragment = Symbol();
-
-type ComponentFactory = (
-  this: Node & { reactiveComponent?: boolean },
-) => Child | Child[];
-type ReactiveGenerator = (parent: Node) => Child | Child[];
-type Child =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | Node
-  | Child[]
-  | ReactiveGenerator
-  | VNode;
-
-interface VNode {
-  __v: true;
-  type: string | ComponentFactory | typeof Fragment;
-  props: Record<string, unknown> | null;
-  children: Child[];
-  _node: Node | Node[] | null;
-  readonly ref: Node | Node[];
-}
-
-function isVNode(value: unknown): value is VNode {
-  return !!value && typeof value === "object" &&
-    (value as { __v?: unknown }).__v === true;
-}
-
 const tasks = new Set<() => void>();
 let microtaskScheduled = false;
 
-function runMicrotasks(task: () => void) {
+function runAfterConnected(task: () => void) {
   tasks.add(task);
   if (microtaskScheduled) return;
   microtaskScheduled = true;
   document.body.dispatchEvent(
-    new Event("request:microtask", { cancelable: true }),
+    new Event("request:microtask2", { cancelable: true }),
   );
 }
 
-document.body.addEventListener("request:microtask", (e) => {
-  e.stopImmediatePropagation();
-  e.stopPropagation();
-  for (const task of tasks) task();
-  tasks.clear();
-  microtaskScheduled = false;
-}, { capture: true });
+document.addEventListener(
+  "request:microtask2",
+  (e) => {
+    e.stopImmediatePropagation();
+    e.stopPropagation();
+    for (const task of tasks) task();
+    tasks.clear();
+    microtaskScheduled = false;
+  },
+  { capture: true },
+);
 
-const REACTIVE_TEMPLATE = document.createComment("<>");
-const FRAGMENT_START_TEMPLATE = document.createComment("<>");
-const FRAGMENT_END_TEMPLATE = document.createComment("</>");
-const DEBUG = false;
-let reactiveIdCounter = 0;
+function replace(childNew: Node, childOld: Node) {
+  childOld.replaceWith(childNew);
+  queueMicrotask(() => {
+    childNew.dispatchEvent(new Event("connect"));
 
-declare global {
-  interface Node {
-    reactiveChildren?: Node[];
-    reactiveComponent?: boolean;
-  }
+    childOld.dispatchEvent(new Event("disconnect"));
+    // for (const el of traverseReactiveChildren([childOld])) {
+    //   el.dispatchEvent(new Event("disconnect"));
+    // }
+  });
+  return childNew;
 }
 
-let pendingConnections: Node[] = [];
-let pendingDisconnections: Node[] = [];
-
-interface ReactiveScope extends Comment {
-  reactiveChildren: Node[];
-  reactiveComponent?: boolean;
-}
-
-function buildElement(child: Child): Node[] {
-  if (isVNode(child)) {
-    const realized = child.ref;
-    return Array.isArray(realized) ? realized : [realized];
-  }
-
-  if (typeof child === "string" || typeof child === "number") {
-    return [document.createTextNode(String(child))];
-  }
-
-  if (typeof child === "boolean") {
-    return [document.createComment(child ? "true" : "false")];
-  }
-
-  if (typeof child === "function") {
-    return [createReactiveScope(child as ReactiveGenerator)];
-  }
-
+function connect(child: Node, parent: Node) {
   if (
-    typeof child === "object" && child !== null && "subscribe" in child &&
-    typeof child.subscribe === "function"
+    parent.nodeType === Node.COMMENT_NODE ||
+    parent.nodeType === Node.TEXT_NODE
   ) {
-    let currentValue: any;
-    let initialized = false;
-    let subscription: { unsubscribe: () => void } | undefined;
+    // Preserve ordering of reactive children by appending after the last inserted child for this anchor.
+    const tail: Node = parent?.__tail.isConnected ? parent.__tail : parent;
+    tail.after(child);
+    parent.__tail = child;
+    // queueMicrotask(() => {
+    child.dispatchEvent(new Event("connect"));
+    // });
+    return child;
+  }
 
-    // deno-lint-ignore no-inner-declarations
-    function subscribable(parent: ReactiveGenerator) {
-      subscription ??= child.subscribe((value: any) => {
-        currentValue = value;
-        if (initialized) {
-          update(parent);
-        }
-      });
+  parent.appendChild(child);
 
-      on.call(parent, "disconnect", () => {
-        subscription?.unsubscribe();
-        subscription = undefined;
-      }, {
-        once: true,
+  if (child.__component) {
+    if (parent.isConnected) {
+      build(child.__component(child), child);
+      // queueMicrotask(() => {
+      child.dispatchEvent(new Event("connect"));
+      // });
+    } else {
+      runAfterConnected(() => {
+        build(child.__component(child), child);
+        // queueMicrotask(() => {
+        child.dispatchEvent(new Event("connect"));
+        // });
       });
-      initialized = true;
-      return currentValue;
     }
-    return [createReactiveScope(subscribable)];
+    return child;
   }
 
-  if (Array.isArray(child)) {
-    const fragmentChildren = child.flatMap(buildElement);
-    return [
-      FRAGMENT_START_TEMPLATE.cloneNode(),
-      ...fragmentChildren,
-      FRAGMENT_END_TEMPLATE.cloneNode(),
-    ];
-  }
+  queueMicrotask(() => {
+    child.dispatchEvent(new Event("connect"));
+  });
 
-  if (child == null) {
-    return [document.createComment("null")];
-  }
-
-  return [child as Node];
+  return child;
 }
 
-function isAncestorHelper(eventTarget: Node, root: Node): boolean {
-  if (eventTarget === root) return true;
+function disconnect(child: Node) {
+  if (child?.nodeType === Node.COMMENT_NODE && "__reactive_children" in child) {
+    for (const cc of child.__reactive_children || []) {
+      disconnect(cc);
+    }
 
-  // We'll interleave walking up the DOM/host chain from eventTarget with a
-  // traversal of the root's reactiveChildren tree in a single loop. As we
-  // climb ancestors we add them to a set; as we traverse reactiveChildren we
-  // check membership against that set (or direct equality to eventTarget).
-  const ancestors = new Set<Node>();
-  const seen = new Set<Node>();
-  let cur: Node | null = eventTarget;
+    if ("__tail" in child) (child as any).__tail = null;
+  }
 
-  // Initialize stack with root's reactive children (if any).
-  const rootRc =
-    (root as Node & { reactiveChildren?: Node[] }).reactiveChildren;
-  const stack: Node[] = rootRc ? rootRc.slice() : [];
+  child.remove();
 
-  while (cur || stack.length) {
-    if (cur) {
-      if (cur === root) return true;
-      ancestors.add(cur);
-      // climb into shadow host if present (for ShadowRoot) without using `any`
-      const host = (cur as ShadowRoot).host as Node | undefined;
-      cur = host ?? cur.parentNode;
+  child.dispatchEvent(new Event("disconnect"));
+  // for (const el of traverseReactiveChildren([child])) {
+  //   el.dispatchEvent(new Event("disconnect"));
+  // }
+
+  return child;
+}
+
+function setReactiveAttribute(
+  element: HTMLElement,
+  key: string,
+  value: (element: HTMLElement) => void,
+) {
+  element.setAttribute("_r", "");
+  element.__reactive_attributes ??= new Map<string, (target: Node) => void>();
+  const update = (e) => {
+    e.setAttribute(key, value(e));
+  };
+
+  element.__reactive_attributes.set(key, update);
+
+  return update;
+}
+
+function diffAttributes(fromNode: Element, toNode: Element) {
+  var toNodeAttrs = toNode.attributes;
+  var attr;
+  var attrName;
+  var attrNamespaceURI;
+  var attrValue;
+  var fromValue;
+
+  toNode.__reactive_attributes = fromNode.__reactive_attributes;
+  if (fromNode.__reactive_attributes instanceof Map) {
+    fromNode.__reactive_attributes.clear();
+  }
+
+  // document-fragments dont have attributes so lets not do anything
+  if (toNode.nodeType === 11 || fromNode.nodeType === 11) {
+    return;
+  }
+
+  // update attributes on original DOM element
+  for (var i = toNodeAttrs.length - 1; i >= 0; i--) {
+    attr = toNodeAttrs[i];
+    attrName = attr.name;
+    attrNamespaceURI = attr.namespaceURI;
+    attrValue = attr.value;
+
+    if (attrNamespaceURI) {
+      attrName = attr.localName || attrName;
+      fromValue = fromNode.getAttributeNS(attrNamespaceURI, attrName);
+
+      if (fromValue !== attrValue) {
+        if (attr.prefix === "xmlns") {
+          attrName = attr.name; // It's not allowed to set an attribute with the XMLNS namespace without specifying the `xmlns` prefix
+        }
+        fromNode.setAttributeNS(attrNamespaceURI, attrName, attrValue);
+      }
+    } else {
+      fromValue = fromNode.getAttribute(attrName);
+
+      if (fromValue !== attrValue) {
+        fromNode.setAttribute(attrName, attrValue);
+      }
+    }
+  }
+
+  // Remove any extra attributes found on the original DOM element that
+  // weren't found on the target element.
+  var fromNodeAttrs = fromNode.attributes;
+
+  for (var d = fromNodeAttrs.length - 1; d >= 0; d--) {
+    attr = fromNodeAttrs[d];
+    attrName = attr.name;
+    attrNamespaceURI = attr.namespaceURI;
+
+    if (attrNamespaceURI) {
+      attrName = attr.localName || attrName;
+
+      if (!toNode.hasAttributeNS(attrNamespaceURI, attrName)) {
+        fromNode.removeAttributeNS(attrNamespaceURI, attrName);
+      }
+    } else {
+      if (!toNode.hasAttribute(attrName)) {
+        fromNode.removeAttribute(attrName);
+      }
+    }
+  }
+}
+
+function buildRender(parent: Anchor, fn: (parent: Anchor) => any) {
+  parent.__render = () => {
+    (parent as any).__tail = parent;
+    parent.__reactive_children = ([] as any[]).concat(
+      diff(parent.__reactive_children, fn(parent), parent),
+    );
+  };
+}
+
+function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
+  if (parent.__render_id === currentUpdateId) {
+    // Already processed this branch for this update; return the last known children if tracked
+    return (parent.__reactive_children as Node[]) || [];
+  }
+
+  const arrayOld = Array.isArray(valueOld) ? valueOld : [valueOld];
+  const arrayNew = Array.isArray(valueNew) ? valueNew : [valueNew];
+  const arrayOut = Array(arrayNew.length);
+
+  let i = 0;
+  for (const itemNew of arrayNew) {
+    const ii = i++;
+    const itemOld = arrayOld[ii];
+
+    if (itemOld === undefined) {
+      arrayOut[ii] = build(itemNew, parent);
       continue;
     }
 
-    const n = stack.pop()!;
-    if (ancestors.has(n) || n === eventTarget) return true;
-
-    const rc = (n as Node & { reactiveChildren?: Node[] }).reactiveChildren;
-    if (rc && !seen.has(n)) {
-      seen.add(n);
-      // push children onto stack for DFS
-      for (let i = rc.length - 1; i >= 0; i--) stack.push(rc[i]);
-    }
-  }
-
-  return false;
-}
-
-const on = document.addEventListener;
-const off = document.removeEventListener;
-
-function createReactiveScope(generator: ReactiveGenerator): ReactiveScope {
-  const target = REACTIVE_TEMPLATE.cloneNode() as ReactiveScope;
-  target.textContent = String(
-    `${generator.name || "$"}:${++reactiveIdCounter}`,
-  );
-  target.reactiveChildren = [];
-
-  // @TODO:
-  // --1. events must bubble to closest reactive scope only, currently captured at document level
-  // --2. rework rendering, must call component first, then render children etc
-  //    - comment anchor -> component -> props -> children -> reactives
-  // --3. component
-  // 4. subscribable
-  // --5. props
-  // 6. keys
-
-  pendingConnections.push(target);
-  const runGenerator = (): Node[] => {
-    try {
-      const produced = generator(target);
-      const producedList: Child[] = Array.isArray(produced)
-        ? produced
-        : [produced];
-      return producedList.flatMap(buildElement);
-    } catch (error) {
-      console.error("Error in reactive generator:", error);
-      target.dispatchEvent(
-        new ErrorEvent("error", {
-          error,
-          bubbles: true,
-          composed: true,
-          cancelable: true,
-        }),
-      );
-      return [document.createComment("error")];
-    }
-  };
-  attachReactiveListeners(target, runGenerator);
-  return target;
-}
-
-function attachReactiveListeners(
-  target: ReactiveScope,
-  runGenerator: () => Node[],
-) {
-  const apply = () => {
-    target.reactiveChildren = inlineDiff(
-      target.reactiveChildren,
-      runGenerator(),
-      target,
-    );
-  };
-
-  function render(e?: Event) {
-    const isInitial = !e;
-    if (isInitial) {
-      apply();
-      flush();
-      return;
-    }
-    if (!target.isConnected) return;
-    const isSelf = e!.target === target;
-    const eventTarget = e!.target as Node;
-    const isAncestor = isAncestorHelper(target, eventTarget);
-    // const isAncestor = isSelf ||
-    //   (eventTarget instanceof Element && eventTarget.contains(target)) ||
-    //   eventTarget.reactiveChildren?.find((n) =>
-    //     target === n || n.contains(target)
-    //   );
-    if (!isAncestor) return;
-    if (isSelf) e!.stopPropagation();
-    apply();
-    flush();
-  }
-
-  function disconnect() {
-    if (DEBUG) {
-      console.log(
-        "%c- " + target.textContent,
-        "color:red;background:pink",
-        ...target.reactiveChildren,
-      );
-    }
-    document.body.removeEventListener("request:update", render, {
-      capture: true,
-    });
-    for (const el of target.reactiveChildren) {
-      if (el.isConnected) {
-        el.parentElement?.removeChild?.(el);
-        pendingDisconnections.push(el);
+    if (Array.isArray(itemOld)) {
+      if (Array.isArray(itemNew)) {
+        const output = diff(itemOld, itemNew, parent);
+        arrayOut[ii] = Array.isArray(output) ? output : [output];
+        continue;
       }
     }
-    flush();
-  }
 
-  function connect() {
-    target.removeEventListener("connect", connect, { capture: true });
-    runMicrotasks(() => {
-      render();
-      // Fire a second connect so nested scopes created during first render can observe it
-      target.dispatchEvent(new Event("connect"));
-    });
-    if (DEBUG) {
-      console.log(
-        "%c+ " + target.textContent,
-        "color:green;background:lightgreen",
-        ...target.reactiveChildren,
-      );
+    if (itemOld === itemNew) {
+      arrayOut[ii] = itemOld;
+      continue;
     }
-    on.call(target, "disconnect", disconnect, {
-      capture: true,
-      once: true,
-    });
-    on("request:update", render, { capture: true });
+
+    if (
+      itemOld.nodeType === Node.COMMENT_NODE &&
+      "__reactive_children" in itemOld
+    ) {
+      if (typeof itemNew === "function") {
+        // Handled by updater(...)
+        itemOld.__memo = itemOld.__memo;
+        buildRender(itemOld, itemNew);
+        arrayOut[ii] = itemOld;
+        continue;
+      }
+
+      if (
+        itemNew.nodeType === Node.COMMENT_NODE &&
+        "__reactive_children" in itemNew
+      ) {
+        // Handled by updater(...)
+        arrayOut[ii] = itemOld;
+        continue;
+      }
+    }
+
+    if (itemOld.nodeType === Node.TEXT_NODE) {
+      if (typeof itemNew === "string" || typeof itemNew === "number") {
+        itemOld.nodeValue = itemNew;
+        arrayOut[ii] = itemOld;
+        continue;
+      }
+
+      if (itemNew?.nodeType === Node.TEXT_NODE) {
+        itemOld.nodeValue = itemNew.nodeValue;
+        arrayOut[ii] = itemOld;
+        continue;
+      }
+    }
+
+    if (itemOld.nodeType === Node.ELEMENT_NODE) {
+      if (
+        itemNew?.nodeType === Node.ELEMENT_NODE &&
+        itemOld.nodeName === itemNew.nodeName
+      ) {
+        if (itemNew.__component) {
+          if (
+            itemOld.__props?.key !== itemNew.__props?.key || itemOld.__type !== itemNew.__type
+          ) {
+            replace(itemNew, itemOld);
+            build(itemNew.__component(itemNew), itemNew);
+            arrayOut[ii] = itemNew;
+            continue;
+          }
+
+          itemOld.__props = itemNew.__props;
+          itemOld.__component = itemNew.__component;
+          // buildRender(itemOld as any, itemOld.__component);
+          arrayOut[ii] = itemOld;
+          continue;
+        }
+
+        diffAttributes(itemOld, itemNew);
+
+        diff(
+          Array.from(itemOld.childNodes),
+          Array.from(itemNew.childNodes),
+          itemOld,
+        );
+
+        arrayOut[ii] = itemOld;
+        continue;
+      }
+
+      if (itemNew?.nodeType === Node.ELEMENT_NODE) {
+        replace(itemNew, itemOld);
+        arrayOut[ii] = itemNew;
+        continue;
+      }
+
+      // arrayOut[ii] = build(itemNew, parent);
+      // disconnect(itemOld);
+      // continue;
+    }
+
+    // console.warn('DANGER', { itemNew, itemOld });
+    // For reactive anchor parents, preserve relative ordering on replacement
+    if (
+      (parent.nodeType === Node.COMMENT_NODE ||
+        parent.nodeType === Node.TEXT_NODE) &&
+      itemOld?.nodeType
+    ) {
+      const builtNode = build(itemNew, parent) as Node;
+      replace(builtNode, itemOld as Node);
+      disconnect(itemOld as Node);
+      arrayOut[ii] = builtNode;
+      continue;
+    }
+
+    arrayOut[ii] = build(itemNew, parent);
+    disconnect(itemOld);
   }
 
-  on.call(target, "connect", connect, { capture: true, once: true });
+  for (const toRemove of arrayOld.slice(arrayNew.length)) {
+    disconnect(toRemove);
+  }
+
+  return arrayOut;
 }
 
-function traverseReactiveChildren(scopes: Node[], cb: (node: Node) => void) {
+function runUpdate(target: Node) {
+  target.dispatchEvent(new Event("update"));
+  if (target.isConnected && target.__render_id !== currentUpdateId) {
+    if ("__render" in target) {
+      if (!target.__memo?.()) {
+        target.__render(target);
+      }
+    } else if ("__reactive_attributes" in target) {
+      for (const update of target.__reactive_attributes.values()) {
+        update(target);
+      }
+    }
+    target.__render_id = currentUpdateId;
+  }
+}
+
+function updater(target: Node) {
+  currentUpdateId = Date.now();
+  // console.log("UPDATE", currentUpdateId, target);
+
+  runUpdate(target);
+
+  if (target.__reactive_children) {
+    // target.dispatchEvent(new Event("update"))
+    for (
+      const toUpdate of traverseReactiveChildren(
+        [].concat(target.__reactive_children || []),
+      )
+    ) {
+      // toUpdate.dispatchEvent(new Event("update"))
+      runUpdate(toUpdate);
+    }
+  } else {
+    for (const toUpdate of traverseReactiveChildren([target])) {
+      // toUpdate.dispatchEvent(new Event("update"))
+      runUpdate(toUpdate);
+    }
+  }
+}
+
+const updateEventId = `update:${Date.now()}`;
+let currentUpdateId: number;
+document.addEventListener(
+  updateEventId,
+  (e) => {
+    e.stopImmediatePropagation();
+    if (e.target instanceof Node) {
+      updater(e.target);
+    }
+  },
+  { capture: true, passive: true },
+);
+
+function traverseReactiveChildren(scopes: Node[]) {
+  const reactive: Anchor[] = [];
+
   for (const scope of scopes) {
     const xpathResult = document.evaluate(
-      ".//comment() | .//*[@host]",
+      ".//comment() | .//*[@_r] | .//host",
       scope,
       null,
       XPathResult.ORDERED_NODE_ITERATOR_TYPE,
       null,
     );
-    const commentNodes: Node[] = [];
     let node = xpathResult.iterateNext();
     while (node) {
-      commentNodes.push(node);
+      if ("__reactive_children" in node || "__reactive_attributes" in node) {
+        reactive.push(node as any);
+      }
       node = xpathResult.iterateNext();
     }
-    for (const c of commentNodes) {
-      if (c.reactiveChildren || c.reactiveComponent) cb(c);
-    }
   }
+  return reactive;
 }
 
-function flush() {
-  const connects = Array.from(new Set(pendingConnections));
-  const disconnects = Array.from(new Set(pendingDisconnections));
-  pendingConnections = [];
-  pendingDisconnections = [];
-  for (const node of connects) node.dispatchEvent(new Event("connect"));
-  for (const node of disconnects) node.dispatchEvent(new Event("disconnect"));
-}
+type BuiltNode = (Node | Node[]) | BuiltNode[];
+type Anchor = Node & {
+  __reactive_children: Node[];
+  __render_id: number;
+  __render: (anchor: Anchor) => void;
+};
+type ComponentHost = Node & {
+  __type: Function;
+  __key: string | undefined;
+  __instance: BuiltNode;
+  __component: (anchor: ComponentHost) => BuiltNode;
+};
 
-export function render(el: Child | Child[], target: HTMLElement) {
-  try {
-    const nodes: Node[] = Array.isArray(el)
-      ? el.flatMap(buildElement)
-      : buildElement(el);
-    target.append(...nodes);
-    return nodes.length === 1 ? nodes[0] : nodes;
-  } finally {
-    flush();
+let i = 0;
+function build(a: any, parent: Node): BuiltNode {
+  if (Array.isArray(a)) {
+    return a.map((child) => build(child, parent));
   }
-}
 
-export function renderClient(el: Child, target: HTMLElement) {
-  const container = document.createElement("app");
-  const comment = document.createComment("app");
-  container.appendChild(comment);
-  target.appendChild(container);
-  inlineDiff([], buildElement(el), comment);
-  try {
-    return container;
-  } finally {
-    flush();
+  if (typeof a === "string") {
+    const node = document.createTextNode(a);
+    connect(node, parent);
+    return node;
   }
-}
 
-function isVNodeArray(list: unknown[]): boolean {
-  return list.some((v) =>
-    !!v && typeof v === "object" && (v as { __v?: unknown }).__v === true
-  );
-}
-function realizeVNodeToNodes(v: any): Node[] {
-  if (v && typeof v === "object" && (v as { __v?: unknown }).__v === true) {
-    const ref = (v as any).ref;
-    return Array.isArray(ref) ? ref : [ref];
+  if (typeof a === "number") {
+    const node = document.createTextNode(String(a));
+    connect(node, parent);
+    return node;
   }
-  return [v as Node];
-}
-function inlineDiff(a: any[], b: any[], c: Comment | Node): Node[] {
-  const parent = c.parentElement;
-  if (!parent) return [];
-  const useVNode = isVNodeArray(a) || isVNodeArray(b);
-  if (useVNode) {
-    // vdiff operates structurally on realized top-level nodes of VNodes
-    vdiff(parent, a, b, c);
-    // Return realized future children (b) as Node[]
-    return b.flatMap(realizeVNodeToNodes);
+
+  if (typeof a === "boolean") {
+    const node = document.createComment(String(a));
+    connect(node, parent);
+    return node;
   }
-  return diff(
-    parent,
-    a as Node[],
-    b as Node[],
-    (e: Node, method: number) => {
-      if ((e as Node).reactiveChildren) {
-        if (method === -1) pendingDisconnections.push(e);
-        if (method === 1) pendingConnections.push(e);
-      } else if (method === -1) {
-        traverseReactiveChildren([e], (e2) => pendingDisconnections.push(e2));
+
+  if (a == null) {
+    const node = document.createComment("null");
+    connect(node, parent);
+    return node;
+  }
+
+  if (typeof a?.subscribe === "function") {
+    const b = a;
+    let value;
+    let anchor;
+    const unsub = b.subscribe((v) => {
+      console.log("up1");
+      value = v;
+      if (anchor) {
+        update(anchor);
       }
-      return e;
-    },
-    c,
-  ) as Node[];
+    });
+    a = (e) => {
+      anchor = e;
+      e.addEventListener("disconnect", () => {
+        unsub?.unsubscribe?.();
+      }, { once: true });
+      console.log("up2");
+      return value;
+    };
+  }
+
+  if (typeof a === "function") {
+    const anchor = document.createComment("$" + i++) as any as Anchor;
+    connect(anchor, parent);
+    anchor.__render_id = currentUpdateId;
+    anchor.__reactive_children = ([] as any[]).concat(build(a(anchor), parent));
+    buildRender(anchor, a);
+    return anchor;
+  }
+
+  connect(a, parent);
+  return a;
 }
 
-function setGlobalStyle(selector: string, declarations: string) {
-  const style = document.createElement("style");
-  style.type = "text/css";
-  style.appendChild(document.createTextNode(`${selector} { ${declarations} }`));
-  document.head.appendChild(style);
-}
-setGlobalStyle("[host]", "display:contents;");
+export const Fragment = Symbol("Fragment");
 
 export function createElement(
-  type: string | ComponentFactory | typeof Fragment,
-  props: Record<string, unknown> | null,
-  ...childrenRaw: Child[]
-) {
-  // Return a lightweight VNode with lazy realization through the ref getter.
-  const vnode: VNode = {
-    __v: true,
-    type,
-    props,
-    children: childrenRaw,
-    _node: null,
-    get ref(): Node | Node[] {
-      if (this._node) return this._node;
-      this._node = realize();
-      return this._node;
-    },
-  };
-
-  const realize = (): Node | Node[] => {
-    // Component (function)
-    if (typeof type === "function") {
-      let instance: Node[] | null = null;
-      // let childrenCache: Node[];
-      const host = document.createElement(type.name || "host");
-      host.setAttribute("host", "");
-      host.reactiveComponent = true;
-
-      host.appendChild(
-        createReactiveScope(
-          (e) => {
-            on.call(e, "disconnect", () => {
-              pendingDisconnections.push(host);
-            }, { once: true, capture: true });
-            if (!instance) {
-              let cachedProps: Record<string, unknown> | null = null;
-              const produced = (type as ComponentFactory).call(
-                host,
-                () =>
-                  cachedProps ??= {
-                    ...props,
-                    children: childrenRaw.flatMap(buildElement),
-                  },
-              );
-              const list: Child[] = Array.isArray(produced)
-                ? produced
-                : [produced];
-              instance = list.flatMap(buildElement);
-            }
-            return instance;
-          },
-        ),
-      );
-
-      pendingConnections.push(host);
-      return host;
-    }
-
-    // Fragment: flatten children into nodes
-    if (type === Fragment) {
-      return childrenRaw.flatMap(buildElement);
-    }
-
-    // String element
-    if (typeof type === "string") {
-      const element = document.createElement(type);
-      if (props) {
-        for (const key in props) {
-          const value = (props as Record<string, unknown>)[key];
-          if (!key.startsWith("on") && typeof value === "function") {
-            // placeholder for future reactive prop handling
-          } else {
-            (element as unknown as Record<string, unknown>)[key] = value;
-          }
+  type: string | Function,
+  props: null | Record<string, any>,
+  ...children: any[]
+): Node {
+  if (typeof type === "string") {
+    const element = document.createElement(type);
+    if (props) {
+      for (const key in props) {
+        const value = props[key];
+        if (key.startsWith("on")) {
+          element.addEventListener(key.substring(2), value);
+        } else if (typeof value === "function") {
+          setReactiveAttribute(element, key, value)(element);
+        } else {
+          element.setAttribute(key, value);
         }
       }
-      const builtChildren = childrenRaw.flatMap(buildElement);
-      try {
-        return element;
-      } finally {
-        render(builtChildren, element);
-      }
     }
+    build(children, element);
+    return element;
+  }
 
-    return document.createComment("NOT IMPLEMENTED");
-  };
+  if (typeof type === "function") {
+    const host = document.createElement("host") as any as ComponentHost;
+    host.__type = type;
+    // @TODO: figure out a better solution to this:
+    host.__props = props;
+    host.__component = (anchor) => {
+      try {
+        if (!host.__instance || props?.key !== host.__props?.key) {
+          host.__props = props;
+          return (host.__instance = type.call(host, () => ({
+            ...host.__props,
+            children,
+          })));
+        }
+        host.__props = props;
+        return host.__instance;
+      } catch (error) {
+        queueMicrotask(() => {
+          if (
+            host.dispatchEvent(
+              new ErrorEvent("error", {
+                error,
+                bubbles: true,
+                composed: true,
+                cancelable: true,
+              }),
+            )
+          ) {
+            console.error(type?.name, error);
+          }
+        });
+      }
+      return `(ERROR in ${type?.name})`;
+    };
+    return host;
+  }
 
-  return vnode as unknown as Node; // external code may still treat as Node-like
-}
+  if (type === Fragment) {
+    return props?.children || [];
+  }
 
-export function update(node: Node) {
-  node.dispatchEvent(new Event("update"));
-  traverseReactiveChildren(node.reactiveChildren ?? [node], (childScope) => {
-    childScope.dispatchEvent(new Event("update"));
-  });
-  node.dispatchEvent(new Event("request:update"));
+  return document.createTextNode("<UNHANDLED>");
 }
 
 export function createRoot(target: HTMLElement) {
   const out: { render(el: Child): Node; root: null | Node } = {
     render(el: Child) {
-      return (out.root = renderClient(el, target));
+      return (out.root = build(el, target));
     },
     root: null,
+    unmount() {
+      if (out.root) {
+        disconnect(out.root);
+        out.root = null;
+      }
+    },
   };
   return out;
 }
+
+export function update(target: Node) {
+  return target.dispatchEvent(new Event(updateEventId));
+}
+
+export function memo(fn: () => any, shouldMemo: () => boolean) {
+  return (anchor) => {
+    anchor.__memo = shouldMemo;
+    return fn(anchor);
+  };
+}
+
+// function Counter(this: HTMLElement, props: any) {
+//   let count = props().start || 0;
+//   console.log('render only once');
+//   return (
+//     <button
+//       style={() =>
+//         'color: #' +
+//         ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, '0')
+//       }
+//       onclick={() => {
+//         count++;
+//         this.dispatchEvent(new Event('update'));
+//       }}
+//     >
+//       {() => count}
+//     </button>
+//   );
+// }
+
+// function PassThru(this: HTMLElement, props: any) {
+//   console.log('FIRST');
+
+//   this.addEventListener('error', (e) => {
+//     console.log('ERROR????', e);
+//   });
+
+//   return <h1 style="color:orange">{() => props().children}</h1>;
+// }
+
+// function Child(this: HTMLElement, props: any) {
+//   throw new Error('poop');
+//   console.log('SECOND');
+//   return <i>Poop</i>;
+// }
+
+// function App(this: HTMLElement) {
+//   let count = 0;
+
+//   return (
+//     <div>
+//       <h1>Hello {() => (count % 2 ? 'world' : <i>Mars</i>)}!</h1>
+//       <h3>{() => Math.random()}</h3>
+//       <h3>{Math.random()}</h3>
+//       <div>
+//         {'A '}
+//         {() => {
+//           console.log('A1');
+//           const color =
+//             '#' +
+//             ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, '0');
+//           return [
+//             [
+//               [
+//                 [
+//                   [
+//                     String(count),
+//                     h(
+//                       'strong',
+//                       {
+//                         style: 'color:' + color,
+//                       },
+//                       ' B ',
+//                       color
+//                     ),
+//                   ],
+//                 ],
+//                 ' (',
+//                 () => (
+//                   console.log('A2'),
+//                   () => (console.log('A3'), count % 2 ? 'Hey' : null)
+//                 ),
+//                 ')',
+//               ],
+//               1,
+//             ],
+//           ];
+//         }}
+//       </div>
+//       <PassThru>
+//         A <Child /> B
+//       </PassThru>
+//       <button
+//         type="button"
+//         onclick={() => {
+//           count++;
+//           this.dispatchEvent(new Event('update'));
+//         }}
+//       >
+//         asd
+//       </button>
+//       <hr />
+//       {() => (
+//         console.log('EVERY TIME', count), (<Counter key={count} start={5} />)
+//       )}
+//       {memo(
+//         () => (
+//           console.log('EVERY SECOND', count),
+//           (<Counter key={count} start={5} />)
+//         ),
+//         () => count % 2
+//       )}
+//     </div>
+//   );
+// }
+
+// console.clear();
+// render(<App />, document.body);
