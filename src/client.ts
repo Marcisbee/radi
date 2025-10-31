@@ -39,12 +39,10 @@ function sendConnectEvent(target: Node) {
     return;
   }
   if (target.onconnect || target.__component || target.__reactive_children) {
-    queueMicrotask(() => {
-      if (!target.isConnected) {
-        return;
-      }
-      target.dispatchEvent(new Event("connect"));
-    });
+    if (!target.isConnected) {
+      return;
+    }
+    target.dispatchEvent(new Event("connect"));
   }
 }
 
@@ -53,13 +51,15 @@ function sendDisconnectEvent(target: Node) {
     return;
   }
   if (target.ondisconnect || target.__component || target.__reactive_children) {
-    queueMicrotask(() => {
-      target.dispatchEvent(new Event("disconnect"));
-    });
+    target.dispatchEvent(new Event("disconnect"));
   }
 }
 
 function sendUpdateEvent(target: Node) {
+  // Prevent duplicate dispatch within the same update cycle
+  if ((target as any).__update_id === currentUpdateId) {
+    return false;
+  }
   if (!target.isConnected) {
     return true;
   }
@@ -67,6 +67,7 @@ function sendUpdateEvent(target: Node) {
     target.onupdate || target.__component || target.__reactive_children ||
     target.__reactive_attributes
   ) {
+    (target as any).__update_id = currentUpdateId;
     return target.dispatchEvent(new Event("update", { cancelable: true }));
   }
   return true;
@@ -135,11 +136,19 @@ function connect(child: Node, parent: Node) {
 }
 
 function disconnect(child: Node) {
+  // Disconnect reactive children for comment anchors
   if (child?.nodeType === Node.COMMENT_NODE && "__reactive_children" in child) {
     for (const cc of child.__reactive_children || []) {
       disconnect(cc);
     }
+    if ("__tail" in child) (child as any).__tail = null;
+  }
 
+  // Disconnect reactive children for element component hosts
+  if (child?.nodeType === Node.ELEMENT_NODE && "__reactive_children" in child) {
+    for (const cc of child.__reactive_children || []) {
+      disconnect(cc);
+    }
     if ("__tail" in child) (child as any).__tail = null;
   }
 
@@ -150,17 +159,32 @@ function disconnect(child: Node) {
     return child;
   }
 
+  // Recursively disconnect DOM children for element nodes before removal
+  if (child.nodeType === Node.ELEMENT_NODE) {
+    const kids = Array.from(child.childNodes);
+    for (const k of kids) {
+      disconnect(k);
+    }
+    // Teardown attribute descriptors (unsubscribe reactive props/stores)
+    const descs = (child as any).__attr_descriptors;
+    if (descs) {
+      for (const [, desc] of descs) {
+        try {
+          desc.teardown?.();
+        } catch {
+          /* ignore teardown errors */
+        }
+      }
+      descs.clear?.();
+    }
+    (child as any).__reactive_attributes?.clear?.();
+  }
+
   (child as any).remove
     ? (child as any).remove()
     : child.parentNode?.removeChild(child);
-  // flushConnectionQueue();
 
   sendDisconnectEvent(child);
-  // child.dispatchEvent(new Event("disconnect"));
-  // for (const el of traverseReactiveChildren([child])) {
-  //   el.dispatchEvent(new Event("disconnect"));
-  // }
-
   return child;
 }
 
@@ -254,7 +278,15 @@ function createDescriptor(
         else applyGeneric(target, key, v);
       },
       teardown() {
-        sub?.unsubscribe?.();
+        if (typeof sub === 'function') {
+          try {
+            (sub as any)();
+          } catch {
+            /* ignore cleanup errors */
+          }
+        } else {
+          sub?.unsubscribe?.();
+        }
       },
     };
     el.setAttribute("_r", "");
@@ -298,9 +330,9 @@ function descriptorApply(el: HTMLElement, key: string) {
     desc.apply(el, desc.reactive ? v : undefined);
   } catch (error) {
     if (el.isConnected) {
-      bubbleError(error, el, 'attr:' + key);
+      bubbleError(error, el, "attr:" + key);
     } else {
-      queueMicrotask(() => bubbleError(error, el, 'attr:' + key));
+      queueMicrotask(() => bubbleError(error, el, "attr:" + key));
     }
   }
 }
@@ -672,6 +704,14 @@ function traverseReactiveChildren(scopes: Node[]) {
   const reactive: Anchor[] = [];
 
   for (const scope of scopes) {
+    // Include the scope itself if it is reactive (anchor, attributes, or component host)
+    if (
+      "__reactive_children" in scope || "__reactive_attributes" in scope ||
+      "__component" in scope
+    ) {
+      reactive.push(scope as any);
+    }
+
     const xpathResult = document.evaluate(
       ".//comment() | .//*[@_r] | .//host",
       scope,
@@ -749,7 +789,15 @@ function build(a: any, parent: Node): BuiltNode {
     a = (e: Node): unknown => {
       anchor = e;
       (e as Node).addEventListener?.("disconnect", () => {
-        (unsub as any)?.unsubscribe?.();
+        if (typeof unsub === 'function') {
+          try {
+            (unsub as any)();
+          } catch {
+            /* ignore cleanup errors */
+          }
+        } else {
+          (unsub as any)?.unsubscribe?.();
+        }
       }, { once: true });
       return value;
     };
@@ -829,11 +877,35 @@ export function createRoot(target: HTMLElement) {
   const out: Root = {
     render(el: Child): Node {
       try {
+        if (out.root) {
+          // Attempt component host reconciliation: same type + same key => reuse host
+            const oldHost = out.root as any;
+            const newHost = el as any;
+            if (
+              oldHost?.__type &&
+              newHost?.__type &&
+              oldHost.__type === newHost.__type &&
+              oldHost.__props?.key === newHost.__props?.key
+            ) {
+              oldHost.__props = newHost.__props;
+              update(oldHost);
+              return (out.root = oldHost);
+            }
+            // Different component type or key: full remount
+            disconnect(out.root);
+            out.root = build(el, target) as Node;
+            return out.root;
+        }
+        // First render for this root instance: clear any stray existing nodes
+        if (!out.root && target.firstChild) {
+          while (target.firstChild) target.removeChild(target.firstChild);
+        }
         return (out.root = build(el, target) as Node);
       } finally {
         flushConnectionQueue();
         if (
-          !el.__component && !el.__reactive_children && !el.__reactive_children
+          !el.__component && !el.__reactive_children &&
+          !el.__reactive_children
         ) {
           el.dispatchEvent(new Event("connect"));
         }
