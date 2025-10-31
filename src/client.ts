@@ -194,48 +194,92 @@ type AttrDescriptor = {
   get?: () => any;
   teardown?: () => void;
   apply: (el: HTMLElement, value: any) => void;
+  raw?: any; // original value for static descriptors to compare & skip redundant updates
 };
 
 function applyStyle(el: HTMLElement, v: any) {
+  // Change detection: avoid redundant DOM writes when value unchanged
   if (v == null) {
-    el.removeAttribute("style");
+    if (el.hasAttribute("style")) el.removeAttribute("style");
     return;
   }
   if (typeof v === "object") {
-    el.removeAttribute("style");
+    // For object styles, only write properties whose value changed
+    let wrote = false;
     for (const k in v) {
-      (el.style as any)[k] = v[k];
+      const next = v[k];
+      if ((el.style as any)[k] !== next) {
+        (el.style as any)[k] = next;
+        wrote = true;
+      }
     }
+    // If nothing changed, skip clearing/re-applying
+    if (!wrote) return;
     return;
   }
+  if (el.getAttribute("style") === v) return;
   el.setAttribute("style", v);
 }
 
 function applyClass(el: HTMLElement, v: any) {
   if (v == null) {
-    el.removeAttribute("class");
+    if (el.hasAttribute("class")) el.removeAttribute("class");
     return;
   }
   if (typeof v === "object") {
+    let changed = false;
     for (const cls in v) {
-      if (v[cls]) el.classList.add(cls);
-      else el.classList.remove(cls);
+      const shouldHave = !!v[cls];
+      const has = el.classList.contains(cls);
+      if (shouldHave && !has) {
+        el.classList.add(cls);
+        changed = true;
+      } else if (!shouldHave && has) {
+        el.classList.remove(cls);
+        changed = true;
+      }
     }
-    if (!el.getAttribute("class") && el.classList.length === 0) {
+    if (!changed && el.classList.length === 0 && el.hasAttribute("class")) {
       el.removeAttribute("class");
     }
     return;
   }
+  if (el.getAttribute("class") === v) return;
   el.setAttribute("class", v);
 }
 
 function applyGeneric(el: HTMLElement, key: string, v: any) {
+  // Special case: value property should sync element.value before attribute.
+  if (key === "value" && (el as any).value !== undefined) {
+    if (v == null || v === false) {
+      // Clear value when nullish/false
+      if ((el as any).value !== "") (el as any).value = "";
+      if (el.hasAttribute("value")) el.removeAttribute("value");
+      return;
+    }
+    const next = String(v);
+    // Update property if changed
+    if ((el as any).value !== next) {
+      (el as any).value = next;
+    }
+    // Keep attribute in sync only if different (some frameworks rely on initial attribute)
+    if (el.getAttribute("value") !== next) {
+      el.setAttribute("value", next);
+    }
+    return;
+  }
+
   if (v === true) {
-    el.setAttribute(key, "");
+    if (!el.hasAttribute(key) || el.getAttribute(key) !== "") {
+      el.setAttribute(key, "");
+    }
   } else if (v === false || v == null) {
-    el.removeAttribute(key);
+    if (el.hasAttribute(key)) el.removeAttribute(key);
   } else {
-    el.setAttribute(key, v);
+    const next = String(v);
+    if (el.getAttribute(key) !== next) {
+      el.setAttribute(key, next);
+    }
   }
 }
 
@@ -311,6 +355,7 @@ function createDescriptor(
   return {
     key,
     kind: key === "style" ? "style" : key === "class" ? "class" : "attr",
+    raw: value,
     apply(target) {
       if (key === "style") applyStyle(target, value);
       else if (key === "class") applyClass(target, value);
@@ -339,10 +384,26 @@ function descriptorApply(el: HTMLElement, key: string) {
 function mountDescriptor(el: HTMLElement, desc: AttrDescriptor) {
   el.__attr_descriptors ??= new Map();
   const existing = el.__attr_descriptors.get(desc.key);
+  // Skip if static & identical (no reactive behavior, same kind, same raw)
+  if (
+    existing &&
+    !existing.reactive &&
+    !desc.reactive &&
+    existing.kind === desc.kind &&
+    Object.is(existing.raw, desc.raw)
+  ) {
+    return; // no-op: attribute already represented
+  }
   if (existing) {
     existing.teardown?.();
-    if (existing.kind !== "event" && !desc.reactive) {
-      el.removeAttribute(existing.key);
+    if (existing.kind !== "event" && !existing.reactive) {
+      // Only remove if we are really changing descriptor; skip redundant churn
+      if (!desc.reactive) {
+        // Removal only necessary if upcoming raw differs (handled above) or descriptor kind changed
+        if (existing.kind !== desc.kind || !Object.is(existing.raw, desc.raw)) {
+          el.removeAttribute(existing.key);
+        }
+      }
     }
   }
   el.__attr_descriptors.set(desc.key, desc);
@@ -352,13 +413,25 @@ function mountDescriptor(el: HTMLElement, desc: AttrDescriptor) {
       desc.key,
       (node) => descriptorApply(node as HTMLElement, desc.key),
     );
-  } else {
-    if (el.__reactive_attributes?.has(desc.key)) {
-      el.__reactive_attributes.delete(desc.key);
-    }
+  } else if (el.__reactive_attributes?.has(desc.key)) {
+    el.__reactive_attributes.delete(desc.key);
   }
   if (desc.kind === "event") {
     desc.apply(el, undefined);
+  } else if (!desc.reactive) {
+    // For static descriptors, we already know if value changed; apply only if missing or different
+    if (
+      desc.kind === "event" ||
+      (desc.key === "class" && el.getAttribute("class") == null) ||
+      (desc.key === "style" && el.getAttribute("style") == null) ||
+      (desc.key !== "class" && desc.key !== "style" &&
+        el.getAttribute(desc.key) == null)
+    ) {
+      descriptorApply(el, desc.key);
+    } else if (desc.raw !== undefined) {
+      // If attribute exists but value may differ, descriptorApply will handle change detection
+      descriptorApply(el, desc.key);
+    }
   } else {
     descriptorApply(el, desc.key);
   }
