@@ -1,5 +1,3 @@
-const tasks = new Set<() => void>();
-
 // Type augmentations for custom reactive fields used on Node/HTMLElement
 declare global {
   interface Node {
@@ -33,7 +31,7 @@ function queueConnection(fn: Function) {
 }
 function flushConnectionQueue() {
   for (const task of connectQueue) task();
-  tasks.clear();
+  connectQueue.clear();
 }
 
 function sendConnectEvent(target: Node) {
@@ -124,7 +122,7 @@ function connect(child: Node, parent: Node) {
       if (!child.isConnected) {
         return;
       }
-      build((child.__component as any)?.(child), child);
+      build((child.__component as any)?.(), child);
       // queueMicrotask(() => {
       // child.dispatchEvent(new Event('connect'));
       // });
@@ -453,8 +451,8 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
           ) {
             // connectQueue.clear();
             replace(itemNew, itemOld);
-            build(itemNew.__component(itemNew), itemNew);
             // flushConnectionQueue();
+            build(itemNew.__component(), itemNew);
             arrayOut[ii] = itemNew;
             continue;
           }
