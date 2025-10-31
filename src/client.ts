@@ -148,14 +148,6 @@ function disconnect(child: Node) {
     if ("__tail" in child) child.__tail = null;
   }
 
-  // Disconnect reactive children for element component hosts
-  // if (child?.nodeType === Node.ELEMENT_NODE && "__reactive_children" in child) {
-  //   for (const cc of child.__reactive_children || []) {
-  //     disconnect(cc);
-  //   }
-  //   if ("__tail" in child) (child as any).__tail = null;
-  // }
-
   // Recursively disconnect DOM children for element nodes before removal
   if (child.nodeType === Node.ELEMENT_NODE) {
     // const kids = Array.from(child.childNodes);
