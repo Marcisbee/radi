@@ -855,10 +855,18 @@ export function update(target: Node) {
   // return target.dispatchEvent(new Event(updateEventId));
 }
 
-export function memo(fn: () => any, shouldMemo: () => boolean) {
+export function memo(fn: (anchor: Node) => any, shouldMemo: () => boolean) {
+  let cached: any;
+  let initialized = false;
   return (anchor: any) => {
+    // Attach skip predicate for reactive anchors
     (anchor as any).__memo = shouldMemo;
-    return fn(anchor);
+    // Recompute only if not initialized or predicate says "do not memo"
+    if (!initialized || !shouldMemo()) {
+      cached = fn(anchor);
+      initialized = true;
+    }
+    return cached;
   };
 }
 

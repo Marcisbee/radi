@@ -241,8 +241,13 @@ test("component memo prop + memo child remain independent", async () => {
 test("memo render error then recovery", async () => {
   let safe = false;
   let val = 0;
+  let errors = 0;
 
   const errMemo = memo((parent) => {
+    parent.addEventListener("error", (e) => {
+      e.preventDefault();
+      errors++;
+    }, { once: true });
     if (!safe) throw new Error("boom");
     return val++;
   }, () => false);
@@ -264,6 +269,8 @@ test("memo render error then recovery", async () => {
 
   update(root);
   assert.equal(div.getAttribute("data-val"), "1");
+
+  assert.equal(errors, 1);
 });
 
 await test.run();
