@@ -293,8 +293,16 @@ function descriptorApply(el: HTMLElement, key: string) {
   if (!map) return;
   const desc = map.get(key);
   if (!desc) return;
-  const v = desc.reactive ? desc.get?.() : undefined;
-  desc.apply(el, desc.reactive ? v : undefined);
+  try {
+    const v = desc.reactive ? desc.get?.() : undefined;
+    desc.apply(el, desc.reactive ? v : undefined);
+  } catch (error) {
+    if (el.isConnected) {
+      bubbleError(error, el, 'attr:' + key);
+    } else {
+      queueMicrotask(() => bubbleError(error, el, 'attr:' + key));
+    }
+  }
 }
 
 function mountDescriptor(el: HTMLElement, desc: AttrDescriptor) {
@@ -360,12 +368,31 @@ declare global {
   }
 }
 
+function bubbleError(error: any, target: Node, name?: string) {
+  if (
+    target.dispatchEvent(
+      new ErrorEvent("error", {
+        error,
+        bubbles: true,
+        composed: true,
+        cancelable: true,
+      }),
+    )
+  ) {
+    console.error(name || target, error);
+  }
+}
+
 function buildRender(parent: Anchor, fn: (parent: Anchor) => any) {
   parent.__render = () => {
     (parent as any).__tail = parent;
-    parent.__reactive_children = ([] as any[]).concat(
-      diff(parent.__reactive_children, fn(parent), parent),
-    );
+    try {
+      parent.__reactive_children = ([] as any[]).concat(
+        diff(parent.__reactive_children, fn(parent), parent),
+      );
+    } catch (error) {
+      bubbleError(error, parent);
+    }
   };
 }
 
@@ -385,14 +412,15 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
     const itemOld = arrayOld[ii];
 
     if (itemOld === undefined) {
+      // connectQueue.clear();
       arrayOut[ii] = build(itemNew, parent);
+      flushConnectionQueue();
       continue;
     }
 
     if (Array.isArray(itemOld)) {
       if (Array.isArray(itemNew)) {
-        const output = diff(itemOld, itemNew, parent);
-        arrayOut[ii] = Array.isArray(output) ? output : [output];
+        arrayOut[ii] = diff(itemOld, itemNew, parent);
         continue;
       }
     }
@@ -690,10 +718,16 @@ function build(a: any, parent: Node): BuiltNode {
     // const anchor = document.createComment("$" + i++) as any as Anchor;
     connect(anchor, parent);
     anchor.__render_id = currentUpdateId;
-    const built = build(a(anchor), parent);
-    anchor.__reactive_children = Array.isArray(built)
-      ? (built as Node[])
-      : [built as Node];
+    try {
+      const built = build(a(anchor), parent);
+      anchor.__reactive_children = Array.isArray(built)
+        ? (built as Node[])
+        : [built as Node];
+    } catch (error) {
+      // Bubble errors thrown during initial reactive generator execution
+      bubbleError(error, anchor);
+      anchor.__reactive_children = [];
+    }
     buildRender(anchor, a);
     return anchor;
   }
@@ -730,22 +764,9 @@ export function createElement(
         }
         return host.__instance;
       } catch (error) {
-        queueMicrotask(() => {
-          if (
-            host.dispatchEvent(
-              new ErrorEvent("error", {
-                error,
-                bubbles: true,
-                composed: true,
-                cancelable: true,
-              }),
-            )
-          ) {
-            console.error(type?.name, error);
-          }
-        });
+        bubbleError(error, host, type?.name);
       }
-      return `(ERROR in ${type?.name})`;
+      return `ERROR:${type?.name}`;
     };
     return host;
   }
