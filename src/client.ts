@@ -427,6 +427,12 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
 
     if (itemOld === itemNew) {
       arrayOut[ii] = itemOld;
+      if (
+        parent.nodeType === Node.COMMENT_NODE ||
+        parent.nodeType === Node.TEXT_NODE
+      ) {
+        (parent as any).__tail = itemOld;
+      }
       continue;
     }
 
@@ -439,6 +445,12 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
         // Handled by updater(...)
         buildRender(itemOld, itemNew);
         arrayOut[ii] = itemOld;
+        if (
+          parent.nodeType === Node.COMMENT_NODE ||
+          parent.nodeType === Node.TEXT_NODE
+        ) {
+          (parent as any).__tail = itemOld;
+        }
         continue;
       }
 
@@ -448,6 +460,12 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
       ) {
         // Handled by updater(...)
         arrayOut[ii] = itemOld;
+        if (
+          parent.nodeType === Node.COMMENT_NODE ||
+          parent.nodeType === Node.TEXT_NODE
+        ) {
+          (parent as any).__tail = itemOld;
+        }
         continue;
       }
     }
@@ -456,12 +474,24 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
       if (typeof itemNew === "string" || typeof itemNew === "number") {
         itemOld.nodeValue = itemNew;
         arrayOut[ii] = itemOld;
+        if (
+          parent.nodeType === Node.COMMENT_NODE ||
+          parent.nodeType === Node.TEXT_NODE
+        ) {
+          (parent as any).__tail = itemOld;
+        }
         continue;
       }
 
       if (itemNew?.nodeType === Node.TEXT_NODE) {
         itemOld.nodeValue = itemNew.nodeValue;
         arrayOut[ii] = itemOld;
+        if (
+          parent.nodeType === Node.COMMENT_NODE ||
+          parent.nodeType === Node.TEXT_NODE
+        ) {
+          (parent as any).__tail = itemOld;
+        }
         continue;
       }
     }
@@ -489,6 +519,12 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
           itemOld.__component = itemNew.__component;
           // buildRender(itemOld as any, itemOld.__component);
           arrayOut[ii] = itemOld;
+          if (
+            parent.nodeType === Node.COMMENT_NODE ||
+            parent.nodeType === Node.TEXT_NODE
+          ) {
+            (parent as any).__tail = itemOld;
+          }
           continue;
         }
 
@@ -505,6 +541,12 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
         );
 
         arrayOut[ii] = itemOld;
+        if (
+          parent.nodeType === Node.COMMENT_NODE ||
+          parent.nodeType === Node.TEXT_NODE
+        ) {
+          (parent as any).__tail = itemOld;
+        }
         continue;
       }
 
