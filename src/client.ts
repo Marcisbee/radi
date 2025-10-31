@@ -922,9 +922,9 @@ export function update(target: Node) {
 export function memo(fn: (anchor: Node) => any, shouldMemo: () => boolean) {
   let cached: any;
   let initialized = false;
-  return (anchor: any) => {
+  return (anchor: Node) => {
     // Attach skip predicate for reactive anchors
-    (anchor as any).__memo = shouldMemo;
+    anchor.__memo = shouldMemo;
     // Recompute only if not initialized or predicate says "do not memo"
     if (!initialized || !shouldMemo()) {
       cached = fn(anchor);
