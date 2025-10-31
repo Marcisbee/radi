@@ -1,4 +1,4 @@
-import { createElement, update } from "./client.ts";
+import { createAbortSignal, createElement, update } from "./client.ts";
 
 /**
  * Dispatch a fresh "suspend" event from a descendant node.
@@ -40,8 +40,9 @@ export function unsuspend(target: Node): boolean {
  */
 export function Suspense(
   this: HTMLElement,
-  props: JSX.PropsWithChildren<{ fallback: JSX.Element }>,
+  props: JSX.PropsWithChildren<{ fallback: () => JSX.Element }>,
 ) {
+  const signal = createAbortSignal(this);
   // Track number of active suspensions.
   let pending = 0;
   // Start by assuming children should render; suspend events may arrive during child build.
@@ -52,7 +53,7 @@ export function Suspense(
     e.stopPropagation();
     if (pending === 0 && showChildren) {
       showChildren = false;
-      update(this);
+        update(this);
     }
     pending++;
   };
@@ -63,41 +64,19 @@ export function Suspense(
     if (pending > 0) pending--;
     if (pending === 0 && !showChildren) {
       showChildren = true;
-      update(this);
+        update(this);
     }
   };
 
-  this.addEventListener("update", (e) => {
-    e.preventDefault();
-    for (const child of this.children) {
-      if (child?.isConnected) {
-        update(child);
-      }
-    }
-  });
-  this.addEventListener("suspend", onSuspend);
-  this.addEventListener("unsuspend", onUnsuspend);
-  this.addEventListener(
-    "disconnect",
-    () => {
-      this.removeEventListener("suspend", onSuspend);
-      this.removeEventListener("unsuspend", onUnsuspend);
-    },
-    { once: true },
-  );
+  this.addEventListener("suspend", onSuspend, { signal });
+  this.addEventListener("unsuspend", onUnsuspend, { signal });
 
-  return () => {
-    if (!showChildren) {
-      return [
-        createElement(
-          "suspended",
-          { style: { display: "none" } },
-          props().children,
-        ),
-        props().fallback,
-      ];
-    }
+  const template = createElement("suspense", {
+    style: () => ({ display: (showChildren ? "contents" : "none") }),
+  }, () => props().children);
 
-    return [props().children];
-  };
+  return [
+    template,
+    () => showChildren ? null : props().fallback(),
+  ];
 }

@@ -36,7 +36,7 @@ function DelayedChild100(this: HTMLElement) {
 
 test("fallback-unsuspends-child", async () => {
   const root = await mount(
-    <Suspense fallback={<strong>Loading...</strong>}>
+    <Suspense fallback={() => <strong>Loading...</strong>}>
       <DelayedChild100 /> Extra
     </Suspense>,
     document.body,
@@ -137,7 +137,7 @@ function Resuspender(this: HTMLElement) {
 
 test("renders-immediate", async () => {
   const root = await mount(
-    <Suspense fallback={<strong className="fallback">Loading</strong>}>
+    <Suspense fallback={() => <strong className="fallback">Loading</strong>}>
       <ImmediateChild />
     </Suspense>,
     document.body,
@@ -148,7 +148,7 @@ test("renders-immediate", async () => {
 
 test("multi-stagger", async () => {
   const root = await mount(
-    <Suspense fallback={<strong className="fallback">Wait</strong>}>
+    <Suspense fallback={() => <strong className="fallback">Wait</strong>}>
       <DelayedChild label="a" delay={50} />
       <DelayedChild label="b" delay={80} />
     </Suspense>,
@@ -167,7 +167,7 @@ test("multi-stagger", async () => {
 
 test("never-unsuspends", async () => {
   const root = await mount(
-    <Suspense fallback={<strong className="fallback">Hold</strong>}>
+    <Suspense fallback={() => <strong className="fallback">Hold</strong>}>
       <NeverUnsuspendChild />
     </Suspense>,
     document.body,
@@ -180,7 +180,7 @@ test("never-unsuspends", async () => {
 
 test("error-keeps-fallback", async () => {
   const root = await mount(
-    <Suspense fallback={<strong className="fallback">Err</strong>}>
+    <Suspense fallback={() => <strong className="fallback">Err</strong>}>
       <ErrorChild />
     </Suspense>,
     document.body,
@@ -193,7 +193,7 @@ test("error-keeps-fallback", async () => {
 
 test("mixed-delays", async () => {
   const root = await mount(
-    <Suspense fallback={<strong className="fallback">Mix</strong>}>
+    <Suspense fallback={() => <strong className="fallback">Mix</strong>}>
       <ImmediateChild />
       <DelayedChild label="slow" delay={70} />
     </Suspense>,
@@ -217,7 +217,7 @@ test("mixed-delays", async () => {
 
 test("can-resuspend", async () => {
   const root = await mount(
-    <Suspense fallback={<strong className="fallback">Phase</strong>}>
+    <Suspense fallback={() => <strong className="fallback">Phase</strong>}>
       <Resuspender />
     </Suspense>,
     document.body,
