@@ -56,15 +56,14 @@ test("render parent", async () => {
 
   assert.snapshot.html(
     container,
-    `<radi-host style="display: contents;">
+    `<host>
       <button>
-        <!--(-->
-          <span>#A</span>
-          <span>#B</span>
-          <span>#C</span>
-        <!--)-->
+        <!--$-->
+        <span>#A</span>
+        <span>#B</span>
+        <span>#C</span>
       </button>
-    </radi-host>`,
+    </host>`,
   );
 });
 
@@ -73,13 +72,13 @@ test("render child", async () => {
 
   assert.snapshot.html(
     container,
-    `<radi-host style="display: contents;">
+    `<host>
       <button>
-        <span>#<!--(-->A<!--)--></span>
-        <span>#<!--(-->B<!--)--></span>
-        <span>#<!--(-->C<!--)--></span>
+        <span>#<!--$-->A</span>
+        <span>#<!--$-->B</span>
+        <span>#<!--$-->C</span>
       </button>
-    </radi-host>`,
+    </host>`,
   );
 });
 
@@ -88,15 +87,14 @@ test("render both", async () => {
 
   assert.snapshot.html(
     container,
-    `<radi-host style="display: contents;">
+    `<host>
       <button>
-        <!--(-->
-          <span>#<!--(-->A<!--)--></span>
-          <span>#<!--(-->B<!--)--></span>
-          <span>#<!--(-->C<!--)--></span>
-        <!--)-->
+        <!--$-->
+        <span>#<!--$-->A</span>
+        <span>#<!--$-->B</span>
+        <span>#<!--$-->C</span>
       </button>
-    </radi-host>`,
+    </host>`,
   );
 });
 
@@ -107,15 +105,14 @@ test("mutate parent", async () => {
 
   assert.snapshot.html(
     container,
-    `<radi-host style="display: contents;">
+    `<host>
       <button>
-        <!--(-->
-          <span>#C</span>
-          <span>#B</span>
-          <span>#A</span>
-        <!--)-->
+        <!--$-->
+        <span>#C</span>
+        <span>#B</span>
+        <span>#A</span>
       </button>
-    </radi-host>`,
+    </host>`,
   );
 
   await Promise.resolve();
@@ -129,13 +126,13 @@ test("mutate child", async () => {
 
   assert.snapshot.html(
     container,
-    `<radi-host style="display: contents;">
+    `<host>
       <button>
-        <span>#<!--(-->A<!--)--></span>
-        <span>#<!--(-->B<!--)--></span>
-        <span>#<!--(-->C<!--)--></span>
+        <span>#<!--$-->A</span>
+        <span>#<!--$-->B</span>
+        <span>#<!--$-->C</span>
       </button>
-    </radi-host>`,
+    </host>`,
   );
 
   await Promise.resolve();
@@ -149,19 +146,18 @@ test("mutate both", async () => {
 
   assert.snapshot.html(
     container,
-    `<radi-host style="display: contents;">
+    `<host>
       <button>
-        <!--(-->
-          <span>#<!--(-->C<!--)--></span>
-          <span>#<!--(-->B<!--)--></span>
-          <span>#<!--(-->A<!--)--></span>
-        <!--)-->
+        <!--$-->
+        <span>#<!--$-->C</span>
+        <span>#<!--$-->B</span>
+        <span>#<!--$-->A</span>
       </button>
-    </radi-host>`,
+    </host>`,
   );
 
   await Promise.resolve();
-  assert.deepEqual(trace, ["A", "B", "C", "C", "B", "A", "A", "B", "C"]);
+  assert.deepEqual(trace, ["A", "B", "C", "C", "B", "A"]);
 });
 
 await test.run();
