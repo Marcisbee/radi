@@ -408,9 +408,9 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
       itemOld.nodeType === Node.COMMENT_NODE &&
       "__reactive_children" in itemOld
     ) {
+      itemOld.__render_id = itemNew.__render_id;
       if (typeof itemNew === "function") {
         // Handled by updater(...)
-        // Removed redundant self-assignment of __memo
         buildRender(itemOld, itemNew);
         arrayOut[ii] = itemOld;
         continue;
@@ -446,6 +446,7 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
         itemOld.nodeName === itemNew.nodeName
       ) {
         if (itemNew.__component) {
+          itemOld.__render_id = itemNew.__render_id;
           if (
             itemOld.__props?.key !== itemNew.__props?.key ||
             itemOld.__type !== itemNew.__type
@@ -482,6 +483,7 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
       }
 
       if (itemNew?.nodeType === Node.ELEMENT_NODE) {
+        itemOld.__render_id = itemNew.__render_id;
         replace(itemNew, itemOld);
         arrayOut[ii] = itemNew;
         continue;
@@ -540,7 +542,6 @@ function runUpdate(target: Node) {
 }
 
 function updater(target: Node) {
-  currentUpdateId += 1;
   // console.log("UPDATE", currentUpdateId, target);
 
   if (!runUpdate(target)) {
@@ -576,6 +577,7 @@ updateTarget.addEventListener(
   "update",
   (e) => {
     e.stopImmediatePropagation();
+    currentUpdateId += 1;
     connectQueue.clear();
     const node = (e as any).node;
     if (node instanceof Node) {
@@ -611,7 +613,10 @@ function traverseReactiveChildren(scopes: Node[]) {
     );
     let node = xpathResult.iterateNext();
     while (node) {
-      if ("__reactive_children" in node || "__reactive_attributes" in node || "__component" in node) {
+      if (
+        "__reactive_children" in node || "__reactive_attributes" in node ||
+        "__component" in node
+      ) {
         reactive.push(node as any);
       }
       node = xpathResult.iterateNext();
@@ -766,7 +771,11 @@ export function createRoot(target: HTMLElement) {
         return (out.root = build(el, target) as Node);
       } finally {
         flushConnectionQueue();
-        el.dispatchEvent(new Event("connect"));
+        if (
+          !el.__component && !el.__reactive_children && !el.__reactive_children
+        ) {
+          el.dispatchEvent(new Event("connect"));
+        }
       }
     },
     root: null,
