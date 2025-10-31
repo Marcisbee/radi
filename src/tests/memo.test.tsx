@@ -4,7 +4,8 @@ import { memo, update } from "../client.ts";
 
 function Memo6() {
   let i = 0;
-  return () => <span>Memo6:{memo(() => i++, () => false)}</span>;
+  const memod = memo(() => i++, () => false);
+  return () => <span>Memo6:{memod}</span>;
 }
 
 function Memo5() {
@@ -14,7 +15,8 @@ function Memo5() {
 
 function Memo4() {
   let i = 0;
-  return () => <span>Memo4:{memo(() => i++, () => true)}</span>;
+  const memod = memo(() => i++, () => true);
+  return () => <span>Memo4:{memod}</span>;
 }
 
 function Memo3() {
