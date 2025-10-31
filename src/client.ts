@@ -502,7 +502,6 @@ function buildRender(parent: Anchor, fn: (parent: Anchor) => any) {
 
 function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
   if (parent.__render_id === currentUpdateId) {
-    // Already processed this branch for this update; return the last known children if tracked
     return (parent.__reactive_children as Node[]) || [];
   }
 
@@ -510,23 +509,41 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
   const arrayNew = Array.isArray(valueNew) ? valueNew : [valueNew];
   const arrayOut = Array(arrayNew.length);
 
+  // Build map of old keyed nodes (elements or component hosts)
+  const keyedOld = new Map<any, Node>();
+  const consumed = new Set<Node>();
+  for (const o of arrayOld) {
+    const key = o?.__props?.key ?? o?.__raw_props?.key;
+    if (key !== undefined) keyedOld.set(key, o);
+  }
+
   let i = 0;
   for (const itemNew of arrayNew) {
     const ii = i++;
-    const itemOld = arrayOld[ii];
+    let itemOld = arrayOld[ii];
+
+    // If new item has a key, prefer matching old keyed node (even if at different index)
+    const keyNew = itemNew?.__props?.key ?? itemNew?.__raw_props?.key;
+    let consumedByKey = false;
+    if (keyNew !== undefined && keyedOld.has(keyNew)) {
+      itemOld = keyedOld.get(keyNew)!;
+      consumed.add(itemOld);
+      consumedByKey = true;
+    }
+    // If index fallback points at a node already consumed by a different keyed position, treat as missing
+    if (!consumedByKey && itemOld && consumed.has(itemOld)) {
+      itemOld = undefined as any;
+    }
 
     if (itemOld === undefined) {
-      // connectQueue.clear();
       arrayOut[ii] = build(itemNew, parent);
       flushConnectionQueue();
       continue;
     }
 
-    if (Array.isArray(itemOld)) {
-      if (Array.isArray(itemNew)) {
-        arrayOut[ii] = diff(itemOld, itemNew, parent);
-        continue;
-      }
+    if (Array.isArray(itemOld) && Array.isArray(itemNew)) {
+      arrayOut[ii] = diff(itemOld, itemNew, parent);
+      continue;
     }
 
     if (itemOld === itemNew) {
@@ -541,12 +558,10 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
     }
 
     if (
-      itemOld.nodeType === Node.COMMENT_NODE &&
-      "__reactive_children" in itemOld
+      itemOld.nodeType === Node.COMMENT_NODE && "__reactive_children" in itemOld
     ) {
       itemOld.__render_id = itemNew.__render_id;
       if (typeof itemNew === "function") {
-        // Handled by updater(...)
         buildRender(itemOld, itemNew);
         arrayOut[ii] = itemOld;
         if (
@@ -562,7 +577,6 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
         itemNew.nodeType === Node.COMMENT_NODE &&
         "__reactive_children" in itemNew
       ) {
-        // Handled by updater(...)
         arrayOut[ii] = itemOld;
         if (
           parent.nodeType === Node.COMMENT_NODE ||
@@ -611,8 +625,6 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
             itemOld.__props?.key !== itemNew.__props?.key ||
             itemOld.__type !== itemNew.__type
           ) {
-            // connectQueue.clear();
-            // flushConnectionQueue();
             build(itemNew.__component(), itemNew);
             replace(itemNew, itemOld);
             arrayOut[ii] = itemNew;
@@ -621,14 +633,15 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
 
           itemOld.__props = itemNew.__props;
           itemOld.__component = itemNew.__component;
-          // buildRender(itemOld as any, itemOld.__component);
           arrayOut[ii] = itemOld;
+
           if (
             parent.nodeType === Node.COMMENT_NODE ||
             parent.nodeType === Node.TEXT_NODE
           ) {
             (parent as any).__tail = itemOld;
           }
+
           continue;
         }
 
@@ -660,14 +673,8 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
         arrayOut[ii] = itemNew;
         continue;
       }
-
-      // arrayOut[ii] = build(itemNew, parent);
-      // disconnect(itemOld);
-      // continue;
     }
 
-    // console.warn('DANGER', { itemNew, itemOld });
-    // For reactive anchor parents, preserve relative ordering on replacement
     if (
       (parent.nodeType === Node.COMMENT_NODE ||
         parent.nodeType === Node.TEXT_NODE) &&
@@ -681,11 +688,61 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
     }
 
     arrayOut[ii] = build(itemNew, parent);
-    disconnect(itemOld);
+    if (itemOld && itemOld !== arrayOut[ii]) {
+      // Only disconnect if we truly replaced with a different instance
+      disconnect(itemOld);
+    }
   }
 
-  for (const toRemove of arrayOld.slice(arrayNew.length)) {
-    disconnect(toRemove);
+  // Remove any old nodes not reused (account for nested array fragments)
+  const flatten = (arr: any[]): Node[] =>
+    arr.flatMap((v) => Array.isArray(v) ? flatten(v) : [v]).filter((n) =>
+      n && (n as any).nodeType
+    ) as Node[];
+  const usedNodes = new Set(flatten(arrayOut));
+  for (const old of arrayOld) {
+    // Skip array wrappers (their children may be reused individually)
+    if (Array.isArray(old)) continue;
+    if (!usedNodes.has(old)) {
+      disconnect(old);
+    }
+  }
+
+  // Ensure DOM order matches arrayOut when parent is a normal element node
+  if (parent.nodeType === Node.ELEMENT_NODE) {
+    const ordered = flatten(arrayOut).filter((n) =>
+      n.isConnected && n.parentNode === parent
+    );
+    let prev: Node | null = null;
+    for (const child of ordered) {
+      if (prev === null) {
+        if (child !== parent.firstChild) {
+          parent.insertBefore(child, parent.firstChild);
+        }
+      } else if (prev.nextSibling !== child) {
+        parent.insertBefore(child, prev.nextSibling);
+      }
+      prev = child;
+    }
+  } else if (
+    parent.nodeType === Node.COMMENT_NODE ||
+    parent.nodeType === Node.TEXT_NODE
+  ) {
+    // Reactive anchor parent: reorder sibling nodes after the anchor
+    const container = parent.parentNode;
+    if (container) {
+      const ordered = flatten(arrayOut).filter((n) =>
+        n.isConnected && n.parentNode === container
+      );
+      let base: Node = parent;
+      for (const child of ordered) {
+        if (child.parentNode !== container) continue;
+        if (base.nextSibling !== child) {
+          container.insertBefore(child, base.nextSibling);
+        }
+        base = child;
+      }
+    }
   }
 
   return arrayOut;

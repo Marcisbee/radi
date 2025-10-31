@@ -719,7 +719,7 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
 }
 
 function Item(this: HTMLElement, props: JSX.Props<{ id: number }>) {
-  console.log("OPENED", props().id)
+  console.log("OPENED", props().id);
   return <span className="item-span">#{() => props().id}</span>;
 }
 

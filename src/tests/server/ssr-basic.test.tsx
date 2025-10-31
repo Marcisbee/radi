@@ -133,8 +133,8 @@ test("ssr: nested components & fragment", () => {
   includes(html, "frag-part");
   includes(html, "<i>italic</i>");
   includes(html, "<footer>Footer</footer>");
-  const count = html.split('<radi-host style="display: contents;">').length - 1;
-  assert.equal(count >= 3, true, "Expected multiple component wrappers");
+  const count = html.split("<host>").length - 1;
+  assert.equal(count >= 3, true, "Expected multiple component wrappers (host)");
 });
 
 test("ssr: fragment top-level wrapper", () => {
@@ -147,11 +147,11 @@ test("ssr: fragment top-level wrapper", () => {
       h("strong", null, "c"),
     ),
   );
-  includes(html, "<!--(-->");
+  notIncludes(html, "<!--(-->");
+  notIncludes(html, "<!--)-->");
   includes(html, "<em>a</em>");
   includes(html, "b");
   includes(html, "<strong>c</strong>");
-  includes(html, "<!--)-->");
 });
 
 test("ssr: attribute escaping", () => {
@@ -162,12 +162,12 @@ test("ssr: attribute escaping", () => {
   includes(html, ">x</div>");
 });
 
-test("ssr: subscribable one-shot sampling (ignores second emission)", () => {
+test("ssr: subscribable one-shot sampling (renders first emission only)", () => {
   const html = renderToStringRoot(
     h("section", null, multiShot("first", "second")),
   );
   includes(html, "<section>");
-  notIncludes(html, "first");
+  includes(html, "first");
   assert.equal(
     html.includes("second"),
     false,
@@ -179,8 +179,8 @@ test("ssr: component error fallback marker", () => {
   const html = renderToStringRoot(
     h("div", null, h(ErrorComponent, null)),
   );
-  includes(html, '<radi-host style="display: contents;">');
-  includes(html, "component-error");
+  includes(html, "<host>ERROR:ErrorComponent</host>");
+  notIncludes(html, "<radi-host");
 });
 
 test("ssr: boolean and null markers inside component", () => {
@@ -206,7 +206,7 @@ test("ssr: mixed types & component chain", () => {
   );
   includes(html, "<main>");
   includes(html, "mix");
-  notIncludes(html, "sub-value");
+  includes(html, "sub-value");
   includes(html, "tail");
   includes(html, "</main>");
 });

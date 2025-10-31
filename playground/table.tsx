@@ -1,4 +1,4 @@
-import { createRoot, Fragment, update, memo } from "../src/client.ts";
+import { createRoot, Fragment, memo, update } from "../src/client.ts";
 
 // --- Data sources ---
 const adjectives = [
@@ -275,11 +275,12 @@ function Table(this: HTMLElement) {
               <td className="col-md-6"></td>
             </tr>
           )), () => {
-            const changed = lastItemCountStatic !== rows.length;
-            lastItemCountStatic = rows.length;
-            return !changed;
-          })}
-        {/*{rows.map((item) => (
+          const changed = lastItemCountStatic !== rows.length;
+          lastItemCountStatic = rows.length;
+          return !changed;
+        })}
+        {
+          /*{rows.map((item) => (
           <tr
             // key={String(item.id)}
             id={String(item.id)}
@@ -300,7 +301,8 @@ function Table(this: HTMLElement) {
             </td>
             <td className="col-md-6"></td>
           </tr>
-        ))}*/}
+        ))}*/
+        }
       </tbody>
     </table>
   );

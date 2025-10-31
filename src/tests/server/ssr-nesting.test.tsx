@@ -107,8 +107,13 @@ test("ssr: deep nested components & primitives", () => {
   includes(html, '<section id="app">');
   includes(html, "</section>");
 
-  // Component wrappers
-  atLeast(html, '<radi-host style="display: contents;">', 3);
+  // Component wrappers (client parity host tags)
+  const hostWrapperCount = html.split("<host>").length - 1;
+  assert.equal(
+    hostWrapperCount >= 3,
+    true,
+    `Expected multiple component host wrappers, found ${hostWrapperCount}`,
+  );
 
   // Leaf + middle content
   includes(html, "Header:root");
@@ -116,15 +121,16 @@ test("ssr: deep nested components & primitives", () => {
   includes(html, "root-alt");
   includes(html, "<footer>Footer</footer>");
 
-  // Fragment + inner italic
-  includes(html, "<!--(-->");
+  // Fragment + inner italic (no fragment boundary comments in parity)
+  notIncludes(html, "<!--(-->");
+  notIncludes(html, "<!--)-->");
   includes(html, "frag-part");
   includes(html, "<i>italic</i>");
 
-  // Subscribable one-shot insertion
-  notIncludes(html, "store-value");
+  // Subscribable one-shot insertion (no value sampling)
+  includes(html, "store-value");
 
-  // Boolean/null markers: flag=true yields only true + null (no false)
+  // Boolean/null markers: flag=true yields true + null
   includes(html, "<!--true-->");
   includes(html, "<!--null-->");
 });
@@ -139,13 +145,13 @@ test("ssr: subscribable inside fragment sibling structure", () => {
     ),
   );
 
-  notIncludes(html, "first-layer");
+  includes(html, "first-layer");
   includes(html, "deep");
   includes(html, "&lt;raw&gt;"); // escaped extra value
   // Explicit extra provided; 'no-extra' placeholder should not appear
 });
 
-test("ssr: component error surfaces marker", () => {
+test("ssr: component error surfaces marker (client parity ERROR:Name)", () => {
   function Bad(_p: () => Record<string, unknown>) {
     throw new Error("explode");
   }
@@ -159,8 +165,9 @@ test("ssr: component error surfaces marker", () => {
     ),
   );
 
-  includes(html, '<radi-host style="display: contents;">');
-  includes(html, "component-error");
+  includes(html, "<host>ERROR:Bad</host>");
+  notIncludes(html, "component-error");
+  notIncludes(html, "<radi-host");
   includes(html, "final");
 });
 
@@ -177,7 +184,14 @@ test("ssr: mixed nesting with multiple fragments & components", () => {
   includes(html, 'data-leaf="A"');
   includes(html, 'data-leaf="B"');
   includes(html, "Header:C");
-  atLeast(html, '<radi-host style="display: contents;">', 3);
+  // Host wrappers parity (no radi-host)
+  const hostWrapperCount = html.split("<host>").length - 1;
+  assert.equal(
+    hostWrapperCount >= 3,
+    true,
+    `Expected >=3 host wrappers, found ${hostWrapperCount}`,
+  );
+  notIncludes(html, "<radi-host");
 });
 
 test("ssr: ensure no second emission from multi-shot pattern", () => {
@@ -190,7 +204,7 @@ test("ssr: ensure no second emission from multi-shot pattern", () => {
   const html = renderToStringRoot(
     h("div", null, multi),
   );
-  notIncludes(html, "once");
+  includes(html, "once");
   notIncludes(html, "twice");
 });
 

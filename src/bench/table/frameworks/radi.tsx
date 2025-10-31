@@ -1,7 +1,13 @@
 /** @jsxRuntime classic */
 /** @jsx createElement */
 /** @jsxFrag Fragment */
-import { createRoot, update, memo, createElement, Fragment } from "../../../client.ts";
+import {
+  createElement,
+  createRoot,
+  Fragment,
+  memo,
+  update,
+} from "../../../client.ts";
 
 // --- Data sources ---
 export const adjectives = [
@@ -290,10 +296,10 @@ export function Table(this: HTMLElement) {
               <td className="col-md-6"></td>
             </tr>
           )), () => {
-            const changed = len !== rows.length;
-            len = rows.length;
-            return !changed;
-          })}
+          const changed = len !== rows.length;
+          len = rows.length;
+          return !changed;
+        })}
       </tbody>
     </table>
   );

@@ -138,7 +138,7 @@ export function mount() {
     let storedMultiplier = 0;
     let currentMultiplier = 0;
     let currentScopeIndex = 0;
-    for (; currentWalkIndex < walkCodes.length; ) {
+    for (; currentWalkIndex < walkCodes.length;) {
       value = walkCodes.charCodeAt(currentWalkIndex++);
       currentMultiplier = storedMultiplier;
       storedMultiplier = 0;
@@ -147,15 +147,16 @@ export function mount() {
         scope[getDebugKey(currentScopeIndex, walker.currentNode)] = node;
         scope[
           "Getter:" /* Getter */ +
-            getDebugKey(currentScopeIndex++, walker.currentNode)
+          getDebugKey(currentScopeIndex++, walker.currentNode)
         ] = () => node;
       } else if (
         value === 37 /* Replace */ ||
         value === 49 /* DynamicTagWithVar */
       ) {
         walker.currentNode.replaceWith(
-          (walker.currentNode = scope[getDebugKey(currentScopeIndex++, "#text")] =
-            new Text()),
+          walker.currentNode =
+            scope[getDebugKey(currentScopeIndex++, "#text")] =
+              new Text(),
         );
         if (value === 49 /* DynamicTagWithVar */) {
           scope[getDebugKey(currentScopeIndex++, "#scopeOffset")] = skipScope();
@@ -169,10 +170,10 @@ export function mount() {
         currentWalkIndex = walkInternal(
           currentWalkIndex,
           walkCodes,
-          (scope[getDebugKey(currentScopeIndex++, "#childScope")] = createScope(
+          scope[getDebugKey(currentScopeIndex++, "#childScope")] = createScope(
             scope.$global,
             scope.___closestBranch,
-          )),
+          ),
         );
         if (value === 48 /* BeginChildWithVar */) {
           scope[getDebugKey(currentScopeIndex++, "#scopeOffset")] = skipScope();
@@ -197,8 +198,8 @@ export function mount() {
         if (value < 117 /* Multiplier */ || value > 126 /* MultiplierEnd */) {
           throw new Error(`Unknown walk code: ${value}`);
         }
-        storedMultiplier =
-          currentMultiplier * 10 /* Multiplier */ + value - 117 /* Multiplier */;
+        storedMultiplier = currentMultiplier * 10 /* Multiplier */ + value -
+          117 /* Multiplier */;
       }
     }
   }
@@ -226,25 +227,27 @@ export function mount() {
       const descriptor = Object.getOwnPropertyDescriptor(self, runtimeId);
       if (descriptor && (descriptor.set || descriptor.configurable === false)) {
         throw new Error(
-          `Marko initialized multiple times with the same $global.runtimeId of ${JSON.stringify(runtimeId)}. It could be that there are multiple copies of Marko running on the page.`,
+          `Marko initialized multiple times with the same $global.runtimeId of ${
+            JSON.stringify(runtimeId)
+          }. It could be that there are multiple copies of Marko running on the page.`,
         );
       }
     }
     const renders = self[runtimeId];
-    const defineRuntime = (desc) => Object.defineProperty(self, runtimeId, desc);
+    const defineRuntime = (desc) =>
+      Object.defineProperty(self, runtimeId, desc);
     let resumeRender;
     const initRuntime = (renders2) => {
       defineRuntime({
         value: (resumeRender = (renderId) => {
-          const render = (resumeRender[renderId] =
-            renders2[renderId] || renders2(renderId));
+          const render =
+            (resumeRender[renderId] = renders2[renderId] || renders2(renderId));
           const walk2 = render.w;
           const scopeLookup = (render.s = {});
           const serializeContext = {
             _: registeredValues,
           };
-          const branches =
-            branchesEnabled &&
+          const branches = branchesEnabled &&
             /* @__PURE__ */ (() => {
               const branchParents = /* @__PURE__ */ new Map();
               const branchStarts = [];
@@ -261,7 +264,7 @@ export function mount() {
                   if (singleNode) {
                     while (
                       startVisit.previousSibling &&
-                      ~visits.indexOf((startVisit = startVisit.previousSibling))
+                      ~visits.indexOf(startVisit = startVisit.previousSibling)
                     );
                     branch.___endNode = branch.___startNode = startVisit;
                     if (visitType === "'" /* BranchEndNativeTag */) {
@@ -273,10 +276,9 @@ export function mount() {
                       parent.prepend(startVisit);
                     }
                     branch.___startNode = startVisit;
-                    branch.___endNode =
-                      visit.previousSibling === startVisit
-                        ? startVisit
-                        : parent.insertBefore(new Text(), visit);
+                    branch.___endNode = visit.previousSibling === startVisit
+                      ? startVisit
+                      : parent.insertBefore(new Text(), visit);
                   }
                   while (i-- && orphanBranches[i] > branchId) {
                     branchParents.set(orphanBranches[i], branchId);
@@ -298,34 +300,33 @@ export function mount() {
                       "Getter:" /* Getter */ + nextToken()
                       /* read accessor */
                     ] = /* @__PURE__ */ (
-                      (node) => () =>
-                        node
+                      (node) => () => node
                     )(
-                      (visitScope[lastToken] =
+                      visitScope[lastToken] =
                         visitType === ")" /* BranchEndOnlyChildInParent */ ||
-                        visitType ===
-                          "}" /* BranchEndSingleNodeOnlyChildInParent */
+                          visitType ===
+                            "}" /* BranchEndSingleNodeOnlyChildInParent */
                           ? visit.parentNode
-                          : visit),
+                          : visit,
                     );
                     nextToken();
                     endBranch(
                       visitType !== "]" /* BranchEnd */ &&
-                        visitType !== ")" /* BranchEndOnlyChildInParent */,
+                        visitType !== ")", /* BranchEndOnlyChildInParent */
                     );
                   }
                 },
                 ___scope(scope) {
-                  scope.___closestBranch =
-                    scopeLookup[
-                      scope["#ClosestBranchId" /* ClosestBranchId */] ||
-                        branchParents.get(scopeId)
-                    ];
+                  scope.___closestBranch = scopeLookup[
+                    scope["#ClosestBranchId" /* ClosestBranchId */] ||
+                    branchParents.get(scopeId)
+                  ];
                   if (branchParents.has(scopeId)) {
                     if (scope.___closestBranch) {
-                      ((scope.___parentBranch =
-                        scope.___closestBranch).___branchScopes ||=
-                        /* @__PURE__ */ new Set()).add(scope);
+                      ((scope.___parentBranch = scope.___closestBranch)
+                        .___branchScopes ||= /* @__PURE__ */ new Set()).add(
+                          scope,
+                        );
                     }
                     scope.___closestBranch = scope;
                   }
@@ -344,14 +345,13 @@ export function mount() {
           let visitScope;
           let lastToken;
           let lastTokenIndex;
-          const nextToken = () =>
-            (lastToken = visitText.slice(
-              lastTokenIndex,
-              // eslint-disable-next-line no-cond-assign
-              (lastTokenIndex = visitText.indexOf(" ", lastTokenIndex) + 1)
-                ? lastTokenIndex - 1
-                : visitText.length,
-            ));
+          const nextToken = () => (lastToken = visitText.slice(
+            lastTokenIndex,
+            // eslint-disable-next-line no-cond-assign
+            (lastTokenIndex = visitText.indexOf(" ", lastTokenIndex) + 1)
+              ? lastTokenIndex - 1
+              : visitText.length,
+          ));
           render.w = () => {
             try {
               walk2();
@@ -368,9 +368,8 @@ export function mount() {
                 if (visitType === "*" /* Node */) {
                   visitScope["Getter:" /* Getter */ + nextToken()] =
                     /* @__PURE__ */ (
-                      (node) => () =>
-                        node
-                    )((visitScope[lastToken] = visit.previousSibling));
+                      (node) => () => node
+                    )(visitScope[lastToken] = visit.previousSibling);
                 } else if (branchesEnabled) {
                   branches.___visit();
                 }
@@ -380,9 +379,9 @@ export function mount() {
                   lastEffect = serialized;
                 } else if (typeof serialized === "number") {
                   registeredValues[lastEffect](
-                    (scopeLookup[serialized] ||= {
+                    scopeLookup[serialized] ||= {
                       ___id: scopeId,
-                    }),
+                    },
                     scopeLookup[serialized],
                   );
                 } else {
@@ -492,8 +491,8 @@ export function mount() {
       var id = +valueAccessor.slice(valueAccessor.lastIndexOf("/") + 1);
       valueAccessor = valueAccessor.slice(0, valueAccessor.lastIndexOf("/"));
     }
-    const valueChangeAccessor =
-      "TagVariableChange:" /* TagVariableChange */ + valueAccessor;
+    const valueChangeAccessor = "TagVariableChange:" /* TagVariableChange */ +
+      valueAccessor;
     const update = (scope, value) => {
       if (scope[valueAccessor] !== value) {
         scope[valueAccessor] = value;
@@ -547,14 +546,14 @@ export function mount() {
   }
   function _for_closure(valueAccessor, ownerLoopNodeAccessor, fn) {
     const childSignal = closure(valueAccessor, fn);
-    const loopScopeAccessor =
-      "LoopScopeArray:" /* LoopScopeArray */ + ownerLoopNodeAccessor;
-    const loopScopeMapAccessor =
-      "LoopScopeMap:" /* LoopScopeMap */ + ownerLoopNodeAccessor;
+    const loopScopeAccessor = "LoopScopeArray:" /* LoopScopeArray */ +
+      ownerLoopNodeAccessor;
+    const loopScopeMapAccessor = "LoopScopeMap:" /* LoopScopeMap */ +
+      ownerLoopNodeAccessor;
     const ownerSignal = (ownerScope) => {
       const scopes = (ownerScope[loopScopeAccessor] ||= ownerScope[
-        loopScopeMapAccessor
-      ]
+          loopScopeMapAccessor
+        ]
         ? [...ownerScope[loopScopeMapAccessor].values()]
         : []);
       const [firstScope] = scopes;
@@ -623,18 +622,18 @@ export function mount() {
     params ||= void 0;
     const clone = template
       ? (branch, ns) => {
-          ((cloneCache[ns] ||= {})[template] ||= createCloneableHTML(
-            template,
-            ns,
-          ))(branch, walks);
-        }
+        ((cloneCache[ns] ||= {})[template] ||= createCloneableHTML(
+          template,
+          ns,
+        ))(branch, walks);
+      }
       : (branch) => {
-          walk(
-            (branch.___startNode = branch.___endNode = new Text()),
-            walks,
-            branch,
-          );
-        };
+        walk(
+          branch.___startNode = branch.___endNode = new Text(),
+          walks,
+          branch,
+        );
+      };
     return (owner) => {
       return {
         ___id: id,
@@ -656,19 +655,20 @@ export function mount() {
     insertChildNodes(parent, null, firstChild, lastChild);
     return firstChild === lastChild && firstChild.nodeType < 8 /* Comment */
       ? (branch, walks) => {
-          walk(
-            (branch.___startNode = branch.___endNode =
-              firstChild.cloneNode(true)),
-            walks,
-            branch,
-          );
-        }
+        walk(
+          branch.___startNode =
+            branch.___endNode =
+              firstChild.cloneNode(true),
+          walks,
+          branch,
+        );
+      }
       : (branch, walks) => {
-          const clone = parent.cloneNode(true);
-          walk(clone.firstChild, walks, branch);
-          branch.___startNode = clone.firstChild;
-          branch.___endNode = clone.lastChild;
-        };
+        const clone = parent.cloneNode(true);
+        walk(clone.firstChild, walks, branch);
+        branch.___startNode = clone.firstChild;
+        branch.___endNode = clone.lastChild;
+      };
   }
   function setAttribute(element, name, value) {
     if (element.getAttribute(name) != value) {
@@ -756,8 +756,9 @@ export function mount() {
     if (oldStart > oldEnd) {
       if (newStart <= newEnd) {
         k = newEnd + 1;
-        nextSibling =
-          k < newBranches.length ? newBranches[k].___startNode : afterReference;
+        nextSibling = k < newBranches.length
+          ? newBranches[k].___startNode
+          : afterReference;
         do {
           insertBranchBefore(newBranches[newStart++], parent, nextSibling);
         } while (newStart <= newEnd);
@@ -815,15 +816,17 @@ export function mount() {
             if (sources[i] === -1) {
               pos = i + newStart;
               newBranch = newBranches[pos++];
-              nextSibling =
-                pos < k ? newBranches[pos].___startNode : afterReference;
+              nextSibling = pos < k
+                ? newBranches[pos].___startNode
+                : afterReference;
               insertBranchBefore(newBranch, parent, nextSibling);
             } else {
               if (j < 0 || i !== seq[j]) {
                 pos = i + newStart;
                 newBranch = newBranches[pos++];
-                nextSibling =
-                  pos < k ? newBranches[pos].___startNode : afterReference;
+                nextSibling = pos < k
+                  ? newBranches[pos].___startNode
+                  : afterReference;
                 insertBranchBefore(newBranch, parent, nextSibling);
               } else {
                 --j;
@@ -836,8 +839,9 @@ export function mount() {
             if (sources[i] === -1) {
               pos = i + newStart;
               newBranch = newBranches[pos++];
-              nextSibling =
-                pos < k ? newBranches[pos].___startNode : afterReference;
+              nextSibling = pos < k
+                ? newBranches[pos].___startNode
+                : afterReference;
               insertBranchBefore(newBranch, parent, nextSibling);
             }
           }
@@ -902,15 +906,15 @@ export function mount() {
       const oldMap = scope["LoopScopeMap:" /* LoopScopeMap */ + nodeAccessor];
       const oldArray = oldMap
         ? scope["LoopScopeArray:" /* LoopScopeArray */ + nodeAccessor] || [
-            ...oldMap.values(),
-          ]
+          ...oldMap.values(),
+        ]
         : [];
-      const parentNode =
-        referenceNode.nodeType > 1 /* Element */
-          ? referenceNode.parentNode || oldArray[0].___startNode.parentNode
-          : referenceNode;
-      const newMap = (scope["LoopScopeMap:" /* LoopScopeMap */ + nodeAccessor] =
-        /* @__PURE__ */ new Map());
+      const parentNode = referenceNode.nodeType > 1 /* Element */
+        ? referenceNode.parentNode || oldArray[0].___startNode.parentNode
+        : referenceNode;
+      const newMap =
+        (scope["LoopScopeMap:" /* LoopScopeMap */ + nodeAccessor] =
+          /* @__PURE__ */ new Map());
       const newArray = (scope[
         "LoopScopeArray:" /* LoopScopeArray */ + nodeAccessor
       ] = []);
@@ -923,8 +927,7 @@ export function mount() {
             );
           }
         }
-        const branch =
-          oldMap?.get(key) ||
+        const branch = oldMap?.get(key) ||
           createAndSetupBranch(scope.$global, renderer, scope, parentNode);
         params?.(branch, args);
         newMap.set(key, branch);
@@ -956,7 +959,13 @@ export function mount() {
   var pendingScopes = [];
   var rendering;
   var scopeKeyOffset = 1e3;
-  function queueRender(scope, signal, signalKey, value, scopeKey = scope.___id) {
+  function queueRender(
+    scope,
+    signal,
+    signalKey,
+    value,
+    scopeKey = scope.___id,
+  ) {
     const key = scopeKey * scopeKeyOffset + signalKey;
     const existingRender = signalKey >= 0 && pendingRendersLookup.get(key);
     if (existingRender) {
@@ -997,8 +1006,8 @@ export function mount() {
     runEffects(effects);
   }
   var runEffects = (effects) => {
-    for (let i = 0, scope; i < effects.length; ) {
-      effects[i++]((scope = effects[i++]), scope);
+    for (let i = 0, scope; i < effects.length;) {
+      effects[i++](scope = effects[i++], scope);
     }
   };
   function runRenders() {
@@ -1036,7 +1045,8 @@ export function mount() {
     }
     pendingScopes = [];
   }
-  var runRender = (render) => render.___signal(render.___scope, render.___value);
+  var runRender = (render) =>
+    render.___signal(render.___scope, render.___value);
 
   // src/dom/abort-signal.ts
   function $signalReset(scope, id) {
@@ -1117,8 +1127,7 @@ export function mount() {
   function buildData(count) {
     const data = Array.from({ length: count }, () => ({
       id: id++,
-      label:
-        adjectives[_random(adjectives.length)] +
+      label: adjectives[_random(adjectives.length)] +
         " " +
         colours[_random(colours.length)] +
         " " +
@@ -1127,13 +1136,16 @@ export function mount() {
     return data;
   }
 
-  const $for_content__selected__OR__row_id = /* @__PURE__ */ _or(9, ($scope) => {
-    let {
-      _: { selected },
-      row_id,
-    } = $scope;
-    _attr_class($scope["#tr/0"], selected === row_id && "danger");
-  });
+  const $for_content__selected__OR__row_id = /* @__PURE__ */ _or(
+    9,
+    ($scope) => {
+      let {
+        _: { selected },
+        row_id,
+      } = $scope;
+      _attr_class($scope["#tr/0"], selected === row_id && "danger");
+    },
+  );
   const $for_content__selected = /* @__PURE__ */ _for_closure(
     "selected",
     "#tbody/6",
@@ -1164,7 +1176,7 @@ export function mount() {
       _on($scope["#a/4"], "click", function () {
         const clone = rows.slice();
         clone.splice(clone.indexOf(row), 1);
-        $rows($scope._, (rows = clone));
+        $rows($scope._, rows = clone);
       }),
   );
   const $for_content__rows__OR__row = /* @__PURE__ */ _or(
@@ -1196,31 +1208,34 @@ export function mount() {
     $for_content__$params,
   );
   const $for = /* @__PURE__ */ _for_of("#tbody/6", $for_content);
-  const $rows__script = _script("tags/index.marko_0_rows", ($scope, { rows }) => {
-    _on($scope["#button/2"], "click", function () {
-      $rows($scope, (rows = rows.concat(buildData(1000))));
-    });
-    _on($scope["#button/3"], "click", function () {
-      let clone = rows.slice();
-      for (let i = 0; i < clone.length; i += 10) {
-        const row = clone[i];
-        clone[i] = {
-          id: row.id,
-          label: row.label + " !!!",
-        };
-      }
-      $rows($scope, (rows = clone));
-    });
-    _on($scope["#button/5"], "click", function () {
-      if (rows.length > 998) {
-        const clone = rows.slice();
-        const tmp = clone[1];
-        clone[1] = clone[998];
-        clone[998] = tmp;
-        $rows($scope, (rows = clone));
-      }
-    });
-  });
+  const $rows__script = _script(
+    "tags/index.marko_0_rows",
+    ($scope, { rows }) => {
+      _on($scope["#button/2"], "click", function () {
+        $rows($scope, rows = rows.concat(buildData(1000)));
+      });
+      _on($scope["#button/3"], "click", function () {
+        let clone = rows.slice();
+        for (let i = 0; i < clone.length; i += 10) {
+          const row = clone[i];
+          clone[i] = {
+            id: row.id,
+            label: row.label + " !!!",
+          };
+        }
+        $rows($scope, rows = clone);
+      });
+      _on($scope["#button/5"], "click", function () {
+        if (rows.length > 998) {
+          const clone = rows.slice();
+          const tmp = clone[1];
+          clone[1] = clone[998];
+          clone[998] = tmp;
+          $rows($scope, rows = clone);
+        }
+      });
+    },
+  );
   const $rows = /* @__PURE__ */ _let("rows/7", ($scope, rows) => {
     $for($scope, [rows, "id"]);
     $for_content__rows($scope);
@@ -1240,7 +1255,7 @@ export function mount() {
   });
 
   init();
-  debugger
+  debugger;
 }
 
 export function unmount() {

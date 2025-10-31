@@ -121,9 +121,9 @@ test("ssr: nested components & fragment", () => {
   includes(html, "frag-part");
   includes(html, "<i>italic</i>");
   includes(html, "<footer>Footer</footer>");
-  // Component wrappers
-  const count = html.split('<radi-host style="display: contents;">').length - 1;
-  assert.equal(count >= 3, true, "Expected multiple component wrappers");
+  // Component wrappers (client parity host elements)
+  const count = html.split("<host>").length - 1;
+  assert.equal(count >= 3, true, "Expected multiple component wrappers (host)");
 });
 
 test("ssr: fragment top-level wrapper", () => {
@@ -136,13 +136,10 @@ test("ssr: fragment top-level wrapper", () => {
       h("strong", null, "c"),
     ),
   );
-  // Updated expectation: fragment now serializes as outer + inner boundary comment markers.
-  includes(html, "<!--(-->");
+  // Client parity: fragment renders raw children (no boundary comments).
   includes(html, "<em>a</em>");
   includes(html, "b");
   includes(html, "<strong>c</strong>");
-  includes(html, "<!--)-->");
-  notIncludes(html, "<radi-fragment>");
 });
 
 test("ssr: attribute escaping", () => {
@@ -158,8 +155,8 @@ test("ssr: subscribable one-shot sampling", () => {
     h("section", null, multiShot("first", "second")),
   );
   includes(html, "<section>");
-  // Server no longer samples initial subscribable emission; assert absence.
-  notIncludes(html, "first");
+  // Server samples first subscribable emission; second emission is ignored.
+  includes(html, "first");
   notIncludes(html, "second");
 });
 
@@ -167,8 +164,9 @@ test("ssr: component error fallback marker", () => {
   const html = renderToStringRoot(
     h("div", null, h(ErrorComponent, null)),
   );
-  includes(html, '<radi-host style="display: contents;">');
-  includes(html, "component-error");
+  includes(html, "<host>ERROR:ErrorComponent</host>");
+  notIncludes(html, "<radi-host");
+  notIncludes(html, "component-error");
 });
 
 test("ssr: boolean and null markers inside component", () => {
@@ -193,8 +191,8 @@ test("ssr: mixed types & component chain", () => {
   );
   includes(html, "<main>");
   includes(html, "mix");
-  // One-shot subscribable value is not sampled during SSR now.
-  notIncludes(html, "sub-value");
+  // One-shot subscribable value is sampled (first emission only).
+  includes(html, "sub-value");
   includes(html, "tail");
   includes(html, "</main>");
 });

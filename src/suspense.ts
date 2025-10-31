@@ -53,7 +53,7 @@ export function Suspense(
     e.stopPropagation();
     if (pending === 0 && showChildren) {
       showChildren = false;
-        update(this);
+      update(this);
     }
     pending++;
   };
@@ -64,7 +64,7 @@ export function Suspense(
     if (pending > 0) pending--;
     if (pending === 0 && !showChildren) {
       showChildren = true;
-        update(this);
+      update(this);
     }
   };
 

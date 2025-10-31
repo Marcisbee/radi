@@ -2,7 +2,7 @@ import { assert, test } from "@marcisbee/rion";
 import { createRoot, update } from "../client.ts";
 
 test.before.each(() => {
-  document.body.innerHTML = '';
+  document.body.innerHTML = "";
 });
 
 /**

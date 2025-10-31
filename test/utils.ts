@@ -21,7 +21,6 @@ export function mount(
       onConnect();
     }
 
-
     const { render } = createRoot(parent);
     render(element);
   });

@@ -129,8 +129,9 @@ function _isReactiveFn(value: unknown): value is ReactiveGenerator {
 function expandChild(
   value: Child | Child[],
   _adapter: RendererAdapter,
-  invokeReactive: (fn: ReactiveGenerator) => Child | Child[],
+  _invokeReactive: (fn: ReactiveGenerator) => Child | Child[],
 ): Child[] {
+  // Leave reactive functions uninvoked so insertChildren can emit placeholders.
   const queue = toChildArray(value);
   const out: Child[] = [];
   while (queue.length) {
@@ -144,8 +145,7 @@ function expandChild(
       continue;
     }
     if (typeof item === "function") {
-      const produced = invokeReactive(item as ReactiveGenerator);
-      queue.unshift(...toChildArray(produced));
+      out.push(item);
       continue;
     }
     out.push(item);
@@ -180,22 +180,12 @@ function buildPrimitiveNode(
 
 export function createRenderer(adapter: RendererAdapter): Renderer {
   /**
-   * Internal reactive invocation strategy: for universal/server we just run once.
+   * Internal reactive invocation strategy: single step evaluation (no auto-collapse).
+   * Collapsing is now handled in insertChildren so we can emit a placeholder per function layer.
    */
   const runReactive = (fn: ReactiveGenerator): Child | Child[] => {
-    // Execute reactive generator; collapse nested reactive (function returning function) into single fragment.
     try {
-      let produced = fn(undefined as unknown as Element);
-      if (typeof produced === "function") {
-        produced = (produced as ReactiveGenerator)(
-          undefined as unknown as Element,
-        );
-      }
-      const arr = toChildArray(produced);
-      // If output is a single fragment UniversalNode, avoid adding an extra wrapper boundary.
-      // Removed fragment collapse optimization to retain outer reactive
-      // boundary markers even when a reactive returns a single fragment.
-      return arr;
+      return fn(undefined as unknown as Element) as Child | Child[];
     } catch {
       return [];
     }
@@ -212,13 +202,49 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
     const expanded = expandChild(rawChildren, adapter, runReactive);
     for (const child of expanded) {
       if (child instanceof Node) {
-        // Skip raw DOM Node objects in universal/server adapter paths.
+        continue;
+      }
+      // Reactive function chain: emit a placeholder for each function in chain.
+      if (typeof child === "function") {
+        let current: unknown = child;
+        while (typeof current === "function") {
+          adapter.insertNode(parent, adapter.createComment("$"));
+          let produced: unknown = [];
+          try {
+            produced = (current as ReactiveGenerator)(
+              undefined as unknown as Element,
+            );
+          } catch {
+            produced = [];
+          }
+          current = produced;
+        }
+        insertChildren(parent, toChildArray(current as Child | Child[]));
         continue;
       }
       if (isSubscribableValue(child)) {
-        // Parity with client initial snapshot: emit empty fragment markers without sampling.
-        const start = adapter.createComment("$");
-        adapter.insertNode(parent, start);
+        // Sample first synchronous emission. If none, emit null sentinel.
+        let firstEmitted = false;
+        let first: unknown = undefined;
+        try {
+          (child as any).subscribe((v: unknown) => {
+            if (!firstEmitted) {
+              firstEmitted = true;
+              first = v;
+            }
+          });
+        } catch {
+          /* ignore subscription errors */
+        }
+        adapter.insertNode(parent, adapter.createComment("$"));
+        if (!firstEmitted) {
+          adapter.insertNode(parent, adapter.createComment("null"));
+        } else if (isSubscribableValue(first)) {
+          // Nested subscribable: recurse (will emit its own placeholder + value/null)
+          insertChildren(parent, [first as Child]);
+        } else {
+          insertChildren(parent, toChildArray(first as Child | Child[]));
+        }
         continue;
       }
       if (isUniversalNode(child)) {
@@ -234,38 +260,9 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
    * Fragment creation using comment boundary markers (or adapter-equivalent).
    */
   function fragment(children: Child[]): UniversalNode {
-    // SSR parity: reactive function children inside a Fragment are eagerly evaluated
-    // and inlined WITHOUT their own boundary markers. This matches the client
-    // Fragment implementation which calls realize() and executes function children
-    // directly (no placeholder comment pair per reactive). Subscribables still
-    // render as empty placeholder pairs (handled later by insertChildren).
+    // Preserve reactive functions so we can emit placeholders for each (parity with client).
     const frag = adapter.createElement("radi-fragment");
-    if (children && children.length) {
-      const processed: Child[] = [];
-      for (const c of children) {
-        if (typeof c === "function") {
-          try {
-            let produced: unknown = c as unknown;
-            // Collapse chains of functions (reactive returning reactive).
-            while (typeof produced === "function") {
-              produced = (produced as ReactiveGenerator)(
-                undefined as unknown as Element,
-              );
-            }
-            if (Array.isArray(produced)) {
-              processed.push(...produced as Child[]);
-            } else {
-              processed.push(produced as Child);
-            }
-          } catch {
-            // Swallow reactive errors in fragment inline context (client parity).
-          }
-        } else {
-          processed.push(c);
-        }
-      }
-      insertChildren(frag, processed);
-    }
+    insertChildren(frag, children || []);
     return frag;
   }
 
@@ -278,8 +275,6 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
     ...children: Child[]
   ): UniversalNode {
     if (typeof type === "function") {
-      // Fragment sentinel: if the caller passes the internal fragment helper directly
-      // (e.g. h(Fragment, null, ...children)), treat it as a fragment with provided children.
       if ((type as unknown) === fragment) {
         return fragment(children);
       }
@@ -288,17 +283,15 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
       let produced: Child | Child[] = [];
       try {
         produced = type(propsGetter);
-      } catch {
-        produced = ["component-error"];
+      } catch (e) {
+        const name = typeof type === "function" && (type as any).name
+          ? (type as any).name
+          : "Anonymous";
+        produced = [`ERROR:${name}`];
       }
-      // Parity: if component returns an array, wrap entire output in fragment boundary comments
-      // Removed automatic wrapping of component array return values so that
-      // component hosts directly contain returned children (parity with client).
+      // Client parity: use <host> wrapper without style attribute.
       const componentWrapper = adapter.createElement("host");
-      insertChildren(
-        componentWrapper,
-        expandChild(produced, adapter, runReactive),
-      );
+      insertChildren(componentWrapper, toChildArray(produced));
       return componentWrapper;
     }
 
@@ -538,22 +531,19 @@ export function createServerStringAdapter(): RendererAdapter {
           case "element": {
             const attrs = n.props
               ? Object.entries(n.props)
-                // Include null-valued attributes ("null"); omit undefined, functions, and false booleans.
-                .filter(([attr, val]) =>
+                // Omit null/undefined/function/false; keep true booleans (empty value) & other primitives.
+                .filter(([_, val]) =>
+                  val !== null &&
+                  val !== undefined &&
                   typeof val !== "function" &&
                   !(typeof val === "boolean" && val === false)
                 )
                 .map(([attr, val]) => {
                   const tagName = n.tag || "";
                   let name = attr;
-                  // Normalize className -> class
                   if (name === "className") name = "class";
-                  // Normalize tabIndex -> tabindex
                   if (name === "tabIndex") name = "tabindex";
 
-                  // Boolean attribute handling:
-                  // If true and attribute is valid boolean for this tag (approximation), emit empty value.
-                  // Else emit "true".
                   const BOOLEAN_EMPTY_ATTRS = new Set([
                     "disabled",
                     "checked",
@@ -580,26 +570,9 @@ export function createServerStringAdapter(): RendererAdapter {
                   ]);
 
                   if (typeof val === "boolean") {
-                    if (val === true) {
-                      if (
-                        (name === "disabled" &&
-                          TAGS_WITH_DISABLED.has(tagName)) ||
-                        BOOLEAN_EMPTY_ATTRS.has(name)
-                      ) {
-                        return `${name}=""`;
-                      }
-                      return `${name}="true"`;
-                    }
-                    return "";
+                    return val ? `${name}=""` : "";
                   }
 
-                  // Style object serialization with empirical rules:
-                  // - camelCase -> kebab-case
-                  // - numeric zero length-like properties => 0px
-                  // - numeric positive length-like (without unit) omitted
-                  // - string numeric '0' => 0px
-                  // - omit invalid/boolean/null/undefined entries
-                  // - include number for non-length (opacity, z-index, flex-grow, line-height)
                   if (
                     name === "style" &&
                     val &&
@@ -623,10 +596,7 @@ export function createServerStringAdapter(): RendererAdapter {
                       const isNumber = typeof vRaw === "number";
                       const isPureNumberString = !isNumber &&
                         /^[0-9]+$/.test(vStr);
-
                       const isLengthProp = lengthLike.test(k);
-
-                      // Length-like handling
                       if (isLengthProp) {
                         if (
                           (isNumber && vRaw === 0) ||
@@ -637,11 +607,9 @@ export function createServerStringAdapter(): RendererAdapter {
                           (isNumber && vRaw > 0) ||
                           (isPureNumberString && vStr !== "0")
                         ) {
-                          // Omit positive numeric length without unit
                           continue;
                         }
                       }
-
                       const cssKey = k.replace(/[A-Z]/g, (m) =>
                         "-" + m.toLowerCase());
                       cssParts.push(`${cssKey}: ${vStr};`);
@@ -650,26 +618,41 @@ export function createServerStringAdapter(): RendererAdapter {
                     return css ? `style="${esc(css)}"` : "";
                   }
 
-                  // Undefined: serialize literal "undefined"
-                  if (val === undefined) {
-                    return `${name}="undefined"`;
+                  // Generic attribute serialization (boolean true empty value)
+                  if (val === true) {
+                    return `${name}=""`;
                   }
-
-                  // Null -> "null" literal; others stringified
-                  const rendered = val === null ? "null" : val;
-                  return `${name}="${esc(rendered)}"`;
+                  return `${name}="${esc(val)}"`;
                 })
                 .filter(Boolean)
                 .join(" ")
               : "";
             const childrenHTML = n.children.map(walk).join("");
-            // Fragment serialization: double boundary pairs (legacy client parity).
-            // Emits: <!--(--><!--(--> ... <!--)--><!--)-->
+
             if (n.tag === "radi-fragment") {
-              // Single boundary pair to match client Fragment output.
+              // Client parity: fragments emit raw children without marker comments.
               return childrenHTML;
             }
             const open = attrs ? `<${n.tag} ${attrs}>` : `<${n.tag}>`;
+            const VOID_ELEMENTS = new Set([
+              "area",
+              "base",
+              "br",
+              "col",
+              "embed",
+              "hr",
+              "img",
+              "input",
+              "link",
+              "meta",
+              "param",
+              "source",
+              "track",
+              "wbr",
+            ]);
+            if (VOID_ELEMENTS.has(n.tag || "")) {
+              return open;
+            }
             return `${open}${childrenHTML}</${n.tag}>`;
           }
           case "root":
@@ -679,7 +662,6 @@ export function createServerStringAdapter(): RendererAdapter {
         }
       }
       if (v.type === "root") return walk(v);
-      // Wrap non-root in a synthetic root for serialization
       const syntheticRoot: VNode = {
         type: "root",
         children: [v],
