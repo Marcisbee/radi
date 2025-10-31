@@ -157,14 +157,14 @@ test("Memo1 re-renders correctly", async () => {
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(--><span>Memo1:0</span><!--)-->`,
+    `<!--$--><span>Memo1:0</span>`,
   );
 
   update(container);
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(--><span>Memo1:1</span><!--)-->`,
+    `<!--$--><span>Memo1:1</span>`,
   );
 });
 
@@ -173,14 +173,14 @@ test("Memo2 re-renders correctly", async () => {
 
   assert.snapshot.html(
     container.innerHTML,
-    `<span>Memo2:<!--(-->0<!--)--></span>`,
+    `<span>Memo2:<!--$-->0</span>`,
   );
 
   update(container);
 
   assert.snapshot.html(
     container.innerHTML,
-    `<span>Memo2:<!--(-->1<!--)--></span>`,
+    `<span>Memo2:<!--$-->1</span>`,
   );
 });
 
@@ -189,14 +189,14 @@ test("Memo3 re-renders correctly", async () => {
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(--><span>Memo3:0</span><!--)-->`,
+    `<!--$--><span>Memo3:0</span>`,
   );
 
   update(container);
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(--><span>Memo3:0</span><!--)-->`,
+    `<!--$--><span>Memo3:0</span>`,
   );
 });
 
@@ -205,7 +205,7 @@ test("Memo4 re-renders correctly", async () => {
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(--><span>Memo4:<!--(-->0<!--)--></span><!--)-->`,
+    `<!--$--><span>Memo4:<!--$-->0</span>`,
   );
 
   update(container);
@@ -213,7 +213,7 @@ test("Memo4 re-renders correctly", async () => {
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(--><span>Memo4:<!--(-->0<!--)--></span><!--)-->`,
+    `<!--$--><span>Memo4:<!--$-->0</span>`,
   );
 });
 
@@ -222,14 +222,14 @@ test("Memo5 re-renders correctly", async () => {
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(--><span>Memo5:0</span><!--)-->`,
+    `<!--$--><span>Memo5:0</span>`,
   );
 
   update(container);
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(--><span>Memo5:1</span><!--)-->`,
+    `<!--$--><span>Memo5:1</span>`,
   );
 });
 
@@ -238,14 +238,14 @@ test("Memo6 re-renders correctly", async () => {
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(--><span>Memo6:<!--(-->0<!--)--></span><!--)-->`,
+    `<!--$--><span>Memo6:<!--$-->0</span>`,
   );
 
   update(container);
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(--><span>Memo6:<!--(-->1<!--)--></span><!--)-->`,
+    `<!--$--><span>Memo6:<!--$-->1</span>`,
   );
 });
 
@@ -255,12 +255,12 @@ test("MemoGroup1 re-renders correctly", async () => {
   assert.snapshot.html(
     container.innerHTML,
     `<div>
-      <radi-host style="display: contents;"><!--(--><span>Memo1:0</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><span>Memo2:<!--(-->0<!--)--></span></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo3:0</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo4:<!--(-->0<!--)--></span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo5:0</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo6:<!--(-->0<!--)--></span><!--)--></radi-host>
+      <host><!--$--><span>Memo1:0</span></host>
+      <host><span>Memo2:<!--$-->0</span></host>
+      <host><!--$--><span>Memo3:0</span></host>
+      <host><!--$--><span>Memo4:<!--$-->0</span></host>
+      <host><!--$--><span>Memo5:0</span></host>
+      <host><!--$--><span>Memo6:<!--$-->0</span></host>
     </div>`,
   );
 
@@ -269,12 +269,12 @@ test("MemoGroup1 re-renders correctly", async () => {
   assert.snapshot.html(
     container.innerHTML,
     `<div>
-      <radi-host style="display: contents;"><!--(--><span>Memo1:1</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><span>Memo2:<!--(-->1<!--)--></span></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo3:0</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo4:<!--(-->0<!--)--></span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo5:1</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo6:<!--(-->1<!--)--></span><!--)--></radi-host>
+      <host><!--$--><span>Memo1:1</span></host>
+      <host><span>Memo2:<!--$-->1</span></host>
+      <host><!--$--><span>Memo3:0</span></host>
+      <host><!--$--><span>Memo4:<!--$-->0</span></host>
+      <host><!--$--><span>Memo5:1</span></host>
+      <host><!--$--><span>Memo6:<!--$-->1</span></host>
     </div>`,
   );
 });
@@ -285,13 +285,12 @@ test("MemoGroup2 re-renders correctly", async () => {
   assert.snapshot.html(
     container.innerHTML,
     `<div>
-      <!--(-->Hello<!--)-->
-      <radi-host style="display: contents;"><!--(--><span>Memo1:0</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><span>Memo2:<!--(-->0<!--)--></span></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo3:0</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo4:<!--(-->0<!--)--></span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo5:0</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo6:<!--(-->0<!--)--></span><!--)--></radi-host>
+      <!--$-->Hello<host><!--$--><span>Memo1:0</span></host>
+      <host><span>Memo2:<!--$-->0</span></host>
+      <host><!--$--><span>Memo3:0</span></host>
+      <host><!--$--><span>Memo4:<!--$-->0</span></host>
+      <host><!--$--><span>Memo5:0</span></host>
+      <host><!--$--><span>Memo6:<!--$-->0</span></host>
     </div>`,
   );
 
@@ -300,13 +299,12 @@ test("MemoGroup2 re-renders correctly", async () => {
   assert.snapshot.html(
     container.innerHTML,
     `<div>
-      <!--(-->Hello<!--)-->
-      <radi-host style="display: contents;"><!--(--><span>Memo1:1</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><span>Memo2:<!--(-->1<!--)--></span></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo3:0</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo4:<!--(-->0<!--)--></span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo5:1</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo6:<!--(-->1<!--)--></span><!--)--></radi-host>
+      <!--$-->Hello<host><!--$--><span>Memo1:1</span></host>
+      <host><span>Memo2:<!--$-->1</span></host>
+      <host><!--$--><span>Memo3:0</span></host>
+      <host><!--$--><span>Memo4:<!--$-->0</span></host>
+      <host><!--$--><span>Memo5:1</span></host>
+      <host><!--$--><span>Memo6:<!--$-->1</span></host>
     </div>`,
   );
 });
@@ -316,32 +314,32 @@ test("MemoGroup3 re-renders correctly", async () => {
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(-->
+    `<!--$-->
       <div>
-        <radi-host style="display: contents;"><!--(--><span>Memo1:0</span><!--)--></radi-host>
-        <radi-host style="display: contents;"><span>Memo2:<!--(-->0<!--)--></span></radi-host>
-        <radi-host style="display: contents;"><!--(--><span>Memo3:0</span><!--)--></radi-host>
-        <radi-host style="display: contents;"><!--(--><span>Memo4:<!--(-->0<!--)--></span><!--)--></radi-host>
-        <radi-host style="display: contents;"><!--(--><span>Memo5:0</span><!--)--></radi-host>
-        <radi-host style="display: contents;"><!--(--><span>Memo6:<!--(-->0<!--)--></span><!--)--></radi-host>
+        <host><!--$--><span>Memo1:0</span></host>
+        <host><span>Memo2:<!--$-->0</span></host>
+        <host><!--$--><span>Memo3:0</span></host>
+        <host><!--$--><span>Memo4:<!--$-->0</span></host>
+        <host><!--$--><span>Memo5:0</span></host>
+        <host><!--$--><span>Memo6:<!--$-->0</span></host>
       </div>
-    <!--)-->`,
+    `,
   );
 
   update(container);
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(-->
+    `<!--$-->
       <div>
-        <radi-host style="display: contents;"><!--(--><span>Memo1:1</span><!--)--></radi-host>
-        <radi-host style="display: contents;"><span>Memo2:<!--(-->1<!--)--></span></radi-host>
-        <radi-host style="display: contents;"><!--(--><span>Memo3:0</span><!--)--></radi-host>
-        <radi-host style="display: contents;"><!--(--><span>Memo4:<!--(-->0<!--)--></span><!--)--></radi-host>
-        <radi-host style="display: contents;"><!--(--><span>Memo5:1</span><!--)--></radi-host>
-        <radi-host style="display: contents;"><!--(--><span>Memo6:<!--(-->1<!--)--></span><!--)--></radi-host>
+        <host><!--$--><span>Memo1:1</span></host>
+        <host><span>Memo2:<!--$-->1</span></host>
+        <host><!--$--><span>Memo3:0</span></host>
+        <host><!--$--><span>Memo4:<!--$-->0</span></host>
+        <host><!--$--><span>Memo5:1</span></host>
+        <host><!--$--><span>Memo6:<!--$-->1</span></host>
       </div>
-    <!--)-->`,
+    `,
   );
 });
 
@@ -351,12 +349,12 @@ test("MemoGroup4 re-renders correctly", async () => {
   assert.snapshot.html(
     container.innerHTML,
     `<div>
-      <radi-host style="display: contents;"><!--(--><span>Memo1:0</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><span>Memo2:<!--(-->0<!--)--></span></radi-host>
-      <!--(--><radi-host style="display: contents;"><!--(--><span>Memo3:0</span><!--)--></radi-host><!--)-->
-      <radi-host style="display: contents;"><!--(--><span>Memo4:<!--(-->0<!--)--></span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo5:0</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo6:<!--(-->0<!--)--></span><!--)--></radi-host>
+      <host><!--$--><span>Memo1:0</span></host>
+      <host><span>Memo2:<!--$-->0</span></host>
+      <!--$--><host><!--$--><span>Memo3:0</span></host>
+      <host><!--$--><span>Memo4:<!--$-->0</span></host>
+      <host><!--$--><span>Memo5:0</span></host>
+      <host><!--$--><span>Memo6:<!--$-->0</span></host>
     </div>`,
   );
 
@@ -365,12 +363,12 @@ test("MemoGroup4 re-renders correctly", async () => {
   assert.snapshot.html(
     container.innerHTML,
     `<div>
-      <radi-host style="display: contents;"><!--(--><span>Memo1:1</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><span>Memo2:<!--(-->1<!--)--></span></radi-host>
-      <!--(--><radi-host style="display: contents;"><!--(--><span>Memo3:0</span><!--)--></radi-host><!--)-->
-      <radi-host style="display: contents;"><!--(--><span>Memo4:<!--(-->0<!--)--></span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo5:1</span><!--)--></radi-host>
-      <radi-host style="display: contents;"><!--(--><span>Memo6:<!--(-->1<!--)--></span><!--)--></radi-host>
+      <host><!--$--><span>Memo1:1</span></host>
+      <host><span>Memo2:<!--$-->1</span></host>
+      <!--$--><host><!--$--><span>Memo3:0</span></host>
+      <host><!--$--><span>Memo4:<!--$-->0</span></host>
+      <host><!--$--><span>Memo5:1</span></host>
+      <host><!--$--><span>Memo6:<!--$-->1</span></host>
     </div>`,
   );
 });
@@ -380,34 +378,34 @@ test("MemoLoop+reverse", async () => {
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(-->
+    `
     <button type="button">Add</button>
     <button type="button">Reverse</button>
     <div>
-      <hr data-static="true">
+      <hr data-static="">
       <div>1 : 0</div>
       <div>2 : 1</div>
       <div>3 : 2</div>
-      <hr data-eventable="true">
-      <!--(-->
-        <div>1 : 0</div>
-        <div>2 : 1</div>
-        <div>3 : 2</div>
-      <!--)-->
-      <hr data-memo-static="true">
-      <!--(-->
-        <div>1 : 0</div>
-        <div>2 : 1</div>
-        <div>3 : 2</div>
-      <!--)-->
-      <hr data-memo-eventable="true">
-      <!--(-->
-        <div><!--(-->1<!--)--> : 0</div>
-        <div><!--(-->2<!--)--> : 1</div>
-        <div><!--(-->3<!--)--> : 2</div>
-      <!--)-->
+
+      <hr data-eventable="">
+      <!--$-->
+      <div>1 : 0</div>
+      <div>2 : 1</div>
+      <div>3 : 2</div>
+
+      <hr data-memo-static="">
+      <!--$-->
+      <div>1 : 0</div>
+      <div>2 : 1</div>
+      <div>3 : 2</div>
+
+      <hr data-memo-eventable="">
+      <!--$-->
+      <div><!--$-->1 : 0</div>
+      <div><!--$-->2 : 1</div>
+      <div><!--$-->3 : 2</div>
     </div>
-    <!--)-->`,
+    `,
   );
 
   const reverseButton = container.querySelectorAll("button")[1];
@@ -416,34 +414,34 @@ test("MemoLoop+reverse", async () => {
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(-->
+    `
     <button type="button">Add</button>
     <button type="button">Reverse</button>
     <div>
-      <hr data-static="true">
+      <hr data-static="">
       <div>1 : 0</div>
       <div>2 : 1</div>
       <div>3 : 2</div>
-      <hr data-eventable="true">
-      <!--(-->
-        <div>3 : 0</div>
-        <div>2 : 1</div>
-        <div>1 : 2</div>
-      <!--)-->
-      <hr data-memo-static="true">
-      <!--(-->
-        <div>1 : 0</div>
-        <div>2 : 1</div>
-        <div>3 : 2</div>
-      <!--)-->
-      <hr data-memo-eventable="true">
-      <!--(-->
-        <div><!--(-->3<!--)--> : 0</div>
-        <div><!--(-->2<!--)--> : 1</div>
-        <div><!--(-->1<!--)--> : 2</div>
-      <!--)-->
+
+      <hr data-eventable="">
+      <!--$-->
+      <div>3 : 0</div>
+      <div>2 : 1</div>
+      <div>1 : 2</div>
+
+      <hr data-memo-static="">
+      <!--$-->
+      <div>1 : 0</div>
+      <div>2 : 1</div>
+      <div>3 : 2</div>
+
+      <hr data-memo-eventable="">
+      <!--$-->
+      <div><!--$-->3 : 0</div>
+      <div><!--$-->2 : 1</div>
+      <div><!--$-->1 : 2</div>
     </div>
-    <!--)-->`,
+    `,
   );
 });
 
@@ -452,34 +450,34 @@ test("MemoLoop+add", async () => {
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(-->
+    `
     <button type="button">Add</button>
     <button type="button">Reverse</button>
     <div>
-      <hr data-static="true">
+      <hr data-static="">
       <div>1 : 0</div>
       <div>2 : 1</div>
       <div>3 : 2</div>
-      <hr data-eventable="true">
-      <!--(-->
-        <div>1 : 0</div>
-        <div>2 : 1</div>
-        <div>3 : 2</div>
-      <!--)-->
-      <hr data-memo-static="true">
-      <!--(-->
-        <div>1 : 0</div>
-        <div>2 : 1</div>
-        <div>3 : 2</div>
-      <!--)-->
-      <hr data-memo-eventable="true">
-      <!--(-->
-        <div><!--(-->1<!--)--> : 0</div>
-        <div><!--(-->2<!--)--> : 1</div>
-        <div><!--(-->3<!--)--> : 2</div>
-      <!--)-->
+
+      <hr data-eventable="">
+      <!--$-->
+      <div>1 : 0</div>
+      <div>2 : 1</div>
+      <div>3 : 2</div>
+
+      <hr data-memo-static="">
+      <!--$-->
+      <div>1 : 0</div>
+      <div>2 : 1</div>
+      <div>3 : 2</div>
+
+      <hr data-memo-eventable="">
+      <!--$-->
+      <div><!--$-->1 : 0</div>
+      <div><!--$-->2 : 1</div>
+      <div><!--$-->3 : 2</div>
     </div>
-    <!--)-->`,
+    `,
   );
 
   const addButton = container.querySelectorAll("button")[0];
@@ -488,37 +486,37 @@ test("MemoLoop+add", async () => {
 
   assert.snapshot.html(
     container.innerHTML,
-    `<!--(-->
+    `
     <button type="button">Add</button>
     <button type="button">Reverse</button>
     <div>
-      <hr data-static="true">
+      <hr data-static="">
       <div>1 : 0</div>
       <div>2 : 1</div>
       <div>3 : 2</div>
-      <hr data-eventable="true">
-      <!--(-->
-        <div>1 : 0</div>
-        <div>2 : 1</div>
-        <div>3 : 2</div>
-        <div>4 : 3</div>
-      <!--)-->
-      <hr data-memo-static="true">
-      <!--(-->
-        <div>1 : 0</div>
-        <div>2 : 1</div>
-        <div>3 : 2</div>
-        <div>4 : 3</div>
-      <!--)-->
-      <hr data-memo-eventable="true">
-      <!--(-->
-        <div><!--(-->1<!--)--> : 0</div>
-        <div><!--(-->2<!--)--> : 1</div>
-        <div><!--(-->3<!--)--> : 2</div>
-        <div><!--(-->4<!--)--> : 3</div>
-      <!--)-->
+      <hr data-eventable="">
+
+      <!--$-->
+      <div>1 : 0</div>
+      <div>2 : 1</div>
+      <div>3 : 2</div>
+      <div>4 : 3</div>
+
+      <hr data-memo-static="">
+      <!--$-->
+      <div>1 : 0</div>
+      <div>2 : 1</div>
+      <div>3 : 2</div>
+      <div>4 : 3</div>
+
+      <hr data-memo-eventable="">
+      <!--$-->
+      <div><!--$-->1 : 0</div>
+      <div><!--$-->2 : 1</div>
+      <div><!--$-->3 : 2</div>
+      <div><!--$-->4 : 3</div>
     </div>
-    <!--)-->`,
+    `,
   );
 });
 

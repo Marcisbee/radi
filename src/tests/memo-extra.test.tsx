@@ -312,13 +312,10 @@ test("memo render list", async () => {
   const button = root.querySelector("button")!;
   const ul = root.querySelector("ul")!;
 
-  console.log(root.outerHTML);
-
   assert.length(ul.querySelectorAll("li"), 0);
 
   button.click();
   await Promise.resolve();
-  console.log(root.outerHTML);
   assert.length(ul.querySelectorAll("li"), 6);
   assert.equal(ul.querySelectorAll("li")[0].textContent, "1 : 0");
   assert.equal(ul.querySelectorAll("li")[5].textContent, "6 : 5");

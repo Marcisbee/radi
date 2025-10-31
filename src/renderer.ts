@@ -195,13 +195,9 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
       // If output is a single fragment UniversalNode, avoid adding an extra wrapper boundary.
       // Removed fragment collapse optimization to retain outer reactive
       // boundary markers even when a reactive returns a single fragment.
-      const start = adapter.createComment("(");
-      const end = adapter.createComment(")");
-      return [start, ...arr, end];
+      return arr;
     } catch {
-      const start = adapter.createComment("(");
-      const end = adapter.createComment(")");
-      return [start, end];
+      return [];
     }
   };
   function isUniversalNode(val: unknown): val is UniversalNode {
@@ -221,10 +217,8 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
       }
       if (isSubscribableValue(child)) {
         // Parity with client initial snapshot: emit empty fragment markers without sampling.
-        const start = adapter.createComment("(");
-        const end = adapter.createComment(")");
+        const start = adapter.createComment("$");
         adapter.insertNode(parent, start);
-        adapter.insertNode(parent, end);
         continue;
       }
       if (isUniversalNode(child)) {
@@ -300,8 +294,7 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
       // Parity: if component returns an array, wrap entire output in fragment boundary comments
       // Removed automatic wrapping of component array return values so that
       // component hosts directly contain returned children (parity with client).
-      const componentWrapper = adapter.createElement("radi-host");
-      adapter.setProperty(componentWrapper, "style", "display: contents;");
+      const componentWrapper = adapter.createElement("host");
       insertChildren(
         componentWrapper,
         expandChild(produced, adapter, runReactive),
@@ -674,7 +667,7 @@ export function createServerStringAdapter(): RendererAdapter {
             // Emits: <!--(--><!--(--> ... <!--)--><!--)-->
             if (n.tag === "radi-fragment") {
               // Single boundary pair to match client Fragment output.
-              return `<!--(-->${childrenHTML}<!--)-->`;
+              return childrenHTML;
             }
             const open = attrs ? `<${n.tag} ${attrs}>` : `<${n.tag}>`;
             return `${open}${childrenHTML}</${n.tag}>`;
