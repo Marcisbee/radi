@@ -24,9 +24,9 @@ test("catches child component render error via parent listener", async () => {
       "error",
       (e: Event) => {
         e.preventDefault();
-        const ce = e as CustomEvent;
+        const ce = e as ErrorEvent;
         callCount++;
-        caught = ce.detail.error;
+        caught = ce.error;
         e.stopImmediatePropagation();
       },
       { once: true },
@@ -53,8 +53,8 @@ test("uncaught component error bubbles to container listener", async () => {
   container.addEventListener(
     "error",
     (e: Event) => {
-      const ce = e as CustomEvent;
-      bubbleCaught = ce.detail.error;
+      const ce = e as ErrorEvent;
+      bubbleCaught = ce.error;
       e.preventDefault();
     },
     { once: true },
@@ -74,7 +74,7 @@ test("reactive generator error bubbles", async () => {
       "error",
       (e: Event) => {
         e.preventDefault();
-        caught = (e as CustomEvent).detail.error;
+        caught = (e as ErrorEvent).error;
         e.stopPropagation();
       },
       { once: true },
@@ -99,7 +99,7 @@ test("prop function evaluation error emits error event", async () => {
       "error",
       (e: Event) => {
         e.preventDefault();
-        caught = (e as CustomEvent).detail.error;
+        caught = (e as ErrorEvent).error;
         e.stopImmediatePropagation();
       },
       { once: true },
@@ -129,7 +129,7 @@ test("prop function throws on update dispatch", async () => {
       "error",
       (e: Event) => {
         e.preventDefault();
-        caught = (e as CustomEvent).detail.error;
+        caught = (e as ErrorEvent).error;
         e.stopImmediatePropagation();
       },
       { once: true },
@@ -173,8 +173,8 @@ function ErrorBoundary(
       e.preventDefault();
       e.stopPropagation();
 
-      const ce = e as CustomEvent;
-      error = ce?.detail?.error ?? null;
+      const ce = e as ErrorEvent;
+      error = ce?.error ?? null;
       update(this);
     },
   );
@@ -199,8 +199,8 @@ test("ErrorBoundary renders fallback and prevents error from bubbling", async ()
   container.addEventListener(
     "error",
     (e: Event) => {
-      const ce = e as CustomEvent;
-      containerCaught = ce.detail.error;
+      const ce = e as ErrorEvent;
+      containerCaught = ce.error;
       e.preventDefault();
     },
     { once: true },
