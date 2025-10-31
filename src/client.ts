@@ -611,7 +611,7 @@ function traverseReactiveChildren(scopes: Node[]) {
     );
     let node = xpathResult.iterateNext();
     while (node) {
-      if ("__reactive_children" in node || "__reactive_attributes" in node) {
+      if ("__reactive_children" in node || "__reactive_attributes" in node || "__component" in node) {
         reactive.push(node as any);
       }
       node = xpathResult.iterateNext();
