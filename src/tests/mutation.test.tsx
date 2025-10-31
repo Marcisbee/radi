@@ -53,13 +53,13 @@ test("render", async () => {
 
   assert.snapshot.html(
     container,
-    `<radi-host style="display: contents;">
+    `<host>
       <div class="counter">
-        <span><!--(-->0<!--)--></span>
+        <span><!--$-->0</span>
         <button class="btn-mutate">Mutate</button>
         <button class="btn-update">Update</button>
       </div>
-    </radi-host>`,
+    </host>`,
   );
 });
 
