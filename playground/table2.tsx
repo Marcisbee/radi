@@ -1,4 +1,10 @@
-import { createElement, Fragment, createRoot, update, memo } from "../src/client.ts";
+import {
+  createElement,
+  createRoot,
+  Fragment,
+  memo,
+  update,
+} from "../src/client.ts";
 
 // import { createElement, createRoot, Fragment, memo, update } from "../rework-fw.ts";
 
@@ -267,33 +273,32 @@ export function Table(this: HTMLElement) {
   return (
     <table className="table table-hover table-striped test-data">
       <tbody>
-        {memo(() =>
-          (rows.map((item, index) => (
-            <tr
-              key={String(item.id)}
-              id={String(item.id)}
-              className={item.selected ? "danger" : ""}
-            >
-              <td className="col-md-1">{() => rows[index]?.id}</td>
-              <td className="col-md-4">
-                <a>{() => rows[index]?.label}</a>
-              </td>
-              <td data-interaction="delete" className="col-md-1">
-                <a>
-                  <span
-                    className="glyphicon glyphicon-remove"
-                    aria-hidden="true"
-                  >
-                  </span>
-                </a>
-              </td>
-              <td className="col-md-6"></td>
-            </tr>
-          ))), () => {
-            const changed = len !== rows.length;
-            len = rows.length;
-            return !changed;
-          })}
+        {memo(() => (rows.map((item, index) => (
+          <tr
+            key={String(item.id)}
+            id={String(item.id)}
+            className={item.selected ? "danger" : ""}
+          >
+            <td className="col-md-1">{() => rows[index]?.id}</td>
+            <td className="col-md-4">
+              <a>{() => rows[index]?.label}</a>
+            </td>
+            <td data-interaction="delete" className="col-md-1">
+              <a>
+                <span
+                  className="glyphicon glyphicon-remove"
+                  aria-hidden="true"
+                >
+                </span>
+              </a>
+            </td>
+            <td className="col-md-6"></td>
+          </tr>
+        ))), () => {
+          const changed = len !== rows.length;
+          len = rows.length;
+          return !changed;
+        })}
       </tbody>
     </table>
   );
