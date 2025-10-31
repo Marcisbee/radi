@@ -813,6 +813,27 @@ let currentUpdateId: number = 0;
 //   { capture: true },
 // );
 
+// in performance tests this is slower:
+// function traverseReactiveChildren(scopes: Node[]): Node[] {
+//   const reactive: Node[] = [];
+//   function collectReactive(node: Node) {
+//     if (
+//       "__reactive_children" in node ||
+//       "__reactive_attributes" in node ||
+//       "__component" in node
+//     ) {
+//       reactive.push(node);
+//     }
+//     for (let i = 0; i < node.childNodes.length; i++) {
+//       collectReactive(node.childNodes[i]);
+//     }
+//   }
+//   for (const scope of scopes) {
+//     collectReactive(scope);
+//   }
+//   return reactive;
+// }
+
 function traverseReactiveChildren(scopes: Node[]) {
   const reactive: Anchor[] = [];
 
