@@ -58,7 +58,7 @@ function sendDisconnectEvent(target: Node) {
 function sendUpdateEvent(target: Node) {
   // Prevent duplicate dispatch within the same update cycle
   if ((target as any).__update_id === currentUpdateId) {
-    return false;
+    return true;
   }
   if (!target.isConnected) {
     return true;
@@ -136,22 +136,6 @@ function connect(child: Node, parent: Node) {
 }
 
 function disconnect(child: Node) {
-  // Disconnect reactive children for comment anchors
-  if (child?.nodeType === Node.COMMENT_NODE && "__reactive_children" in child) {
-    for (const cc of child.__reactive_children || []) {
-      disconnect(cc);
-    }
-    if ("__tail" in child) (child as any).__tail = null;
-  }
-
-  // Disconnect reactive children for element component hosts
-  if (child?.nodeType === Node.ELEMENT_NODE && "__reactive_children" in child) {
-    for (const cc of child.__reactive_children || []) {
-      disconnect(cc);
-    }
-    if ("__tail" in child) (child as any).__tail = null;
-  }
-
   if (Array.isArray(child)) {
     for (const c of child) {
       disconnect(c);
@@ -159,10 +143,26 @@ function disconnect(child: Node) {
     return child;
   }
 
+  // Disconnect reactive children for comment anchors
+  if ("__reactive_children" in child) {
+    for (const cc of child.__reactive_children || []) {
+      disconnect(cc);
+    }
+    if ("__tail" in child) child.__tail = null;
+  }
+
+  // Disconnect reactive children for element component hosts
+  // if (child?.nodeType === Node.ELEMENT_NODE && "__reactive_children" in child) {
+  //   for (const cc of child.__reactive_children || []) {
+  //     disconnect(cc);
+  //   }
+  //   if ("__tail" in child) (child as any).__tail = null;
+  // }
+
   // Recursively disconnect DOM children for element nodes before removal
   if (child.nodeType === Node.ELEMENT_NODE) {
-    const kids = Array.from(child.childNodes);
-    for (const k of kids) {
+    // const kids = Array.from(child.childNodes);
+    for (const k of child.childNodes) {
       disconnect(k);
     }
     // Teardown attribute descriptors (unsubscribe reactive props/stores)
@@ -177,12 +177,14 @@ function disconnect(child: Node) {
       }
       descs.clear?.();
     }
-    (child as any).__reactive_attributes?.clear?.();
+    child.__reactive_attributes?.clear?.();
   }
 
-  (child as any).remove
-    ? (child as any).remove()
-    : child.parentNode?.removeChild(child);
+  if (child.isConnected) {
+    (child as any).remove
+      ? (child as any).remove()
+      : child.parentNode?.removeChild(child);
+  }
 
   sendDisconnectEvent(child);
   return child;
@@ -278,7 +280,7 @@ function createDescriptor(
         else applyGeneric(target, key, v);
       },
       teardown() {
-        if (typeof sub === 'function') {
+        if (typeof sub === "function") {
           try {
             (sub as any)();
           } catch {
@@ -623,17 +625,14 @@ function runUpdate(target: Node) {
   if (!sendUpdateEvent(target)) {
     return false;
   }
-  // target.dispatchEvent(new Event("update"));
   if (target.isConnected && target.__render_id !== currentUpdateId) {
     if ("__render" in target) {
-      if (!(target as any).__memo?.()) {
-        (target as any).__render?.(target);
-      }
+      target.__render?.(target);
     } else if ("__reactive_attributes" in target) {
       for (
-        const update of (target as any).__reactive_attributes?.values?.() || []
+        const update of target.__reactive_attributes?.values?.() || []
       ) {
-        (update as any)(target as any);
+        update(target as any);
       }
     }
     target.__render_id = currentUpdateId;
@@ -665,6 +664,15 @@ function updater(target: Node) {
     }
   }
 }
+
+// function updater(target: Node) {
+//   if (!runUpdate(target)) return;
+//   for (const toUpdate of traverseReactiveChildren([target])) {
+//     if (toUpdate !== target) {
+//       runUpdate(toUpdate);
+//     }
+//   }
+// }
 
 class UpdateEvent extends Event {
   constructor(public node: Node) {
@@ -789,7 +797,7 @@ function build(a: any, parent: Node): BuiltNode {
     a = (e: Node): unknown => {
       anchor = e;
       (e as Node).addEventListener?.("disconnect", () => {
-        if (typeof unsub === 'function') {
+        if (typeof unsub === "function") {
           try {
             (unsub as any)();
           } catch {
@@ -879,22 +887,22 @@ export function createRoot(target: HTMLElement) {
       try {
         if (out.root) {
           // Attempt component host reconciliation: same type + same key => reuse host
-            const oldHost = out.root as any;
-            const newHost = el as any;
-            if (
-              oldHost?.__type &&
-              newHost?.__type &&
-              oldHost.__type === newHost.__type &&
-              oldHost.__props?.key === newHost.__props?.key
-            ) {
-              oldHost.__props = newHost.__props;
-              update(oldHost);
-              return (out.root = oldHost);
-            }
-            // Different component type or key: full remount
-            disconnect(out.root);
-            out.root = build(el, target) as Node;
-            return out.root;
+          const oldHost = out.root as any;
+          const newHost = el as any;
+          if (
+            oldHost?.__type &&
+            newHost?.__type &&
+            oldHost.__type === newHost.__type &&
+            oldHost.__props?.key === newHost.__props?.key
+          ) {
+            oldHost.__props = newHost.__props;
+            update(oldHost);
+            return (out.root = oldHost);
+          }
+          // Different component type or key: full remount
+          disconnect(out.root);
+          out.root = build(el, target) as Node;
+          return out.root;
         }
         // First render for this root instance: clear any stray existing nodes
         if (!out.root && target.firstChild) {
