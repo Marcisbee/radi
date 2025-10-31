@@ -30,8 +30,21 @@ function queueConnection(fn: Function) {
   connectQueue.add(fn);
 }
 function flushConnectionQueue() {
-  for (const task of connectQueue) task();
-  connectQueue.clear();
+  // Iteratively flush queued component build/connect tasks.
+  // Nested component hosts can enqueue additional tasks while a task runs.
+  // Loop until no new tasks are added to ensure full tree construction in a single cycle.
+  while (connectQueue.size) {
+    const tasks = Array.from(connectQueue);
+    connectQueue.clear();
+    for (const task of tasks) {
+      try {
+        task();
+      } catch (err) {
+        // Swallow to avoid aborting remaining connection tasks; surface minimally.
+        console.error("connection task error", err);
+      }
+    }
+  }
 }
 
 function sendConnectEvent(target: Node) {
