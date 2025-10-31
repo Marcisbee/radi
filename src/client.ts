@@ -35,9 +35,6 @@ function flushConnectionQueue() {
 }
 
 function sendConnectEvent(target: Node) {
-  if (!target.isConnected) {
-    return;
-  }
   if (target.onconnect || target.__component || target.__reactive_children) {
     if (!target.isConnected) {
       return;
@@ -105,29 +102,18 @@ function connect(child: Node, parent: Node) {
   parent.appendChild(child);
 
   if (child.__component && child.__instance === undefined) {
-    // if (parent.isConnected) {
-    //   build(child.__component(child), child);
-    //   // queueMicrotask(() => {
-    //   child.dispatchEvent(new Event("connect"));
-    //   // });
-    // } else {
-    //   runAfterConnected(() => {
-    //     build(child.__component(child), child);
-    //     // queueMicrotask(() => {
-    //     child.dispatchEvent(new Event("connect"));
-    //     // });
-    //   });
-    // }
-    // return child;
+    // Queue component build, then dispatch connect AFTER build so listeners added inside component execute.
     queueConnection(() => {
       if (!child.isConnected) {
         return;
       }
       build((child.__component as any)?.(), child);
-      // queueMicrotask(() => {
-      // child.dispatchEvent(new Event('connect'));
-      // });
+      queueMicrotask(() => {
+        child.dispatchEvent(new Event("connect"));
+      });
+      // sendConnectEvent(child);
     });
+    // return child;
   }
 
   sendConnectEvent(child);
@@ -542,9 +528,9 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
             itemOld.__type !== itemNew.__type
           ) {
             // connectQueue.clear();
-            replace(itemNew, itemOld);
             // flushConnectionQueue();
             build(itemNew.__component(), itemNew);
+            replace(itemNew, itemOld);
             arrayOut[ii] = itemNew;
             continue;
           }
