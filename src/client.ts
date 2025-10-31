@@ -404,16 +404,12 @@ function bubbleError(error: any, target: Node, name?: string) {
 function buildRender(parent: Anchor, fn: (parent: Anchor) => any) {
   parent.__render = () => {
     (parent as any).__tail = parent;
-    parent.__memoIndex = 0;
     try {
-      currentReactiveContext = parent;
       parent.__reactive_children = ([] as any[]).concat(
         diff(parent.__reactive_children, fn(parent), parent),
       );
     } catch (error) {
       bubbleError(error, parent);
-    } finally {
-      currentReactiveContext = null;
     }
   };
 }
@@ -743,7 +739,6 @@ type ComponentHost = Node & {
 };
 
 let i = 0;
-let currentReactiveContext: Anchor | null = null;
 function build(a: any, parent: Node): BuiltNode {
   if (Array.isArray(a)) {
     return a.map((child) => build(child, parent));
@@ -802,22 +797,19 @@ function build(a: any, parent: Node): BuiltNode {
 
   if (typeof a === "function") {
     const anchor = document.createComment("$") as any as Anchor;
+    // const anchor = document.createComment("$" + i++) as any as Anchor;
     connect(anchor, parent);
     anchor.__render_id = currentUpdateId;
-
     try {
-      currentReactiveContext = anchor;
       const built = build(a(anchor), parent);
       anchor.__reactive_children = Array.isArray(built)
         ? (built as Node[])
         : [built as Node];
     } catch (error) {
+      // Bubble errors thrown during initial reactive generator execution
       bubbleError(error, anchor);
       anchor.__reactive_children = [];
-    } finally {
-      currentReactiveContext = null;
     }
-
     buildRender(anchor, a);
     return anchor;
   }
@@ -927,75 +919,13 @@ export function update(target: Node) {
   // return target.dispatchEvent(new Event(updateEventId));
 }
 
-export function memo(
-  fn: (anchor: Node) => any,
-  shouldMemo: () => boolean,
-  key?: any,
-) {
-  // Dynamic memoization:
-  // - If a key is provided and we're in a reactive context, use keyed caching so
-  //   insertion/removal/reordering of other memo calls does not affect this one.
-  // - Otherwise fall back to positional indexing (original behavior).
-  if (currentReactiveContext) {
-    const ctx: any = currentReactiveContext;
-
-    if (key !== undefined) {
-      const map: Map<any, any> = ctx.__memoKeyed ||
-        (ctx.__memoKeyed = new Map());
-      let record = map.get(key);
-      if (record) {
-        record.shouldMemo = shouldMemo;
-        return record.wrapper;
-      }
-      record = {
-        shouldMemo,
-        state: { cached: undefined as any, initialized: false },
-        wrapper: null as any,
-      };
-      const wrapper = (anchor: Node) => {
-        const state = record.state;
-        if (!state.initialized || !record.shouldMemo()) {
-          state.cached = fn(anchor);
-          state.initialized = true;
-        }
-        return state.cached;
-      };
-      record.wrapper = wrapper;
-      map.set(key, record);
-      return wrapper;
-    }
-
-    // Positional memoization (fallback when no key supplied)
-    const index = ctx.__memoIndex || 0;
-    ctx.__memoIndex = index + 1;
-    const wrappers: any[] = ctx.__memoWrappers || (ctx.__memoWrappers = []);
-    let record = wrappers[index];
-    if (record) {
-      record.shouldMemo = shouldMemo;
-      return record.wrapper;
-    }
-    record = {
-      shouldMemo,
-      state: { cached: undefined as any, initialized: false },
-      wrapper: null as any,
-    };
-    const wrapper = (anchor: Node) => {
-      const state = record.state;
-      if (!state.initialized || !record.shouldMemo()) {
-        state.cached = fn(anchor);
-        state.initialized = true;
-      }
-      return state.cached;
-    };
-    record.wrapper = wrapper;
-    wrappers[index] = record;
-    return wrapper;
-  }
-
-  // Fallback outside reactive render context
+export function memo(fn: (anchor: Node) => any, shouldMemo: () => boolean) {
   let cached: any;
   let initialized = false;
-  return (anchor: Node) => {
+  return (anchor: any) => {
+    // Attach skip predicate for reactive anchors
+    (anchor as any).__memo = shouldMemo;
+    // Recompute only if not initialized or predicate says "do not memo"
     if (!initialized || !shouldMemo()) {
       cached = fn(anchor);
       initialized = true;
