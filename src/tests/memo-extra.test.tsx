@@ -273,4 +273,99 @@ test("memo render error then recovery", async () => {
   assert.equal(errors, 1);
 });
 
+test("memo render list", async () => {
+  function List(this: HTMLElement) {
+    let rows: number[] = [];
+    let len: number;
+
+    return (
+      <div>
+        <button
+          type="button"
+          onclick={() => {
+            rows.push(1, 2, 3, 4, 5, 6);
+            update(this);
+          }}
+        >
+          Add
+        </button>
+        <ul>
+          {memo(() => (rows.map((item, index) => (
+            <li
+              key={String(item)}
+              id={String(item)}
+            >
+              {() => rows[index]} : {() => index}
+            </li>
+          ))), () => {
+            const changed = len !== rows.length;
+            len = rows.length;
+            return !changed;
+          })}
+        </ul>
+      </div>
+    );
+  }
+
+  const root = await mount(<List />, document.body);
+
+  const button = root.querySelector("button")!;
+  const ul = root.querySelector("ul")!;
+
+  console.log(root.outerHTML);
+
+  assert.length(ul.querySelectorAll("li"), 0);
+
+  button.click();
+  await Promise.resolve();
+  console.log(root.outerHTML);
+  assert.length(ul.querySelectorAll("li"), 6);
+  assert.equal(ul.querySelectorAll("li")[0].textContent, "1 : 0");
+  assert.equal(ul.querySelectorAll("li")[5].textContent, "6 : 5");
+});
+
+test("non-memo render list", async () => {
+  function List(this: HTMLElement) {
+    let rows: number[] = [];
+    let len: number;
+
+    return (
+      <div>
+        <button
+          type="button"
+          onclick={() => {
+            rows.push(1, 2, 3, 4, 5, 6);
+            update(this);
+          }}
+        >
+          Add
+        </button>
+        <ul>
+          {() => (rows.map((item, index) => (
+            <li
+              key={String(item)}
+              id={String(item)}
+            >
+              {() => rows[index]} : {() => index}
+            </li>
+          )))}
+        </ul>
+      </div>
+    );
+  }
+
+  const root = await mount(<List />, document.body);
+
+  const button = root.querySelector("button")!;
+  const ul = root.querySelector("ul")!;
+
+  assert.length(ul.querySelectorAll("li"), 0);
+
+  button.click();
+  await Promise.resolve();
+  assert.length(ul.querySelectorAll("li"), 6);
+  assert.equal(ul.querySelectorAll("li")[0].textContent, "1 : 0");
+  assert.equal(ul.querySelectorAll("li")[5].textContent, "6 : 5");
+});
+
 await test.run();
