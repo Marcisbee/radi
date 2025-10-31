@@ -1,6 +1,10 @@
 import { assert, test } from "@marcisbee/rion";
 import { createRoot, update } from "../client.ts";
 
+test.before.each(() => {
+  document.body.innerHTML = '';
+});
+
 /**
  * Component whose displayed count increments on each update event.
  */
@@ -44,9 +48,9 @@ test("update-increments", () => {
     (document.querySelector(".count") as HTMLDivElement).textContent;
 
   assert.equal(getText(), "0");
-  update(root.root);
+  update(root.root!);
   assert.equal(getText(), "1");
-  update(root.root);
+  update(root.root!);
   assert.equal(getText(), "2");
 });
 
@@ -66,9 +70,9 @@ test("update-no-remount", () => {
   assert.equal(connects, 1);
   assert.equal(disconnects, 0);
 
-  update(root.root);
-  update(root.root);
-  update(root.root);
+  update(root.root!);
+  update(root.root!);
+  update(root.root!);
   assert.equal(connects, 1);
   assert.equal(disconnects, 0);
 });
@@ -91,13 +95,13 @@ test("update-nested-reactive", () => {
   assert.equal(firstOuter, "0");
   assert.true(firstInner.length > 0);
 
-  update(root.root);
+  update(root.root!);
   const secondOuter = outerEl();
   const secondInner = innerEl();
   assert.equal(secondOuter, "1");
   assert.notEqual(secondInner, firstInner);
 
-  update(root.root);
+  update(root.root!);
   const thirdOuter = outerEl();
   const thirdInner = innerEl();
   assert.equal(thirdOuter, "2");
