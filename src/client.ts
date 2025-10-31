@@ -140,34 +140,38 @@ function disconnect(child: Node) {
     return child;
   }
 
-  // Disconnect reactive children for comment anchors
-  if ("__reactive_children" in child) {
-    for (const cc of child.__reactive_children || []) {
-      disconnect(cc);
-    }
-    if ("__tail" in child) child.__tail = null;
-  }
-
-  // Recursively disconnect DOM children for element nodes before removal
-  if (child.nodeType === Node.ELEMENT_NODE) {
-    // const kids = Array.from(child.childNodes);
-    for (const k of child.childNodes) {
-      disconnect(k);
-    }
-    // Teardown attribute descriptors (unsubscribe reactive props/stores)
-    const descs = (child as any).__attr_descriptors;
-    if (descs) {
-      for (const [, desc] of descs) {
-        try {
-          desc.teardown?.();
-        } catch {
-          /* ignore teardown errors */
+  traverseReactiveChildren(child?.__reactive_children || [child]).forEach(
+    (toDisconnect) => {
+      queueMicrotask(() => {
+        toDisconnect.dispatchEvent(new Event("disconnect"));
+        const descs = (toDisconnect as any).__attr_descriptors;
+        if (descs) {
+          for (const [, desc] of descs) {
+            try {
+              desc.teardown?.();
+            } catch {
+              /* ignore teardown errors */
+            }
+          }
+          descs.clear?.();
         }
+        toDisconnect.__reactive_attributes?.clear?.();
+      });
+    },
+  );
+
+  const descs = (child as any).__attr_descriptors;
+  if (descs) {
+    for (const [, desc] of descs) {
+      try {
+        desc.teardown?.();
+      } catch {
+        /* ignore teardown errors */
       }
-      descs.clear?.();
     }
-    child.__reactive_attributes?.clear?.();
+    descs.clear?.();
   }
+  child.__reactive_attributes?.clear?.();
 
   if (child.isConnected) {
     (child as any).remove
@@ -695,6 +699,29 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
       }
     }
   }
+
+  // // Ensure DOM order matches arrayOut
+  // const ordered = flatten(arrayOut);
+  // if (parent.nodeType === Node.ELEMENT_NODE) {
+  //   const fragment = document.createDocumentFragment();
+  //   fragment.append(...ordered);
+  //   // for (const child of ordered) {
+  //   //   // if (child.parentNode === parent) {
+  //   //     fragment.append(child);
+  //   //   // }
+  //   // }
+  //   parent.appendChild(fragment);
+  // } else if (
+  //   parent.nodeType === Node.COMMENT_NODE ||
+  //   parent.nodeType === Node.TEXT_NODE
+  // ) {
+  //   const container = parent.parentNode;
+  //   if (container) {
+  //     const fragment = document.createDocumentFragment();
+  //         fragment.append(...ordered);
+  //     container.insertBefore(fragment, parent.nextSibling);
+  //   }
+  // }
 
   return arrayOut;
 }
