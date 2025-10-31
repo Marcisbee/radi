@@ -706,6 +706,46 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
           </EventPropagationParent>
         </EventPropagationParent>
       </EventPropagationParent>
+      <hr />
+      Identity swap:
+      <IdentitySwap />
+    </div>
+  );
+}
+
+function IdentitySwap(this: HTMLElement) {
+  let mode: "A" | "B" = "A";
+  return () => (
+    <div className="identity-swap">
+      <button
+        className="swap"
+        onclick={() => {
+          mode = mode === "A" ? "B" : "A";
+          update(this);
+        }}
+      >
+        swap
+      </button>
+      {mode === "A" ? <AChild label="aaa" /> : <BChild label="bbb" />}
+      <span className="mode">{mode}</span>
+    </div>
+  );
+}
+
+function AChild(this: HTMLElement, props: JSX.Props<{ label: string }>) {
+  let renderCount = 0;
+  return () => (
+    <div className="a-child">
+      A:{props().label} r:{++renderCount}
+    </div>
+  );
+}
+
+function BChild(this: HTMLElement, props: JSX.Props<{ label: string }>) {
+  let renderCount = 0;
+  return () => (
+    <div className="b-child">
+      B:{props().label} r:{++renderCount}
     </div>
   );
 }
