@@ -748,7 +748,7 @@ export function createElement(
   }
 
   if (type === Fragment) {
-    return props?.children || [];
+    return [].concat(children || []) as any;
   }
 
   return document.createTextNode("<UNHANDLED>");
