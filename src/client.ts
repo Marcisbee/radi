@@ -1,27 +1,27 @@
 // Type augmentations for custom reactive fields used on Node/HTMLElement
-declare global {
-  interface Node {
-    onconnect?: (e: Event) => void;
-    ondisconnect?: (e: Event) => void;
-    onupdate?: (e: Event) => void;
-    __component?: (anchor: Node) => any;
-    __reactive_children?: Node[];
-    __tail?: Node | null;
-    __render_id?: number;
-    __render?: (anchor: Node) => void;
-    __memo?: () => boolean;
-    __reactive_attributes?: Map<string, (el: HTMLElement) => void>;
-    __type?: Function;
-    __props?: Record<string, any>;
-    __instance?: any;
-  }
-  interface HTMLElement {
-    __attr_descriptors?: Map<string, AttrDescriptor>;
-    __reactive_attributes?: Map<string, (el: HTMLElement) => void>;
-    __raw_props?: Record<string, any> | null;
-    __props?: Record<string, any>;
-  }
-}
+// declare global {
+//   interface Node {
+//     onconnect?: (e: Event) => void;
+//     ondisconnect?: (e: Event) => void;
+//     onupdate?: (e: Event) => void;
+//     __component?: (anchor: Node) => any;
+//     __reactive_children?: Node[];
+//     __tail?: Node | null;
+//     __render_id?: number;
+//     __render?: (anchor: Node) => void;
+//     __memo?: () => boolean;
+//     __reactive_attributes?: Map<string, (el: HTMLElement) => void>;
+//     __type?: Function;
+//     __props?: Record<string, any>;
+//     __instance?: any;
+//   }
+//   interface HTMLElement {
+//     __attr_descriptors?: Map<string, AttrDescriptor>;
+//     __reactive_attributes?: Map<string, (el: HTMLElement) => void>;
+//     __raw_props?: Record<string, any> | null;
+//     __props?: Record<string, any>;
+//   }
+// }
 
 type Child = any;
 
@@ -1002,12 +1002,13 @@ export function createElement(
   return document.createTextNode("<UNHANDLED>");
 }
 
-export function createRoot(target: HTMLElement) {
-  interface Root {
-    render(el: Child): Node;
-    root: Node | null;
-    unmount(): void;
-  }
+interface Root {
+  render(el: Child): Node;
+  root: Node | null;
+  unmount(): void;
+}
+
+export function createRoot(target: HTMLElement): Root {
   const out: Root = {
     render(el: Child): Node {
       try {
