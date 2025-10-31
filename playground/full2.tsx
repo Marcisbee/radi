@@ -440,14 +440,14 @@ function StyledCounter(this: DocumentFragment) {
   let count = 0;
 
   this.addEventListener("update", (e) => {
-    console.log("PREVENT1")
+    console.log("PREVENT1");
     if (count % 2) {
-    console.log("PREVENT2")
+      console.log("PREVENT2");
       e.preventDefault();
-      e.stopImmediatePropagation()
-      e.stopPropagation()
+      e.stopImmediatePropagation();
+      e.stopPropagation();
     }
-  })
+  });
 
   return () => (
     <div style={{ overflow: "hidden" }}>
@@ -708,9 +708,50 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
       </EventPropagationParent>
       <hr />
       Identity swap:
-      <IdentitySwap />
+      <div>
+        <IdentitySwap />
+      </div>
+      <div>
+        <VariableArrayRoot />
+      </div>
     </div>
   );
+}
+
+function Item(this: HTMLElement, props: JSX.Props<{ id: number }>) {
+  console.log("OPENED", props().id)
+  return <span className="item-span">#{() => props().id}</span>;
+}
+
+function VariableArrayRoot(this: HTMLElement) {
+  let itemCount = 1;
+  return () => {
+    const items = Array.from({ length: itemCount }, (_, i) => <Item id={i} />);
+    return (
+      <div className="var-array">
+        <button
+          className="inc-btn"
+          onclick={() => {
+            itemCount++;
+            update(this);
+          }}
+        >
+          inc
+        </button>
+        <button
+          className="dec-btn"
+          onclick={() => {
+            itemCount = Math.max(0, itemCount - 1);
+            update(this);
+          }}
+        >
+          dec
+        </button>
+        <div className="list">{items}</div>
+        <span className="count">{itemCount}</span>
+      </div>
+    );
+  };
 }
 
 function IdentitySwap(this: HTMLElement) {
