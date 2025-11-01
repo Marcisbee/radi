@@ -594,12 +594,13 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
             itemOld.__props?.key !== itemNew.__props?.key ||
             itemOld.__type !== itemNew.__type
           ) {
-            build(itemNew.__component(), itemNew);
             replace(itemNew, itemOld);
+            build(itemNew.__component(itemNew), itemNew);
             arrayOut[ii] = itemNew;
             continue;
           }
 
+          itemOld.__key = itemNew.__key;
           itemOld.__props = itemNew.__props;
           itemOld.__component = itemNew.__component;
           arrayOut[ii] = itemOld;
@@ -1004,12 +1005,12 @@ export function createElement(
     host.__props = { ...(props || {}), children };
     host.__component = (anchor) => {
       try {
-        if (!host.__instance || props?.key !== host.__props?.key) {
-          return (host.__instance = type.call(host, () => (host.__props)));
+        if (!anchor.__instance || props?.key !== anchor.__props?.key) {
+          return (anchor.__instance = type.call(anchor, () => (anchor.__props)));
         }
-        return host.__instance;
+        return anchor.__instance;
       } catch (error) {
-        bubbleError(error, host, type?.name);
+        bubbleError(error, anchor, type?.name);
       }
       return `ERROR:${type?.name}`;
     };

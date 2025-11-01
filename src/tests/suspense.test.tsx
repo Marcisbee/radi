@@ -235,6 +235,59 @@ test("can-resuspend", async () => {
   assert.excludes(root.textContent, "Phase");
 });
 
+test("can resuspend with key change", async () => {
+  function ResuspenderWithKey(this: HTMLElement) {
+    let phase = "boot";
+    (async () => {
+      suspend(this);
+      phase = "s1";
+      update(this);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      phase = "s1-done";
+      update(this);
+      unsuspend(this);
+    })();
+    return <span className="resuspender">{() => phase}</span>;
+  }
+
+  function App(this: HTMLElement) {
+    let key = 0;
+    return (
+      <div>
+        <button
+          type="button"
+          onclick={() => {
+            key++;
+            update(this);
+          }}
+        >
+          Resuspend
+        </button>
+        <Suspense fallback={() => <strong className="fallback">Phase</strong>}>
+          {() => <ResuspenderWithKey key={key} />}
+        </Suspense>
+      </div>
+    );
+  }
+
+  const root = await mount(<App />, document.body);
+  const button = root.querySelector("button")!;
+
+  // Initial suspend cycle
+  assert.contains(root.textContent!, "Phase");
+  assert.contains(root.textContent!, "s1");
+  await clock.fastForward(35);
+  assert.excludes(root.textContent, "Phase");
+  assert.contains(root.textContent!, "s1-done");
+  // Trigger resuspend via key change
+  button.click();
+  assert.contains(root.textContent!, "Phase");
+  assert.contains(root.textContent!, "s1");
+  await clock.fastForward(35);
+  assert.excludes(root.textContent, "Phase");
+  assert.contains(root.textContent!, "s1-done");
+});
+
 test("handles sub-components", async () => {
   function Child(this: HTMLElement) {
     suspend(this);
@@ -330,7 +383,6 @@ test("handles sub-components", async () => {
     </host>
     `,
   );
-
 });
 
 await test.run();
