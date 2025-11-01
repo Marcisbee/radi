@@ -433,4 +433,240 @@ test("on update nested", async () => {
   );
 });
 
+test("on update passthru 1", async () => {
+  function Child() {
+    return <div id="b">B</div>;
+  }
+
+  function PassThru(props) {
+    return [props().children];
+  }
+
+  function Parent(this: HTMLElement) {
+    let count = 0;
+    return (
+      <div>
+        <button
+          type="button"
+          onclick={() => {
+            count++;
+            update(this);
+          }}
+        >
+          update
+        </button>
+        <PassThru>
+          {() => (count > 0 && <Child />)}
+        </PassThru>
+      </div>
+    );
+  }
+
+  const root = await mount(<Parent />, document.body);
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <button type="button">update</button>
+        <host><!--$--><!--false--></host>
+      </div>
+    </host>
+  `,
+  );
+
+  const button = root.querySelector("button")!;
+  button.click();
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <button type="button">update</button>
+        <host><!--$--><host><div id="b">B</div></host></host>
+      </div>
+    </host>
+  `,
+  );
+});
+
+test("on update passthru 2", async () => {
+  function Child() {
+    return <div id="b">B</div>;
+  }
+
+  function PassThru(props) {
+    return [() => props().children];
+  }
+
+  function Parent(this: HTMLElement) {
+    let count = 0;
+    return (
+      <div>
+        <button
+          type="button"
+          onclick={() => {
+            count++;
+            update(this);
+          }}
+        >
+          update
+        </button>
+        <PassThru>
+          {() => (count > 0 && <Child />)}
+        </PassThru>
+      </div>
+    );
+  }
+
+  const root = await mount(<Parent />, document.body);
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <button type="button">update</button>
+        <host><!--$--><!--$--><!--false--></host>
+      </div>
+    </host>
+  `,
+  );
+
+  const button = root.querySelector("button")!;
+  button.click();
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <button type="button">update</button>
+        <host><!--$--><!--$--><host><div id="b">B</div></host></host>
+      </div>
+    </host>
+  `,
+  );
+});
+
+test("on update passthru 3", async () => {
+  function Child() {
+    return <div id="b">B</div>;
+  }
+
+  function PassThru(props) {
+    return [<sus>{() => props().children}</sus>];
+  }
+
+  function Parent(this: HTMLElement) {
+    let count = 0;
+    return (
+      <div>
+        <button
+          type="button"
+          onclick={() => {
+            count++;
+            update(this);
+          }}
+        >
+          update
+        </button>
+        <PassThru>
+          {() => (count > 0 && <Child />)}
+        </PassThru>
+      </div>
+    );
+  }
+
+  const root = await mount(<Parent />, document.body);
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <button type="button">update</button>
+        <host><sus><!--$--><!--$--><!--false--></sus></host>
+      </div>
+    </host>
+  `,
+  );
+
+  const button = root.querySelector("button")!;
+  button.click();
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <button type="button">update</button>
+        <host><sus><!--$--><!--$--><host><div id="b">B</div></host></sus></host>
+      </div>
+    </host>
+  `,
+  );
+});
+
+test("on update passthru 4", async () => {
+  function Child() {
+    return () => <div id="b">B</div>;
+  }
+
+  function PassThru(props) {
+    return [<sus>{() => props().children}</sus>];
+  }
+
+  function Parent(this: HTMLElement) {
+    let count = 0;
+    return (
+      <div>
+        <button
+          type="button"
+          onclick={() => {
+            count++;
+            update(this);
+          }}
+        >
+          update
+        </button>
+        <PassThru>
+          {() => (count > 0 && <Child />)}
+        </PassThru>
+      </div>
+    );
+  }
+
+  const root = await mount(<Parent />, document.body);
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <button type="button">update</button>
+        <host><sus><!--$--><!--$--><!--false--></sus></host>
+      </div>
+    </host>
+  `,
+  );
+
+  const button = root.querySelector("button")!;
+  button.click();
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <button type="button">update</button>
+        <host><sus><!--$--><!--$--><host><!--$--><div id="b">B</div></host></sus></host>
+      </div>
+    </host>
+  `,
+  );
+});
+
 await test.run();

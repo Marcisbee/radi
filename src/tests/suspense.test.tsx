@@ -235,4 +235,102 @@ test("can-resuspend", async () => {
   assert.excludes(root.textContent, "Phase");
 });
 
+test("handles sub-components", async () => {
+  function Child(this: HTMLElement) {
+    suspend(this);
+
+    (async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      unsuspend(this);
+    })();
+
+    return <div id="b">B</div>;
+  }
+
+  function Parent(this: HTMLElement) {
+    let count = 0;
+    return (
+      <div>
+        <button
+          type="button"
+          onclick={() => {
+            count++;
+            update(this);
+          }}
+        >
+          update
+        </button>
+        <Suspense fallback={() => <strong className="fallback">Phase</strong>}>
+          {() => (count > 0 && <Child />)}
+        </Suspense>
+      </div>
+    );
+  }
+
+  const root = await mount(<Parent />, document.body);
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <button type="button">update</button>
+        <host>
+          <suspense _r="" style="display: contents;">
+            <!--$--><!--$--><!--false-->
+          </suspense>
+          <!--$--><!--null-->
+        </host>
+      </div>
+    </host>
+    `,
+  );
+
+  const button = root.querySelector("button")!;
+  button.click();
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <button type="button">update</button>
+        <host>
+          <suspense _r="" style="display: none;">
+            <!--$--><!--$-->
+            <host>
+              <div id="b">B</div>
+            </host>
+          </suspense>
+          <!--$--><strong class="fallback">Phase</strong>
+        </host>
+      </div>
+    </host>
+    `,
+  );
+
+  await clock.fastForward(100);
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <button type="button">update</button>
+        <host>
+          <suspense _r="" style="display: contents;">
+            <!--$--><!--$-->
+            <host>
+              <div id="b">B</div>
+            </host>
+          </suspense>
+          <!--$--><!--null-->
+        </host>
+      </div>
+    </host>
+    `,
+  );
+
+});
+
 await test.run();

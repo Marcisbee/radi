@@ -116,9 +116,10 @@ function connect(child: Node, parent: Node) {
         if (!child.isConnected) {
           return;
         }
-        build((child.__component as any)?.(), child);
+        build(child.__component!(child), child);
         sendConnectEvent(child);
       });
+      return child;
     }
 
     sendConnectEvent(child);
@@ -133,7 +134,7 @@ function connect(child: Node, parent: Node) {
       if (!child.isConnected) {
         return;
       }
-      build((child.__component as any)?.(), child);
+      build(child.__component!(child), child);
       // Dispatch connect after initial build (single fire)
       sendConnectEvent(child);
     });
@@ -648,13 +649,17 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
         parent.nodeType === Node.TEXT_NODE) &&
       itemOld?.nodeType
     ) {
+      if (!itemOld.isConnected) {
+        arrayOut[ii] = itemOld;
+        continue;
+      }
       const builtNode = build(itemNew, parent) as Node;
-      replace(builtNode, itemOld as Node);
-      disconnect(itemOld as Node);
+      arrayOut[ii] = replace(builtNode, itemOld as Node);
+      flushConnectionQueue();
+      // flushConnectionQueue();
       // Ensure nested component hosts built under a newly inserted element (within a reactive anchor)
       // are flushed synchronously so snapshots see their inner content immediately.
-      flushConnectionQueue();
-      arrayOut[ii] = builtNode;
+      // arrayOut[ii] = builtNode;
       continue;
     }
 
