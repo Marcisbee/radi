@@ -323,4 +323,114 @@ test("fragment churn", async () => {
   validate();
 });
 
+test("on update", async () => {
+  function Child() {
+    return <div id="b">B</div>;
+  }
+
+  function Parent(this: HTMLElement) {
+    let count = 0;
+    return (
+      <div>
+        <button
+          type="button"
+          onclick={() => {
+            count++;
+            update(this);
+          }}
+        >
+          update
+        </button>
+        {() => (count > 0 && <Child />)}
+      </div>
+    );
+  }
+
+  const root = await mount(<Parent />, document.body);
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <button type="button">update</button>
+        <!--$--><!--false-->
+      </div>
+    </host>
+  `,
+  );
+
+  const button = root.querySelector("button")!;
+  button.click();
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <button type="button">update</button>
+        <!--$--><host><div id="b">B</div></host>
+      </div>
+    </host>
+  `,
+  );
+});
+
+test("on update nested", async () => {
+  function Child() {
+    return <div id="b">B</div>;
+  }
+
+  function Parent(this: HTMLElement) {
+    let count = 0;
+    return (
+      <div>
+        <button
+          type="button"
+          onclick={() => {
+            count++;
+            update(this);
+          }}
+        >
+          update
+        </button>
+        {() => (count > 0 && (
+          <div>
+            <Child />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const root = await mount(<Parent />, document.body);
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <button type="button">update</button>
+        <!--$--><!--false-->
+      </div>
+    </host>
+  `,
+  );
+
+  const button = root.querySelector("button")!;
+  button.click();
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <button type="button">update</button>
+        <!--$--><div><host><div id="b">B</div></host></div>
+      </div>
+    </host>
+  `,
+  );
+});
+
 await test.run();

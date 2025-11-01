@@ -108,6 +108,19 @@ function connect(child: Node, parent: Node) {
       ? (tail as any).after(child)
       : tail.parentNode?.insertBefore(child, tail.nextSibling);
     (parent as any).__tail = child;
+
+    // Synchronously build component hosts when mounted under a reactive anchor
+    // so their inner content is available in the same update cycle (no queued delay).
+    if (child.__component && child.__instance === undefined) {
+      queueConnection(() => {
+        if (!child.isConnected) {
+          return;
+        }
+        build((child.__component as any)?.(), child);
+        sendConnectEvent(child);
+      });
+    }
+
     sendConnectEvent(child);
     return child;
   }
@@ -115,7 +128,7 @@ function connect(child: Node, parent: Node) {
   parent.appendChild(child);
 
   if (child.__component && child.__instance === undefined) {
-    // Queue component build, then dispatch connect AFTER build so listeners added inside component execute.
+    // Queue component build for normal element parents; flush will occur at root render.
     queueConnection(() => {
       if (!child.isConnected) {
         return;
@@ -638,6 +651,9 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
       const builtNode = build(itemNew, parent) as Node;
       replace(builtNode, itemOld as Node);
       disconnect(itemOld as Node);
+      // Ensure nested component hosts built under a newly inserted element (within a reactive anchor)
+      // are flushed synchronously so snapshots see their inner content immediately.
+      flushConnectionQueue();
       arrayOut[ii] = builtNode;
       continue;
     }
