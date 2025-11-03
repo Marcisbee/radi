@@ -1,7 +1,6 @@
 import { assert, clock, test } from "@marcisbee/rion";
 import { mount } from "../../test/utils.ts";
-import { suspend, Suspense, unsuspend } from "../suspense.ts";
-import { update } from "../client.ts";
+import { suspend, Suspense, unsuspend, update } from "../client.ts";
 
 /**
  * Suspense behavior tests covering:

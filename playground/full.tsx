@@ -9,6 +9,9 @@ import {
   createRoot,
   Fragment,
   memo,
+  suspend,
+  Suspense,
+  unsuspend,
   update,
 } from "../src/client.ts";
 
@@ -660,13 +663,13 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
       <div>
         Suspense:
         <div>
-          <Suspense fallback={<strong>Loading...</strong>}>
+          <Suspense fallback={() => <strong>Loading...</strong>}>
             <SuspendedChild />
             asd
           </Suspense>
         </div>
         <div>
-          <Suspense fallback={<em>Global fallback...</em>}>
+          <Suspense fallback={() => <em>Global fallback...</em>}>
             <AsyncChild />
           </Suspense>
         </div>
@@ -739,7 +742,8 @@ function Memo5() {
 
 function Memo4() {
   let i = 0;
-  return () => <span>Memo4:{memo(() => i++, () => true)}</span>;
+  const value = memo(() => i++, () => true);
+  return () => <span>Memo4:{value}</span>;
 }
 
 function Memo3() {
@@ -798,118 +802,6 @@ function ErrorBoundary2(this: HTMLElement, props: JSX.PropsWithChildren) {
 }
 
 createRoot(document.body).render(<App name="World" />);
-
-/**
- * Dispatch a fresh "suspend" event from a descendant node.
- * Returns true if not prevented.
- */
-export function suspend(target: Node): boolean {
-  return target.dispatchEvent(
-    new Event("suspend", {
-      bubbles: true,
-      composed: true,
-      cancelable: true,
-    }),
-  );
-}
-
-/**
- * Dispatch a fresh "unsuspend" event from a descendant node.
- * Returns true if not prevented.
- */
-export function unsuspend(target: Node): boolean {
-  return target.dispatchEvent(
-    new Event("unsuspend", {
-      bubbles: true,
-      composed: true,
-      cancelable: true,
-    }),
-  );
-}
-
-/**
- * Suspense component
- * Shows fallback while one or more descendants are suspended.
- * Child components that perform async work should call suspend(node) before starting
- * and unsuspend(node) when resolved. Multiple overlapping suspensions are reference-counted.
- *
- * This implementation relies on the updated component build queue:
- * - Suspense host builds first, installs listeners.
- * - Descendant component builds that trigger suspend will bubble upward correctly.
- */
-document.body.addEventListener("error", (e) => {
-  console.warn("Global error:", e);
-});
-export function Suspense(
-  this: HTMLElement,
-  props: JSX.PropsWithChildren<{ fallback: JSX.Element }>,
-) {
-  // Track number of active suspensions.
-  let pending = 0;
-  // Start by assuming children should render; suspend events may arrive during child build.
-  let showChildren = true;
-
-  const onSuspend = (e: Event) => {
-    console.log("onSuspend");
-    e.preventDefault();
-    e.stopPropagation();
-    if (pending === 0 && showChildren) {
-      showChildren = false;
-      update(this);
-    }
-    pending++;
-  };
-
-  const onUnsuspend = (e: Event) => {
-    console.log("onUnsuspend");
-    e.preventDefault();
-    e.stopPropagation();
-    if (pending > 0) pending--;
-    if (pending === 0 && !showChildren) {
-      showChildren = true;
-      update(this);
-    }
-  };
-
-  this.addEventListener("update", (e) => {
-    console.log("update");
-    e.preventDefault();
-    // QUESTION? Should we do this?
-    for (const child of props().children) {
-      if (child instanceof HTMLElement) {
-        if (child.isConnected) {
-          update(child);
-        }
-      }
-    }
-  });
-  this.addEventListener("suspend", onSuspend);
-  this.addEventListener("unsuspend", onUnsuspend);
-  this.addEventListener(
-    "disconnect",
-    () => {
-      console.log("disconnect");
-      this.removeEventListener("suspend", onSuspend);
-      this.removeEventListener("unsuspend", onUnsuspend);
-    },
-    { once: true },
-  );
-
-  return () => {
-    if (!showChildren) {
-      return [
-        createElement(
-          "suspended",
-          { style: { display: "none" } },
-          props().children,
-        ),
-        props().fallback,
-      ];
-    }
-
-    return [props().children];
-  };
-}
 
 function EventPropagationParent(
   this: HTMLElement,

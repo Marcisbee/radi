@@ -1,6 +1,4 @@
-import { createElement, createRoot, Fragment, update } from "../src/client.ts";
-import { createAbortSignal } from "../src/lifecycle.ts";
-import { suspend, Suspense, unsuspend } from "../src/suspense.ts";
+import { createElement, createRoot, Fragment, update, suspend, Suspense, unsuspend, createAbortSignal } from "../src/client.ts";
 
 // const Theme = createChannel<"light" | "dark">("light");
 
