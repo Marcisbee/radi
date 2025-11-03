@@ -456,8 +456,10 @@ function buildRender(parent: Anchor, fn: (parent: Anchor) => any) {
   parent.__render = () => {
     (parent as any).__tail = parent;
     try {
-      parent.__reactive_children = ([] as any[]).concat(
-        diff(parent.__reactive_children, fn(parent), parent),
+      parent.__reactive_children = diff(
+        parent.__reactive_children,
+        fn(parent),
+        parent,
       );
     } catch (error) {
       bubbleError(error, parent);
@@ -474,12 +476,21 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
   const arrayNew = Array.isArray(valueNew) ? valueNew : [valueNew];
   const arrayOut = Array(arrayNew.length);
 
-  // Build map of old keyed nodes (elements or component hosts)
-  const keyedOld = new Map<any, Node>();
-  const consumed = new Set<Node>();
+  // Detect if any keys exist to avoid allocating maps/sets when not needed
+  let hasKeys = false;
   for (const o of arrayOld) {
-    const key = o?.__props?.key ?? o?.__raw_props?.key;
-    if (key !== undefined) keyedOld.set(key, o);
+    if ((o?.__props?.key ?? o?.__raw_props?.key) !== undefined) {
+      hasKeys = true;
+      break;
+    }
+  }
+  const keyedOld = hasKeys ? new Map<any, Node>() : null;
+  const consumed = hasKeys ? new Set<Node>() : null;
+  if (hasKeys) {
+    for (const o of arrayOld) {
+      const key = o?.__props?.key ?? o?.__raw_props?.key;
+      if (key !== undefined) keyedOld!.set(key, o);
+    }
   }
 
   let i = 0;
@@ -488,21 +499,22 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
     let itemOld = arrayOld[ii];
 
     // If new item has a key, prefer matching old keyed node (even if at different index)
-    const keyNew = itemNew?.__props?.key ?? itemNew?.__raw_props?.key;
+    const keyNew = hasKeys
+      ? (itemNew?.__props?.key ?? itemNew?.__raw_props?.key)
+      : undefined;
     let consumedByKey = false;
-    if (keyNew !== undefined && keyedOld.has(keyNew)) {
-      itemOld = keyedOld.get(keyNew)!;
-      consumed.add(itemOld);
+    if (hasKeys && keyNew !== undefined && keyedOld!.has(keyNew)) {
+      itemOld = keyedOld!.get(keyNew)!;
+      consumed!.add(itemOld);
       consumedByKey = true;
     }
     // If index fallback points at a node already consumed by a different keyed position, treat as missing
-    if (!consumedByKey && itemOld && consumed.has(itemOld)) {
+    if (!consumedByKey && itemOld && hasKeys && consumed!.has(itemOld)) {
       itemOld = undefined as any;
     }
 
     if (itemOld === undefined) {
       arrayOut[ii] = build(itemNew, parent);
-      flushConnectionQueue();
       continue;
     }
 
@@ -656,7 +668,7 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
       }
       const builtNode = build(itemNew, parent) as Node;
       arrayOut[ii] = replace(builtNode, itemOld as Node);
-      flushConnectionQueue();
+      // flush batched after main diff loop
       // flushConnectionQueue();
       // Ensure nested component hosts built under a newly inserted element (within a reactive anchor)
       // are flushed synchronously so snapshots see their inner content immediately.
@@ -672,22 +684,28 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
   }
 
   // Remove any old nodes not reused (account for nested array fragments)
-  const flatten = (arr: any[]): Node[] =>
-    arr.flatMap((v) => Array.isArray(v) ? flatten(v) : [v]).filter((n) =>
-      n && (n as any).nodeType
-    ) as Node[];
-  const usedNodes = new Set(flatten(arrayOut));
-  for (const old of arrayOld) {
-    // Skip array wrappers (their children may be reused individually)
-    if (Array.isArray(old)) continue;
-    if (!usedNodes.has(old)) {
-      disconnect(old);
+  // Single batched flush after all insertions/replacements
+  flushConnectionQueue();
+  // Build a flat list iteratively (avoids recursive allocation churn of flatten())
+  const flatOut: Node[] = [];
+  (function collect(value: any) {
+    if (Array.isArray(value)) {
+      for (const v of value) collect(v);
+      return;
     }
+    if (value && (value as any).nodeType) {
+      flatOut.push(value);
+    }
+  })(arrayOut);
+  const usedNodes = new Set(flatOut);
+  for (const old of arrayOld) {
+    if (Array.isArray(old)) continue;
+    if (!usedNodes.has(old)) disconnect(old);
   }
 
-  // Ensure DOM order matches arrayOut when parent is a normal element node
+  // Reorder to match logical sequence
   if (parent.nodeType === Node.ELEMENT_NODE) {
-    const ordered = flatten(arrayOut).filter((n) =>
+    const ordered = flatOut.filter((n) =>
       n.isConnected && n.parentNode === parent
     );
     let prev: Node | null = null;
@@ -705,10 +723,9 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
     parent.nodeType === Node.COMMENT_NODE ||
     parent.nodeType === Node.TEXT_NODE
   ) {
-    // Reactive anchor parent: reorder sibling nodes after the anchor
     const container = parent.parentNode;
     if (container) {
-      const ordered = flatten(arrayOut).filter((n) =>
+      const ordered = flatOut.filter((n) =>
         n.isConnected && n.parentNode === container
       );
       let base: Node = parent;
@@ -721,29 +738,6 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
       }
     }
   }
-
-  // // Ensure DOM order matches arrayOut
-  // const ordered = flatten(arrayOut);
-  // if (parent.nodeType === Node.ELEMENT_NODE) {
-  //   const fragment = document.createDocumentFragment();
-  //   fragment.append(...ordered);
-  //   // for (const child of ordered) {
-  //   //   // if (child.parentNode === parent) {
-  //   //     fragment.append(child);
-  //   //   // }
-  //   // }
-  //   parent.appendChild(fragment);
-  // } else if (
-  //   parent.nodeType === Node.COMMENT_NODE ||
-  //   parent.nodeType === Node.TEXT_NODE
-  // ) {
-  //   const container = parent.parentNode;
-  //   if (container) {
-  //     const fragment = document.createDocumentFragment();
-  //         fragment.append(...ordered);
-  //     container.insertBefore(fragment, parent.nextSibling);
-  //   }
-  // }
 
   return arrayOut;
 }
@@ -905,7 +899,17 @@ type ComponentHost = Node & {
 let i = 0;
 function build(a: any, parent: Node): BuiltNode {
   if (Array.isArray(a)) {
-    return a.map((child) => build(child, parent));
+    const out: Node[] = [];
+    for (const child of a) {
+      const built = build(child, parent);
+      if (Array.isArray(built)) {
+        // Flatten one level to reduce later flatten() cost & extra allocations
+        for (const nested of built) out.push(nested as Node);
+      } else {
+        out.push(built as Node);
+      }
+    }
+    return out as any;
   }
 
   if (typeof a === "string") {
@@ -1006,7 +1010,10 @@ export function createElement(
     host.__component = (anchor) => {
       try {
         if (!anchor.__instance || props?.key !== anchor.__props?.key) {
-          return (anchor.__instance = type.call(anchor, () => (anchor.__props)));
+          return (anchor.__instance = type.call(
+            anchor,
+            () => (anchor.__props),
+          ));
         }
         return anchor.__instance;
       } catch (error) {

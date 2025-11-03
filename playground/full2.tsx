@@ -986,10 +986,10 @@ function EventPropagationDemoChild(this: HTMLElement) {
   );
 }
 
-let i = 0
+let i = 0;
 function Definition(props: JSX.Props<{ word: string }>) {
   const a = i++;
-  console.log("loaded", props().word)
+  console.log("loaded", props().word);
   // API courtesy https://dictionaryapi.dev
   let data: any;
   let currentWord;
@@ -1005,36 +1005,39 @@ function Definition(props: JSX.Props<{ word: string }>) {
     currentWord = word;
     data = null;
 
-
-    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`)
+    const res = await fetch(
+      `https://api.dictionaryapi.dev/api/v2/entries/en/${word}`,
+    );
     data = await res.json();
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
     update(this);
     unsuspend(this);
-  }
+  };
 
   getData();
   // this.addEventListener("update", getData);
 
   return () => {
     if (!Array.isArray(data)) {
-      return (
-        <div>No definition found for {props().word}</div>
-      );
+      return <div>No definition found for {props().word}</div>;
     }
 
-    const {phonetic, meanings} = data[0];
-    const {partOfSpeech, definitions} = meanings[0];
-    const {definition} = definitions[0];
+    const { phonetic, meanings } = data[0];
+    const { partOfSpeech, definitions } = meanings[0];
+    const { definition } = definitions[0];
 
     return (
       <div>
-      {a} {i}
-        <p>{currentWord} <code>{phonetic}</code></p>
-        <p><b>{partOfSpeech}.</b> {definition}</p>
+        {a} {i}
+        <p>
+          {currentWord} <code>{phonetic}</code>
+        </p>
+        <p>
+          <b>{partOfSpeech}.</b> {definition}
+        </p>
       </div>
-    )
+    );
   };
 }
 
@@ -1044,7 +1047,7 @@ function Dictionary(this: HTMLElement) {
     ev.preventDefault();
     const formData = new FormData(ev.target);
     const word1 = formData.get("word") as string;
-    console.log("submit", word1)
+    console.log("submit", word1);
     if (word1.trim()) {
       word = word1;
       update(this);
@@ -1069,7 +1072,8 @@ function Dictionary(this: HTMLElement) {
       </form>
       <Suspense fallback={() => <strong>Loading..</strong>}>
         <div>
-          {() => (console.log("yep", word),word && <Definition key={word} word={word} />)}
+          {() => (console.log("yep", word),
+            word && <Definition key={word} word={word} />)}
         </div>
       </Suspense>
     </div>
