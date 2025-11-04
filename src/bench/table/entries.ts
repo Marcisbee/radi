@@ -4,6 +4,7 @@ import * as React from "./frameworks/react.tsx";
 import * as Preact from "./frameworks/preact.tsx";
 import * as Lit from "./frameworks/lit.tsx";
 import * as Marko from "./frameworks/marko.tsx";
+import * as Redom from "./frameworks/redom.tsx";
 
 export const entries = Object.entries({
   Vanilla,
@@ -12,4 +13,5 @@ export const entries = Object.entries({
   Preact,
   React,
   // Marko,
+  Redom,
 });
