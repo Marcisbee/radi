@@ -12,7 +12,7 @@
  *  - multiple error components do not break overall serialization
  */
 
-import { assert, test } from "@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion/test";
 import {
   createElement as h,
   Fragment,

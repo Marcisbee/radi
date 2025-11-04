@@ -369,49 +369,41 @@ class Main {
   }
 }
 
-export const title = "Vanilla";
-
-export function mount() {
-  document.body.innerHTML = `
-    <div id="main" class="container">
-      <div class="jumbotron">
-        <div class="row">
-          <div class="col-md-6">
-            <h1>Vanilla</h1>
-          </div>
-          <div class="col-md-6">
-            <div class="row">
-              <div class="col-sm-6 smallpad">
-                <button id="run" class="btn btn-primary btn-block">Create 1,000 rows</button>
-              </div>
-              <div class="col-sm-6 smallpad">
-                <button id="runlots" class="btn btn-primary btn-block">Create 10,000 rows</button>
-              </div>
-              <div class="col-sm-6 smallpad">
-                <button id="add" class="btn btn-primary btn-block">Append 1,000 rows</button>
-              </div>
-              <div class="col-sm-6 smallpad">
-                <button id="update" class="btn btn-primary btn-block">Update every 10th row</button>
-              </div>
-              <div class="col-sm-6 smallpad">
-                <button id="clear" class="btn btn-primary btn-block">Clear</button>
-              </div>
-              <div class="col-sm-6 smallpad">
-                <button id="swaprows" class="btn btn-primary btn-block">Swap Rows</button>
-              </div>
+document.body.innerHTML = `
+  <div id="main" class="container">
+    <div class="jumbotron">
+      <div class="row">
+        <div class="col-md-6">
+          <h1>Vanilla</h1>
+        </div>
+        <div class="col-md-6">
+          <div class="row">
+            <div class="col-sm-6 smallpad">
+              <button id="run" class="btn btn-primary btn-block">Create 1,000 rows</button>
+            </div>
+            <div class="col-sm-6 smallpad">
+              <button id="runlots" class="btn btn-primary btn-block">Create 10,000 rows</button>
+            </div>
+            <div class="col-sm-6 smallpad">
+              <button id="add" class="btn btn-primary btn-block">Append 1,000 rows</button>
+            </div>
+            <div class="col-sm-6 smallpad">
+              <button id="update" class="btn btn-primary btn-block">Update every 10th row</button>
+            </div>
+            <div class="col-sm-6 smallpad">
+              <button id="clear" class="btn btn-primary btn-block">Clear</button>
+            </div>
+            <div class="col-sm-6 smallpad">
+              <button id="swaprows" class="btn btn-primary btn-block">Swap Rows</button>
             </div>
           </div>
         </div>
       </div>
-      <table class="table table-hover table-striped test-data">
-        <tbody id="tbody">
-        </tbody>
-      </table>
     </div>
-  `;
-  new Main();
-}
-
-export function unmount() {
-  document.body.innerHTML = "";
-}
+    <table class="table table-hover table-striped test-data">
+      <tbody id="tbody">
+      </tbody>
+    </table>
+  </div>
+`;
+new Main();

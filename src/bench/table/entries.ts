@@ -1,17 +1,9 @@
-import * as Radi from "./frameworks/radi.tsx";
-import * as Vanilla from "./frameworks/vanilla.tsx";
-import * as React from "./frameworks/react.tsx";
-import * as Preact from "./frameworks/preact.tsx";
-import * as Lit from "./frameworks/lit.tsx";
-import * as Marko from "./frameworks/marko.tsx";
-import * as Redom from "./frameworks/redom.tsx";
-
 export const entries = Object.entries({
-  Vanilla,
-  Radi,
-  // Lit,
-  Preact,
-  React,
-  // Marko,
-  Redom,
+  vanilla: () => import("./frameworks/vanilla.tsx"),
+  radi: () => import("./frameworks/radi.tsx"),
+  // lit: () => import("./frameworks/lit.tsx"),
+  preact: () => import("./frameworks/preact.tsx"),
+  react: () => import("./frameworks/react.tsx"),
+  // marko: () => import("./frameworks/marko.tsx"),
+  redom: () => import("./frameworks/redom.tsx"),
 });

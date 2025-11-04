@@ -1,4 +1,4 @@
-import { assert, test } from "@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion/test";
 import { createRoot } from "../client.ts";
 
 /**

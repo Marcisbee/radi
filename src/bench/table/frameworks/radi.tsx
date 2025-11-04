@@ -323,20 +323,4 @@ function App(this: DocumentFragment) {
   );
 }
 
-export const title = "Radi";
-
-let testRoot: ReturnType<typeof createRoot> | null = null;
-
-export function mount() {
-  if (!testRoot) {
-    testRoot = createRoot(document.body);
-  }
-  testRoot.render(<App />);
-}
-
-export function unmount() {
-  if (testRoot) {
-    testRoot.unmount();
-    testRoot = null;
-  }
-}
+createRoot(document.body).render(<App />);

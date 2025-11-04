@@ -1,4 +1,4 @@
-import { assert, test } from "@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion/test";
 import { mount } from "../../test/utils.ts";
 import { update } from "../client.ts";
 

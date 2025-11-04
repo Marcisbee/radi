@@ -129,7 +129,7 @@ export class Store {
   }
 }
 
-let store = new Store();
+const store = new Store();
 
 @customElement("main-element")
 export class MainElement extends LitElement {
@@ -299,14 +299,4 @@ export class MainElement extends LitElement {
   }
 }
 
-export const title = "Lit keyed";
-
-export function mount() {
-  store = new Store();
-  document.body.innerHTML = "<main-element></main-element>";
-  debugger;
-}
-
-export function unmount() {
-  document.body.innerHTML = "";
-}
+document.body.innerHTML = "<main-element></main-element>";

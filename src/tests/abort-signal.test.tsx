@@ -1,5 +1,5 @@
 /// <reference path="../jsx.d.ts" />
-import { assert, test } from "@marcisbee/rion";
+import { assert, test } from "@marcisbee/rion/test";
 
 import { createAbortSignal, createRoot } from "../client.ts";
 

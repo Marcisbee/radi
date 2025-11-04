@@ -1,116 +1,72 @@
-// deno-lint-ignore-file no-inner-declarations
-import { Bench } from "npm:tinybench";
-import {
-  createElement as createElementReact,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "npm:react";
+import { bench } from "@marcisbee/rion/bench";
+import { locator } from "@marcisbee/rion/locator";
+import { createElement as createElementReact, useState } from "npm:react";
 import { createRoot as createRootReact } from "npm:react-dom/client";
 import { flushSync } from "npm:react-dom";
 
-import { waitForXPath } from "./bench.utils.ts";
 import { createRoot, update } from "../client.ts";
 
-const bench = new Bench({
-  warmupIterations: 5,
-  time: 1,
-  iterations: 1000,
+let count = 0;
+
+bench("innerHTML", async () => {
+  count = 0;
+  function update() {
+    document.body.innerHTML = `<button>${count}</button>`;
+    const button = document.body.querySelector("button") as HTMLButtonElement;
+    button.onclick = () => {
+      count++;
+      update();
+    };
+  }
+  update();
+}, async () => {
+  const countToWaitFor = count + 1;
+  const button = await locator("button").getOne() as HTMLButtonElement;
+
+  button.click();
+
+  await locator("button").hasText(String(countToWaitFor)).getOne();
 });
 
-{
-  let count = 0;
-  let button: HTMLButtonElement | null = null;
-  bench.add(
-    `innerHTML`,
-    async () => {
-      const countToWaitFor = count + 1;
-      button?.click();
+bench("textContent", async () => {
+  count = 0;
+  document.body.innerHTML = `<button>${count}</button>`;
+  const button = await locator("button")
+    .getOne() as HTMLButtonElement;
+  const buttonText = button.childNodes[0] as Text;
+  button.onclick = () => {
+    count++;
+    buttonText.textContent = String(count);
+  };
+}, async () => {
+  const countToWaitFor = count + 1;
+  const button = await locator("button").getOne() as HTMLButtonElement;
 
-      // Wait until final value appears
-      await waitForXPath(`//button[text()='${countToWaitFor}']`);
-    },
-    {
-      beforeEach() {
-        button = document.querySelector("button")!;
-        button.onclick = () => {
-          count++;
-          document.body.innerHTML = `<button>${count}</button>`;
-        };
-      },
-      async beforeAll() {
-        count = 0;
-        document.body.innerHTML = `<button>${count}</button>`;
-        await waitForXPath(`//button[text()='0']`);
-      },
-    },
-  );
-}
+  button.click();
 
-{
-  let count = 0;
-  let button: HTMLButtonElement | null = null;
-  bench.add(
-    `textContent`,
-    async () => {
-      const countToWaitFor = count + 1;
-      button?.click();
+  await locator("button").hasText(String(countToWaitFor)).getOne();
+});
 
-      // Wait until final value appears
-      await waitForXPath(`//button[text()='${countToWaitFor}']`);
-    },
-    {
-      beforeEach() {
-        button = document.querySelector("button")!;
-        const buttonText = button.childNodes[0] as Text;
-        button.onclick = () => {
-          count++;
-          buttonText.textContent = String(count);
-        };
-      },
-      async beforeAll() {
-        count = 0;
-        document.body.innerHTML = `<button>${count}</button>`;
-        await waitForXPath(`//button[text()='0']`);
-      },
-    },
-  );
-}
+bench("nodeValue", async () => {
+  count = 0;
+  document.body.innerHTML = `<button>${count}</button>`;
+  const button = await locator("button").getOne() as HTMLButtonElement;
+  const buttonText = button.childNodes[0] as Text;
+  button.onclick = () => {
+    count++;
+    buttonText.nodeValue = String(count);
+  };
+}, async () => {
+  const countToWaitFor = count + 1;
+  const button = await locator("button").getOne() as HTMLButtonElement;
 
-{
-  let count = 0;
-  let button: HTMLButtonElement | null = null;
-  bench.add(
-    `nodeValue`,
-    async () => {
-      const countToWaitFor = count + 1;
-      button?.click();
+  button.click();
 
-      // Wait until final value appears
-      await waitForXPath(`//button[text()='${countToWaitFor}']`);
-    },
-    {
-      beforeEach() {
-        button = document.querySelector("button")!;
-        const buttonText = button.childNodes[0] as Text;
-        button.onclick = () => {
-          count++;
-          buttonText.nodeValue = String(count);
-        };
-      },
-      async beforeAll() {
-        count = 0;
-        document.body.innerHTML = `<button>${count}</button>`;
-        await waitForXPath(`//button[text()='0']`);
-      },
-    },
-  );
-}
+  await locator("button").hasText(String(countToWaitFor)).getOne();
+});
 
-{
-  function RadiCounter(
-    this: HTMLElement,
-  ) {
+bench("radi", async () => {
+  function RadiCounter(this: HTMLElement) {
     return (
       <button
         onclick={() => {
@@ -122,42 +78,22 @@ const bench = new Bench({
       </button>
     );
   }
-  let count = 0;
-  let button: HTMLButtonElement | null = null;
-  let root: ReturnType<typeof createRoot> | null = null;
-  bench.add(
-    `radi`,
-    async () => {
-      const countToWaitFor = count + 1;
-      button?.click();
 
-      // Wait until final value appears
-      await waitForXPath(`//button[text()='${countToWaitFor}']`);
-    },
-    {
-      beforeEach() {
-        button = document.querySelector("button");
-      },
-      async beforeAll() {
-        count = 0;
-        document.body.innerHTML = "";
-        const cmp = <RadiCounter />;
-        root = createRoot(document.body);
-        root.render(cmp);
-        await waitForXPath(`//button[text()='0']`);
-      },
-      afterAll() {
-        root?.unmount();
-        root = null;
-      },
-    },
-  );
-}
+  count = 0;
+  const cmp = <RadiCounter />;
+  createRoot(document.body).render(cmp);
 
-{
-  let count = 0;
-  let button: HTMLButtonElement | null = null;
+  await locator("button").hasText(String(0)).getOne();
+}, async () => {
+  const countToWaitFor = count + 1;
+  const button = await locator("button").getOne() as HTMLButtonElement;
 
+  button.click();
+
+  await locator("button").hasText(String(countToWaitFor)).getOne();
+});
+
+bench("react", async () => {
   function ReactCounter() {
     const [, setTick] = useState(0);
 
@@ -173,34 +109,17 @@ const bench = new Bench({
     );
   }
 
-  let reactRoot: ReturnType<typeof createRootReact> | null = null;
-  bench.add(
-    `react`,
-    async () => {
-      const countToWaitFor = count + 1;
-      button?.click();
+  count = 0;
+  createRootReact(document.body).render(createElementReact(ReactCounter, null));
 
-      // Wait until final value appears
-      await waitForXPath(`//button[text()='${countToWaitFor}']`);
-    },
-    {
-      beforeEach() {
-        button = document.querySelector("button");
-      },
-      async beforeAll() {
-        count = 0;
-        document.body.innerHTML = "";
-        reactRoot = createRootReact(document.body);
-        reactRoot.render(createElementReact(ReactCounter, null));
-        await waitForXPath(`//button[text()='0']`);
-      },
-      afterAll() {
-        reactRoot?.unmount();
-        reactRoot = null;
-      },
-    },
-  );
-}
+  await locator("button").hasText(String(0)).getOne();
+}, async () => {
+  const countToWaitFor = count + 1;
+  const button = await locator("button").getOne() as HTMLButtonElement;
+
+  button.click();
+
+  await locator("button").hasText(String(countToWaitFor)).getOne();
+});
 
 await bench.run();
-console.table(bench.table());

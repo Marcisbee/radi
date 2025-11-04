@@ -235,20 +235,4 @@ const Main = () => {
   );
 };
 
-export const title = "React Hooks keyed";
-
-let testRoot: ReturnType<typeof createRoot> = null;
-
-export function mount() {
-  if (!testRoot) {
-    testRoot = createRoot(document.body);
-  }
-  testRoot.render(<Main />);
-}
-
-export function unmount() {
-  if (testRoot) {
-    testRoot.unmount();
-    testRoot = null;
-  }
-}
+createRoot(document.body).render(<Main />);

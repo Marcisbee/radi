@@ -1,90 +1,63 @@
-import { Bench } from "npm:tinybench";
-import {
-  createElement as createElementReact,
-  createRef,
-  useLayoutEffect,
-} from "npm:react";
+import { bench } from "@marcisbee/rion/bench";
+import { locator } from "@marcisbee/rion/locator";
+import { createElement as createElementReact } from "npm:react";
 import { createRoot as createRootReact } from "npm:react-dom/client";
 
-import { waitForXPath } from "./bench.utils.ts";
 import { createRoot } from "../client.ts";
 
-const bench = new Bench({
-  warmupIterations: 5,
-  time: 1,
-  iterations: 20,
-});
+bench(
+  "innerHTML",
+  async () => {
+    document.body.innerHTML = "";
+    document.body.innerHTML = "<h1>Hello bench</h1>";
+  },
+  async () => {
+    await locator("h1").hasText("Hello bench").getOne();
+  },
+);
 
 {
-  bench.add(
-    "innerHTML",
-    async () => {
-      document.body.innerHTML = "<h1>Hello bench</h1>";
+  let root: ReturnType<typeof createRoot> | null = null;
 
-      await waitForXPath("//h1[text()='Hello bench']");
-    },
-    {
-      beforeEach() {
-        document.body.innerHTML = "";
-      },
-    },
-  );
-}
-
-{
-  // deno-lint-ignore no-inner-declarations
   function Simple() {
     return <h1>Hello bench</h1>;
   }
 
-  let root: ReturnType<typeof createRoot> | null = null;
-  bench.add(
+  bench(
     "radi",
     async () => {
-      const component = <Simple />;
-      root = createRoot(document.body);
-      root!.render(component);
-
-      await waitForXPath("//h1[text()='Hello bench']");
+      document.body.innerHTML = "";
     },
-    {
-      beforeEach() {
-        document.body.innerHTML = "";
-      },
-      afterEach() {
-        root?.unmount();
-        root = null;
-      },
+    async () => {
+      root = createRoot(document.body);
+      root.render(<Simple />);
+      await locator("h1").hasText("Hello bench").getOne();
+      root?.unmount();
+      root = null;
     },
   );
 }
 
 {
-  // deno-lint-ignore no-inner-declarations
-  function Simple() {
+  let root: ReturnType<typeof createRootReact> | null = null;
+
+  function SimpleReact() {
     return createElementReact("h1", null, "Hello bench");
   }
 
-  let root: ReturnType<typeof createRootReact> | null = null;
-  bench.add(
+  bench(
     "react",
     async () => {
-      const component = createElementReact(Simple);
-      root = createRootReact(document.body);
-      root.render(component);
-
-      await waitForXPath("//h1[text()='Hello bench']");
+      document.body.innerHTML = "";
     },
-    {
-      beforeEach() {
-        document.body.innerHTML = "";
-      },
-      afterEach() {
-        root.unmount();
-      },
+    async () => {
+      root = createRootReact(document.body);
+      root.render(createElementReact(SimpleReact));
+      await locator("h1").hasText("Hello bench").getOne();
+      root?.unmount();
+      root = null;
     },
   );
 }
 
 await bench.run();
-console.table(bench.table());
