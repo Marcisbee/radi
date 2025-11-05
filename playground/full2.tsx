@@ -381,9 +381,9 @@ function Tabber(this: DocumentFragment) {
 }
 
 function Sub1(this: DocumentFragment) {
-  setInterval(() => {
-    update(this);
-  }, 1000);
+  // setInterval(() => {
+  //   update(this);
+  // }, 1000);
 
   return () => <Sub2 value={Math.random()} />;
 }
@@ -727,6 +727,45 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
       <div>
         <VariableArrayRoot />
       </div>
+      <div>
+        <DynamicParent />
+      </div>
+    </div>
+  );
+}
+
+function EchoReactive(this: HTMLElement, props: JSX.PropsWithChildren) {
+  return <div className="echo-reactive">{() => props().children}</div>;
+}
+
+function DynamicParent(this: HTMLElement) {
+  let itemCount = 1;
+  let itemsA = ["a", "b"];
+  let itemsB = ["b", "c", "d"];
+  // (this as any).__setItems = (next: string[]) => {
+  //   items = next.slice();
+  //   update(this);
+  // };
+  return () => (
+    <div>
+      <button
+        type="button"
+        onclick={() => {
+          itemCount++;
+          update(this);
+        }}
+      >
+        Dynamic parent + ({itemCount})
+      </button>
+      <EchoReactive>
+        1[
+        {(itemCount % 2 ? itemsA : itemsB).map((v) => (
+          <span className="dyn" key={v}>
+            {v}
+          </span>
+        ))}
+        ]2
+      </EchoReactive>
     </div>
   );
 }
@@ -740,6 +779,18 @@ function VariableArrayRoot(this: HTMLElement) {
   let itemCount = 1;
   return () => {
     const items = Array.from({ length: itemCount }, (_, i) => <Item id={i} />);
+    const itemsKeyed = Array.from(
+      { length: itemCount },
+      (_, i) => <Item key={i} id={i} />,
+    );
+    const items2 = Array.from(
+      { length: itemCount },
+      (_, i) => <span className="item-span">#{() => i}</span>,
+    );
+    const items2Keyed = Array.from(
+      { length: itemCount },
+      (_, i) => <span key={i} className="item-span">#{() => i}</span>,
+    );
     return (
       <div className="var-array">
         <button
@@ -760,7 +811,10 @@ function VariableArrayRoot(this: HTMLElement) {
         >
           dec
         </button>
-        <div className="list">{items}</div>
+        <div className="list">items: {items}</div>
+        <div className="list">itemsKeyed: {itemsKeyed}</div>
+        <div className="list">items2: {items2}</div>
+        <div className="list">items2Keyed: {items2Keyed}</div>
         <span className="count">{itemCount}</span>
       </div>
     );
