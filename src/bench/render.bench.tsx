@@ -7,9 +7,11 @@ import { createRoot } from "../client.ts";
 
 bench(
   "innerHTML",
-  async () => {
-    document.body.innerHTML = "";
-    document.body.innerHTML = "<h1>Hello bench</h1>";
+  {
+    setup() {
+      document.body.innerHTML = "";
+      document.body.innerHTML = "<h1>Hello bench</h1>";
+    },
   },
   async () => {
     await locator("h1").hasText("Hello bench").getOne();
@@ -25,8 +27,10 @@ bench(
 
   bench(
     "radi",
-    async () => {
-      document.body.innerHTML = "";
+    {
+      setup() {
+        document.body.innerHTML = "";
+      },
     },
     async () => {
       root = createRoot(document.body);
@@ -47,8 +51,10 @@ bench(
 
   bench(
     "react",
-    async () => {
-      document.body.innerHTML = "";
+    {
+      setup() {
+        document.body.innerHTML = "";
+      },
     },
     async () => {
       root = createRootReact(document.body);

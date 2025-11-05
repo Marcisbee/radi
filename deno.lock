@@ -3,7 +3,7 @@
   "specifiers": {
     "jsr:@david/code-block-writer@^13.0.3": "13.0.3",
     "jsr:@deno/dnt@*": "0.42.3",
-    "jsr:@marcisbee/rion@0.4": "0.4.0",
+    "jsr:@marcisbee/rion@0.5": "0.5.0",
     "jsr:@std/fmt@1": "1.0.8",
     "jsr:@std/fs@1": "1.0.14",
     "jsr:@std/path@1": "1.1.0",
@@ -17,6 +17,7 @@
     "npm:lit@*": "2.5.0",
     "npm:playwright@^1.56.1": "1.56.1",
     "npm:preact@*": "10.26.8",
+    "npm:radi@0.5.0-alpha.25": "0.5.0-alpha.25",
     "npm:react-dom@*": "19.2.0_react@19.2.0",
     "npm:react@*": "19.2.0",
     "npm:redom@*": "4.3.0",
@@ -36,8 +37,8 @@
         "jsr:@ts-morph/bootstrap"
       ]
     },
-    "@marcisbee/rion@0.4.0": {
-      "integrity": "4136b9baf118b0ac68563a994d15cad3dde20929ba2f4ea63154f733d9d75213",
+    "@marcisbee/rion@0.5.0": {
+      "integrity": "fccad8dbe9ce4049ce9d9ba9a6d41ebc08e6122c6d3f36cb55ba4b3e550896c5",
       "dependencies": [
         "npm:@jridgewell/trace-mapping",
         "npm:playwright"
@@ -318,6 +319,9 @@
     "preact@10.26.8": {
       "integrity": "sha512-1nMfdFjucm5hKvq0IClqZwK4FJkGXhRrQstOQ3P4vp8HxKrJEMFcY6RdBRVTdfQS/UlnX6gfbPuTvaqx/bDoeQ=="
     },
+    "radi@0.5.0-alpha.25": {
+      "integrity": "sha512-m05LRMRTkFmsiYMn8vkosPMhWfqrF0Q7Fkv7Pc6d/sSagS/KsOju07zSWMlmjvMPh+/Tq28BF/vN2fRWtYiaMQ=="
+    },
     "react-dom@19.2.0_react@19.2.0": {
       "integrity": "sha512-UlbRu4cAiGaIewkPyiRGJk0imDN2T3JjieT6spoL2UeSf5od4n5LB/mQ4ejmxhCFT1tYe8IvaFulzynWovsEFQ==",
       "dependencies": [
@@ -343,7 +347,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@marcisbee/rion@0.4"
+      "jsr:@marcisbee/rion@0.5"
     ]
   }
 }

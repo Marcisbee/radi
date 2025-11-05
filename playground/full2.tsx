@@ -1,4 +1,13 @@
-import { createElement, createRoot, Fragment, update, suspend, Suspense, unsuspend, createAbortSignal } from "../src/client.ts";
+import {
+  createAbortSignal,
+  createElement,
+  createRoot,
+  Fragment,
+  suspend,
+  Suspense,
+  unsuspend,
+  update,
+} from "../src/client.ts";
 
 // const Theme = createChannel<"light" | "dark">("light");
 
@@ -835,8 +844,8 @@ function ErrorBoundary2(this: HTMLElement, props: JSX.PropsWithChildren) {
   return () => props().children;
 }
 
-createRoot(document.body).render(<Dictionary />);
-// createRoot(document.body).render(<App name="World" />);
+// createRoot(document.body).render(<Dictionary />);
+createRoot(document.body).render(<App name="World" />);
 
 // /**
 //  * Dispatch a fresh "suspend" event from a descendant node.
