@@ -469,7 +469,6 @@ function buildRender(parent: Anchor, fn: (parent: Anchor) => any) {
 }
 
 function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
-  // console.log("DIFF", { valueOld, valueNew, parent });
   if (parent.__render_id === currentUpdateId) {
     return (parent.__reactive_children as Node[]) || [];
   }
@@ -481,7 +480,7 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
   let i = 0;
   for (const itemNew of arrayNew) {
     const ii = i++;
-    let itemOld = arrayOld[ii];
+    const itemOld = arrayOld[ii];
 
     if (itemOld === undefined) {
       arrayOut[ii] = build(itemNew, parent);
