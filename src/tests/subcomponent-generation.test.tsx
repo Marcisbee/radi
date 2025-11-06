@@ -1,6 +1,6 @@
 import { assert, test } from "@marcisbee/rion/test";
 import { mount } from "../../test/utils.ts";
-import { update } from "../client.ts";
+import { createKey, Suspense, update } from "../client.ts";
 
 /**
  * Renders a span with an id value.
@@ -189,7 +189,10 @@ function FragmentChurn(this: HTMLElement) {
         {null}
         {true}
         {false}
-        {[<strong className="inner" key={"k" + phase}>#{phase}</strong>]}
+        {[createKey(
+          () => <strong className="inner">#{phase}</strong>,
+          "k" + phase,
+        )]}
         <button
           className="flip"
           onclick={() => {
@@ -667,6 +670,168 @@ test("on update passthru 4", async () => {
     </host>
   `,
   );
+});
+
+test("on render passthru", async () => {
+  function Child() {
+    return <div id="b">B</div>;
+  }
+
+  function PassThru(props) {
+    return props().children;
+  }
+
+  function Parent(this: HTMLElement) {
+    return (
+      <PassThru>
+        <Child />
+      </PassThru>
+    );
+  }
+
+  const root = await mount(<Parent />, document.body);
+
+  assert.snapshot.html(
+    root,
+    `
+    <host><host><host><div id="b">B</div></host></host></host>
+    `,
+  );
+});
+
+test("on render passthru with section", async () => {
+  function Child() {
+    return <div id="b">B</div>;
+  }
+
+  function PassThru(props) {
+    return props().children;
+  }
+
+  function Parent(this: HTMLElement) {
+    return (
+      <PassThru>
+        <section>
+          <Child />
+        </section>
+      </PassThru>
+    );
+  }
+
+  const root = await mount(<Parent />, document.body);
+
+  assert.snapshot.html(
+    root,
+    `
+    <host><host><section><host><div id="b">B</div></host></section></host></host>
+    `,
+  );
+});
+
+test("multiple nested passthrus", async () => {
+  function Child() {
+    return <div id="b">B</div>;
+  }
+
+  function Pass1(props) {
+    return [props().children];
+  }
+
+  function Pass2(props) {
+    return [() => props().children];
+  }
+
+  function Pass3(props) {
+    return [<sus>{() => props().children}</sus>];
+  }
+
+  function Parent(this: HTMLElement) {
+    let count = 0;
+    return (
+      <div>
+        <button
+          type="button"
+          onclick={() => {
+            count++;
+            update(this);
+          }}
+        >
+          update
+        </button>
+        <Pass1>
+          <Pass2>
+            <Pass3>
+              {() => (count > 0 && <Child />)}
+            </Pass3>
+          </Pass2>
+        </Pass1>
+      </div>
+    );
+  }
+
+  const root = await mount(<Parent />, document.body);
+
+  assert.length(root.querySelectorAll("#b"), 0);
+
+  const button = root.querySelector("button")!;
+  button.click();
+  await Promise.resolve();
+
+  assert.length(root.querySelectorAll("#b"), 1);
+});
+
+test("multiple nested passthrus 2", async () => {
+  function Child() {
+    return <div id="b">B</div>;
+  }
+
+  function Pass1(props) {
+    return [props().children];
+  }
+
+  function Pass2(props) {
+    return [() => props().children];
+  }
+
+  function Pass3(props) {
+    return [<sus>{() => props().children}</sus>];
+  }
+
+  function Parent(this: HTMLElement) {
+    let count = 0;
+    return (
+      <div>
+        <button
+          type="button"
+          onclick={() => {
+            count++;
+            update(this);
+          }}
+        >
+          update
+        </button>
+        <Pass1>
+          <div>
+            <Pass2>
+              <Pass3>
+                {() => (count > 0 && <Child />)}
+              </Pass3>
+            </Pass2>
+          </div>
+        </Pass1>
+      </div>
+    );
+  }
+
+  const root = await mount(<Parent />, document.body);
+
+  assert.length(root.querySelectorAll("#b"), 0);
+
+  const button = root.querySelector("button")!;
+  button.click();
+  await Promise.resolve();
+
+  assert.length(root.querySelectorAll("#b"), 1);
 });
 
 await test.run();

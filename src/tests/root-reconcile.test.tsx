@@ -1,5 +1,5 @@
 import { assert, test } from "@marcisbee/rion/test";
-import { createRoot } from "../client.ts";
+import { createKey, createRoot } from "../client.ts";
 
 /**
  * Simple component whose displayed value depends on its props.
@@ -99,7 +99,11 @@ test("replace-component-key", () => {
   let connects = 0;
   let disconnects = 0;
 
-  const one = <App key="one" counter={0} />;
+  function Wrapper1() {
+    return () => createKey(() => <App counter={0} />, "one");
+  }
+
+  const one = <Wrapper1 />;
   one.addEventListener("connect", () => connects++);
   one.addEventListener("disconnect", () => disconnects++);
   root.render(one);
@@ -108,7 +112,11 @@ test("replace-component-key", () => {
     "0",
   );
 
-  const two = <App key="two" counter={1} />;
+  function Wrapper2() {
+    return () => createKey(() => <App counter={1} />, "two");
+  }
+
+  const two = <Wrapper2 />;
   two.addEventListener("connect", () => connects++);
   two.addEventListener("disconnect", () => disconnects++);
   root.render(two);

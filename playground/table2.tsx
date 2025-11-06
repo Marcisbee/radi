@@ -1,5 +1,6 @@
 import {
   createElement,
+  createList,
   createRoot,
   Fragment,
   memo,
@@ -273,7 +274,39 @@ export function Table(this: HTMLElement) {
   return (
     <table className="table table-hover table-striped test-data">
       <tbody>
-        {memo(() => (rows.map((item, index) => (
+        {() =>
+          createList((key) =>
+            rows.map((item) => {
+              return key(() => (
+                <tr
+                  id={String(item.id)}
+                  className={item.selected ? "danger" : ""}
+                >
+                  {Math.random()}
+                  <td className="col-md-1">
+                    {item.id}
+                  </td>
+                  <td className="col-md-4">
+                    <a>
+                      {item.label}
+                    </a>
+                  </td>
+                  <td data-interaction="delete" className="col-md-1">
+                    <a>
+                      <span
+                        className="glyphicon glyphicon-remove"
+                        aria-hidden="true"
+                      >
+                      </span>
+                    </a>
+                  </td>
+                  <td className="col-md-6"></td>
+                </tr>
+              ), item.id);
+            })
+          )}
+        {
+          /*{memo(() => (rows.map((item, index) => (
           <tr
             key={String(item.id)}
             id={String(item.id)}
@@ -298,7 +331,8 @@ export function Table(this: HTMLElement) {
           const changed = len !== rows.length;
           len = rows.length;
           return !changed;
-        })}
+        })}*/
+        }
       </tbody>
     </table>
   );

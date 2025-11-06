@@ -1,6 +1,8 @@
 import {
   createAbortSignal,
   createElement,
+  createKey,
+  createList,
   createRoot,
   Fragment,
   suspend,
@@ -373,7 +375,7 @@ function Tabber(this: DocumentFragment) {
           : tab === "tab2"
           ? <Tab2 />
           : tab === "tab3"
-          ? <Tab3 key={Math.random()} />
+          ? createKey(() => <Tab3 />, Math.random())
           : <Styling />)}
       </div>
     </div>
@@ -746,28 +748,28 @@ function DynamicParent(this: HTMLElement) {
   //   items = next.slice();
   //   update(this);
   // };
-  return () => (
-    <div>
-      <button
-        type="button"
-        onclick={() => {
-          itemCount++;
-          update(this);
-        }}
-      >
-        Dynamic parent + ({itemCount})
-      </button>
-      <EchoReactive>
-        1[
-        {(itemCount % 2 ? itemsA : itemsB).map((v) => (
-          <span className="dyn" key={v}>
-            {v}
-          </span>
-        ))}
-        ]2
-      </EchoReactive>
-    </div>
-  );
+  // const key = createKeys(this);
+
+  // return () => (
+  //   <div>
+  //     <button
+  //       type="button"
+  //       onclick={() => {
+  //         itemCount++;
+  //         update(this);
+  //       }}
+  //     >
+  //       Dynamic parent + ({itemCount})
+  //     </button>
+  //     <EchoReactive>
+  //       1[
+  //       {(itemCount % 2 ? itemsA : itemsB).map((v) => (
+  //         key(() => <span className="dyn">{v}</span>, v)
+  //       ))}
+  //       ]2
+  //     </EchoReactive>
+  //   </div>
+  // );
 }
 
 function Item(this: HTMLElement, props: JSX.Props<{ id: number }>) {
@@ -779,17 +781,18 @@ function VariableArrayRoot(this: HTMLElement) {
   let itemCount = 1;
   return () => {
     const items = Array.from({ length: itemCount }, (_, i) => <Item id={i} />);
-    const itemsKeyed = Array.from(
-      { length: itemCount },
-      (_, i) => <Item key={i} id={i} />,
+    const itemsKeyed = createList((key) =>
+      Array.from({ length: itemCount }, (_, i) => key(() => <Item id={i} />, i))
     );
     const items2 = Array.from(
       { length: itemCount },
       (_, i) => <span className="item-span">#{() => i}</span>,
     );
-    const items2Keyed = Array.from(
-      { length: itemCount },
-      (_, i) => <span key={i} className="item-span">#{() => i}</span>,
+    const items2Keyed = createList((key) =>
+      Array.from(
+        { length: itemCount },
+        (_, i) => key(() => <span className="item-span">#{() => i}</span>, i),
+      )
     );
     return (
       <div className="var-array">
@@ -896,6 +899,64 @@ function ErrorBoundary2(this: HTMLElement, props: JSX.PropsWithChildren) {
     console.log("Caught:", (e as ErrorEvent).error);
   });
   return () => props().children;
+}
+
+// Example: createList for keyed lists
+function KeyedListDemo(this: HTMLDivElement) {
+  let items = [
+    { id: 1, text: "Apple" },
+    { id: 2, text: "Banana" },
+    { id: 3, text: "Cherry" },
+  ];
+
+  return (
+    <div>
+      <h3>createList Demo</h3>
+      <ul>
+        {() =>
+          createList((key) =>
+            items.map((item) => key(() => <li>{item.text}</li>, item.id))
+          )}
+      </ul>
+      <button
+        type="button"
+        onclick={() => {
+          items = items.slice().reverse();
+          update(this);
+        }}
+      >
+        Reverse
+      </button>
+    </div>
+  );
+}
+
+// Example: createKey for single keyed components
+function KeyedComponentDemo(this: HTMLDivElement) {
+  let currentKey = "a";
+  let count = 0;
+
+  return (
+    <div>
+      <h3>createKey Demo</h3>
+      <p>Current key: {() => currentKey}</p>
+      {() =>
+        createKey(
+          () => <Counter />,
+          currentKey,
+        )}
+      <button
+        type="button"
+        onclick={() => {
+          currentKey = currentKey === "a" ? "b" : "a";
+          count++;
+          update(this);
+        }}
+      >
+        Toggle Key (remounts component)
+      </button>
+    </div>
+  );
 }
 
 // createRoot(document.body).render(<Dictionary />);
@@ -1134,7 +1195,7 @@ function Dictionary(this: HTMLElement) {
       <Suspense fallback={() => <strong>Loading..</strong>}>
         <div>
           {() => (console.log("yep", word),
-            word && <Definition key={word} word={word} />)}
+            word && createKey(() => <Definition word={word} />, word))}
         </div>
       </Suspense>
     </div>

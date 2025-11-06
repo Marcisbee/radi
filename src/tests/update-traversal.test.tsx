@@ -1,6 +1,6 @@
 import { assert, test } from "@marcisbee/rion/test";
 import { mount } from "../../test/utils.ts";
-import { update } from "../client.ts";
+import { createList, update } from "../client.ts";
 
 /**
  * Child component with reactive render counter.
@@ -37,7 +37,7 @@ function ParentNonReactive(this: HTMLElement) {
 /**
  * Keyed item component used to verify no double updates under a reactive parent list.
  */
-function KeyedItem(props: JSX.Props<{ id: string; key?: string }>) {
+function KeyedItem(props: JSX.Props<{ id: string }>) {
   let renders = 0;
   return () => <span className="keyed-item">{props().id}:{++renders}</span>;
 }
@@ -50,7 +50,10 @@ function ReactiveList(this: HTMLElement) {
   const keys = ["a", "b", "c"];
   return () => (
     <div className="reactive-list">
-      {keys.map((k) => <KeyedItem key={k} id={k} />)}
+      {() =>
+        createList((key) =>
+          keys.map((k) => key(() => <KeyedItem id={k} />, k))
+        )}
     </div>
   );
 }

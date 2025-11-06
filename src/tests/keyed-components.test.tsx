@@ -1,6 +1,6 @@
 import { assert, test } from "@marcisbee/rion/test";
 import { mount } from "../../test/utils.ts";
-import { createElement, update } from "../client.ts";
+import { createElement, createKey, update } from "../client.ts";
 
 test("base", async () => {
   function Child(props: JSX.Props<{ value: number }>) {
@@ -61,7 +61,7 @@ test("Child embedded in Parent", async () => {
         >
           update
         </button>
-        {() => <Child key={String(count)} value={count} />}
+        {() => createKey(() => <Child value={count} />, String(count))}
       </div>
     );
   }
@@ -104,7 +104,7 @@ test("Child passthrough Parent 1", async () => {
           update
         </button>
         <Passthrough>
-          {() => <Child key={String(count)} value={count} />}
+          {() => createKey(() => <Child value={count} />, String(count))}
         </Passthrough>
       </div>
     );
@@ -148,7 +148,7 @@ test("Child passthrough Parent 2", async () => {
           update
         </button>
         <Passthrough>
-          {() => <Child key={String(count)} value={count} />}
+          {() => createKey(() => <Child value={count} />, String(count))}
         </Passthrough>
       </div>
     );
@@ -193,7 +193,7 @@ test("Child passthrough Parent 3", async () => {
         </button>
         <Passthrough>
           <div>
-            {() => <Child key={String(count)} value={count} />}
+            {() => createKey(() => <Child value={count} />, String(count))}
           </div>
         </Passthrough>
       </div>
@@ -243,7 +243,7 @@ test("Child passthrough Parent 4", async () => {
         </button>
         <Passthrough>
           <div>
-            {() => <Child key={String(count)} value={count} />}
+            {() => createKey(() => <Child value={count} />, String(count))}
           </div>
         </Passthrough>
       </div>

@@ -1,182 +1,88 @@
 import { assert, test } from "@marcisbee/rion/test";
 import { mount } from "../../test/utils.ts";
-import { update } from "../client.ts";
-
-/**
- * Item component displaying id and tracking render count to verify identity.
- * @param props Reactive props containing id.
- * @returns Reactive render function with incrementing render count text.
- */
-function KeyItem(props: JSX.Props<{ id: string; key?: string }>) {
-  let renders = 0;
-  return () => (
-    <span className="key-item">
-      {props().id}:{++renders}
-    </span>
-  );
-}
-
-/**
- * Root that renders a list of items keyed by their id and allows reordering.
- * @returns Reactive render function producing keyed children.
- */
-function KeyedReorderRoot(this: HTMLElement) {
-  let mode: "asc" | "desc" = "asc";
-  const ids = ["a", "b", "c", "d"];
-  return () => {
-    const ordered = mode === "asc" ? ids : [...ids].reverse();
-    return (
-      <div className="reorder-root">
-        <button
-          type="button"
-          className="toggle-order"
-          onclick={() => {
-            mode = mode === "asc" ? "desc" : "asc";
-            update(this);
-          }}
-        >
-          toggle
-        </button>
-        <div className="list">
-          {ordered.map((id) => <KeyItem key={id} id={id} />)}
-        </div>
-        <span className="mode">{mode}</span>
-      </div>
-    );
-  };
-}
-
-/**
- * Root that can remove one keyed item from the middle of a list.
- * @returns Reactive render function producing keyed children; one can be removed.
- */
-function KeyedRemovalRoot(this: HTMLElement) {
-  let removed = false;
-  const keys = ["a", "b", "c"];
-  return () => {
-    const active = removed ? keys.filter((k) => k !== "b") : keys;
-    return (
-      <div className="removal-root">
-        <button
-          type="button"
-          className="remove-b"
-          onclick={() => {
-            removed = true;
-            update(this);
-          }}
-        >
-          remove-b
-        </button>
-        <div className="list">
-          {active.map((k) => (
-            <span key={k} className={"rem-item rem-" + k}>
-              {k}
-            </span>
-          ))}
-        </div>
-        <span className="removed-flag">{String(removed)}</span>
-      </div>
-    );
-  };
-}
-
-/**
- * Component counting renders used to verify key-based remount vs retained instance.
- * @returns Reactive render function incrementing render count.
- */
-function RenderCounter() {
-  let renders = 0;
-  return () => <div className="render-counter">renders:{++renders}</div>;
-}
-
-/**
- * Root that hosts a single RenderCounter with a dynamic key and buttons for
- * re-rendering with same key or flipping to a different key.
- * @returns Reactive render function producing controls and keyed child.
- */
-function KeySwapRoot(this: HTMLElement) {
-  let keyValue = "a";
-  return () => (
-    <div className="key-swap-root">
-      <button
-        type="button"
-        className="rerender-same"
-        onclick={() => {
-          update(this);
-        }}
-      >
-        rerender
-      </button>
-      <button
-        type="button"
-        className="flip-key"
-        onclick={() => {
-          keyValue = keyValue === "a" ? "b" : "a";
-          update(this);
-        }}
-      >
-        flip-key
-      </button>
-      <RenderCounter key={keyValue} />
-      <span className="current-key">{keyValue}</span>
-    </div>
-  );
-}
+import { createList, update } from "../client.ts";
+import { locator } from "@marcisbee/rion/locator";
 
 /** keyed reorder preserves node identity while changing order */
 test("keyed-reorder-preserves-instances", async () => {
-  const root = await mount(<KeyedReorderRoot />, document.body);
-  const list = root.querySelector(".list")!;
-  const toggleBtn = root.querySelector(".toggle-order") as HTMLButtonElement;
+  let items = [
+    { id: "a" },
+    { id: "b" },
+  ];
 
-  const initialNodes = Array.from(
-    list.querySelectorAll(".key-item"),
-  ) as HTMLElement[];
-  assert.equal(initialNodes.length, 4);
-  const initialMap = new Map(
-    initialNodes.map((n) => [n.textContent!.split(":")[0], n]),
-  );
-
-  toggleBtn.click();
-  await Promise.resolve();
-
-  const afterNodes = Array.from(
-    list.querySelectorAll(".key-item"),
-  ) as HTMLElement[];
-  assert.equal(afterNodes.length, 4);
-  const afterMap = new Map(
-    afterNodes.map((n) => [n.textContent!.split(":")[0], n]),
-  );
-
-  // Each key should still map to the same element instance (identity preserved)
-  for (const [key, node] of initialMap) {
-    assert.equal(afterMap.get(key), node);
+  function KeyedReorderRoot() {
+    return (
+      <ul>
+        {() =>
+          createList((key) =>
+            items.map((item) =>
+              key(() => <li className="key-item">{item.id}</li>, item.id)
+            )
+          )}
+      </ul>
+    );
   }
 
-  // Order should have reversed (first and last swapped)
-  assert.true(
-    afterNodes[0] === initialMap.get("d") &&
-      afterNodes[afterNodes.length - 1] === initialMap.get("a"),
-    "Order reversed but nodes reused",
-  );
+  const root = await mount(<KeyedReorderRoot />, document.body);
+
+  const firstRenderNodes = Array.from(
+    root.querySelectorAll(".key-item"),
+  ) as HTMLElement[];
+  assert.equal(firstRenderNodes.length, 2);
+
+  items = items.reverse();
+  update(root);
+
+  const secondRenderNodes = Array.from(
+    root.querySelectorAll(".key-item"),
+  ) as HTMLElement[];
+  assert.equal(secondRenderNodes.length, 2);
+
+  // Nodes should be reused but in reversed order
+  assert.equal(firstRenderNodes[0], secondRenderNodes[1]);
+  assert.equal(firstRenderNodes[1], secondRenderNodes[0]);
 });
 
 /** keyed removal removes only target key and preserves others */
 test("keyed-removal-preserves-others", async () => {
-  const root = await mount(<KeyedRemovalRoot />, document.body);
-  const list = root.querySelector(".list")!;
-  const removeBtn = root.querySelector(".remove-b") as HTMLButtonElement;
+  let items = [
+    { id: "a" },
+    { id: "b" },
+    { id: "c" },
+  ];
 
-  const before = Array.from(list.children) as HTMLElement[];
+  function KeyedRemovalRoot() {
+    return (
+      <ul>
+        {() =>
+          createList((key) =>
+            items.map((item) =>
+              key(
+                () => (
+                  <li className={"rem-item rem-" + item.id}>
+                    {item.id}
+                  </li>
+                ),
+                item.id,
+              )
+            )
+          )}
+      </ul>
+    );
+  }
+
+  const root = await mount(<KeyedRemovalRoot />, document.body);
+
+  const before = Array.from(root.querySelectorAll("li")) as HTMLElement[];
   assert.equal(before.length, 3);
   const aNode = before.find((n) => n.textContent === "a")!;
   const bNode = before.find((n) => n.textContent === "b")!;
   const cNode = before.find((n) => n.textContent === "c")!;
 
-  removeBtn.click();
-  await Promise.resolve();
+  items = items.filter((item) => item.id !== "b");
+  update(root);
 
-  const after = Array.from(list.children) as HTMLElement[];
+  const after = Array.from(root.querySelectorAll("li")) as HTMLElement[];
   assert.equal(after.length, 2);
   const texts = after.map((n) => n.textContent);
   assert.excludes(texts, "b");
@@ -185,32 +91,148 @@ test("keyed-removal-preserves-others", async () => {
   assert.true(!document.body.contains(bNode), "Removed node not in DOM");
 });
 
-/** key flip remounts component (counter resets) while same key rerender increments */
-test("key-flip-remounts", async () => {
-  const root = await mount(<KeySwapRoot />, document.body);
-  const rerenderBtn = root.querySelector(".rerender-same") as HTMLButtonElement;
-  const flipBtn = root.querySelector(".flip-key") as HTMLButtonElement;
+test("keyed reorder only 2, don't re-render rest", async () => {
+  let items = [
+    { id: "a" },
+    { id: "b" },
+    { id: "c" },
+    { id: "d" },
+  ];
 
-  const counter = () => root.querySelector(".render-counter") as HTMLElement;
+  function Test() {
+    let renderCount = 0;
+    return (
+      <ul>
+        {() =>
+          createList((key) =>
+            items.map((item) =>
+              key(
+                () => (
+                  <li>
+                    <span>{renderCount++}</span>
+                    <strong>{item.id}</strong>
+                  </li>
+                ),
+                item.id,
+              )
+            )
+          )}
+      </ul>
+    );
+  }
 
-  assert.contains(counter().textContent, "renders:1");
+  const root = await mount(<Test />, document.body);
 
-  rerenderBtn.click();
-  await Promise.resolve();
-  assert.contains(counter().textContent, "renders:2");
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <ul>
+        <!--$-->
+        <li>
+          <span>0</span>
+          <strong>a</strong>
+        </li>
+        <li>
+          <span>1</span>
+          <strong>b</strong>
+        </li>
+        <li>
+          <span>2</span>
+          <strong>c</strong>
+        </li>
+        <li>
+          <span>3</span>
+          <strong>d</strong>
+        </li>
+      </ul>
+    </host>
+  `,
+  );
 
-  rerenderBtn.click();
-  await Promise.resolve();
-  assert.contains(counter().textContent, "renders:3");
+  items = items = [
+    { id: "c" },
+    { id: "b" },
+    { id: "a" },
+    { id: "d" },
+  ];
+  update(root);
 
-  flipBtn.click();
-  await Promise.resolve();
-  // Key changed; instance should remount resetting count to 1
-  assert.contains(counter().textContent, "renders:1");
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <ul>
+        <!--$-->
+        <li>
+          <span>4</span>
+          <strong>c</strong>
+        </li>
+        <li>
+          <span>1</span>
+          <strong>b</strong>
+        </li>
+        <li>
+          <span>5</span>
+          <strong>a</strong>
+        </li>
+        <li>
+          <span>3</span>
+          <strong>d</strong>
+        </li>
+      </ul>
+    </host>
+  `,
+  );
+});
 
-  rerenderBtn.click();
-  await Promise.resolve();
-  assert.contains(counter().textContent, "renders:2");
+test("keyed reorder only 2, preserve instances", async () => {
+  let items = [
+    { id: "a" },
+    { id: "b" },
+    { id: "c" },
+    { id: "d" },
+  ];
+
+  function Test() {
+    let renderCount = 0;
+    return (
+      <ul>
+        {() =>
+          createList((key) =>
+            items.map((item) =>
+              key(
+                () => (
+                  <li>
+                    <span>{renderCount++}</span>
+                    <strong>{item.id}</strong>
+                  </li>
+                ),
+                item.id,
+              )
+            )
+          )}
+      </ul>
+    );
+  }
+
+  const root = await mount(<Test />, document.body);
+
+  const li1 = await locator("li", root).getAll();
+
+  items = items = [
+    { id: "c" },
+    { id: "b" },
+    { id: "a" },
+    { id: "d" },
+  ];
+  update(root);
+
+  const li2 = await locator("li", root).getAll();
+
+  assert.equal(li1[0], li2[2]);
+  assert.equal(li1[1], li2[1]);
+  assert.equal(li1[3], li2[3]);
 });
 
 await test.run();

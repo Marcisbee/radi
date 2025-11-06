@@ -1,6 +1,6 @@
 import { assert, test } from "@marcisbee/rion/test";
 import { mount } from "../../test/utils.ts";
-import { update } from "../client.ts";
+import { createList, update } from "../client.ts";
 
 /**
  * Simple component that echoes its children directly (static).
@@ -85,11 +85,19 @@ function DynamicParent(this: HTMLElement) {
   };
   return () => (
     <EchoReactive>
-      {items.map((v) => (
-        <span className="dyn" key={v}>
-          {v}
-        </span>
-      ))}
+      {() =>
+        createList((key) =>
+          items.map((v) =>
+            key(
+              () => (
+                <span className="dyn">
+                  {v}
+                </span>
+              ),
+              v,
+            )
+          )
+        )}
     </EchoReactive>
   );
 }
@@ -283,15 +291,31 @@ function KeyChurn(this: HTMLElement) {
   };
   return () => (
     <EchoReactive>
-      {outer.map((o) => (
-        <div className="outer" key={o}>
-          {inner.map((i) => (
-            <span className="inner" key={i}>
-              {o}-{i}
-            </span>
-          ))}
-        </div>
-      ))}
+      {() =>
+        createList((key) =>
+          outer.map((o) =>
+            key(
+              () => (
+                <div className="outer">
+                  {() =>
+                    createList((key) =>
+                      inner.map((i) =>
+                        key(
+                          () => (
+                            <span className="inner">
+                              {o}-{i}
+                            </span>
+                          ),
+                          i,
+                        )
+                      )
+                    )}
+                </div>
+              ),
+              o,
+            )
+          )
+        )}
     </EchoReactive>
   );
 }

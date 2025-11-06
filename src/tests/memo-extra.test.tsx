@@ -1,5 +1,5 @@
 import { assert, test } from "@marcisbee/rion/test";
-import { memo, update } from "../client.ts";
+import { createList, memo, update } from "../client.ts";
 import { mount } from "../../test/utils.ts";
 
 /* -------------------------------------------------------------------------- */
@@ -139,11 +139,15 @@ test("keyed list reorder preserves memo counters", async () => {
   function App() {
     return (
       <ul>
-        {items.map((it) => (
-          <li key={it.id} data-id={it.id} data-count={memos.get(it.id)!}>
-            {it.label}
-          </li>
-        ))}
+        {createList((key) =>
+          items.map((it) => (
+            key(() => (
+              <li data-id={it.id} data-count={memos.get(it.id)!}>
+                {it.label}
+              </li>
+            ), it.id)
+          ))
+        )}
       </ul>
     );
   }
@@ -290,14 +294,19 @@ test("memo render list", async () => {
           Add
         </button>
         <ul>
-          {memo(() => (rows.map((item, index) => (
-            <li
-              key={String(item)}
-              id={String(item)}
-            >
-              {() => rows[index]} : {() => index}
-            </li>
-          ))), () => {
+          {memo(() =>
+            createList((key) =>
+              rows.map((item, index) =>
+                key(
+                  () => (
+                    <li id={String(item)}>
+                      {() => rows[index]} : {() => index}
+                    </li>
+                  ),
+                  String(item),
+                )
+              )
+            ), () => {
             const changed = len !== rows.length;
             len = rows.length;
             return !changed;
@@ -338,14 +347,19 @@ test("non-memo render list", async () => {
           Add
         </button>
         <ul>
-          {() => (rows.map((item, index) => (
-            <li
-              key={String(item)}
-              id={String(item)}
-            >
-              {() => rows[index]} : {() => index}
-            </li>
-          )))}
+          {() =>
+            createList((key) =>
+              rows.map((item, index) =>
+                key(
+                  () => (
+                    <li id={String(item)}>
+                      {() => rows[index]} : {() => index}
+                    </li>
+                  ),
+                  String(item),
+                )
+              )
+            )}
         </ul>
       </div>
     );

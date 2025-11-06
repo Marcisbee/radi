@@ -1,6 +1,6 @@
 import { assert, test } from "@marcisbee/rion/test";
 import { mount } from "../../test/utils.ts";
-import { createElement, update } from "../client.ts";
+import { createElement, createList, update } from "../client.ts";
 
 /**
  * Row type for table entries.
@@ -163,16 +163,23 @@ function KeyedLargeTableRoot(this: HTMLElement) {
       </div>
       <table className="data-table">
         <tbody>
-          {rows.map((r) => (
-            <tr
-              key={String(r.id)}
-              id={String(r.id)}
-              className={r.selected ? "danger" : ""}
-            >
-              <td className="col-id">{r.id}</td>
-              <td className="col-label">{r.label}</td>
-            </tr>
-          ))}
+          {() =>
+            createList((key) =>
+              rows.map((r) =>
+                key(
+                  () => (
+                    <tr
+                      id={String(r.id)}
+                      className={r.selected ? "danger" : ""}
+                    >
+                      <td className="col-id">{r.id}</td>
+                      <td className="col-label">{r.label}</td>
+                    </tr>
+                  ),
+                  String(r.id),
+                )
+              )
+            )}
         </tbody>
       </table>
       <span className="row-count">{rows.length}</span>

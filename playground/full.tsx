@@ -6,6 +6,8 @@ import { createChannel } from "../src/channel.ts";
 import {
   createAbortSignal,
   createElement,
+  createKey,
+  createList,
   createRoot,
   Fragment,
   memo,
@@ -382,7 +384,7 @@ function Tabber(this: DocumentFragment) {
           : tab === "tab2"
           ? <Tab2 />
           : tab === "tab3"
-          ? <Tab3 key={Math.random()} />
+          ? createKey(() => <Tab3 />, Math.random())
           : <Styling />)}
       </div>
     </div>
@@ -799,6 +801,64 @@ function ErrorBoundary2(this: HTMLElement, props: JSX.PropsWithChildren) {
     console.log("Caught:", (e as ErrorEvent).error);
   });
   return () => props().children;
+}
+
+// Example: createList for keyed lists
+function KeyedListDemo(this: HTMLDivElement) {
+  let items = [
+    { id: 1, text: "Apple" },
+    { id: 2, text: "Banana" },
+    { id: 3, text: "Cherry" },
+  ];
+
+  return (
+    <div>
+      <h3>createList Demo</h3>
+      <ul>
+        {() =>
+          createList((key) =>
+            items.map((item) => key(() => <li>{item.text}</li>, item.id))
+          )}
+      </ul>
+      <button
+        type="button"
+        onclick={() => {
+          items = items.slice().reverse();
+          update(this);
+        }}
+      >
+        Reverse
+      </button>
+    </div>
+  );
+}
+
+// Example: createKey for single keyed components
+function KeyedComponentDemo(this: HTMLDivElement) {
+  let currentKey = "a";
+  let count = 0;
+
+  return (
+    <div>
+      <h3>createKey Demo</h3>
+      <p>Current key: {() => currentKey}</p>
+      {() =>
+        createKey(
+          () => <Counter />,
+          currentKey,
+        )}
+      <button
+        type="button"
+        onclick={() => {
+          currentKey = currentKey === "a" ? "b" : "a";
+          count++;
+          update(this);
+        }}
+      >
+        Toggle Key (remounts component)
+      </button>
+    </div>
+  );
 }
 
 createRoot(document.body).render(<App name="World" />);

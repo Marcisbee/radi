@@ -3,6 +3,7 @@
 /** @jsxFrag Fragment */
 import {
   createElement,
+  createList,
   createRoot,
   Fragment,
   memo,
@@ -269,53 +270,39 @@ export function Table(this: HTMLElement) {
 
   table = this;
 
-  let len;
   return (
     <table className="table table-hover table-striped test-data">
       <tbody>
-        {memo(() =>
-          rows.map((item, index) => {
-            let itLabel = item.label;
-            let itId = item.id;
-            return (
-              <tr
-                key={String(item.id)}
-                id={String(item.id)}
-                className={item.selected ? "danger" : ""}
-              >
-                <td className="col-md-1">
-                  {memo(() => itId, () => {
-                    const changed = itId !== rows[index].id;
-                    itId = rows[index].id;
-                    return !changed;
-                  })}
-                </td>
-                <td className="col-md-4">
-                  <a>
-                    {memo(() => itLabel, () => {
-                      const changed = itLabel !== rows[index].label;
-                      itLabel = rows[index].label;
-                      return !changed;
-                    })}
-                  </a>
-                </td>
-                <td data-interaction="delete" className="col-md-1">
-                  <a>
-                    <span
-                      className="glyphicon glyphicon-remove"
-                      aria-hidden="true"
-                    >
-                    </span>
-                  </a>
-                </td>
-                <td className="col-md-6"></td>
-              </tr>
-            );
-          }), () => {
-          const changed = len !== rows.length;
-          len = rows.length;
-          return !changed;
-        })}
+        {() =>
+          createList((key) =>
+            rows.map((item) => {
+              return key(() => (
+                <tr
+                  id={String(item.id)}
+                  className={item.selected ? "danger" : ""}
+                >
+                  <td className="col-md-1">
+                    {item.id}
+                  </td>
+                  <td className="col-md-4">
+                    <a>
+                      {() => item.label}
+                    </a>
+                  </td>
+                  <td data-interaction="delete" className="col-md-1">
+                    <a>
+                      <span
+                        className="glyphicon glyphicon-remove"
+                        aria-hidden="true"
+                      >
+                      </span>
+                    </a>
+                  </td>
+                  <td className="col-md-6"></td>
+                </tr>
+              ), item.id);
+            })
+          )}
       </tbody>
     </table>
   );

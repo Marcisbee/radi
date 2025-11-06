@@ -25,7 +25,7 @@
 
 type Child = any;
 
-const connectQueue = new Set<Function>();
+let connectQueue = new Set<Function>();
 function queueConnection(fn: Function) {
   connectQueue.add(fn);
 }
@@ -34,8 +34,9 @@ function flushConnectionQueue() {
   // Nested component hosts can enqueue additional tasks while a task runs.
   // Loop until no new tasks are added to ensure full tree construction in a single cycle.
   while (connectQueue.size) {
-    const tasks = Array.from(connectQueue);
-    connectQueue.clear();
+    // Performance: Swap sets instead of Array.from() + clear() to avoid allocation
+    const tasks = connectQueue;
+    connectQueue = new Set();
     for (const task of tasks) {
       try {
         task();
@@ -89,9 +90,33 @@ function replace(childNew: Node, childOld: Node) {
     ? (childOld as any).replaceWith(childNew)
     : childOld.parentNode?.replaceChild(childNew, childOld);
   // flushConnectionQueue();
-  sendConnectEvent(childNew);
+  // Don't send connect event for components - they'll be queued during build
+  if (!childNew.__component) {
+    sendConnectEvent(childNew);
+  }
   sendDisconnectEvent(childOld);
   return childNew;
+}
+
+function queueDescendantComponents(root: Node) {
+  // Only check direct children - they will recursively handle their own children when connected
+  if (!root.hasChildNodes || !root.hasChildNodes()) {
+    return;
+  }
+
+  const children = root.childNodes;
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if ((child as any).__component && (child as any).__instance === undefined) {
+      queueConnection(() => {
+        if (!child.isConnected || (child as any).__instance !== undefined) {
+          return;
+        }
+        build((child as any).__component!(child), child);
+        sendConnectEvent(child);
+      });
+    }
+  }
 }
 
 function connect(child: Node, parent: Node) {
@@ -141,6 +166,13 @@ function connect(child: Node, parent: Node) {
     return child;
   }
 
+  // Queue builds for descendant components if child was created with children before being connected
+  if (
+    !(child as any).__component && child.hasChildNodes && child.hasChildNodes()
+  ) {
+    queueDescendantComponents(child);
+  }
+
   sendConnectEvent(child);
 
   return child;
@@ -156,21 +188,19 @@ function disconnect(child: Node) {
 
   traverseReactiveChildren(child?.__reactive_children || [child]).forEach(
     (toDisconnect) => {
-      queueMicrotask(() => {
-        toDisconnect.dispatchEvent(new Event("disconnect"));
-        const descs = (toDisconnect as any).__attr_descriptors;
-        if (descs) {
-          for (const [, desc] of descs) {
-            try {
-              desc.teardown?.();
-            } catch {
-              /* ignore teardown errors */
-            }
+      toDisconnect.dispatchEvent(new Event("disconnect"));
+      const descs = (toDisconnect as any).__attr_descriptors;
+      if (descs) {
+        for (const [, desc] of descs) {
+          try {
+            desc.teardown?.();
+          } catch {
+            /* ignore teardown errors */
           }
-          descs.clear?.();
         }
-        toDisconnect.__reactive_attributes?.clear?.();
-      });
+        descs.clear?.();
+      }
+      toDisconnect.__reactive_attributes?.clear?.();
     },
   );
 
@@ -193,7 +223,6 @@ function disconnect(child: Node) {
       : child.parentNode?.removeChild(child);
   }
 
-  sendDisconnectEvent(child);
   return child;
 }
 
@@ -461,7 +490,7 @@ function buildRender(parent: Anchor, fn: (parent: Anchor) => any) {
         fn(parent),
         parent,
       );
-      // flushConnectionQueue();
+      flushConnectionQueue();
     } catch (error) {
       bubbleError(error, parent);
     }
@@ -473,9 +502,133 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
     return (parent.__reactive_children as Node[]) || [];
   }
 
+  if (valueNew?.__single_keyed && valueNew.__single_keyed === true) {
+    const oldArray = Array.isArray(valueOld) ? valueOld : null;
+    const oldKey = oldArray?.__key;
+    const newKey = valueNew.key;
+
+    if (oldKey === newKey && oldArray) {
+      // Key unchanged: reuse old node without re-rendering
+      return oldArray;
+    } else {
+      // Key changed or new: build fresh
+      const newNode = build(valueNew.renderFn(), parent);
+      const result = Array.isArray(newNode) ? newNode : [newNode];
+      (result as any).__key = newKey;
+      (result as any).__node = newNode;
+
+      // Disconnect old node if key changed
+      if (oldArray?.__node) {
+        disconnect(oldArray.__node);
+      } else if (valueOld instanceof Node) {
+        // Disconnect old non-keyed element when switching to keyed
+        disconnect(valueOld);
+      } else if (Array.isArray(valueOld)) {
+        // Disconnect old non-keyed array elements
+        for (const toDelete of valueOld) {
+          if (toDelete instanceof Node) {
+            disconnect(toDelete);
+          }
+        }
+      }
+
+      return result;
+    }
+  }
+
+  if (valueNew?.__keyed && valueNew.__keyed === true) {
+    const oldMap = (valueOld as any)?.__key_map || new Map();
+    const newMap = new Map();
+    const arrayOut: Node[] = [];
+    const usedNodes = new Set();
+    const arrayOld = Array.isArray(valueOld)
+      ? valueOld
+      : (valueOld ? [valueOld] : []);
+
+    for (let i = 0; i < valueNew.items.length; i++) {
+      const item = valueNew.items[i];
+      const oldNode = oldMap.get(item.key);
+
+      if (oldNode) {
+        usedNodes.add(oldNode);
+
+        // Check if item is at same position as before
+        const oldIndex = arrayOld.indexOf(oldNode);
+        const positionChanged = oldIndex !== i;
+
+        if (positionChanged) {
+          // Position changed: re-render and reposition
+          const newContent = item.renderFn();
+          const [reusedNode] = diff([oldNode], [newContent], parent);
+          const nodeToUse = reusedNode || oldNode;
+          arrayOut.push(nodeToUse);
+          newMap.set(item.key, nodeToUse);
+        } else {
+          // Position unchanged: reuse as-is
+          arrayOut.push(oldNode);
+          newMap.set(item.key, oldNode);
+        }
+      } else {
+        // New item: build from scratch
+        const newNode = build(item.renderFn(), parent) as Node;
+        arrayOut.push(newNode);
+        newMap.set(item.key, newNode);
+      }
+    }
+
+    // Reposition DOM nodes to match arrayOut order
+    let previousNode: Node | null = null;
+    for (const node of arrayOut) {
+      const actualNode = Array.isArray(node) ? node[0] : node;
+      if (actualNode && actualNode.isConnected) {
+        if (previousNode) {
+          // Insert after previous node
+          if (actualNode.previousSibling !== previousNode) {
+            if ((previousNode as any).after) {
+              (previousNode as any).after(actualNode);
+            } else {
+              previousNode.parentNode?.insertBefore(
+                actualNode,
+                previousNode.nextSibling,
+              );
+            }
+          }
+        }
+        previousNode = actualNode;
+      }
+    }
+
+    for (const [_key, node] of oldMap) {
+      if (!usedNodes.has(node)) {
+        disconnect(node);
+      }
+    }
+
+    (arrayOut as any).__key_map = newMap;
+
+    // Clean up old nodes that are not in the new array
+    for (const toDelete of arrayOld) {
+      if (toDelete instanceof Node && arrayOut.indexOf(toDelete) === -1) {
+        disconnect(toDelete);
+      }
+    }
+
+    flushConnectionQueue();
+    return arrayOut;
+  }
+
+  // Handle cleanup when switching from keyed to non-keyed
+  if ((valueOld as any)?.__key_map) {
+    const oldMap = (valueOld as any).__key_map;
+    for (const [_key, node] of oldMap) {
+      disconnect(node);
+    }
+  }
+
   const arrayOld = Array.isArray(valueOld) ? valueOld : [valueOld];
   const arrayNew = Array.isArray(valueNew) ? valueNew : [valueNew];
   const arrayOut = Array(arrayNew.length);
+  const disconnected = new Set();
 
   let i = 0;
   for (const itemNew of arrayNew) {
@@ -571,12 +724,16 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
       ) {
         if (itemNew.__component) {
           itemOld.__render_id = itemNew.__render_id;
-          if (
-            itemOld.__props?.key !== itemNew.__props?.key ||
-            itemOld.__type !== itemNew.__type
-          ) {
+          if (itemOld.__type !== itemNew.__type) {
             replace(itemNew, itemOld);
+            disconnected.add(itemOld);
             build(itemNew.__component(itemNew), itemNew);
+            queueConnection(() => {
+              if (!itemNew.isConnected) {
+                return;
+              }
+              sendConnectEvent(itemNew);
+            });
             arrayOut[ii] = itemNew;
             continue;
           }
@@ -621,6 +778,7 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
       if (itemNew?.nodeType === Node.ELEMENT_NODE) {
         itemOld.__render_id = itemNew.__render_id;
         replace(itemNew, itemOld);
+        disconnected.add(itemOld);
         arrayOut[ii] = itemNew;
         continue;
       }
@@ -637,6 +795,7 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
       }
       const builtNode = build(itemNew, parent) as Node;
       arrayOut[ii] = replace(builtNode, itemOld as Node);
+      disconnected.add(itemOld);
       // flush batched after main diff loop
       // flushConnectionQueue();
       // Ensure nested component hosts built under a newly inserted element (within a reactive anchor)
@@ -649,11 +808,15 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
     if (itemOld && itemOld !== arrayOut[ii]) {
       // Only disconnect if we truly replaced with a different instance
       disconnect(itemOld);
+      disconnected.add(itemOld);
     }
   }
 
   for (const toDelete of arrayOld) {
-    if (toDelete instanceof Node && arrayOut.indexOf(toDelete) === -1) {
+    if (
+      toDelete instanceof Node && arrayOut.indexOf(toDelete) === -1 &&
+      !disconnected.has(toDelete)
+    ) {
       disconnect(toDelete);
     }
   }
@@ -820,6 +983,26 @@ type ComponentHost = Node & {
 function build(a: any, parent: Node): BuiltNode {
   if (Array.isArray(a)) {
     return a.map((child) => build(child, parent));
+  }
+
+  if (a?.__single_keyed) {
+    const node = build(a.renderFn(), parent);
+    const result = Array.isArray(node) ? node : [node];
+    (result as any).__key = a.key;
+    (result as any).__node = node;
+    return result;
+  }
+
+  if (a?.__keyed) {
+    const keyMap = new Map();
+    const nodes = a.items.map((item: KeyedItem) => {
+      const node = build(item.renderFn(), parent);
+      keyMap.set(item.key, node);
+      return node;
+    });
+    // Store key map on the returned nodes array so it can be retrieved during diff
+    (nodes as any).__key_map = keyMap;
+    return nodes;
   }
 
   if (typeof a === "string") {
@@ -1014,6 +1197,52 @@ export function memo(fn: (anchor: Node) => any, shouldMemo: () => boolean) {
     }
     return cached;
   };
+}
+
+type KeyedItem = { renderFn: () => any; key: any };
+
+export function createList(
+  fn: (key: (renderFn: () => any, keyValue: any) => any) => any[],
+) {
+  const items: Array<{ renderFn: () => any; key: any }> = [];
+  const keyFn = (renderFn: () => any, keyValue: any): any => {
+    items.push({ renderFn, key: keyValue });
+    return null; // Return value not used
+  };
+  fn(keyFn);
+  return { __keyed: true, items };
+}
+
+/**
+ * Creates a keyed element or component that only re-renders when the key changes.
+ * The component instance and its internal state are preserved as long as the key remains the same.
+ *
+ * @param renderFn - Function that returns the element/component to render
+ * @param keyValue - Unique key to identify this element/component
+ * @returns A marker object for the keyed element
+ *
+ * @example
+ * ```tsx
+ * function Counter() {
+ *   let count = 0;
+ *   return () => <div>Count: {count++}</div>;
+ * }
+ *
+ * function App() {
+ *   let activeTab = "home";
+ *
+ *   return (
+ *     <div>
+ *       {() => createKey(() => <Counter />, activeTab)}
+ *     </div>
+ *   );
+ * }
+ * // When activeTab changes, Counter remounts (count resets to 0)
+ * // When activeTab stays the same, Counter instance is preserved (count increments)
+ * ```
+ */
+export function createKey(renderFn: () => any, keyValue: any) {
+  return { __single_keyed: true, renderFn, key: keyValue };
 }
 
 // function Counter(this: HTMLElement, props: any) {

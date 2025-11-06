@@ -1,6 +1,6 @@
 import { assert, clock, test } from "@marcisbee/rion/test";
 import { mount } from "../../test/utils.ts";
-import { suspend, Suspense, unsuspend, update } from "../client.ts";
+import { createKey, suspend, Suspense, unsuspend, update } from "../client.ts";
 
 /**
  * Suspense behavior tests covering:
@@ -263,7 +263,7 @@ test("can resuspend with key change", async () => {
           Resuspend
         </button>
         <Suspense fallback={() => <strong className="fallback">Phase</strong>}>
-          {() => <ResuspenderWithKey key={key} />}
+          {() => createKey(() => <ResuspenderWithKey />, key)}
         </Suspense>
       </div>
     );
