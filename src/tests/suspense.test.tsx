@@ -384,4 +384,398 @@ test("handles sub-components", async () => {
   );
 });
 
+test("handles sub-components 2", async () => {
+  function Child1(this: HTMLElement) {
+    suspend(this);
+
+    (async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      unsuspend(this);
+    })();
+
+    return <div id="a">A</div>;
+  }
+
+  function Child2(this: HTMLElement) {
+    suspend(this);
+
+    (async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      unsuspend(this);
+    })();
+
+    return <div id="b">B</div>;
+  }
+
+  function Parent(this: HTMLElement) {
+    let count = 0;
+    return (
+      <div>
+        <Suspense fallback={() => <strong className="fallback">Phase</strong>}>
+          {() => (count > 0 && <Child1 />)}
+        </Suspense>
+        <button
+          type="button"
+          onclick={() => {
+            count++;
+            update(this);
+          }}
+        >
+          update
+        </button>
+        <Suspense fallback={() => <strong className="fallback">Phase</strong>}>
+          {() => (count > 0 && <Child2 />)}
+        </Suspense>
+      </div>
+    );
+  }
+
+  const root = await mount(<Parent />, document.body);
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <host>
+          <suspense _r="" style="display: contents;">
+            <!--$--><!--$--><!--false-->
+          </suspense>
+          <!--$--><!--null-->
+        </host>
+        <button type="button">update</button>
+        <host>
+          <suspense _r="" style="display: contents;">
+            <!--$--><!--$--><!--false-->
+          </suspense>
+          <!--$--><!--null-->
+        </host>
+      </div>
+    </host>
+    `,
+  );
+
+  const button = root.querySelector("button")!;
+  button.click();
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <host>
+          <suspense _r="" style="display: none;">
+            <!--$--><!--$-->
+            <host>
+              <div id="a">A</div>
+            </host>
+          </suspense>
+          <!--$--><strong class="fallback">Phase</strong>
+        </host>
+        <button type="button">update</button>
+        <host>
+          <suspense _r="" style="display: none;">
+            <!--$--><!--$-->
+            <host>
+              <div id="b">B</div>
+            </host>
+          </suspense>
+          <!--$--><strong class="fallback">Phase</strong>
+        </host>
+      </div>
+    </host>
+    `,
+  );
+
+  await clock.fastForward(100);
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <host>
+          <suspense _r="" style="display: contents;">
+            <!--$--><!--$-->
+            <host>
+              <div id="a">A</div>
+            </host>
+          </suspense>
+          <!--$--><!--null-->
+        </host>
+        <button type="button">update</button>
+        <host>
+          <suspense _r="" style="display: contents;">
+            <!--$--><!--$-->
+            <host>
+              <div id="b">B</div>
+            </host>
+          </suspense>
+          <!--$--><!--null-->
+        </host>
+      </div>
+    </host>
+    `,
+  );
+});
+
+test("handles sub-components 2", async () => {
+  let count = 0;
+
+  function Child3(this: HTMLElement) {
+    return (
+      <section>
+        <Suspense fallback={() => <strong className="fallback">Phase</strong>}>
+          {() => (count > 0 && <Child1 />)}
+        </Suspense>
+      </section>
+    );
+  }
+
+  function Child2(this: HTMLElement) {
+    suspend(this);
+
+    (async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      unsuspend(this);
+    })();
+
+    return <div id="b">B</div>;
+  }
+
+  function Child1(this: HTMLElement) {
+    suspend(this);
+
+    (async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      unsuspend(this);
+    })();
+
+    return <div id="a">A</div>;
+  }
+
+  function Parent(this: HTMLElement) {
+    return (
+      <div>
+        <Child3 />
+        <button
+          type="button"
+          onclick={() => {
+            count++;
+            update(this);
+          }}
+        >
+          update
+        </button>
+        <Suspense fallback={() => <strong className="fallback">Phase</strong>}>
+          {() => (count > 0 && <Child2 />)}
+        </Suspense>
+      </div>
+    );
+  }
+
+  const root = await mount(<Parent />, document.body);
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <host>
+          <section>
+            <host>
+              <suspense _r="" style="display: contents;">
+                <!--$--><!--$--><!--false-->
+              </suspense>
+              <!--$--><!--null-->
+            </host>
+          </section>
+        </host>
+        <button type="button">update</button>
+        <host>
+          <suspense _r="" style="display: contents;">
+            <!--$--><!--$--><!--false-->
+          </suspense>
+          <!--$--><!--null-->
+        </host>
+      </div>
+    </host>
+    `,
+  );
+
+  const button = root.querySelector("button")!;
+  button.click();
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <host>
+          <section>
+            <host>
+              <suspense _r="" style="display: none;">
+                <!--$--><!--$-->
+                <host>
+                  <div id="a">A</div>
+                </host>
+              </suspense>
+              <!--$--><strong class="fallback">Phase</strong>
+            </host>
+          </section>
+        </host>
+        <button type="button">update</button>
+        <host>
+          <suspense _r="" style="display: none;">
+            <!--$--><!--$-->
+            <host>
+              <div id="b">B</div>
+            </host>
+          </suspense>
+          <!--$--><strong class="fallback">Phase</strong>
+        </host>
+      </div>
+    </host>
+    `,
+  );
+
+  await clock.fastForward(100);
+
+  assert.snapshot.html(
+    root,
+    `
+    <host>
+      <div>
+        <host>
+          <section>
+            <host>
+              <suspense _r="" style="display: contents;">
+                <!--$--><!--$-->
+                <host>
+                  <div id="a">A</div>
+                </host>
+              </suspense>
+              <!--$--><!--null-->
+            </host>
+          </section>
+        </host>
+        <button type="button">update</button>
+        <host>
+          <suspense _r="" style="display: contents;">
+            <!--$--><!--$-->
+            <host>
+              <div id="b">B</div>
+            </host>
+          </suspense>
+          <!--$--><!--null-->
+        </host>
+      </div>
+    </host>
+    `,
+  );
+});
+
+test("handles sub-components 3", async () => {
+  function Child1(this: HTMLElement) {
+    suspend(this);
+
+    (async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      unsuspend(this);
+    })();
+
+    return <div id="a">A</div>;
+  }
+
+  function Child2(this: HTMLElement) {
+    suspend(this);
+
+    (async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      unsuspend(this);
+    })();
+
+    return <div id="b">B</div>;
+  }
+
+  function Parent1() {
+    return (
+      <div>
+        <Suspense fallback={() => <strong id="as">Phase</strong>}>
+          <Child1 />
+        </Suspense>
+      </div>
+    );
+  }
+
+  function Parent2() {
+    return (
+      <div>
+        <Parent1 />
+        <Suspense fallback={() => <strong id="bs">Phase</strong>}>
+          <Child2 />
+        </Suspense>
+      </div>
+    );
+  }
+
+  const root = await mount(<Parent2 />, document.body);
+
+  assert.equal(root.querySelector("#a")?.checkVisibility(), false);
+  assert.equal(root.querySelector("#as")?.checkVisibility(), true);
+  assert.equal(root.querySelector("#b")?.checkVisibility(), false);
+  assert.equal(root.querySelector("#bs")?.checkVisibility(), true);
+
+  await clock.fastForward(100);
+
+  assert.equal(root.querySelector("#a")?.checkVisibility(), true);
+  assert.equal(root.querySelector("#as")?.checkVisibility(), undefined);
+  assert.equal(root.querySelector("#b")?.checkVisibility(), true);
+  assert.equal(root.querySelector("#bs")?.checkVisibility(), undefined);
+});
+
+test("handles sub-components 4", async () => {
+  function Child1(this: HTMLElement) {
+    suspend(this);
+
+    (async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      unsuspend(this);
+    })();
+
+    return <div id="a">A</div>;
+  }
+
+  function Parent1() {
+    return (
+      <div>
+        <Suspense fallback={() => <strong id="as">Phase</strong>}>
+          <Child1 />
+        </Suspense>
+      </div>
+    );
+  }
+
+  function Parent2() {
+    return (
+      <div>
+        <Parent1 />
+        <Suspense fallback={() => <strong id="bs">Phase</strong>}>
+          <div>no suspend here</div>
+        </Suspense>
+      </div>
+    );
+  }
+
+  const root = await mount(<Parent2 />, document.body);
+
+  assert.equal(root.querySelector("#a")?.checkVisibility(), false);
+  assert.equal(root.querySelector("#as")?.checkVisibility(), true);
+
+  await clock.fastForward(100);
+
+  assert.equal(root.querySelector("#a")?.checkVisibility(), true);
+  assert.equal(root.querySelector("#as")?.checkVisibility(), undefined);
+});
+
 await test.run();

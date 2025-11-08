@@ -493,6 +493,7 @@ function buildRender(parent: Anchor, fn: (parent: Anchor) => any) {
       flushConnectionQueue();
     } catch (error) {
       bubbleError(error, parent);
+      parent.__reactive_children = [];
     }
   };
 }
@@ -891,7 +892,7 @@ updateTarget.addEventListener(
   (e) => {
     e.stopImmediatePropagation();
     currentUpdateId += 1;
-    connectQueue.clear();
+    // connectQueue.clear();
     const node = (e as any).node;
     if (node instanceof Node) {
       updater(node);
@@ -1027,6 +1028,48 @@ function build(a: any, parent: Node): BuiltNode {
     const node = document.createComment("null");
     connect(node, parent);
     return node;
+  }
+
+  // Handle Promise values (async components)
+  if (a instanceof Promise) {
+    // Create a temporary anchor for the async component
+    const anchor = document.createComment("$async") as any as Anchor;
+    connect(anchor, parent);
+    anchor.__render_id = currentUpdateId;
+
+    // Suspend immediately while waiting for the Promise to resolve
+    suspend(anchor);
+
+    // Handle Promise resolution
+    a.then((resolvedValue) => {
+      if (anchor.isConnected) {
+        try {
+          // Build the resolved value
+          const built = build(resolvedValue, parent);
+          anchor.__reactive_children = Array.isArray(built)
+            ? (built as Node[])
+            : [built as Node];
+          // Unsuspend and trigger update
+          unsuspend(anchor);
+          update(anchor);
+        } catch (error) {
+          bubbleError(error, anchor);
+          anchor.__reactive_children = [];
+        }
+      }
+    }).catch((error) => {
+      if (anchor.isConnected) {
+        // Handle Promise rejection
+        bubbleError(error, anchor);
+        anchor.__reactive_children = [];
+        // Still need to unsuspend to avoid hanging the Suspense boundary
+        unsuspend(anchor);
+        update(anchor);
+      }
+    });
+
+    buildRender(anchor, () => anchor.__reactive_children || []);
+    return anchor;
   }
 
   if (typeof a?.subscribe === "function") {

@@ -441,7 +441,7 @@ test("on update passthru 1", async () => {
     return <div id="b">B</div>;
   }
 
-  function PassThru(props) {
+  function PassThru(props: JSX.PropsWithChildren) {
     return [props().children];
   }
 
@@ -559,7 +559,7 @@ test("on update passthru 3", async () => {
     return <div id="b">B</div>;
   }
 
-  function PassThru(props) {
+  function PassThru(props: JSX.PropsWithChildren) {
     return [<sus>{() => props().children}</sus>];
   }
 
@@ -618,7 +618,7 @@ test("on update passthru 4", async () => {
     return () => <div id="b">B</div>;
   }
 
-  function PassThru(props) {
+  function PassThru(props: JSX.PropsWithChildren) {
     return [<sus>{() => props().children}</sus>];
   }
 
@@ -677,7 +677,7 @@ test("on render passthru", async () => {
     return <div id="b">B</div>;
   }
 
-  function PassThru(props) {
+  function PassThru(props: JSX.PropsWithChildren) {
     return props().children;
   }
 
@@ -704,7 +704,7 @@ test("on render passthru with section", async () => {
     return <div id="b">B</div>;
   }
 
-  function PassThru(props) {
+  function PassThru(props: JSX.PropsWithChildren) {
     return props().children;
   }
 
@@ -733,15 +733,15 @@ test("multiple nested passthrus", async () => {
     return <div id="b">B</div>;
   }
 
-  function Pass1(props) {
+  function Pass1(props: JSX.PropsWithChildren) {
     return [props().children];
   }
 
-  function Pass2(props) {
+  function Pass2(props: JSX.PropsWithChildren) {
     return [() => props().children];
   }
 
-  function Pass3(props) {
+  function Pass3(props: JSX.PropsWithChildren) {
     return [<sus>{() => props().children}</sus>];
   }
 
@@ -785,15 +785,15 @@ test("multiple nested passthrus 2", async () => {
     return <div id="b">B</div>;
   }
 
-  function Pass1(props) {
+  function Pass1(props: JSX.PropsWithChildren) {
     return [props().children];
   }
 
-  function Pass2(props) {
+  function Pass2(props: JSX.PropsWithChildren) {
     return [() => props().children];
   }
 
-  function Pass3(props) {
+  function Pass3(props: JSX.PropsWithChildren) {
     return [<sus>{() => props().children}</sus>];
   }
 
@@ -830,6 +830,38 @@ test("multiple nested passthrus 2", async () => {
   const button = root.querySelector("button")!;
   button.click();
   await Promise.resolve();
+
+  assert.length(root.querySelectorAll("#b"), 1);
+});
+
+test("multi passhru", async () => {
+  function Child() {
+    return <div id="b">B</div>;
+  }
+
+  function Pass1(props: JSX.PropsWithChildren) {
+    return props().children;
+  }
+
+  function Parent2(this: HTMLElement) {
+    return (
+      <div>
+        <Pass1>
+          <Child />
+        </Pass1>
+      </div>
+    );
+  }
+
+  function Parent1(this: HTMLElement) {
+    return (
+      <div>
+        <Parent2 />
+      </div>
+    );
+  }
+
+  const root = await mount(<Parent1 />, document.body);
 
   assert.length(root.querySelectorAll("#b"), 1);
 });
