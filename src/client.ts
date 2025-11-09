@@ -23,6 +23,9 @@
 //   }
 // }
 
+import { setProps } from "./client.props.ts";
+import { bubbleError } from "./error.ts";
+
 type Child = any;
 
 let connectQueue = new Set<Function>();
@@ -75,7 +78,7 @@ function sendUpdateEvent(target: Node) {
     return true;
   }
   if (
-    target.onupdate || target.__component || target.__reactive_children ||
+    target.__cleanup || target.__component || target.__reactive_children ||
     target.__reactive_attributes
   ) {
     (target as any).__update_id = currentUpdateId;
@@ -189,33 +192,21 @@ function disconnect(child: Node) {
   traverseReactiveChildren(child?.__reactive_children || [child]).forEach(
     (toDisconnect) => {
       toDisconnect.dispatchEvent(new Event("disconnect"));
-      const descs = (toDisconnect as any).__attr_descriptors;
-      if (descs) {
-        for (const [, desc] of descs) {
-          try {
-            desc.teardown?.();
-          } catch {
-            /* ignore teardown errors */
-          }
+      const cleanupArray = (toDisconnect as any).__cleanup;
+      if (cleanupArray) {
+        for (const cleanup of cleanupArray) {
+          cleanup?.();
         }
-        descs.clear?.();
       }
-      toDisconnect.__reactive_attributes?.clear?.();
     },
   );
 
-  const descs = (child as any).__attr_descriptors;
-  if (descs) {
-    for (const [, desc] of descs) {
-      try {
-        desc.teardown?.();
-      } catch {
-        /* ignore teardown errors */
-      }
+  const cleanupArray = (child as any).__cleanup;
+  if (cleanupArray) {
+    for (const cleanup of cleanupArray) {
+      cleanup?.();
     }
-    descs.clear?.();
   }
-  child.__reactive_attributes?.clear?.();
 
   if (child.isConnected) {
     (child as any).remove
@@ -226,258 +217,10 @@ function disconnect(child: Node) {
   return child;
 }
 
-type AttrDescriptor = {
-  key: string;
-  kind: "attr" | "style" | "class" | "event";
-  reactive?: "pull" | "push";
-  get?: () => any;
-  teardown?: () => void;
-  apply: (el: HTMLElement, value?: any) => void;
-  raw?: any;
-};
-
-function applyStyle(el: HTMLElement, v: any) {
-  if (v == null) {
-    if (el.hasAttribute("style")) el.removeAttribute("style");
-    return;
-  }
-  if (typeof v === "object") {
-    for (const k in v) {
-      const next = v[k];
-      if ((el.style as any)[k] !== next) {
-        (el.style as any)[k] = String(next);
-      }
-    }
-    return;
-  }
-  const next = String(v);
-  if (el.getAttribute("style") !== next) el.setAttribute("style", next);
-}
-
-function applyClass(el: HTMLElement, v: any) {
-  if (v == null) {
-    if (el.hasAttribute("class")) el.removeAttribute("class");
-    return;
-  }
-  if (typeof v === "object") {
-    for (const cls in v) {
-      const should = !!v[cls];
-      const has = el.classList.contains(cls);
-      if (should && !has) el.classList.add(cls);
-      else if (!should && has) el.classList.remove(cls);
-    }
-    if (el.classList.length === 0 && el.hasAttribute("class")) {
-      el.removeAttribute("class");
-    }
-    return;
-  }
-  const next = String(v);
-  if (el.getAttribute("class") !== next) el.setAttribute("class", next);
-}
-
-function applyGeneric(el: HTMLElement, key: string, v: any) {
-  if (key === "value" && (el as any).value !== undefined) {
-    if (v == null || v === false) {
-      if ((el as any).value !== "") (el as any).value = "";
-      if (el.hasAttribute("value")) el.removeAttribute("value");
-      return;
-    }
-    const next = String(v);
-    if ((el as any).value !== next) (el as any).value = next;
-    if (el.getAttribute("value") !== next) el.setAttribute("value", next);
-    return;
-  }
-
-  if (v === true) {
-    if (!el.hasAttribute(key)) el.setAttribute(key, "");
-    return;
-  }
-  if (v === false || v == null) {
-    if (el.hasAttribute(key)) el.removeAttribute(key);
-    return;
-  }
-  const next = String(v);
-  if (el.getAttribute(key) !== next) el.setAttribute(key, next);
-}
-
-function createDescriptor(
-  el: HTMLElement,
-  rawKey: string,
-  value: any,
-): AttrDescriptor {
-  const key = rawKey === "className" ? "class" : rawKey;
-
-  // Event
-  if (key.startsWith("on") && typeof value === "function") {
-    const eventName = key.slice(2).toLowerCase();
-    return {
-      key,
-      kind: "event",
-      apply(target) {
-        target.addEventListener(eventName, value);
-      },
-      teardown() {
-        el.removeEventListener(eventName, value);
-      },
-    };
-  }
-
-  const kind: AttrDescriptor["kind"] = key === "style"
-    ? "style"
-    : key === "class"
-    ? "class"
-    : "attr";
-
-  // Subscribable (push reactive)
-  if (value && typeof value.subscribe === "function") {
-    let current: any;
-    const unsub = value.subscribe((v: any) => {
-      current = v;
-      descriptorApply(el, key);
-    });
-    el.setAttribute("_r", "");
-    return {
-      key,
-      kind,
-      reactive: "push",
-      get: () => current,
-      apply(target, v) {
-        if (kind === "style") applyStyle(target, v);
-        else if (kind === "class") applyClass(target, v);
-        else applyGeneric(target, key, v);
-      },
-      teardown() {
-        try {
-          if (typeof unsub === "function") (unsub as any)();
-          else unsub?.unsubscribe?.();
-        } catch {
-          /* ignore */
-        }
-      },
-    };
-  }
-
-  // Function (pull reactive)
-  if (typeof value === "function") {
-    el.setAttribute("_r", "");
-    return {
-      key,
-      kind,
-      reactive: "pull",
-      get: () => value(el),
-      apply(target, v) {
-        if (kind === "style") applyStyle(target, v);
-        else if (kind === "class") applyClass(target, v);
-        else applyGeneric(target, key, v);
-      },
-    };
-  }
-
-  // Static
-  return {
-    key,
-    kind,
-    raw: value,
-    apply(target) {
-      if (kind === "style") applyStyle(target, value);
-      else if (kind === "class") applyClass(target, value);
-      else applyGeneric(target, key, value);
-    },
-  };
-}
-
-function descriptorApply(el: HTMLElement, key: string) {
-  const desc = el.__attr_descriptors?.get(key);
-  if (!desc) return;
-  if (!desc.reactive) {
-    desc.apply(el);
-    return;
-  }
-  try {
-    const v = desc.get?.();
-    desc.apply(el, v);
-  } catch (error) {
-    if (el.isConnected) bubbleError(error, el, "attr:" + key);
-    else queueMicrotask(() => bubbleError(error, el, "attr:" + key));
-  }
-}
-
-function mountDescriptor(el: HTMLElement, desc: AttrDescriptor) {
-  el.__attr_descriptors ??= new Map();
-  const existing = el.__attr_descriptors.get(desc.key);
-  // Fast static no-op
-  if (
-    existing &&
-    !existing.reactive &&
-    !desc.reactive &&
-    existing.kind === desc.kind &&
-    Object.is(existing.raw, desc.raw)
-  ) {
-    return;
-  }
-
-  if (existing) {
-    existing.teardown?.();
-  }
-
-  el.__attr_descriptors.set(desc.key, desc);
-
-  if (desc.reactive) {
-    el.__reactive_attributes ??= new Map();
-    el.__reactive_attributes.set(
-      desc.key,
-      (node) => descriptorApply(node as HTMLElement, desc.key),
-    );
-  } else {
-    el.__reactive_attributes?.delete(desc.key);
-  }
-
-  // Defer guarded evaluation through descriptorApply (ensures bubbling after insertion)
-  descriptorApply(el, desc.key);
-}
-
-function unmountMissing(el: HTMLElement, nextKeys: Set<string>) {
-  if (!el.__attr_descriptors) return;
-  for (const [key, desc] of el.__attr_descriptors) {
-    if (!nextKeys.has(key)) {
-      desc.teardown?.();
-      if (desc.kind !== "event") el.removeAttribute(key);
-      el.__attr_descriptors.delete(key);
-      el.__reactive_attributes?.delete(key);
-    }
-  }
-}
-
-function updateProps(el: HTMLElement, props: Record<string, any> | null) {
-  const keys = props ? Object.keys(props) : [];
-  const normalized = keys.map((k) => (k === "className" ? "class" : k));
-  unmountMissing(el, new Set(normalized));
-  for (const rawKey of keys) {
-    mountDescriptor(el, createDescriptor(el, rawKey, props![rawKey]));
-  }
-  el.__raw_props = props;
-}
-
 declare global {
   interface HTMLElement {
-    __attr_descriptors?: Map<string, AttrDescriptor>;
-    __reactive_attributes?: Map<string, (el: HTMLElement) => void>;
-    __raw_props?: Record<string, any> | null;
-  }
-}
-
-function bubbleError(error: any, target: Node, name?: string) {
-  if (
-    target.dispatchEvent(
-      new ErrorEvent("error", {
-        error,
-        bubbles: true,
-        composed: true,
-        cancelable: true,
-      }),
-    )
-  ) {
-    console.error(name || target, error);
+    __reactive_attributes?: Function[];
+    __cleanup?: Function[];
   }
 }
 
@@ -754,11 +497,7 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
           continue;
         }
 
-        if (itemNew.__raw_props) {
-          updateProps(itemOld as HTMLElement, itemNew.__raw_props);
-        } else {
-          updateProps(itemOld as HTMLElement, null);
-        }
+        setProps(itemOld, itemNew.__attrs || {});
 
         diff(
           Array.from(itemOld.childNodes),
@@ -834,12 +573,14 @@ function runUpdate(target: Node) {
   if (target.isConnected && target.__render_id !== currentUpdateId) {
     if ("__render" in target) {
       target.__render?.(target);
-    } else if ("__reactive_attributes" in target) {
-      for (
-        const update of target.__reactive_attributes?.values?.() || []
-      ) {
-        update(target as any);
-      }
+      // } else if ("__reactive_attributes" in target && target.__reactive_attributes?.length) {
+      //   // for (
+      //   //   const update of target.__reactive_attributes?.values?.() || []
+      //   // ) {
+      //   target.dispatchEvent(new Event("update"));
+      //   // sendUpdateEvent();
+      //     // update(target as any);
+      //   // }
     }
     target.__render_id = currentUpdateId;
   }
@@ -941,7 +682,8 @@ function traverseReactiveChildren(scopes: Node[]) {
   for (const scope of scopes) {
     // Include the scope itself if it is reactive (anchor, attributes, or component host)
     if (
-      "__reactive_children" in scope || "__reactive_attributes" in scope ||
+      "__reactive_children" in scope || "__cleanup" in scope ||
+      "__reactive_attributes" in scope ||
       "__component" in scope
     ) {
       reactive.push(scope as any);
@@ -957,7 +699,8 @@ function traverseReactiveChildren(scopes: Node[]) {
     let node = xpathResult.iterateNext();
     while (node) {
       if (
-        "__reactive_children" in node || "__reactive_attributes" in node ||
+        "__reactive_children" in node || "__cleanup" in scope ||
+        "__reactive_attributes" in node ||
         "__component" in node
       ) {
         reactive.push(node as any);
@@ -1131,9 +874,8 @@ export function createElement(
 ): Node {
   if (typeof type === "string") {
     const element = document.createElement(type);
-    element.__raw_props = props;
     if (props) {
-      updateProps(element, props);
+      setProps(element, props);
     }
     build(children, element);
     return element;
@@ -1224,7 +966,6 @@ export function createRoot(target: HTMLElement): Root {
 
 export function update(target: Node) {
   return updateTarget.dispatchEvent(new UpdateEvent(target));
-  // return target.dispatchEvent(new Event(updateEventId));
 }
 
 export function memo(fn: (anchor: Node) => any, shouldMemo: () => boolean) {
@@ -1287,114 +1028,6 @@ export function createList(
 export function createKey(renderFn: () => any, keyValue: any) {
   return { __single_keyed: true, renderFn, key: keyValue };
 }
-
-// function Counter(this: HTMLElement, props: any) {
-//   let count = props().start || 0;
-//   console.log('render only once');
-//   return (
-//     <button
-//       style={() =>
-//         'color: #' +
-//         ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, '0')
-//       }
-//       onclick={() => {
-//         count++;
-//         this.dispatchEvent(new Event('update'));
-//       }}
-//     >
-//       {() => count}
-//     </button>
-//   );
-// }
-
-// function PassThru(this: HTMLElement, props: any) {
-//   console.log('FIRST');
-
-//   this.addEventListener('error', (e) => {
-//     console.log('ERROR????', e);
-//   });
-
-//   return <h1 style="color:orange">{() => props().children}</h1>;
-// }
-
-// function Child(this: HTMLElement, props: any) {
-//   throw new Error('poop');
-//   console.log('SECOND');
-//   return <i>Poop</i>;
-// }
-
-// function App(this: HTMLElement) {
-//   let count = 0;
-
-//   return (
-//     <div>
-//       <h1>Hello {() => (count % 2 ? 'world' : <i>Mars</i>)}!</h1>
-//       <h3>{() => Math.random()}</h3>
-//       <h3>{Math.random()}</h3>
-//       <div>
-//         {'A '}
-//         {() => {
-//           console.log('A1');
-//           const color =
-//             '#' +
-//             ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, '0');
-//           return [
-//             [
-//               [
-//                 [
-//                   [
-//                     String(count),
-//                     h(
-//                       'strong',
-//                       {
-//                         style: 'color:' + color,
-//                       },
-//                       ' B ',
-//                       color
-//                     ),
-//                   ],
-//                 ],
-//                 ' (',
-//                 () => (
-//                   console.log('A2'),
-//                   () => (console.log('A3'), count % 2 ? 'Hey' : null)
-//                 ),
-//                 ')',
-//               ],
-//               1,
-//             ],
-//           ];
-//         }}
-//       </div>
-//       <PassThru>
-//         A <Child /> B
-//       </PassThru>
-//       <button
-//         type="button"
-//         onclick={() => {
-//           count++;
-//           this.dispatchEvent(new Event('update'));
-//         }}
-//       >
-//         asd
-//       </button>
-//       <hr />
-//       {() => (
-//         console.log('EVERY TIME', count), (<Counter key={count} start={5} />)
-//       )}
-//       {memo(
-//         () => (
-//           console.log('EVERY SECOND', count),
-//           (<Counter key={count} start={5} />)
-//         ),
-//         () => count % 2
-//       )}
-//     </div>
-//   );
-// }
-
-// console.clear();
-// render(<App />, document.body);
 
 export function createAbortSignal(target: Node): AbortSignal {
   const controller = new AbortController();
@@ -1490,7 +1123,7 @@ export function Suspense(
   this.addEventListener("unsuspend", onUnsuspend, { signal });
 
   const template = createElement("suspense", {
-    style: () => ({ display: (showChildren ? "contents" : "none") }),
+    style: ({ display: () => (showChildren ? "contents" : "none") }),
   }, () => props().children);
 
   return [

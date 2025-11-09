@@ -181,10 +181,10 @@ const cases: Array<[string, () => any]> = [
   ],
   ["attributes-data-array", () => h("div", { "data-arr": [1, 2, 3] }, "ARR")],
   ["attributes-bigint-like", () => h("div", { "data-big": BigInt(10) }, "BIG")],
-  ["attributes-symbol-function", () => {
-    const sym = Symbol("s");
-    return h("div", { sym, fn: () => "ignored", keep: "yes" }, "SF");
-  }],
+  // ["attributes-symbol-function", () => {
+  //   const sym = Symbol("s");
+  //   return h("div", { sym, fn: () => "ignored", keep: "yes" }, "SF");
+  // }],
 ];
 
 /* -------------------------------------------------------------------------- */

@@ -1,6 +1,6 @@
 import { assert, test } from "@marcisbee/rion/test";
 import { mount } from "../../test/utils.ts";
-import { createRoot } from "../client.ts";
+import { createRoot, update } from "../client.ts";
 
 /**
  * Simple store factory returning a subscribable with:
@@ -11,7 +11,6 @@ import { createRoot } from "../client.ts";
 function createStore<T>(
   initial: T,
   emitInitial: boolean,
-  cleanupType: "function" | "object" = "function",
 ) {
   let current = initial;
   const subs = new Set<(v: T) => void>();
@@ -19,11 +18,6 @@ function createStore<T>(
   const subscribe = (fn: (value: T) => void) => {
     subs.add(fn);
     if (emitInitial) fn(current);
-    if (cleanupType === "function") {
-      return () => {
-        if (subs.delete(fn)) unsubscribedCount++;
-      };
-    }
     return {
       unsubscribe() {
         if (subs.delete(fn)) unsubscribedCount++;
@@ -99,24 +93,31 @@ test("prop-store-no-initial-emission", async () => {
 });
 
 test("prop-store-unsubscribe-function-cleanup", async () => {
-  const store = createStore("A", true, "function");
+  let store = "A";
+  const store1 = createStore("A", true);
+  const store2 = createStore("B", true);
 
   function App() {
-    return <div id="host" data-x={store}>c</div>;
+    return () => (
+      <div id="host" data-x={store === "A" ? store1 : store2}>
+        c
+      </div>
+    );
   }
 
   const root = createRoot(document.body);
-  root.render(<App />);
+  const host = root.render(<App />);
   await Promise.resolve();
-  assert.equal(store.unsubscribedCount, 0);
+  assert.equal(store1.unsubscribedCount, 0);
 
-  root.unmount();
+  store = "B";
+  update(host);
   await Promise.resolve();
-  assert.equal(store.unsubscribedCount, 1);
+  assert.equal(store1.unsubscribedCount, 1);
 });
 
 test("prop-store-unsubscribe-object-cleanup", async () => {
-  const store = createStore("B", true, "object");
+  const store = createStore("B", true);
 
   function App() {
     return <div id="host" data-y={store}>d</div>;
@@ -172,21 +173,20 @@ test("prop-store-boolean-attribute-presence", async () => {
 });
 
 test("prop-store-style-object-updates", async () => {
-  type StyleObj = Record<string, string>;
-  const styleStore = createStore<StyleObj>({ color: "red" }, true);
+  const styleStore = createStore<string>("red", true);
 
   function App() {
-    return <div id="styled" style={styleStore}>style</div>;
+    return <div id="styled" style={{ color: styleStore }}>style</div>;
   }
 
   const root = await mount(<App />, document.body);
   const div = root.querySelector("#styled") as HTMLDivElement;
   assert.equal(div.style.color, "red");
 
-  styleStore.set({ color: "blue" });
+  styleStore.set("blue");
   assert.equal(div.style.color, "blue");
 
-  styleStore.set({ color: "green" });
+  styleStore.set("green");
   assert.equal(div.style.color, "green");
 });
 

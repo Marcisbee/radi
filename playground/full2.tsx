@@ -30,9 +30,9 @@ import {
 //   const theme = Theme.use(this);
 //   return (
 //     <div
-//       style={() => ({
-//         background: theme() === "dark" ? "#222" : "#eee",
-//         color: theme() === "dark" ? "#eee" : "#222",
+//       style={({
+//         background: () => theme() === "dark" ? "#222" : "#eee",
+//         color: () => theme() === "dark" ? "#eee" : "#222",
 //         padding: "4px 8px",
 //         borderRadius: "4px",
 //       })}
@@ -158,8 +158,8 @@ function Drummer(
   // return (
   //   <div
   //     className='asd'
-  //     style={() => ({
-  //       color: `hsl(${bpm()},95%,55%)`,
+  //     style={({
+  //       color: () => `hsl(${bpm()},95%,55%)`,
   //     })}
   //   >
   //     {() => (bpm() > 120 ? <s>down</s> : <u>up</u>)} [{bpm}]{' '}
@@ -406,44 +406,47 @@ function StyledCounterChild(
     // do something fancy
   });
 
-  return (
+  const span = (
     <span
-      style={() => ({
+      style={{
         display: "inline-block",
         fontSize: "24px",
-        color: props().count < 0 ? "red" : "green",
-      })}
-      onclick={(event) => event.target}
-      onupdate={(event) => {
-        if (props().count === prevCount) {
-          return;
-        }
-
-        const frames = props().count >= prevCount
-          ? [
-            { transform: "translateY(-10px) scale(1.5)" },
-            { transform: "translateY(0) scale(1)" },
-            { transform: "translateY(0) scale(1)" },
-            { transform: "translateY(0) scale(1)" },
-          ]
-          : [
-            { transform: "translateY(10px) scale(0.5)" },
-            { transform: "translateY(0) scale(1)" },
-            { transform: "translateY(0) scale(1)" },
-            { transform: "translateY(0) scale(1)" },
-          ];
-        prevCount = props().count;
-
-        event.target.animate(frames, {
-          duration: 400,
-          easing: "ease-out",
-          fill: "none",
-        });
+        color: () => props().count < 0 ? "red" : "green",
       }}
+      onclick={(event) => event.target}
     >
       {() => (console.log("update??"), props().count)}
     </span>
   );
+
+  span.addEventListener("update", (event) => {
+    if (props().count === prevCount) {
+      return;
+    }
+
+    const frames = props().count >= prevCount
+      ? [
+        { transform: "translateY(-10px) scale(1.5)" },
+        { transform: "translateY(0) scale(1)" },
+        { transform: "translateY(0) scale(1)" },
+        { transform: "translateY(0) scale(1)" },
+      ]
+      : [
+        { transform: "translateY(10px) scale(0.5)" },
+        { transform: "translateY(0) scale(1)" },
+        { transform: "translateY(0) scale(1)" },
+        { transform: "translateY(0) scale(1)" },
+      ];
+    prevCount = props().count;
+
+    event.target.animate(frames, {
+      duration: 400,
+      easing: "ease-out",
+      fill: "none",
+    });
+  });
+
+  return span;
 }
 
 function StyledCounter(this: DocumentFragment) {
@@ -1063,7 +1066,7 @@ createRoot(document.body).render(<App name="World" />);
 //   );
 
 //   const template = (
-//     <suspense style={() => ({ display: (showChildren ? "contents" : "none") })}>
+//     <suspense style={({ display: () => (showChildren ? "contents" : "none") })}>
 //       {() =>
 //         props().children}
 //     </suspense>

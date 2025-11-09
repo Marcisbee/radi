@@ -51,10 +51,10 @@ function Badge(this: HTMLElement) {
   return (
     <div
       className="badge"
-      style={() => ({
-        background: theme() === "dark" ? "#222" : "#eee",
-        color: theme() === "dark" ? "#eee" : "#222",
-      })}
+      style={{
+        background: () => theme() === "dark" ? "#222" : "#eee",
+        color: () => theme() === "dark" ? "#eee" : "#222",
+      }}
     >
       Theme: {theme}
     </div>

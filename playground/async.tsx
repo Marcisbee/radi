@@ -19,11 +19,11 @@ import {
 function ImmediateAsyncComponent() {
   return Promise.resolve(
     <div
-      style={() => ({
+      style={{
         padding: "10px",
         background: "#e8f5e8",
         margin: "5px 0",
-      })}
+      }}
     >
       <h3>Immediate Async Component</h3>
       <p>This component resolved immediately</p>
@@ -45,11 +45,11 @@ function UserProfile(props: JSX.Props<{ userId: number }>) {
     }, 1_000 * props().userId); // Delay based on userId
   }).then((user) => (
     <div
-      style={() => ({
+      style={{
         padding: "10px",
         background: "#e3f2fd",
         margin: "5px 0",
-      })}
+      }}
     >
       <h3>User Profile</h3>
       <p>Name: {user.name}</p>
@@ -66,11 +66,11 @@ function UnreliableComponent(props: JSX.Props<{ shouldFail: boolean }>) {
 
   return Promise.resolve(
     <div
-      style={() => ({
+      style={{
         padding: "10px",
         background: "#fff3e0",
         margin: "5px 0",
-      })}
+      }}
     >
       <h3>Unreliable Component</h3>
       <p>This component loaded successfully!</p>
@@ -93,7 +93,7 @@ function Controller(this: HTMLElement) {
     // resolver.first = () => {
     //   // resolve(
     //   //   <div
-    //   //     style={() => ({
+    //   //     style={({
     //   //       padding: "10px",
     //   //       background: "#f3e5f5",
     //   //       margin: "5px 0",
@@ -112,11 +112,11 @@ function Controller(this: HTMLElement) {
       resolver.first = () => {
         resolve(
           <div
-            style={() => ({
+            style={{
               padding: "10px",
               background: "#f3e5f5",
               margin: "5px 0",
-            })}
+            }}
           >
             <h3>First Async Component</h3>
             <p>Load count: {firstCount}</p>
@@ -191,12 +191,12 @@ function App() {
 
   return (
     <div
-      style={() => ({
+      style={{
         fontFamily: "sans-serif",
         maxWidth: "800px",
         margin: "0 auto",
         padding: "20px",
-      })}
+      }}
     >
       <Controller />
 
@@ -204,7 +204,7 @@ function App() {
 
       <h1>Async Components Example</h1>
 
-      <div style={() => ({ margin: "20px 0" })}>
+      <div style={{ margin: "20px 0" }}>
         <button
           onclick={() => {
             userId = userId === 3 ? 1 : userId + 1;
@@ -219,7 +219,7 @@ function App() {
             shouldFail = !shouldFail;
             update(this);
           }}
-          style={() => ({ marginLeft: "10px" })}
+          style={{ marginLeft: "10px" }}
         >
           Toggle Failure ({shouldFail ? "Fail" : "Success"})
         </button>

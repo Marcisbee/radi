@@ -39,12 +39,12 @@ function Badge(this: DocumentFragment) {
   const theme = Theme.use(this);
   return (
     <div
-      style={() => ({
-        background: theme() === "dark" ? "#222" : "#eee",
-        color: theme() === "dark" ? "#eee" : "#222",
+      style={{
+        background: () => theme() === "dark" ? "#222" : "#eee",
+        color: () => theme() === "dark" ? "#eee" : "#222",
         padding: "4px 8px",
         borderRadius: "4px",
-      })}
+      }}
     >
       Theme: {theme}
       <button
@@ -167,8 +167,8 @@ function Drummer(
   // return (
   //   <div
   //     className='asd'
-  //     style={() => ({
-  //       color: `hsl(${bpm()},95%,55%)`,
+  //     style={({
+  //       color: () => `hsl(${bpm()},95%,55%)`,
   //     })}
   //   >
   //     {() => (bpm() > 120 ? <s>down</s> : <u>up</u>)} [{bpm}]{' '}
@@ -417,11 +417,11 @@ function StyledCounterChild(
 
   return (
     <span
-      style={() => ({
+      style={{
         display: "inline-block",
         fontSize: "24px",
-        color: props().count < 0 ? "red" : "green",
-      })}
+        color: () => props().count < 0 ? "red" : "green",
+      }}
       onclick={(event) => event.target}
       onupdate={(event) => {
         if (props().count === prevCount) {
