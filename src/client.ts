@@ -45,6 +45,10 @@ import {
 
 type Child = any;
 
+export type ComponentNode = HTMLElement & {
+  [COMPONENT]: (anchor: ComponentNode) => any;
+};
+
 let connectQueue = new Set<Function>();
 function queueConnection(fn: Function) {
   connectQueue.add(fn);
@@ -1097,7 +1101,7 @@ export function unsuspend(target: Node): boolean {
  * - Descendant component builds that trigger suspend will bubble upward correctly.
  */
 export function Suspense(
-  this: HTMLElement,
+  this: ComponentNode,
   props: JSX.PropsWithChildren<{ fallback: () => JSX.Element }>,
 ) {
   const signal = createAbortSignal(this);
@@ -1136,5 +1140,5 @@ export function Suspense(
   return [
     template,
     () => showChildren ? null : props().fallback(),
-  ];
+  ] as unknown as JSX.Element;
 }

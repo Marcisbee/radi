@@ -1,4 +1,5 @@
 import {
+  type ComponentNode,
   createAbortSignal,
   createElement,
   createKey,
@@ -14,7 +15,7 @@ import {
 // const Theme = createChannel<"light" | "dark">("light");
 
 // function ThemeProvider(
-//   this: DocumentFragment,
+//   this: ComponentNode,
 //   props: JSX.PropsWithChildren,
 // ) {
 //   // Provide (idempotent across re-renders unless you explicitly change value)
@@ -26,7 +27,7 @@ import {
 //   return () => props().children;
 // }
 
-// function Badge(this: DocumentFragment) {
+// function Badge(this: ComponentNode) {
 //   const theme = Theme.use(this);
 //   return (
 //     <div
@@ -60,14 +61,14 @@ import {
 //   );
 // }
 
-// function Nested(this: DocumentFragment) {
+// function Nested(this: ComponentNode) {
 //   // Locally override provider:
 //   Theme.provide(this, "dark");
 //   const theme = Theme.use(this);
 //   return <div>Nested local theme: {theme}</div>;
 // }
 
-function SuspendedChild(this: DocumentFragment) {
+function SuspendedChild(this: ComponentNode) {
   let state = "suspended";
 
   (async () => {
@@ -86,7 +87,7 @@ function SuspendedChild(this: DocumentFragment) {
 }
 
 // function CounterSignal(
-//   this: DocumentFragment,
+//   this: ComponentNode,
 //   props: JSX.Props<{ count: number }>,
 // ) {
 //   const countSignal = createSignal(props().count);
@@ -108,7 +109,7 @@ function SuspendedChild(this: DocumentFragment) {
 // }
 
 function Drummer(
-  this: DocumentFragment,
+  this: ComponentNode,
   props: JSX.Props<{ bpm: () => number }>,
 ) {
   const { bpm } = props();
@@ -169,7 +170,7 @@ function Drummer(
 }
 
 function CustomInput(
-  this: DocumentFragment,
+  this: ComponentNode,
   props: JSX.Props<{ defaultValue?: string }>,
 ) {
   let value = props().defaultValue || "";
@@ -191,8 +192,8 @@ function CustomInput(
   );
 }
 
-function Counter(this: DocumentFragment, props: JSX.Props<{ count: number }>) {
-  let count = props().count;
+function Counter(this: ComponentNode, props: JSX.Props<{ count?: number }>) {
+  let count = props().count || 0;
   return (
     <button
       type="button"
@@ -229,7 +230,7 @@ let createNanoEvents = () => ({
 });
 
 function CounterSubscribable(
-  this: DocumentFragment,
+  this: ComponentNode,
   props: JSX.Props<{ count: number }>,
 ) {
   const count = {
@@ -289,7 +290,7 @@ function CounterSubscribable(
   );
 }
 
-function Tab1(this: DocumentFragment) {
+function Tab1(this: ComponentNode) {
   const signal = createAbortSignal(this);
 
   signal.addEventListener("abort", () => console.log("aborted"));
@@ -297,7 +298,7 @@ function Tab1(this: DocumentFragment) {
   return <div>Tab1</div>;
 }
 
-function Tab2(this: DocumentFragment) {
+function Tab2(this: ComponentNode) {
   const events: string[] = [];
   this.addEventListener("connect", () => {
     console.log("Connected 1", this.isConnected);
@@ -324,11 +325,11 @@ function Tab2(this: DocumentFragment) {
   );
 }
 
-function Tab3(this: DocumentFragment) {
+function Tab3(this: ComponentNode) {
   return <strong>{Math.random()}</strong>;
 }
 
-function Tabber(this: DocumentFragment) {
+function Tabber(this: ComponentNode) {
   let tab = "tab1";
 
   return (
@@ -382,7 +383,7 @@ function Tabber(this: DocumentFragment) {
   );
 }
 
-function Sub1(this: DocumentFragment) {
+function Sub1(this: ComponentNode) {
   // setInterval(() => {
   //   update(this);
   // }, 1000);
@@ -396,7 +397,7 @@ function Sub2(props: JSX.Props<{ value: number }>) {
 }
 
 function StyledCounterChild(
-  this: DocumentFragment,
+  this: ComponentNode,
   props: JSX.Props<{ count: number }>,
 ) {
   let prevCount = props().count;
@@ -449,7 +450,7 @@ function StyledCounterChild(
   return span;
 }
 
-function StyledCounter(this: DocumentFragment) {
+function StyledCounter(this: ComponentNode) {
   let count = 0;
 
   this.addEventListener("update", (e) => {
@@ -530,7 +531,7 @@ function linkStyles(component: Node, styles: HTMLStyleElement[]) {
   });
 }
 
-function Styling(this: DocumentFragment) {
+function Styling(this: ComponentNode) {
   linkStyles(this, [css`
     body {
       color: ${getRandomColor};
@@ -621,11 +622,11 @@ function AsyncChild(this: HTMLElement) {
   return () => <span>Child {Math.random()}</span>;
 }
 
-function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
+function App(this: ComponentNode, props: JSX.Props<{ name: string }>) {
   let bpm = 120;
 
   const signal = createAbortSignal(this);
-  this.parentElement.addEventListener(
+  this.parentElement?.addEventListener(
     "bpm:increment",
     () => {
       bpm++;
@@ -634,7 +635,7 @@ function App(this: DocumentFragment, props: JSX.Props<{ name: string }>) {
     { signal },
   );
 
-  this.parentElement.addEventListener(
+  this.parentElement?.addEventListener(
     "bpm:decrement",
     () => {
       bpm--;
@@ -773,6 +774,7 @@ function DynamicParent(this: HTMLElement) {
   //     </EchoReactive>
   //   </div>
   // );
+  return null;
 }
 
 function Item(this: HTMLElement, props: JSX.Props<{ id: number }>) {
@@ -1112,12 +1114,12 @@ function EventPropagationDemoChild(this: HTMLElement) {
 }
 
 let i = 0;
-function Definition(props: JSX.Props<{ word: string }>) {
+function Definition(this: ComponentNode, props: JSX.Props<{ word: string }>) {
   const a = i++;
   console.log("loaded", props().word);
   // API courtesy https://dictionaryapi.dev
   let data: any;
-  let currentWord;
+  let currentWord: string;
 
   suspend(this);
 
@@ -1168,7 +1170,7 @@ function Definition(props: JSX.Props<{ word: string }>) {
 
 function Dictionary(this: HTMLElement) {
   let word = "";
-  const onsubmit = (ev) => {
+  const onsubmit = (ev: SubmitEvent) => {
     ev.preventDefault();
     const formData = new FormData(ev.target);
     const word1 = formData.get("word") as string;

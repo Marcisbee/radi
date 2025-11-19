@@ -1,6 +1,16 @@
 export {}; // Ensure this file is treated as a module so 'declare global' works.
 
-type Reactive<T> = T | ((el: Node) => T);
+type Observable<T> = {
+  readonly current: T;
+  subscribe(cb: (v: T) => void): { unsubscribe(): void } | (() => void);
+};
+
+type Reactive<T> = T | ((el: Node) => T) | Observable<T>;
+
+type StyleValue<T> = Reactive<T>;
+type StyleObject = {
+  [K in keyof CSSStyleDeclaration]?: StyleValue<CSSStyleDeclaration[K]>;
+};
 
 type Primitive = string | number | boolean | null | undefined;
 
@@ -38,7 +48,7 @@ type ElementWithChildren<T> =
         : Reactive<T[K]>;
   }
   & {
-    style?: Reactive<Partial<CSSStyleDeclaration>>;
+    style?: Reactive<StyleObject>;
     onupdate?: (this: T, ev: Event & { target: T }) => any;
     onconnect?: (this: T, ev: Event & { target: T }) => any;
     ondisconnect?: (this: T, ev: Event & { target: T }) => any;
@@ -53,7 +63,7 @@ type ElementWithoutChildren<T> =
         : Reactive<T[K]>;
   }
   & {
-    style?: Reactive<Partial<CSSStyleDeclaration>>;
+    style?: Reactive<StyleObject>;
     onupdate?: (this: T, ev: Event & { target: T }) => any;
     onconnect?: (this: T, ev: Event & { target: T }) => any;
     ondisconnect?: (this: T, ev: Event & { target: T }) => any;
@@ -76,7 +86,7 @@ declare global {
      * The Element type encompasses all renderables including functions,
      * to allow returning a function directly from components.
      */
-    type Element = HTMLElement;
+    type Element = HTMLElement | null;
     type ElementType =
       // All the valid lowercase tags
       | keyof IntrinsicElements
@@ -162,8 +172,16 @@ declare global {
       wbr: ElementWithoutChildren<HTMLElement>;
 
       // Forms
-      form: ElementWithChildren<HTMLFormElement>;
-      label: ElementWithChildren<HTMLLabelElement>;
+      form: ElementWithChildren<
+        HTMLFormElement & {
+          onsubmit: (this: HTMLFormElement, ev: SubmitEvent) => any;
+        }
+      >;
+      label: ElementWithChildren<
+        HTMLLabelElement & {
+          for: string;
+        }
+      >;
       input: ElementWithoutChildren<HTMLInputElement>;
       button: ElementWithChildren<HTMLButtonElement>;
       select: ElementWithChildren<HTMLSelectElement>;

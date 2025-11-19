@@ -2,10 +2,6 @@ import { assert, test } from "@marcisbee/rion/test";
 import { mount } from "../../test/utils.ts";
 import { createRoot } from "../client.ts";
 
-/**
- * Utility to create a simple subscribable store compatible with Radi's
- * buildElement store integration: { subscribe(fn), set(value) }.
- */
 function createStore(initial: unknown, emitInitial: boolean) {
   let current = initial;
   const subs = new Set<(v: unknown) => void>();
@@ -35,8 +31,6 @@ function createStore(initial: unknown, emitInitial: boolean) {
   };
   return store;
 }
-
-/* ========================= Tests ========================= */
 
 test("initial-sync-value", async () => {
   const store = createStore("A", true);
@@ -307,4 +301,5 @@ test("nested-unsubscribe-update", async () => {
   assert.equal(outerUnsub, 1);
   assert.equal(innerUnsub, 1);
 });
+
 await test.run();

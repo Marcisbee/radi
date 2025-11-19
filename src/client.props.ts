@@ -3,7 +3,7 @@ import { ATTRS, CLEANUP, REACTIVE_ATTRIBUTES } from "./symbols.ts";
 
 type Observable<T> = {
   readonly current: T;
-  subscribe(cb: (v: T) => void): { unsubscribe(): void };
+  subscribe(cb: (v: T) => void): { unsubscribe(): void } | (() => void);
 };
 type Reactive<T> = (() => T) | Observable<T>;
 
@@ -59,34 +59,99 @@ export function setProps(el: HTMLElement, propsNew: Record<string, any>) {
     const vOld = old[key];
     if (vNew === vOld) continue;
 
-    // style object
-    if (key === "style" && typeof vNew === "object" && vNew) {
-      const sOld = vOld ?? {};
-      const sNew = vNew;
+    const subscribeObs = (
+      obs: Observable<unknown>,
+      fn: (v: unknown) => void,
+    ) => {
+      const sub = obs.subscribe(fn as (v: unknown) => void);
+      cleanup.push(typeof sub === "function" ? sub : sub.unsubscribe);
+    };
 
-      for (const sk in sOld) if (!(sk in sNew)) style.removeProperty(sk);
-      for (const sk in sNew) {
-        const val = sNew[sk];
-        const setter = (v: any) => {
-          v == null ? style.removeProperty(sk) : (style as any)[sk] = v;
-        };
-        if (isFunc(val)) {
-          const fn = () => {
-            try {
-              return setter(val(el));
-            } catch (error) {
-              if (el.isConnected) bubbleError(error, el, "attr:" + key);
-              else queueMicrotask(() => bubbleError(error, el, "attr:" + key));
-            }
+    // style object
+    if (key === "style" && vNew != null) {
+      // style as plain object: per-property reactive/observable
+      if (typeof vNew === "object" && !isObs(vNew)) {
+        const sOld = vOld ?? {};
+        const sNew = vNew;
+
+        for (const sk in sOld) if (!(sk in sNew)) style.removeProperty(sk);
+        for (const sk in sNew) {
+          const val = sNew[sk];
+          const setter = (v: any) => {
+            v == null ? style.removeProperty(sk) : (style as any)[sk] = v;
           };
-          reacts[reacts.push(fn) - 1]();
-        } else if (isObs(val)) {
-          cleanup.push(val.subscribe(setter).unsubscribe);
-        } else if (sOld[sk] !== val) {
-          (style as any)[sk] = val ?? "";
+          if (isFunc(val)) {
+            const fn = () => {
+              try {
+                return setter(val(el));
+              } catch (error) {
+                if (el.isConnected) bubbleError(error, el, "attr:" + key);
+                else {queueMicrotask(() =>
+                    bubbleError(error, el, "attr:" + key)
+                  );}
+              }
+            };
+            reacts[reacts.push(fn) - 1]();
+          } else if (isObs(val)) {
+            subscribeObs(val, setter);
+          } else if (sOld[sk] !== val) {
+            (style as any)[sk] = val ?? "";
+          }
         }
+        continue;
       }
-      continue;
+
+      // style as whole reactive/observable object, including nested reactives
+      const applyStyleObj = (s: any) => {
+        if (!s || typeof s !== "object") {
+          style.cssText = "";
+          return;
+        }
+        const sOld = vOld ?? {};
+        const sNew = s;
+        for (const sk in sOld) if (!(sk in sNew)) style.removeProperty(sk);
+        for (const sk in sNew) {
+          const val = sNew[sk];
+          const setter = (v: any) => {
+            v == null ? style.removeProperty(sk) : (style as any)[sk] = v;
+          };
+          if (isFunc(val)) {
+            const fn = () => {
+              try {
+                return setter(val(el));
+              } catch (error) {
+                if (el.isConnected) bubbleError(error, el, "attr:" + key);
+                else {queueMicrotask(() =>
+                    bubbleError(error, el, "attr:" + key)
+                  );}
+              }
+            };
+            reacts[reacts.push(fn) - 1]();
+          } else if (isObs(val)) {
+            subscribeObs(val, setter);
+          } else {
+            setter(val);
+          }
+        }
+      };
+
+      if (isFunc(vNew)) {
+        const fn = () => {
+          try {
+            return applyStyleObj(vNew(el));
+          } catch (error) {
+            if (el.isConnected) bubbleError(error, el, "attr:" + key);
+            else queueMicrotask(() => bubbleError(error, el, "attr:" + key));
+          }
+        };
+        reacts[reacts.push(fn) - 1]();
+        continue;
+      }
+
+      if (isObs(vNew)) {
+        subscribeObs(vNew, applyStyleObj);
+        continue;
+      }
     }
 
     // special DOM properties
@@ -109,7 +174,7 @@ export function setProps(el: HTMLElement, propsNew: Record<string, any>) {
         };
         reacts[reacts.push(fn) - 1]();
       } else if (isObs(vNew)) {
-        cleanup.push(vNew.subscribe(setter).unsubscribe);
+        subscribeObs(vNew, setter);
       } else {
         (el as any)[key] = vNew ??
           (key === "className" ? "" : key === "checked" ? false : null);
@@ -141,7 +206,7 @@ export function setProps(el: HTMLElement, propsNew: Record<string, any>) {
       };
       reacts[reacts.push(fn) - 1]();
     } else if (isObs(vNew)) {
-      cleanup.push(vNew.subscribe(setter).unsubscribe);
+      subscribeObs(vNew, setter);
     } else {
       if (vNew == null || vNew === false) el.removeAttribute(attrName);
       else if (vNew === true) el.setAttribute(attrName, "");

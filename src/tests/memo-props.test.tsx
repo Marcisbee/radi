@@ -2,34 +2,10 @@ import { assert, test } from "@marcisbee/rion/test";
 import { mount } from "../../test/utils.ts";
 import { memo, update } from "../client.ts";
 
-/**
- * These tests exercise memo() when used as a function-valued prop:
- *   <div data-foo={memo(...)} />
- *
- * Expectations:
- * - Initial render always evaluates the memo render function (skip ignored).
- * - Subsequent manual update(container) calls re-run the render function only
- *   when skipRender() returns false.
- * - When skipRender() returns true, the previously computed primitive value
- *   is retained (attribute / property unchanged).
- *
- * NOTE: Implementation detail: memo currently normalizes its output for children
- * as Node(s). For prop usage we rely on returning primitives directly; if the
- * implementation does not yet differentiate, these tests will surface a failure.
- */
-
-/* -------------------------------------------------------------------------- */
-/* Helpers                                                                    */
-/* -------------------------------------------------------------------------- */
-
 function counterMemo(skip: () => boolean) {
   let i = 0;
   return memo(() => i++, skip);
 }
-
-/* -------------------------------------------------------------------------- */
-/* Tests                                                                       */
-/* -------------------------------------------------------------------------- */
 
 test("memo prop primitive - always re-renders when skip=false", async () => {
   const count = counterMemo(() => false);
