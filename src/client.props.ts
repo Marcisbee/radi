@@ -1,4 +1,5 @@
 import { bubbleError } from "./error.ts";
+import { ATTRS, CLEANUP, REACTIVE_ATTRIBUTES } from "./symbols.ts";
 
 type Observable<T> = {
   readonly current: T;
@@ -19,14 +20,14 @@ const markReactive = (el: HTMLElement) => {
   if (!el.hasAttribute("_r")) {
     el.setAttribute("_r", "");
     el.addEventListener("update", () => {
-      const fns = (el as any).__reactive_attributes as Function[] ?? [];
+      const fns = (el as any)[REACTIVE_ATTRIBUTES] as Function[] ?? [];
       for (const fn of fns) fn();
     });
   }
 };
 
 const unmarkReactive = (el: HTMLElement) => {
-  if (el.hasAttribute("_r") && !(el as any).__reactive_attributes?.length) {
+  if (el.hasAttribute("_r") && !(el as any)[REACTIVE_ATTRIBUTES]?.length) {
     el.removeAttribute("_r");
     el.removeEventListener("update", () => {});
   }
@@ -34,8 +35,8 @@ const unmarkReactive = (el: HTMLElement) => {
 
 export function setProps(el: HTMLElement, propsNew: Record<string, any>) {
   const style = el.style;
-  const old = (el as any).__attrs ?? {};
-  (el as any).__attrs = propsNew;
+  const old = (el as any)[ATTRS] ?? {};
+  (el as any)[ATTRS] = propsNew;
 
   // cleanup removed props
   for (const k in old) {
@@ -49,7 +50,7 @@ export function setProps(el: HTMLElement, propsNew: Record<string, any>) {
   }
 
   // reactive storage (filter old reactives)
-  const reacts: Function[] = (el as any).__reactive_attributes = [];
+  const reacts: Function[] = (el as any)[REACTIVE_ATTRIBUTES] = [];
   const cleanup: Function[] = [];
 
   // apply new/updated props
@@ -153,6 +154,6 @@ export function setProps(el: HTMLElement, propsNew: Record<string, any>) {
   else unmarkReactive(el);
 
   // cleanup previous unsubscribes
-  for (const unsub of ((el as any).__cleanup ?? [])) unsub();
-  (el as any).__cleanup = cleanup;
+  for (const unsub of ((el as any)[CLEANUP] ?? [])) unsub();
+  (el as any)[CLEANUP] = cleanup;
 }

@@ -4,27 +4,44 @@
 //     onconnect?: (e: Event) => void;
 //     ondisconnect?: (e: Event) => void;
 //     onupdate?: (e: Event) => void;
-//     __component?: (anchor: Node) => any;
-//     __reactive_children?: Node[];
-//     __tail?: Node | null;
-//     __render_id?: number;
-//     __render?: (anchor: Node) => void;
-//     __memo?: () => boolean;
-//     __reactive_attributes?: Map<string, (el: HTMLElement) => void>;
-//     __type?: Function;
-//     __props?: Record<string, any>;
-//     __instance?: any;
+//     [COMPONENT]?: (anchor: Node) => any;
+//     [REACTIVE_CHILDREN]?: Node[];
+//     [TAIL]?: Node | null;
+//     [RENDER_ID]?: number;
+//     [RENDER]?: (anchor: Node) => void;
+//     [MEMO]?: () => boolean;
+//     [REACTIVE_ATTRIBUTES]?: Function[];
+//     [TYPE]?: Function;
+//     [PROPS]?: Record<string, any>;
+//     [INSTANCE]?: any;
+//     [CLEANUP]?: Function[];
 //   }
 //   interface HTMLElement {
-//     __attr_descriptors?: Map<string, AttrDescriptor>;
-//     __reactive_attributes?: Map<string, (el: HTMLElement) => void>;
-//     __raw_props?: Record<string, any> | null;
-//     __props?: Record<string, any>;
 //   }
 // }
 
 import { setProps } from "./client.props.ts";
 import { bubbleError } from "./error.ts";
+import {
+  ATTRS,
+  CLEANUP,
+  COMPONENT,
+  INSTANCE,
+  KEY,
+  KEY_MAP,
+  KEYED,
+  MEMO,
+  NODE,
+  PROPS,
+  REACTIVE_ATTRIBUTES,
+  REACTIVE_CHILDREN,
+  RENDER,
+  RENDER_ID,
+  SINGLE_KEYED,
+  TAIL,
+  TYPE,
+  UPDATE_ID,
+} from "./symbols.ts";
 
 type Child = any;
 
@@ -52,7 +69,7 @@ function flushConnectionQueue() {
 }
 
 function sendConnectEvent(target: Node) {
-  if (target.onconnect || target.__component || target.__reactive_children) {
+  if (target.onconnect || target[COMPONENT] || target[REACTIVE_CHILDREN]) {
     if (!target.isConnected) {
       return;
     }
@@ -64,24 +81,24 @@ function sendDisconnectEvent(target: Node) {
   if (target.isConnected) {
     return;
   }
-  if (target.ondisconnect || target.__component || target.__reactive_children) {
+  if (target.ondisconnect || target[COMPONENT] || target[REACTIVE_CHILDREN]) {
     target.dispatchEvent(new Event("disconnect"));
   }
 }
 
 function sendUpdateEvent(target: Node) {
   // Prevent duplicate dispatch within the same update cycle
-  if ((target as any).__update_id === currentUpdateId) {
+  if ((target as any)[UPDATE_ID] === currentUpdateId) {
     return true;
   }
   if (!target.isConnected) {
     return true;
   }
   if (
-    target.__cleanup || target.__component || target.__reactive_children ||
-    target.__reactive_attributes
+    target[CLEANUP] || target[COMPONENT] || target[REACTIVE_CHILDREN] ||
+    target[REACTIVE_ATTRIBUTES]
   ) {
-    (target as any).__update_id = currentUpdateId;
+    (target as any)[UPDATE_ID] = currentUpdateId;
     return target.dispatchEvent(new Event("update", { cancelable: true }));
   }
   return true;
@@ -94,7 +111,7 @@ function replace(childNew: Node, childOld: Node) {
     : childOld.parentNode?.replaceChild(childNew, childOld);
   // flushConnectionQueue();
   // Don't send connect event for components - they'll be queued during build
-  if (!childNew.__component) {
+  if (!childNew[COMPONENT]) {
     sendConnectEvent(childNew);
   }
   sendDisconnectEvent(childOld);
@@ -110,12 +127,12 @@ function queueDescendantComponents(root: Node) {
   const children = root.childNodes;
   for (let i = 0; i < children.length; i++) {
     const child = children[i];
-    if ((child as any).__component && (child as any).__instance === undefined) {
+    if ((child as any)[COMPONENT] && (child as any)[INSTANCE] === undefined) {
       queueConnection(() => {
-        if (!child.isConnected || (child as any).__instance !== undefined) {
+        if (!child.isConnected || (child as any)[INSTANCE] !== undefined) {
           return;
         }
-        build((child as any).__component!(child), child);
+        build((child as any)[COMPONENT]!(child), child);
         sendConnectEvent(child);
       });
     }
@@ -129,22 +146,22 @@ function connect(child: Node, parent: Node) {
   ) {
     // Preserve ordering of reactive children by appending after the last inserted child for this anchor.
     const tail: Node =
-      ((parent as any).__tail && (parent as any).__tail.isConnected)
-        ? (parent as any).__tail
+      ((parent as any)[TAIL] && (parent as any)[TAIL].isConnected)
+        ? (parent as any)[TAIL]
         : parent;
     (tail as any).after
       ? (tail as any).after(child)
       : tail.parentNode?.insertBefore(child, tail.nextSibling);
-    (parent as any).__tail = child;
+    (parent as any)[TAIL] = child;
 
     // Synchronously build component hosts when mounted under a reactive anchor
     // so their inner content is available in the same update cycle (no queued delay).
-    if (child.__component && child.__instance === undefined) {
+    if (child[COMPONENT] && child[INSTANCE] === undefined) {
       queueConnection(() => {
         if (!child.isConnected) {
           return;
         }
-        build(child.__component!(child), child);
+        build(child[COMPONENT]!(child), child);
         sendConnectEvent(child);
       });
       return child;
@@ -156,13 +173,13 @@ function connect(child: Node, parent: Node) {
 
   parent.appendChild(child);
 
-  if (child.__component && child.__instance === undefined) {
+  if (child[COMPONENT] && child[INSTANCE] === undefined) {
     // Queue component build for normal element parents; flush will occur at root render.
     queueConnection(() => {
       if (!child.isConnected) {
         return;
       }
-      build(child.__component!(child), child);
+      build(child[COMPONENT]!(child), child);
       // Dispatch connect after initial build (single fire)
       sendConnectEvent(child);
     });
@@ -171,7 +188,7 @@ function connect(child: Node, parent: Node) {
 
   // Queue builds for descendant components if child was created with children before being connected
   if (
-    !(child as any).__component && child.hasChildNodes && child.hasChildNodes()
+    !(child as any)[COMPONENT] && child.hasChildNodes && child.hasChildNodes()
   ) {
     queueDescendantComponents(child);
   }
@@ -189,10 +206,10 @@ function disconnect(child: Node) {
     return child;
   }
 
-  traverseReactiveChildren(child?.__reactive_children || [child]).forEach(
+  traverseReactiveChildren(child?.[REACTIVE_CHILDREN] || [child]).forEach(
     (toDisconnect) => {
       toDisconnect.dispatchEvent(new Event("disconnect"));
-      const cleanupArray = (toDisconnect as any).__cleanup;
+      const cleanupArray = (toDisconnect as any)[CLEANUP];
       if (cleanupArray) {
         for (const cleanup of cleanupArray) {
           cleanup?.();
@@ -201,7 +218,7 @@ function disconnect(child: Node) {
     },
   );
 
-  const cleanupArray = (child as any).__cleanup;
+  const cleanupArray = (child as any)[CLEANUP];
   if (cleanupArray) {
     for (const cleanup of cleanupArray) {
       cleanup?.();
@@ -219,36 +236,36 @@ function disconnect(child: Node) {
 
 declare global {
   interface HTMLElement {
-    __reactive_attributes?: Function[];
-    __cleanup?: Function[];
+    [REACTIVE_ATTRIBUTES]?: Function[];
+    [CLEANUP]?: Function[];
   }
 }
 
 function buildRender(parent: Anchor, fn: (parent: Anchor) => any) {
-  parent.__render = () => {
-    (parent as any).__tail = parent;
+  parent[RENDER] = () => {
+    (parent as any)[TAIL] = parent;
     try {
-      parent.__reactive_children = diff(
-        parent.__reactive_children,
+      parent[REACTIVE_CHILDREN] = diff(
+        parent[REACTIVE_CHILDREN],
         fn(parent),
         parent,
       );
       flushConnectionQueue();
     } catch (error) {
       bubbleError(error, parent);
-      parent.__reactive_children = [];
+      parent[REACTIVE_CHILDREN] = [];
     }
   };
 }
 
 function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
-  if (parent.__render_id === currentUpdateId) {
-    return (parent.__reactive_children as Node[]) || [];
+  if (parent[RENDER_ID] === currentUpdateId) {
+    return (parent[REACTIVE_CHILDREN] as Node[]) || [];
   }
 
-  if (valueNew?.__single_keyed && valueNew.__single_keyed === true) {
+  if (valueNew?.[SINGLE_KEYED] && valueNew[SINGLE_KEYED] === true) {
     const oldArray = Array.isArray(valueOld) ? valueOld : null;
-    const oldKey = oldArray?.__key;
+    const oldKey = oldArray?.[KEY];
     const newKey = valueNew.key;
 
     if (oldKey === newKey && oldArray) {
@@ -258,12 +275,12 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
       // Key changed or new: build fresh
       const newNode = build(valueNew.renderFn(), parent);
       const result = Array.isArray(newNode) ? newNode : [newNode];
-      (result as any).__key = newKey;
-      (result as any).__node = newNode;
+      (result as any)[KEY] = newKey;
+      (result as any)[NODE] = newNode;
 
       // Disconnect old node if key changed
-      if (oldArray?.__node) {
-        disconnect(oldArray.__node);
+      if (oldArray?.[NODE]) {
+        disconnect(oldArray[NODE]);
       } else if (valueOld instanceof Node) {
         // Disconnect old non-keyed element when switching to keyed
         disconnect(valueOld);
@@ -280,8 +297,8 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
     }
   }
 
-  if (valueNew?.__keyed && valueNew.__keyed === true) {
-    const oldMap = (valueOld as any)?.__key_map || new Map();
+  if (valueNew?.[KEYED] && valueNew[KEYED] === true) {
+    const oldMap = (valueOld as any)?.[KEY_MAP] || new Map();
     const newMap = new Map();
     const arrayOut: Node[] = [];
     const usedNodes = new Set();
@@ -348,7 +365,7 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
       }
     }
 
-    (arrayOut as any).__key_map = newMap;
+    (arrayOut as any)[KEY_MAP] = newMap;
 
     // Clean up old nodes that are not in the new array
     for (const toDelete of arrayOld) {
@@ -362,8 +379,8 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
   }
 
   // Handle cleanup when switching from keyed to non-keyed
-  if ((valueOld as any)?.__key_map) {
-    const oldMap = (valueOld as any).__key_map;
+  if ((valueOld as any)?.[KEY_MAP]) {
+    const oldMap = (valueOld as any)[KEY_MAP];
     for (const [_key, node] of oldMap) {
       disconnect(node);
     }
@@ -395,15 +412,15 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
         parent.nodeType === Node.COMMENT_NODE ||
         parent.nodeType === Node.TEXT_NODE
       ) {
-        (parent as any).__tail = itemOld;
+        (parent as any)[TAIL] = itemOld;
       }
       continue;
     }
 
     if (
-      itemOld.nodeType === Node.COMMENT_NODE && "__reactive_children" in itemOld
+      itemOld.nodeType === Node.COMMENT_NODE && REACTIVE_CHILDREN in itemOld
     ) {
-      itemOld.__render_id = itemNew.__render_id;
+      itemOld[RENDER_ID] = itemNew[RENDER_ID];
       if (typeof itemNew === "function") {
         buildRender(itemOld, itemNew);
         arrayOut[ii] = itemOld;
@@ -411,21 +428,21 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
           parent.nodeType === Node.COMMENT_NODE ||
           parent.nodeType === Node.TEXT_NODE
         ) {
-          (parent as any).__tail = itemOld;
+          (parent as any)[TAIL] = itemOld;
         }
         continue;
       }
 
       if (
         itemNew.nodeType === Node.COMMENT_NODE &&
-        "__reactive_children" in itemNew
+        REACTIVE_CHILDREN in itemNew
       ) {
         arrayOut[ii] = itemOld;
         if (
           parent.nodeType === Node.COMMENT_NODE ||
           parent.nodeType === Node.TEXT_NODE
         ) {
-          (parent as any).__tail = itemOld;
+          (parent as any)[TAIL] = itemOld;
         }
         continue;
       }
@@ -441,7 +458,7 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
           parent.nodeType === Node.COMMENT_NODE ||
           parent.nodeType === Node.TEXT_NODE
         ) {
-          (parent as any).__tail = itemOld;
+          (parent as any)[TAIL] = itemOld;
         }
         continue;
       }
@@ -455,7 +472,7 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
           parent.nodeType === Node.COMMENT_NODE ||
           parent.nodeType === Node.TEXT_NODE
         ) {
-          (parent as any).__tail = itemOld;
+          (parent as any)[TAIL] = itemOld;
         }
         continue;
       }
@@ -466,12 +483,12 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
         itemNew?.nodeType === Node.ELEMENT_NODE &&
         itemOld.nodeName === itemNew.nodeName
       ) {
-        if (itemNew.__component) {
-          itemOld.__render_id = itemNew.__render_id;
-          if (itemOld.__type !== itemNew.__type) {
+        if (itemNew[COMPONENT]) {
+          itemOld[RENDER_ID] = itemNew[RENDER_ID];
+          if (itemOld[TYPE] !== itemNew[TYPE]) {
             replace(itemNew, itemOld);
             disconnected.add(itemOld);
-            build(itemNew.__component(itemNew), itemNew);
+            build(itemNew[COMPONENT](itemNew), itemNew);
             queueConnection(() => {
               if (!itemNew.isConnected) {
                 return;
@@ -482,22 +499,22 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
             continue;
           }
 
-          itemOld.__key = itemNew.__key;
-          itemOld.__props = itemNew.__props;
-          itemOld.__component = itemNew.__component;
+          itemOld[KEY] = itemNew[KEY];
+          itemOld[PROPS] = itemNew[PROPS];
+          itemOld[COMPONENT] = itemNew[COMPONENT];
           arrayOut[ii] = itemOld;
 
           if (
             parent.nodeType === Node.COMMENT_NODE ||
             parent.nodeType === Node.TEXT_NODE
           ) {
-            (parent as any).__tail = itemOld;
+            (parent as any)[TAIL] = itemOld;
           }
 
           continue;
         }
 
-        setProps(itemOld, itemNew.__attrs || {});
+        setProps(itemOld, itemNew[ATTRS] || {});
 
         diff(
           Array.from(itemOld.childNodes),
@@ -510,13 +527,13 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
           parent.nodeType === Node.COMMENT_NODE ||
           parent.nodeType === Node.TEXT_NODE
         ) {
-          (parent as any).__tail = itemOld;
+          (parent as any)[TAIL] = itemOld;
         }
         continue;
       }
 
       if (itemNew?.nodeType === Node.ELEMENT_NODE) {
-        itemOld.__render_id = itemNew.__render_id;
+        itemOld[RENDER_ID] = itemNew[RENDER_ID];
         replace(itemNew, itemOld);
         disconnected.add(itemOld);
         arrayOut[ii] = itemNew;
@@ -570,19 +587,19 @@ function runUpdate(target: Node) {
   if (!sendUpdateEvent(target)) {
     return false;
   }
-  if (target.isConnected && target.__render_id !== currentUpdateId) {
-    if ("__render" in target) {
-      target.__render?.(target);
-      // } else if ("__reactive_attributes" in target && target.__reactive_attributes?.length) {
+  if (target.isConnected && target[RENDER_ID] !== currentUpdateId) {
+    if (RENDER in target) {
+      target[RENDER]?.(target);
+      // } else if (REACTIVE_ATTRIBUTES in target && target[REACTIVE_ATTRIBUTES]?.length) {
       //   // for (
-      //   //   const update of target.__reactive_attributes?.values?.() || []
+      //   //   const update of target[REACTIVE_ATTRIBUTES]?.values?.() || []
       //   // ) {
       //   target.dispatchEvent(new Event("update"));
       //   // sendUpdateEvent();
       //     // update(target as any);
       //   // }
     }
-    target.__render_id = currentUpdateId;
+    target[RENDER_ID] = currentUpdateId;
   }
   return true;
 }
@@ -594,11 +611,11 @@ function updater(target: Node) {
     return;
   }
 
-  if (target.__reactive_children) {
+  if (target[REACTIVE_CHILDREN]) {
     // target.dispatchEvent(new Event("update"))
     for (
       const toUpdate of traverseReactiveChildren(
-        [].concat(target.__reactive_children || []),
+        [].concat(target[REACTIVE_CHILDREN] || []),
       )
     ) {
       // toUpdate.dispatchEvent(new Event("update"))
@@ -642,7 +659,7 @@ updateTarget.addEventListener(
   { capture: true, passive: true },
 );
 
-// const updateEventId = `update:${Date.now()}`;
+
 let currentUpdateId: number = 0;
 // document.addEventListener(
 //   updateEventId,
@@ -662,7 +679,9 @@ let currentUpdateId: number = 0;
 //     if (
 //       "__reactive_children" in node ||
 //       "__reactive_attributes" in node ||
-//       "__component" in node
+//       REACTIVE_CHILDREN in node ||
+//       REACTIVE_ATTRIBUTES in node ||
+//       COMPONENT in node
 //     ) {
 //       reactive.push(node);
 //     }
@@ -682,9 +701,9 @@ function traverseReactiveChildren(scopes: Node[]) {
   for (const scope of scopes) {
     // Include the scope itself if it is reactive (anchor, attributes, or component host)
     if (
-      "__reactive_children" in scope || "__cleanup" in scope ||
-      "__reactive_attributes" in scope ||
-      "__component" in scope
+      REACTIVE_CHILDREN in scope || CLEANUP in scope ||
+      REACTIVE_ATTRIBUTES in scope ||
+      COMPONENT in scope
     ) {
       reactive.push(scope as any);
     }
@@ -699,9 +718,9 @@ function traverseReactiveChildren(scopes: Node[]) {
     let node = xpathResult.iterateNext();
     while (node) {
       if (
-        "__reactive_children" in node || "__cleanup" in scope ||
-        "__reactive_attributes" in node ||
-        "__component" in node
+        REACTIVE_CHILDREN in node || CLEANUP in scope ||
+        REACTIVE_ATTRIBUTES in node ||
+        COMPONENT in node
       ) {
         reactive.push(node as any);
       }
@@ -713,15 +732,15 @@ function traverseReactiveChildren(scopes: Node[]) {
 
 type BuiltNode = (Node | Node[]) | BuiltNode[];
 type Anchor = Node & {
-  __reactive_children: Node[];
-  __render_id: number;
-  __render: (anchor: Anchor) => void;
+  [REACTIVE_CHILDREN]: Node[];
+  [RENDER_ID]: number;
+  [RENDER]: (anchor: Anchor) => void;
 };
 type ComponentHost = Node & {
-  __type: Function;
-  __key: string | undefined;
-  __instance: BuiltNode;
-  __component: (anchor: ComponentHost) => BuiltNode;
+  [TYPE]: Function;
+  [KEY]: string | undefined;
+  [INSTANCE]: BuiltNode;
+  [COMPONENT]: (anchor: ComponentHost) => BuiltNode;
 };
 
 function build(a: any, parent: Node): BuiltNode {
@@ -729,15 +748,15 @@ function build(a: any, parent: Node): BuiltNode {
     return a.map((child) => build(child, parent));
   }
 
-  if (a?.__single_keyed) {
+  if (a?.[SINGLE_KEYED]) {
     const node = build(a.renderFn(), parent);
     const result = Array.isArray(node) ? node : [node];
-    (result as any).__key = a.key;
-    (result as any).__node = node;
+    (result as any)[KEY] = a.key;
+    (result as any)[NODE] = node;
     return result;
   }
 
-  if (a?.__keyed) {
+  if (a?.[KEYED]) {
     const keyMap = new Map();
     const nodes = a.items.map((item: KeyedItem) => {
       const node = build(item.renderFn(), parent);
@@ -745,7 +764,7 @@ function build(a: any, parent: Node): BuiltNode {
       return node;
     });
     // Store key map on the returned nodes array so it can be retrieved during diff
-    (nodes as any).__key_map = keyMap;
+    (nodes as any)[KEY_MAP] = keyMap;
     return nodes;
   }
 
@@ -778,7 +797,7 @@ function build(a: any, parent: Node): BuiltNode {
     // Create a temporary anchor for the async component
     const anchor = document.createComment("$async") as any as Anchor;
     connect(anchor, parent);
-    anchor.__render_id = currentUpdateId;
+    anchor[RENDER_ID] = currentUpdateId;
 
     // Suspend immediately while waiting for the Promise to resolve
     suspend(anchor);
@@ -789,7 +808,7 @@ function build(a: any, parent: Node): BuiltNode {
         try {
           // Build the resolved value
           const built = build(resolvedValue, parent);
-          anchor.__reactive_children = Array.isArray(built)
+          anchor[REACTIVE_CHILDREN] = Array.isArray(built)
             ? (built as Node[])
             : [built as Node];
           // Unsuspend and trigger update
@@ -797,21 +816,21 @@ function build(a: any, parent: Node): BuiltNode {
           update(anchor);
         } catch (error) {
           bubbleError(error, anchor);
-          anchor.__reactive_children = [];
+          anchor[REACTIVE_CHILDREN] = [];
         }
       }
     }).catch((error) => {
       if (anchor.isConnected) {
         // Handle Promise rejection
         bubbleError(error, anchor);
-        anchor.__reactive_children = [];
+        anchor[REACTIVE_CHILDREN] = [];
         // Still need to unsuspend to avoid hanging the Suspense boundary
         unsuspend(anchor);
         update(anchor);
       }
     });
 
-    buildRender(anchor, () => anchor.__reactive_children || []);
+    buildRender(anchor, () => anchor[REACTIVE_CHILDREN] || []);
     return anchor;
   }
 
@@ -846,16 +865,16 @@ function build(a: any, parent: Node): BuiltNode {
     const anchor = document.createComment("$") as any as Anchor;
     // const anchor = document.createComment("$" + i++) as any as Anchor;
     connect(anchor, parent);
-    anchor.__render_id = currentUpdateId;
+    anchor[RENDER_ID] = currentUpdateId;
     try {
       const built = build(a(anchor), parent);
-      anchor.__reactive_children = Array.isArray(built)
+      anchor[REACTIVE_CHILDREN] = Array.isArray(built)
         ? (built as Node[])
         : [built as Node];
     } catch (error) {
       // Bubble errors thrown during initial reactive generator execution
       bubbleError(error, anchor);
-      anchor.__reactive_children = [];
+      anchor[REACTIVE_CHILDREN] = [];
     }
     buildRender(anchor, a);
     return anchor;
@@ -883,21 +902,21 @@ export function createElement(
 
   if (typeof type === "function") {
     const host = document.createElement("host") as any as ComponentHost;
-    host.__type = type;
-    host.__props = { ...(props || {}), children };
-    host.__component = (anchor) => {
+    host[TYPE] = type;
+    host[PROPS] = { ...(props || {}), children };
+    host[COMPONENT] = (anchor) => {
       try {
-        if (!anchor.__instance || props?.key !== anchor.__props?.key) {
-          return (anchor.__instance = type.call(
+        if (!anchor[INSTANCE] || props?.key !== anchor[PROPS]?.key) {
+          return (anchor[INSTANCE] = type.call(
             anchor,
-            () => (anchor.__props),
+            () => (anchor[PROPS]),
           ));
         }
-        return anchor.__instance;
+        return anchor[INSTANCE];
       } catch (error) {
         bubbleError(error, anchor, type?.name);
       }
-      return `ERROR:${type?.name}`;
+      return "ERROR:" + (type?.name || "Anonymous");
     };
     return host;
   }
@@ -926,10 +945,12 @@ export function createRoot(target: HTMLElement): Root {
           if (
             oldHost?.__type &&
             newHost?.__type &&
-            oldHost.__type === newHost.__type &&
-            oldHost.__props?.key === newHost.__props?.key
+            oldHost?.[TYPE] &&
+            newHost?.[TYPE] &&
+            oldHost[TYPE] === newHost[TYPE] &&
+            oldHost[PROPS]?.key === newHost[PROPS]?.key
           ) {
-            oldHost.__props = newHost.__props;
+            oldHost[PROPS] = newHost[PROPS];
             update(oldHost);
             return (out.root = oldHost);
           }
@@ -946,8 +967,8 @@ export function createRoot(target: HTMLElement): Root {
       } finally {
         flushConnectionQueue();
         if (
-          !el.__component && !el.__reactive_children &&
-          !el.__reactive_children
+          !el[COMPONENT] && !el[REACTIVE_CHILDREN] &&
+          !el[REACTIVE_CHILDREN]
         ) {
           el.dispatchEvent(new Event("connect"));
         }
@@ -973,7 +994,7 @@ export function memo(fn: (anchor: Node) => any, shouldMemo: () => boolean) {
   let initialized = false;
   return (anchor: Node) => {
     // Attach skip predicate for reactive anchors
-    anchor.__memo = shouldMemo;
+    anchor[MEMO] = shouldMemo;
     // Recompute only if not initialized or predicate says "do not memo"
     if (!initialized || !shouldMemo()) {
       cached = fn(anchor);
@@ -994,7 +1015,7 @@ export function createList(
     return null; // Return value not used
   };
   fn(keyFn);
-  return { __keyed: true, items };
+  return { [KEYED]: true, items };
 }
 
 /**
@@ -1006,15 +1027,6 @@ export function createList(
  * @returns A marker object for the keyed element
  *
  * @example
- * ```tsx
- * function Counter() {
- *   let count = 0;
- *   return () => <div>Count: {count++}</div>;
- * }
- *
- * function App() {
- *   let activeTab = "home";
- *
  *   return (
  *     <div>
  *       {() => createKey(() => <Counter />, activeTab)}
