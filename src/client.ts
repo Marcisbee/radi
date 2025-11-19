@@ -677,8 +677,6 @@ let currentUpdateId: number = 0;
 //   const reactive: Node[] = [];
 //   function collectReactive(node: Node) {
 //     if (
-//       "__reactive_children" in node ||
-//       "__reactive_attributes" in node ||
 //       REACTIVE_CHILDREN in node ||
 //       REACTIVE_ATTRIBUTES in node ||
 //       COMPONENT in node
@@ -943,8 +941,6 @@ export function createRoot(target: HTMLElement): Root {
           const oldHost = out.root as any;
           const newHost = el as any;
           if (
-            oldHost?.__type &&
-            newHost?.__type &&
             oldHost?.[TYPE] &&
             newHost?.[TYPE] &&
             oldHost[TYPE] === newHost[TYPE] &&
