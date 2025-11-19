@@ -1038,7 +1038,7 @@ export function createList(
  * ```
  */
 export function createKey(renderFn: () => any, keyValue: any) {
-  return { __single_keyed: true, renderFn, key: keyValue };
+  return { [SINGLE_KEYED]: true, renderFn, key: keyValue };
 }
 
 export function createAbortSignal(target: Node): AbortSignal {
