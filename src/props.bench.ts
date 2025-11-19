@@ -36,7 +36,7 @@ function setProps2(el: HTMLElement, props: Record<string, any>) {
   const style = el.style;
   const keys = Object.keys({ ...old, ...props });
 
-  keys.forEach(k => {
+  keys.forEach((k) => {
     const v = props[k];
     const prev = old[k];
 
@@ -54,7 +54,7 @@ function setProps2(el: HTMLElement, props: Record<string, any>) {
       const sOld = prev || {};
       const sNew = v;
       const all = new Set([...Object.keys(sOld), ...Object.keys(sNew)]);
-      all.forEach(sk => {
+      all.forEach((sk) => {
         const nv = sNew[sk];
         if (nv === undefined) style[sk as any] = "";
         else if (sOld[sk] !== nv) style[sk as any] = nv;
@@ -64,8 +64,9 @@ function setProps2(el: HTMLElement, props: Record<string, any>) {
       // Regular prop
       old[k] = v;
       if (k === "class") el.className = v ?? "";
-      else if (k.startsWith("on")) el[k.toLowerCase() as "onclick"] = typeof v === "function" ? v : null;
-      else if (v === undefined) el.removeAttribute(k);
+      else if (k.startsWith("on")) {
+        el[k.toLowerCase() as "onclick"] = typeof v === "function" ? v : null;
+      } else if (v === undefined) el.removeAttribute(k);
       else el.setAttribute(k, v);
     }
   });

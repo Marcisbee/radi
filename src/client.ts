@@ -659,7 +659,6 @@ updateTarget.addEventListener(
   { capture: true, passive: true },
 );
 
-
 let currentUpdateId: number = 0;
 // document.addEventListener(
 //   updateEventId,
