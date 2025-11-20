@@ -1,7 +1,7 @@
 export {}; // Ensure this file is treated as a module so 'declare global' works.
 
 type Observable<T> = {
-  readonly value: T;
+  readonly value?: T;
   subscribe(cb: (v: T) => void): { unsubscribe(): void } | (() => void);
 };
 
