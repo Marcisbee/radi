@@ -2,7 +2,7 @@ import { bubbleError } from "./error.ts";
 import { ATTRS, CLEANUP, REACTIVE_ATTRIBUTES } from "./symbols.ts";
 
 type Observable<T> = {
-  readonly current: T;
+  readonly value: T;
   subscribe(cb: (v: T) => void): { unsubscribe(): void } | (() => void);
 };
 type Reactive<T> = (() => T) | Observable<T>;
