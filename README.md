@@ -1,141 +1,405 @@
-> [!IMPORTANT]
-> **This project is no longer maintained!**
-> 
-> From ashes [state management library "exome"](https://github.com/marcisbee/exome) was born. Go check it out, it works with any framework or as a vanilla standalone lib.
+# Radi
 
----
+Radi is a lightweight reactive JSX runtime that lets you write components as
+plain functions with direct DOM manipulation — no virtual DOM required.
 
-# <a href='http://radi.js.org'><img src='https://rawgit.com/radi-js/radi/gh-pages/logo/radijs-github.png' height='60' alt='Radi' aria-label='Redux.js.org' /></a>
+## What Makes Radi Different
 
-**Radi** is a tiny javascript framework.
+Radi takes a unique approach compared to React, Preact, or even Solid:
 
-It's built quite differently from any other framework. It doesn't use any kind of diffing algorithm nor virtual dom which makes it really fast.
+| Feature | React/Preact | Solid | Radi |
+|---------|--------------|-------|------|
+| Virtual DOM | Yes | No | No |
+| Props | Object | Object | **Function** `() => props` |
+| Component execution | Every render | Once | **Once** |
+| Reactivity | Implicit (re-render all) | Signals | **Explicit functions** |
+| Update mechanism | Scheduler | Signals | **Native DOM events** |
 
-With Radi you can create any kind of single-page applications or more complex applications.
+### Props Are Functions
 
-[![npm version](https://img.shields.io/npm/v/radi.svg?style=flat-square)](https://www.npmjs.com/package/radi)
-[![npm downloads](https://img.shields.io/npm/dm/radi.svg?style=flat-square)](https://www.npmjs.com/package/radi)
-[![gzip bundle size](http://img.badgesize.io/https://unpkg.com/radi@latest/dist/radi.es.min.js?compression=gzip&style=flat-square)](https://unpkg.com/radi@latest/dist/radi.js)
-[![discord](https://dcbadge.vercel.app/api/server/a62gfaDW2e?style=flat-square)](https://discord.gg/a62gfaDW2e)
+In Radi, components receive props as a getter function, not a plain object:
+
+```ts
+function Greeting(props: JSX.Props<{ name: string }>) {
+  // Access props by calling the function
+  return <h1>Hello, {() => props().name}!</h1>;
+}
+```
+
+This enables fine-grained reactivity — when parent state changes, only the
+specific reactive expressions that read props will update.
+
+### Components Are Stateful (Run Once)
+
+Component functions execute exactly once. The returned JSX is the component's
+template. State lives in closure variables:
+
+```ts
+function Counter(this: ComponentNode) {
+  // This code runs once when the component mounts
+  let count = 0;
+
+  return (
+    <button onclick={() => { count++; update(this); }}>
+      {() => `Count: ${count}`}
+    </button>
+  );
+}
+```
+
+### Reactive Places Are Functions
+
+Wrap any expression in a function to make it reactive. When `update()` is called
+on an ancestor, these functions re-execute:
+
+```ts
+const view = (
+  <div>
+    {/* Static — never updates */}
+    <span>Static text</span>
+
+    {/* Reactive — re-runs on update */}
+    <span>{() => dynamicValue}</span>
+
+    {/* Reactive prop */}
+    <input value={() => inputValue} />
+  </div>
+);
+```
+
+### Updates Use Native Events
+
+Radi uses native DOM events (`update`, `connect`, `disconnect`) instead of a
+custom scheduler. Call `update(node)` to trigger reactive re-evaluation:
+
+```ts
+function Timer() {
+  let seconds = 0;
+  const el = <div>{() => seconds}</div>;
+
+  setInterval(() => {
+    seconds++;
+    update(el); // Dispatches native "update" event
+  }, 1000);
+
+  return el;
+}
+```
+
+## Features
+
+- Direct DOM manipulation with minimal abstraction
+- Fine-grained reactivity via functions
+- Lightweight component model with closures for state
+- Fragment support (`<Fragment>` or `<>...</>`)
+- Lifecycle events (`connect`, `disconnect`)
+- AbortSignal helpers tied to element lifecycle
+- Suspense boundaries for async components
+- Keyed lists for efficient reconciliation
+- TypeScript automatic JSX runtime support
 
 ## Installation
 
-To install the stable version:
+```bash
+# Deno
+deno add jsr:@Marcisbee/radi
 
+# npm
+npm install radi
 ```
-npm install --save radi
-```
 
-This assumes you are using [npm](https://www.npmjs.com/) as your package manager.  
+## Basic Usage
 
-If you're not, you can [access these files on unpkg](https://unpkg.com/radi/dist/), download them, or point your package manager to them.
+```ts
+import { createRoot, update } from 'radi';
 
-#### Browser Compatibility
+function App() {
+  let count = 0;
 
-Radi.js currently is compatible with browsers that support at least ES5.
+  const root = (
+    <div>
+      <h1>Counter App</h1>
+      <p>Count: {() => count}</p>
+      <button onclick={() => { count++; update(root); }}>
+        Increment
+      </button>
+    </div>
+  );
 
-## Ecosystem
-
-| Project | Status | Description |
-|---------|--------|-------------|
-| [radi-router]          | [![radi-router-status]][radi-router-package] | Single-page application routing |
-| [radi-fetch]          | [![radi-fetch-status]][radi-fetch-package] | HTTP client for Radi.js |
-
-[radi-router]: https://github.com/radi-js/radi-router
-
-[radi-router-status]: https://img.shields.io/npm/v/radi-router.svg?style=flat-square
-
-[radi-router-package]: https://npmjs.com/package/radi-router
-
-[radi-fetch]: https://github.com/radi-js/radi-fetch
-
-[radi-fetch-status]: https://img.shields.io/npm/v/radi-fetch.svg?style=flat-square
-
-[radi-fetch-package]: https://npmjs.com/package/radi-fetch
-
-## Documentation
-
-[Getting started guide](/docs)
-
-Here are just a few examples to work our appetite.
-
-#### Hello World example
-
-Lets create component using JSX, tho it's not mandatory
-we can just use hyperscript `r('h1', 'Hello', this.sample, '!')`. I'm using JSX for html familiarity and to showcase compatibility.
-
-```jsx
-/** @jsx Radi.r **/
-
-class Hello extends Radi.component {
-  state() {
-    return { sample: 'World' };
-  }
-  view() {
-    return (
-      <h1>Hello { this.state.sample } !</h1>
-    )
-  }
+  return root;
 }
 
-Radi.mount(<Hello />, document.body);
+const root = createRoot(document.getElementById('app')!);
+root.render(<App />);
 ```
 
-This example will mount h1 to body like so `<body><h1>Hello World</h1></body>`
+## Component Anatomy
 
-#### Counter example (With Single File Component syntax)
+```ts
+function MyComponent(
+  this: ComponentNode,           // Host element (the <host> tag)
+  props: JSX.Props<{ value: number }> // Props getter function
+) {
+  // 1. Setup code runs once
+  const signal = createAbortSignal(this);
 
-This will be different as we'll need to update state and use actions. Only actions can change state and trigger changes in DOM.
-Also we'll be using our SFC syntax for `*.radi` files
+  // 2. Event handlers
+  this.addEventListener('connect', () => {
+    console.log('Component mounted');
+  }, { signal });
 
-`Counter.radi`
-```jsx
-class {
-  state = {
-    count: 0
-  }
+  // 3. Return JSX template
+  return (
+    <div>
+      {/* Reactive expression */}
+      {() => props().value * 2}
+    </div>
+  );
+}
+```
 
-  @action up() {
-    return {
-      count: this.state.count +1
-    }
-  }
+## Fragments
 
-  @action down() {
-    return {
-      count: this.state.count -1
-    }
-  }
+```ts
+const list = (
+  <>
+    <li>First</li>
+    <li>Second</li>
+  </>
+);
+```
+
+## Reactive Children
+
+Any function passed as a child is treated as a reactive generator:
+
+```ts
+const time = () => new Date().toLocaleTimeString();
+
+const clock = <div>The time is: {time}</div> as HTMLElement;
+setInterval(() => update(clock), 1000);
+```
+
+## Reactive Props
+
+Props can also be reactive functions:
+
+```ts
+let isDisabled = false;
+
+const button = (
+  <button disabled={() => isDisabled}>
+    Click me
+  </button>
+) as HTMLElement;
+
+// Later...
+isDisabled = true;
+update(button);
+```
+
+## Lifecycle Events
+
+Elements receive `connect` / `disconnect` events when added/removed from the
+document:
+
+```ts
+const node = (
+  <div
+    onconnect={() => console.log('connected')}
+    ondisconnect={() => console.log('disconnected')}
+  />
+);
+```
+
+## AbortSignal Helpers
+
+Automatically clean up event listeners and subscriptions:
+
+```ts
+function Component(this: HTMLElement) {
+  const signal = createAbortSignal(this);
+
+  // Automatically removed when component disconnects
+  window.addEventListener('resize', handleResize, { signal });
+
+  return <div>...</div>;
+}
+```
+
+For cleanup on update or disconnect:
+
+```ts
+const signal = createAbortSignalOnUpdate(element);
+// Aborts when element updates OR disconnects
+```
+
+## Memoization
+
+Skip re-computation when values haven't changed:
+
+```ts
+const expensiveChild = memo(
+  () => <ExpensiveComponent data={data} />,
+  () => data === previousData // Return true to skip update
+);
+```
+
+## Keyed Lists
+
+For efficient list reconciliation:
+
+```ts
+import { createList, createKey } from 'radi';
+
+function TodoList(props: () => { items: Todo[] }) {
+  return (
+    <ul>
+      {() => createList((key) =>
+        props().items.map((item) =>
+          key(() => <TodoItem item={item} />, item.id)
+        )
+      )}
+    </ul>
+  );
+}
+```
+
+Single keyed elements preserve state across updates:
+
+```ts
+{() => createKey(() => <Editor />, activeTabId)}
+// Editor remounts only when activeTabId changes
+```
+
+## Async Components & Suspense
+
+Radi supports async components with Suspense boundaries:
+
+```ts
+import { Suspense, suspend, unsuspend } from 'radi';
+
+// Async component using Promises
+async function UserProfile(props: JSX.Props<{ userId: number }>) {
+  const response = await fetch(`/api/users/${props().userId}`);
+  const user = await response.json();
+
+  return (
+    <div>
+      <h3>{user.name}</h3>
+      <p>{user.email}</p>
+    </div>
+  );
 }
 
-<div>
-  <h1>{ this.state.count }</h1>
-
-  <button onclick={ () => this.down() } disabled={ this.state.count <= 0 }>-</button>
-
-  <button onclick={ () => this.up() }>+</button>
-</div>
+// Wrap in Suspense for loading state
+const app = (
+  <Suspense fallback={() => <div>Loading...</div>}>
+    <UserProfile userId={123} />
+  </Suspense>
+);
 ```
 
-## Architecture
+Manual suspend/unsuspend for custom async work:
 
-Radi fully renders page only once initially. After that `listeners` take control. They can listen for state changes in any Radi component. When change in state is caught, listener then re-renders only that part.
+```ts
+function DataLoader(this: HTMLElement) {
+  let data = null;
 
-Other frameworks silently re-renders whole page over and over again, then apply changes. But radi only re-renders parts that link to changed state values.
+  suspend(this);
+  fetchData().then((result) => {
+    data = result;
+    unsuspend(this);
+    update(this);
+  });
 
-To check out [live repl](https://radi.js.org/#/fiddle) and [docs](https://radi.js.org/#/docs), visit [radi.js.org](https://radi.js.org).
+  return <div>{() => data ? renderData(data) : null}</div>;
+}
+```
 
-<!-- ## Changelog
+## TypeScript JSX Configuration
 
-Detailed changes for each release are documented in the [release notes](https://github.com/radi-js/radi/releases). -->
+### Automatic Runtime (Recommended)
 
-## Stay In Touch
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "radi"
+  }
+}
+```
 
-- [Twitter](https://twitter.com/radi_js)
-- [Slack](https://join.slack.com/t/radijs/shared_invite/enQtMjk3NTE2NjYxMTI2LWFmMTM5NTgwZDI5NmFlYzMzYmMxZjBhMGY0MGM2MzY5NmExY2Y0ODBjNDNmYjYxZWYxMjEyNjJhNjA5OTJjNzQ)
+For development with extra source metadata:
+
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsxdev",
+    "jsxImportSource": "radi"
+  }
+}
+```
+
+### Manual Mode
+
+```json
+{
+  "compilerOptions": {
+    "jsx": "react",
+    "jsxFactory": "createElement",
+    "jsxFragmentFactory": "Fragment"
+  }
+}
+```
+
+Then import manually:
+
+```ts
+import { createElement, Fragment } from 'radi';
+```
+
+## API Reference
+
+### Rendering
+
+- `createRoot(target)` — Create a render root
+- `root.render(element)` — Render into the root
+- `root.unmount()` — Unmount and cleanup
+
+### Reactivity
+
+- `update(node)` — Trigger reactive updates on node and descendants
+- `memo(fn, shouldMemo)` — Memoize reactive expressions
+
+### Lists
+
+- `createList(fn)` — Create keyed list for efficient diffing
+- `createKey(renderFn, key)` — Create single keyed element
+
+### Lifecycle
+
+- `createAbortSignal(node)` — AbortSignal that fires on disconnect
+- `createAbortSignalOnUpdate(node)` — AbortSignal that fires on update or disconnect
+
+### Suspense
+
+- `Suspense` — Boundary component with fallback
+- `suspend(node)` — Signal async work starting
+- `unsuspend(node)` — Signal async work complete
+
+### JSX
+
+- `createElement(type, props, ...children)` — JSX factory
+- `Fragment` — Fragment symbol
+
+## Contributing
+
+1. Fork and clone
+2. Install dependencies
+3. Run tests: `deno task test`
+4. Open a PR with a concise description
 
 ## License
 
-[MIT](http://opensource.org/licenses/MIT)
-
-Copyright (c) 2017-present, Marcis (Marcisbee) Bergmanis
+MIT

@@ -1,0 +1,16 @@
+{
+  "name": "radi",
+  "version": "0.5.0",
+  "tasks": {
+    "dev": "deno -A npm:esbuild playground/*.tsx --jsx-import-source=preact --jsx=automatic --watch --servedir=playground/www --outdir=playground/www --bundle",
+    "test": "deno -A --unstable-bundle @marcisbee/rion/test.cli --includes src",
+    "bench": "deno -A --unstable-bundle @marcisbee/rion/bench.cli --includes src",
+    "publish": "deno -A ./build.npm.ts && cd npm && npm publish --tag alpha"
+  },
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "imports": {
+    "@marcisbee/rion": "jsr:@marcisbee/rion@^0.5.0"
+  }
+}
