@@ -12,6 +12,17 @@ are 10 minutes for Go and publishing, 8 for package checks, 5 for documentation,
 3 for drafting, and 2 for titles. Compiler/browser installation steps stop after
 3 minutes. A timeout is a failed check, never a successful validation.
 
+Client/package and Go checks run on relevant PRs or manual dispatch, not again
+on every push to master. Go uses one race-enabled test run across all packages;
+the extra 20-second soak check runs only on manual dispatch or a published
+release. The Go/browser integration remains part of relevant PR checks.
+
+This assumes changes go through checked PRs. After a direct push to master,
+manually run **Check release tooling** and, for Go/server/router changes,
+**Go embedded server** on that revision before release. Manual Go validation
+also provides the pre-release soak check. Documentation deployment and draft
+release creation still run on master; npm publishing still validates the tag.
+
 Browser checks install only Chromium's headless shell. Keep the exact Playwright
 version in workflows and browser tests aligned, including the Rion dependency
 resolution in deno.lock. Playwright 1.64.1 supports the Go job's Ubuntu 26.04
