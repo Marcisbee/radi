@@ -22,11 +22,31 @@ jobs:
         with:
           go-version-file: go.mod
       - run: sudo apt-get update && sudo apt-get install -y clang-21
-      - run: go generate ./examples/go-server
+      - run: go generate ./examples/go-server ./examples/router
       - run: go test -race ./go -timeout 3m
       - run: go test ./... -timeout 3m
       - run: RADI_SOAK_SECONDS=20 go test ./go -run TestSustainedFlop -count=1 -timeout 1m -v
       - run: go build -trimpath -o radi-go-server ./examples/go-server
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: npx --yes playwright@1.56.1 install --with-deps chromium
+      - name: Verify browser routing through Go and V8
+        run: |
+          go build -o radi-router ./examples/router
+          ./radi-router &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --max-time 2 http://127.0.0.1:4321/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent --max-time 2 http://127.0.0.1:4321/ >/dev/null
+          deno task test:router:go
       - uses: actions/upload-artifact@v6
         with:
           name: radi-go-server-linux-amd64

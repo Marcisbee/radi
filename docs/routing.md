@@ -112,10 +112,8 @@ users.
 
 ## Go and embedded V8 example
 
-`examples/router` needs the Go adapter introduced in
-[PR #63](https://github.com/Marcisbee/radi/pull/63). Until that adapter is
-merged, this example must be tested in a checkout containing both changes. The
-router itself and `deno task test:router` work independently of the Go adapter.
+`examples/router` uses the [Go and embedded V8 adapter](go-server.md).
+The router itself and `deno task test:router` also work independently of it.
 
 With the adapter and its documented Clang/CGO toolchain available:
 
