@@ -1,18 +1,10 @@
 import { createElement as h, resumable, resumeClick } from '../src/server.ts';
-import {
-  code,
-  header,
-  navigation,
-  outline,
-  searchDialog,
-  section,
-} from './ui.ts';
+import { code, header, navigation, searchDialog, section } from './ui.ts';
 
 function introduction() {
   return h(
     'section',
     { class: 'intro', id: 'overview' },
-    h('p', { class: 'eyebrow' }, 'The Radi guide'),
     h('h1', null, 'Introduction'),
     h(
       'p',
@@ -250,11 +242,6 @@ export function page() {
         'aside',
         { class: 'sidebar' },
         navigation('Documentation'),
-        h(
-          'div',
-          { class: 'sidebar-note' },
-          'Built with Radi SSG',
-        ),
       ),
       h(
         'main',
@@ -270,7 +257,6 @@ export function page() {
           h('a', { href: '#' }, 'Back to top ↑'),
         ),
       ),
-      outline(),
     ),
   ];
 }

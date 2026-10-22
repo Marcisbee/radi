@@ -17,7 +17,7 @@ try {
 } finally {
   stop();
 }
-for (const asset of ['style.css', 'inter-latin.woff2', 'inter-license.txt']) {
+for (const asset of ['style.css', 'radi-logo.png']) {
   await Deno.copyFile(
     new URL(`./${asset}`, import.meta.url),
     join(outDir, asset),
@@ -33,13 +33,7 @@ await generateStaticSite([{
   bootstrap: '/client.js',
   head: [
     h('link', { rel: 'stylesheet', href: '/style.css' }),
-    h('link', {
-      rel: 'preload',
-      href: '/inter-latin.woff2',
-      as: 'font',
-      type: 'font/woff2',
-      crossorigin: 'anonymous',
-    }),
+    h('link', { rel: 'icon', href: '/radi-logo.png', type: 'image/png' }),
     h('link', { rel: 'canonical', href: 'https://radi.js.org/' }),
     h('meta', {
       name: 'description',
@@ -56,14 +50,13 @@ if (Deno.args.includes('--serve')) {
     '/': 'index.html',
     '/style.css': 'style.css',
     '/client.js': 'client.js',
-    '/inter-latin.woff2': 'inter-latin.woff2',
-    '/inter-license.txt': 'inter-license.txt',
+    '/radi-logo.png': 'radi-logo.png',
   };
   Deno.serve({ hostname: '127.0.0.1', port: 4320 }, async (request) => {
     const file = files[new URL(request.url).pathname];
     if (!file) return new Response('Not found', { status: 404 });
-    const type = file.endsWith('.woff2')
-      ? 'font/woff2'
+    const type = file.endsWith('.png')
+      ? 'image/png'
       : file.endsWith('.txt')
       ? 'text/plain'
       : file.endsWith('.js')

@@ -55,15 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
       )?.id ?? 'overview';
     if (current === previous) return;
     previous = current;
-    const section = document.getElementById(current)!;
-    const outline = [...section.querySelectorAll<HTMLElement>('h1, h2, h3')]
-      .map((heading) => {
-        const link = document.createElement('a');
-        link.href = `#${heading.id || current}`;
-        link.textContent = heading.textContent?.replace(/#$/, '') ?? '';
-        return link;
-      });
-    document.querySelector('#section-outline')!.replaceChildren(...outline);
     for (const link of links) {
       if (link.hash === `#${current}`) {
         link.setAttribute('aria-current', 'location');

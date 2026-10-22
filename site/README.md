@@ -14,16 +14,16 @@ counter uses `radi/resume` with its tiny handler bundled into the initial
 script. Clicks need no extra network request. Navigation and documentation work
 without JavaScript; code copying and the current-section indicator are
 enhancements. Search (Ctrl/Cmd K) searches the guide locally, including code
-examples. The contextual outline follows the current topic. Search uses a native
-dialog for keyboard focus containment and Escape dismissal.
+examples. Search uses a native dialog for keyboard focus containment and Escape
+dismissal.
 
 Run `deno task test:docs` to check the first counter interaction with the
 network disabled after the page loads. Install Chromium with Playwright first,
 as for the repository's static-site tests.
 
-The self-hosted Inter Latin variable font comes from
-[Fontsource](https://fontsource.org/fonts/inter). Its SIL Open Font License is
-included in `inter-license.txt` and copied into the output.
+The Radi swirl logo is the original favicon from the repository’s `gh-pages`
+branch (`c6a8e7e90d1a53d6bcc0bb22ba5b6345.png`). The page uses its purple
+palette and system fonts.
 
 Deployment is intentionally manual until the design is approved. No workflow in
 this change replaces the existing public site.

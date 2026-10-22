@@ -8,8 +8,6 @@ export function setupSearch() {
   ];
   const trigger = document.querySelector<HTMLButtonElement>('[data-search]')!;
   trigger.hidden = false;
-  trigger.querySelector('kbd')!.textContent =
-    /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ K' : 'Ctrl K';
   trigger.addEventListener('click', () => dialog.showModal());
   dialog.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {

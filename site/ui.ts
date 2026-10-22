@@ -112,10 +112,9 @@ export function header() {
       h(
         'a',
         { class: 'brand', href: '/', 'aria-label': 'Radi home' },
-        'radi',
-        h('span', { 'aria-hidden': 'true' }, '.'),
+        h('img', { src: '/radi-logo.png', width: 32, height: 32, alt: '' }),
+        'Radi',
       ),
-      h('span', { class: 'header-divider', 'aria-hidden': 'true' }),
       h('span', { class: 'header-label' }, 'Documentation'),
       h(
         'button',
@@ -126,7 +125,6 @@ export function header() {
           hidden: true,
         },
         h('span', null, 'Search docs'),
-        h('kbd', null, 'Ctrl K'),
       ),
       h(
         'a',
@@ -168,30 +166,5 @@ export function searchDialog() {
     ),
     h('nav', { id: 'search-results', 'aria-label': 'Search results' }),
     h('div', { class: 'search-help' }, 'Tab to browse results · Enter to open'),
-  );
-}
-
-export function outline() {
-  return h(
-    'aside',
-    { class: 'outline', 'aria-label': 'Current topic' },
-    h('p', { class: 'outline-label' }, 'In this section'),
-    h(
-      'nav',
-      { id: 'section-outline', 'aria-label': 'Section outline' },
-      h('a', { href: '#overview' }, 'Introduction'),
-    ),
-    h(
-      'div',
-      { class: 'outline-resources' },
-      h('a', {
-        href: 'https://github.com/Marcisbee/radi/blob/master/site/page.ts',
-      }, 'Edit this page ↗'),
-      h(
-        'a',
-        { href: 'https://github.com/Marcisbee/radi/issues' },
-        'Report an issue ↗',
-      ),
-    ),
   );
 }
