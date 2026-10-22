@@ -1,0 +1,6 @@
+body { max-width: 44rem; margin: 3rem auto; padding: 0 1rem; font: 18px/1.5 system-ui, sans-serif; color: #1d2430; }
+input, button { font: inherit; padding: .35rem .6rem; }
+button { cursor: pointer; }
+nav a { padding: .3rem; }
+#status { min-height: 1.5em; color: #535d6c; }
+main[aria-busy="true"] { opacity: .65; }

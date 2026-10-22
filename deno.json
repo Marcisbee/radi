@@ -6,6 +6,8 @@
     "test": "deno -A --unstable-bundle @marcisbee/rion/test.cli --includes src",
     "test:server": "deno test --config deno.server.json --allow-net=127.0.0.1 tests/server-runtime_test.tsx",
     "test:static": "deno test -A --config deno.server.json tests/static-site_test.ts",
+    "test:router": "deno test -A --unstable-bundle --config deno.server.json tests/router_test.ts",
+    "test:router:go": "deno test -A --config deno.server.json tests/router-go_test.ts",
     "bench:server": "deno run --config deno.server.json bench/server.ts",
     "bench": "deno -A --unstable-bundle @marcisbee/rion/bench.cli --includes src",
     "publish": "deno -A ./build.npm.ts && cd npm && npm publish --tag alpha"
@@ -14,6 +16,7 @@
     ".": "./src/client.ts",
     "./client": "./src/client.ts",
     "./resume": "./src/resume.ts",
+    "./router": "./src/router.ts",
     "./server": "./src/server.ts",
     "./static": "./src/static.ts",
     "./server/jsx-runtime": "./src/server/jsx-runtime.ts",

@@ -13,6 +13,9 @@ Explicit boundaries carry JSON state and load named handlers on the first click.
 For documentation and other static sites with interactive islands, see
 [static site generation](docs/static-sites.md).
 
+For SPA navigation, lazy route modules, loaders, and actions, see
+[client routing and route data](docs/routing.md).
+
 ## What Makes Radi Different
 
 Radi takes a unique approach compared to React, Preact, or even Solid:
