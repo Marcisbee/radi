@@ -13,9 +13,7 @@ examples at build time and sends no highlighting JavaScript to the browser. The
 counter uses `radi/resume` with its tiny handler bundled into the initial
 script. Clicks need no extra network request. Navigation and documentation work
 without JavaScript; code copying and the current-section indicator are
-enhancements. Search (Ctrl/Cmd K) searches the guide locally, including code
-examples. Search uses a native dialog for keyboard focus containment and Escape
-dismissal.
+enhancements. Use the browser’s Find command (Ctrl/Cmd F) to search the full guide.
 
 Agent readers can discover `/index.md` and `/llms.txt` from HTML link relations
 or footer links. Markdown is generated from the guide at build time, preserving

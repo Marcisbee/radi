@@ -34,8 +34,6 @@
   --surface: #f8f6fb;
   --brand: #554274;
   --border-accent: #bfa4df;
-  --scrim: #302a3e40;
-  --highlight: #e8d9ff;
 }
 * {
   box-sizing: border-box;
@@ -95,17 +93,6 @@ button:active {
   font-size: 13px;
   padding: 12px 0;
   border-top: 1px solid var(--border);
-}
-.search-trigger {
-  width: 100%;
-  text-align: left;
-  margin-top: 16px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 8px 10px;
-  background: var(--surface);
-  color: var(--secondary);
-  font-size: 13px;
 }
 .layout {
   display: grid;
@@ -313,74 +300,6 @@ footer {
 .mobile-menu {
   display: none;
 }
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-dialog {
-  width: min(560px, calc(100% - 32px));
-  max-height: 75dvh;
-  padding: 0;
-  margin: 14dvh auto auto;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
-}
-dialog::backdrop {
-  background: var(--scrim);
-}
-.search-field {
-  display: flex;
-  align-items: center;
-  padding: 16px;
-  gap: 12px;
-  border-bottom: 1px solid var(--border);
-}
-.search-field input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  background: var(--background);
-  padding: 8px 0;
-  font-size: 14px;
-}
-.search-field button {
-  border: 0;
-  background: var(--surface);
-  padding: 8px;
-  font-size: 12px;
-}
-#search-status {
-  font-size: 12px;
-  margin: 18px 24px 10px;
-}
-#search-results {
-  padding: 0 12px 12px;
-}
-#search-results a {
-  display: block;
-  padding: 12px;
-}
-#search-results strong {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-}
-#search-results span {
-  display: block;
-  font-size: 12px;
-  color: var(--secondary);
-  margin-top: 4px;
-}
-.search-help {
-  padding: 12px 24px;
-  font-size: 11px;
-  color: var(--muted);
-  background: var(--surface);
-}
 @media (max-width: 767px) {
   .brand {
     font-size: 22px;
@@ -447,14 +366,6 @@ dialog::backdrop {
 pre code span {
   color: var(--code-light);
 }
-mark {
-  background: var(--highlight);
-  color: var(--text);
-  border-radius: 2px;
-}
-#search-results span {
-  overflow-wrap: anywhere;
-}
 @media (prefers-color-scheme: dark) {
   :root {
     --accent: #bd9aef;
@@ -466,8 +377,6 @@ mark {
     --surface: #24202c;
     --brand: #d2b9f3;
     --border-accent: #7551b9;
-    --scrim: #0009;
-    --highlight: #58416e;
   }
   pre code span {
     color: var(--code-dark);

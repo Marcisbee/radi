@@ -1,6 +1,5 @@
 import { resume } from '../src/resume.ts';
 import { increment } from './handler.ts';
-import { setupSearch } from './search.ts';
 
 resume(document, { increment: () => Promise.resolve(increment) }, {
   onError: () => {
@@ -34,7 +33,6 @@ document.addEventListener('click', async (event) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  setupSearch();
   for (
     const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')
   ) button.hidden = false;

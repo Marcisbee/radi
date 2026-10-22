@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { chromium } from 'npm:playwright@1.56.1';
 
-Deno.test('the generated guide supports keyboard search and first-click interaction offline', async () => {
+Deno.test('the generated guide supports agent readers, system themes, and first-click interaction offline', async () => {
   const build = await new Deno.Command(Deno.execPath(), {
     args: ['run', '-A', 'site/build.ts'],
     cwd: new URL('../', import.meta.url),
@@ -119,54 +119,6 @@ Deno.test('the generated guide supports keyboard search and first-click interact
       () => document.querySelector('output')?.textContent === '2',
       null,
       { timeout: 3000 },
-    );
-    assert.deepEqual(requests, []);
-    const search = page.getByRole('button', { name: 'Search docs' });
-    await search.click();
-    const input = page.getByRole('searchbox', { name: 'Search documentation' });
-    assert.ok(
-      await input.evaluate((element) => element === document.activeElement),
-    );
-    await input.fill('createAbortSignal');
-    const results = page.getByRole('navigation', { name: 'Search results' });
-    assert.ok(await results.getByRole('link').count() >= 2);
-    for (const link of await results.getByRole('link').all()) {
-      assert.ok(
-        await link.locator('mark').count() > 0,
-        'Every result must display its matching phrase',
-      );
-    }
-    await results.getByRole('link', { name: /^Lifecycle/ }).focus();
-    await page.keyboard.press('Enter');
-    assert.ok(page.url().endsWith('#lifecycle'));
-    assert.equal(await page.getByRole('dialog').count(), 0);
-    await search.click();
-    await input.fill('maxPending');
-    const apiResult = results.getByRole('link').filter({
-      has: page.locator('strong', { hasText: 'ResumeOptions' }),
-    });
-    assert.ok(
-      (await apiResult.locator('span mark').allTextContents()).some((text) =>
-        text.toLowerCase() === 'maxpending'
-      ),
-    );
-    await apiResult.click();
-    assert.ok(page.url().endsWith('#resume-api-ResumeOptions'));
-    assert.ok(
-      await page.getByRole('heading', { name: 'ResumeOptions', exact: true })
-        .isVisible(),
-    );
-    await search.focus();
-    await page.keyboard.press('Control+k');
-    await input.fill('no-such-api-xyz');
-    assert.equal(await results.getByRole('link').count(), 0);
-    assert.ok(
-      await page.getByText('No matching topics.', { exact: false }).isVisible(),
-    );
-    await page.keyboard.press('Escape');
-    await page.getByRole('dialog').waitFor({ state: 'hidden' });
-    assert.ok(
-      await search.evaluate((element) => element === document.activeElement),
     );
     assert.deepEqual(requests, []);
   } finally {

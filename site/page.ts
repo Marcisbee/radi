@@ -4,7 +4,6 @@ import {
   code,
   githubLink,
   navigation,
-  searchDialog,
   section,
   sidebarBrand,
 } from './ui.ts';
@@ -212,7 +211,6 @@ const publishingSections = [
 export function page() {
   return [
     h('a', { class: 'skip', href: '#content' }, 'Skip to content'),
-    searchDialog(),
     h(
       'div',
       { class: 'mobile-menu' },
