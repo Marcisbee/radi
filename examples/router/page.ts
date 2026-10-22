@@ -10,6 +10,7 @@ export interface PageData {
   id: string;
   title: string;
   visits: number;
+  reacted: boolean;
 }
 
 const endpoint = ({ params }: RouteContext) =>
@@ -37,6 +38,13 @@ export function view(state: RouterState): Node {
     h('h1', null, page.title),
     h('p', null, 'Visits: ', h('output', null, String(page.visits))),
     h('form', { method: 'post' }, h('button', { type: 'submit' }, 'Add visit')),
+    h('div', { id: 'reaction' }),
+    h('label', null, 'Comment draft ', h('input', { id: 'draft' })),
+    h('iframe', {
+      id: 'embed',
+      title: 'Embedded content kept mounted during reactions',
+      srcdoc: '<p>Embedded content — reactions keep this document mounted.</p>',
+    }),
     h(
       'p',
       null,

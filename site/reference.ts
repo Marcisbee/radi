@@ -51,9 +51,14 @@ export const references = [
       'Runs the destination action, invalidates cached data, and reloads its loader. Supports POST (default), PUT, PATCH, and DELETE. Action results appear in actionData; a missing action produces 405.',
     ],
     [
+      'createFetcher',
+      "const fetcher = router.createFetcher<Result>();\nfetcher.subscribe(({ data, error, status }) => { /* update a component */ });\nawait fetcher.submit('/posts/42/reactions', formData, 'POST', { invalidate: ['/posts/42'] });\nawait fetcher.load('/posts/42/reactions');\nfetcher.dispose();",
+      'Independent data state without navigation, scrolling, route notifications or automatic loader revalidation. load runs a fresh loader; submit stores action data in fetcher.state.data. Mutations invalidate all cache entries unless an explicit URL list is supplied ([] opts out). Errors and RouteRedirect stay in fetcher state. New work aborts older work on this fetcher; dispose it when its component unmounts. Cancellation cannot undo server writes.',
+    ],
+    [
       'revalidate',
       'await router.revalidate();\nrouter.invalidate();',
-      'revalidate clears cached data and reloads the current browser URL. invalidate only clears cached data. Use these after external updates or identity changes.',
+      'revalidate clears cached data and reloads the current browser URL. invalidate() clears all cached data; invalidate([url, ...]) clears selected pathname/search keys without navigating. Use full invalidation after identity changes.',
     ],
     [
       'prefetch',
@@ -63,7 +68,7 @@ export const references = [
     [
       'dispose',
       'router.dispose();',
-      'Aborts navigation and prefetch, removes installed listeners, and clears data. Dispose before replacing the router.',
+      'Aborts navigation, fetchers and prefetch, removes installed listeners, and clears data. Dispose before replacing the router.',
     ],
     [
       'fetchRouteData',

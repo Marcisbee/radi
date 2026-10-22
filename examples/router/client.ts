@@ -1,5 +1,6 @@
-import { createElement as h, createRoot } from '../../src/client.ts';
+import { createElement as h, createRoot, update } from '../../src/client.ts';
 import { createRouter, RouteError } from '../../src/router.ts';
+import type { PageData } from './page.ts';
 
 const outlet = document.getElementById('outlet')!;
 const root = createRoot(outlet);
@@ -14,6 +15,47 @@ const router = createRouter({
   cacheSize: 5,
 });
 
+let disposeReaction: (() => void) | undefined;
+function mountReaction(initial: PageData) {
+  let page = initial;
+  const fetcher = router.createFetcher<PageData>();
+  const reaction = h(
+    'div',
+    { id: 'reaction' },
+    h('button', {
+      type: 'button',
+      disabled: () => fetcher.state.status !== 'idle',
+      onclick: () =>
+        fetcher.submit(
+          location.href,
+          new FormData(),
+          page.reacted ? 'DELETE' : 'PUT',
+          {
+            invalidate: [location.href],
+          },
+        ),
+    }, () => page.reacted ? 'Remove reaction' : 'Add reaction'),
+    h(
+      'span',
+      { role: 'status' },
+      () =>
+        fetcher.state.error
+          ? ' Could not save reaction. Try again.'
+          : fetcher.state.status !== 'idle'
+          ? ' Saving…'
+          : page.reacted
+          ? ' 1 reaction'
+          : ' 0 reactions',
+    ),
+  );
+  document.getElementById('reaction')!.replaceWith(reaction);
+  fetcher.subscribe((state) => {
+    if (state.data) page = state.data;
+    update(reaction);
+  });
+  return () => fetcher.dispose();
+}
+
 router.subscribe((state) => {
   status.textContent = state.status === 'idle'
     ? 'Ready'
@@ -22,6 +64,7 @@ router.subscribe((state) => {
     : 'Loading…';
   outlet.setAttribute('aria-busy', String(state.status !== 'idle'));
   if (state.status !== 'idle') return;
+  disposeReaction?.();
   if (state.error) {
     const message = state.error instanceof RouteError
       ? `Request failed: ${state.error.status}`
@@ -34,7 +77,10 @@ router.subscribe((state) => {
         h('button', { onclick: () => router.revalidate() }, 'Retry'),
       ),
     );
-  } else if (state.module?.view) root.render(state.module.view(state));
+  } else if (state.module?.view) {
+    root.render(state.module.view(state));
+    disposeReaction = mountReaction(state.data as PageData);
+  }
 });
 router.attach();
 document.addEventListener('submit', (event) => {

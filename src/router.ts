@@ -135,6 +135,23 @@ export interface RouterOptions {
   cacheSize?: number;
 }
 
+export interface FetcherState<T = unknown> {
+  data: T | undefined;
+  error: unknown;
+  status: 'idle' | 'loading' | 'submitting';
+}
+
+export interface FetcherSubmitOptions {
+  /** Omit to invalidate all cached data; [] preserves all entries. */
+  invalidate?: readonly (string | URL)[];
+}
+
+function validateMethod(method: ActionContext['method']) {
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    throw new Error('Invalid action method');
+  }
+}
+
 /** One router owns the window history. Call dispose() before replacing it. */
 export function createRouter(options: RouterOptions) {
   for (const route of options.routes) {
@@ -161,6 +178,7 @@ export function createRouter(options: RouterOptions) {
   const modules = new Map<Route, Promise<RouteModule>>();
   const cache = new Map<string, { data: unknown; expires: number }>();
   const prefetches = new Set<AbortController>();
+  const fetcherDisposals = new Set<() => void>();
   const detachments = new Set<() => void>();
   const staleTime = Math.max(0, options.staleTime ?? 0);
   const cacheSize = Math.max(0, options.cacheSize ?? 20);
@@ -174,9 +192,12 @@ export function createRouter(options: RouterOptions) {
     state = next;
     for (const listener of listeners) listener(state);
   };
-  const invalidate = () => {
+  const invalidate = (urls?: readonly (string | URL)[]) => {
+    const keys = urls?.map((url) => key(resolve(url)));
+    if (keys?.length === 0) return;
     epoch++;
-    cache.clear();
+    if (keys) { for (const entry of keys) cache.delete(entry); }
+    else cache.clear();
   };
   const save = (url: URL, data: unknown, version: number) => {
     if (!staleTime || !cacheSize || version !== epoch || disposed) return;
@@ -250,17 +271,7 @@ export function createRouter(options: RouterOptions) {
     try {
       if (action) {
         invalidate();
-        const match = matchRoute(options.routes, url.pathname);
-        if (!match) throw new RouteError(404, 'Route not found');
-        const module = await getModule(match.route);
-        signal.throwIfAborted();
-        if (!module.action) throw new RouteError(405, 'Route has no action');
-        actionData = await module.action({
-          ...action,
-          url,
-          params: match.params,
-          signal,
-        });
+        actionData = await runAction(url, signal, action);
         signal.throwIfAborted();
         invalidate();
       }
@@ -319,6 +330,102 @@ export function createRouter(options: RouterOptions) {
     signal.throwIfAborted();
     return { match, module, data: options.initialData };
   }
+
+  async function runAction(url: URL, signal: AbortSignal, action: {
+    formData: FormData;
+    method: ActionContext['method'];
+  }) {
+    const match = matchRoute(options.routes, url.pathname);
+    if (!match) throw new RouteError(404, 'Route not found');
+    const module = await getModule(match.route);
+    signal.throwIfAborted();
+    if (!module.action) throw new RouteError(405, 'Route has no action');
+    return module.action({ ...action, url, params: match.params, signal });
+  }
+
+  /** Independent data state. Never navigates or notifies route subscribers. */
+  function createFetcher<T = unknown>() {
+    if (disposed) throw new Error('Router is disposed');
+    let current: FetcherState<T> = {
+      data: undefined,
+      error: undefined,
+      status: 'idle',
+    };
+    let controller: AbortController | undefined;
+    let stopped = false;
+    const subscribers = new Set<(state: FetcherState<T>) => void>();
+    const publish = (next: FetcherState<T>) => {
+      current = next;
+      for (const listener of subscribers) listener(current);
+    };
+    async function run(
+      status: 'loading' | 'submitting',
+      request: (signal: AbortSignal) => Promise<unknown>,
+    ) {
+      if (stopped) return;
+      controller?.abort();
+      const pending = controller = new AbortController();
+      publish({ ...current, status, error: undefined });
+      try {
+        const data = await request(pending.signal);
+        if (!pending.signal.aborted) {
+          publish({ data: data as T, error: undefined, status: 'idle' });
+        }
+      } catch (error) {
+        if (!pending.signal.aborted) {
+          publish({ ...current, error, status: 'idle' });
+        }
+      }
+    }
+    const dispose = () => {
+      stopped = true;
+      controller?.abort();
+      subscribers.clear();
+      fetcherDisposals.delete(dispose);
+    };
+    fetcherDisposals.add(dispose);
+    return {
+      get state() {
+        return current;
+      },
+      subscribe(listener: (state: FetcherState<T>) => void) {
+        if (stopped) throw new Error('Fetcher is disposed');
+        subscribers.add(listener);
+        listener(current);
+        return () => {
+          subscribers.delete(listener);
+        };
+      },
+      load(to: string | URL) {
+        const url = resolve(to);
+        return run(
+          'loading',
+          async (signal) => (await load(url, signal, true)).data,
+        );
+      },
+      submit(
+        to: string | URL,
+        formData: FormData,
+        method: ActionContext['method'] = 'POST',
+        settings: FetcherSubmitOptions = {},
+      ) {
+        validateMethod(method);
+        const url = resolve(to);
+        // Resolve before starting the write so invalid targets cannot fail afterward.
+        const targets = settings.invalidate?.map(resolve);
+        return run('submitting', async (signal) => {
+          invalidate(targets);
+          try {
+            return await runAction(url, signal, { formData, method });
+          } finally {
+            // Aborting a request does not undo a server-side write.
+            invalidate(targets);
+          }
+        });
+      },
+      dispose,
+    };
+  }
   const onPopState = () => {
     void transition(new URL(location.href), 'none');
   };
@@ -354,14 +461,13 @@ export function createRouter(options: RouterOptions) {
       };
     },
     navigate,
+    createFetcher,
     async submit(
       to: string | URL,
       formData: FormData,
       method: ActionContext['method'] = 'POST',
     ) {
-      if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-        throw new Error('Invalid action method');
-      }
+      validateMethod(method);
       await transition(resolve(to), 'push', { formData, method });
     },
     async revalidate() {
@@ -418,6 +524,7 @@ export function createRouter(options: RouterOptions) {
     dispose() {
       disposed = true;
       active?.abort();
+      for (const dispose of fetcherDisposals) dispose();
       for (const controller of prefetches) controller.abort();
       for (const detach of detachments) detach();
       window.removeEventListener('popstate', onPopState);

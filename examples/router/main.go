@@ -27,9 +27,10 @@ var source string
 var assets embed.FS
 
 type page struct {
-	ID     string `json:"id"`
-	Title  string `json:"title"`
-	Visits int    `json:"visits"`
+	ID      string `json:"id"`
+	Title   string `json:"title"`
+	Visits  int    `json:"visits"`
+	Reacted bool   `json:"reacted"`
 }
 
 func main() {
@@ -60,12 +61,12 @@ func main() {
 	mux.HandleFunc("/api/pages/{id}", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store")
-		if r.Method != "GET" && r.Method != "POST" {
-			w.Header().Set("Allow", "GET, POST")
+		if r.Method != "GET" && r.Method != "POST" && r.Method != "PUT" && r.Method != "DELETE" {
+			w.Header().Set("Allow", "GET, POST, PUT, DELETE")
 			writeError(w, 405, "Method not allowed")
 			return
 		}
-		if r.Method == "POST" {
+		if r.Method != "GET" {
 			origin, err := url.Parse(r.Header.Get("Origin"))
 			if err != nil || origin.Host != r.Host || (origin.Scheme != "http" && origin.Scheme != "https") {
 				writeError(w, 403, "Invalid origin")
@@ -81,8 +82,11 @@ func main() {
 		}
 		if r.Method == "POST" {
 			value.Visits++
-			pages[value.ID] = value
 		}
+		if r.Method == "PUT" || r.Method == "DELETE" {
+			value.Reacted = r.Method == "PUT"
+		}
+		pages[value.ID] = value
 		json.NewEncoder(w).Encode(value)
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

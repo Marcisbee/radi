@@ -72,9 +72,9 @@ not throw from subscribers.
   destination's loader. Methods are POST, PUT, PATCH, and DELETE. Intercept
   forms explicitly, or use `navigate` with search parameters for GET forms.
 - `revalidate()` invalidates cached data and reloads the current browser URL.
-- `dispose()` aborts active navigation/prefetch, removes installed listeners,
-  and clears cached data. Use one router per window and dispose before replacing
-  it.
+- `dispose()` aborts active navigation, fetchers and prefetch, removes installed
+  listeners, and clears cached data. Use one router per window and dispose
+  before replacing it.
 
 New navigation aborts obsolete work and prevents its result from committing even
 if a loader ignores its signal. Pass the signal to fetch. Aborting an action
@@ -95,6 +95,56 @@ New push/replace navigation scrolls to the top or the URL's fragment. Hash-only
 navigation avoids the loader. Back/forward leaves scrolling to the browser;
 custom scroll restoration and focus management belong to the application.
 
+## Local data and mutations
+
+Use `router.createFetcher<T>()` for reactions, autocomplete, or other work that
+must leave the current route mounted. Each fetcher owns independent
+`{ data, error, status }` state and an immediate `subscribe` callback. It never
+changes history, scrolls, calls the route view, or notifies router subscribers.
+
+```ts
+const reaction = router.createFetcher<{ count: number }>();
+const unsubscribe = reaction.subscribe(({ data, error, status }) => {
+  // Update only the reaction component (for example, update(reactionRoot)).
+  // Keep pending/error feedback local; existing data remains while busy.
+});
+await reaction.submit('/posts/42/reactions', new FormData(), 'POST', {
+  invalidate: ['/posts/42'],
+});
+// Explicitly refresh just this fetcher's data, without rerendering the route:
+await reaction.load('/posts/42/reactions');
+unsubscribe();
+reaction.dispose();
+```
+
+The target must match a configured route. `load(url)` runs its loader with fresh
+data; `submit(url, formData, method = 'POST', options?)` runs only its action.
+It does not automatically reload any loader. Return the updated entity from the
+action and apply that receipt locally. Use another fetcher's `load` to refresh
+an affected component, or `router.revalidate()` when the whole route needs fresh
+data. Route state is deliberately unchanged until explicitly refreshed.
+
+Mutation options accept `invalidate: [url, ...]` to evict just those cache keys.
+Omit this option to invalidate all cached data; `[]` opts out. Choose every
+affected URL, including query variants, when using selective invalidation.
+Invalidation happens before and after the action, including failures; it does
+not refresh mounted UI. Concurrent reads started before invalidation cannot
+repopulate the cache with stale data.
+
+Success replaces fetcher `data`. Failure retains previous data and sets `error`;
+the returned promise settles after state is published. Route redirects are
+reported as `RouteRedirect` in fetcher error state, not followed automatically.
+Handle an intended redirect explicitly with `router.navigate(error.location)`.
+Invalid methods or cross-origin URLs are usage errors and throw before starting.
+
+A new operation on the same fetcher aborts the old one and suppresses its late
+result. Separate fetchers can run concurrently and survive route navigation;
+dispose them when their owning component unmounts. Router disposal also disposes
+all its fetchers. Cancellation cannot undo a server write or guarantee write
+ordering: use idempotent operations or server-side concurrency controls and
+reconcile uncertain outcomes with a fresh read. Optimistic UI and rollback are
+application-owned; the example waits for the server receipt.
+
 ## Prefetch and caching
 
 `prefetch(url)` loads a route module and its data without navigating. It rejects
@@ -105,15 +155,16 @@ from JavaScript's module cache.
 Set `staleTime` in milliseconds to enable data caching and `cacheSize` to bound
 entries (default 20). Keys are pathname plus search, excluding fragment. Entries
 expire from their load time; reading does not extend freshness. Eviction removes
-the oldest saved entry. `invalidate()` clears data without navigating. Dispose
+the oldest saved entry. `invalidate()` clears all data without navigating;
+`invalidate(['/pages/about'])` clears only those pathname/search keys. Dispose
 or invalidate on logout/account changes. HTTP cache headers remain the server's
 responsibility. Do not prefetch mutations or cache personalized data across
 users.
 
 ## Go and embedded V8 example
 
-`examples/router` uses the [Go and embedded V8 adapter](go-server.md).
-The router itself and `deno task test:router` also work independently of it.
+`examples/router` uses the [Go and embedded V8 adapter](go-server.md). The
+router itself and `deno task test:router` also work independently of it.
 
 With the adapter and its documented Clang/CGO toolchain available:
 
@@ -139,6 +190,8 @@ mounted.
 
 Subsequent loads use Go's `/api/pages/{id}` JSON handler. POST actions update
 the server's demonstration in-memory data, then the router revalidates.
+PUT/DELETE reactions use a fetcher and update only their component, keeping the
+route's comment draft and embedded document mounted without another loader read.
 Refreshing a deep route renders the same data through V8. Use the same
 authorized service function for SSR operations and JSON handlers in a real
 application, including Flop reads/writes; never expose the adapter's operation

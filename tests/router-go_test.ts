@@ -68,6 +68,68 @@ Deno.test('Go/V8 SSR, client navigation, history and action revalidation', async
     await page.getByRole('heading', { name: 'About', exact: true }).waitFor();
     await page.goForward();
     await page.getByRole('heading', { name: 'Home', exact: true }).waitFor();
+    await page.locator('#draft').fill('Do not lose my comment');
+    await page.evaluate(() => {
+      const frame = document.querySelector<HTMLIFrameElement>('#embed')!;
+      Object.assign(globalThis, {
+        preserved: {
+          draft: document.querySelector('#draft'),
+          section: document.querySelector('#outlet section'),
+          frame,
+          document: frame.contentDocument,
+          history: history.length,
+          outsideChanges: 0,
+        },
+      });
+      const saved = (globalThis as unknown as {
+        preserved: { outsideChanges: number; observer?: MutationObserver };
+      }).preserved;
+      saved.observer = new MutationObserver((records) => {
+        saved.outsideChanges += records.filter((record) =>
+          !document.querySelector('#reaction')!.contains(record.target)
+        ).length;
+      });
+      saved.observer.observe(document.querySelector('#outlet')!, {
+        subtree: true,
+        attributes: true,
+        childList: true,
+        characterData: true,
+      });
+    });
+    const reactionReads = reads.length;
+    for (const _ of [1, 2, 3]) {
+      await page.getByRole('button', { name: 'Add reaction', exact: true })
+        .click();
+      await page.getByText('1 reaction', { exact: true }).waitFor();
+      await page.getByRole('button', { name: 'Remove reaction', exact: true })
+        .click();
+      await page.getByText('0 reactions', { exact: true }).waitFor();
+    }
+    assert.equal(
+      reads.length,
+      reactionReads,
+      'Reaction receipts need no route reload',
+    );
+    assert.equal(
+      await page.locator('#draft').inputValue(),
+      'Do not lose my comment',
+    );
+    assert.equal(
+      await page.evaluate(`(() => {
+      const saved = globalThis.preserved;
+      return saved.draft === document.querySelector('#draft') &&
+        saved.section === document.querySelector('#outlet section') &&
+        saved.frame === document.querySelector('#embed') &&
+        saved.document === saved.frame.contentDocument &&
+        saved.history === history.length && saved.outsideChanges === 0;
+    })()`),
+      true,
+      'Reactions preserve the route subtree, embedded document and history',
+    );
+    await page.evaluate('globalThis.preserved.observer.disconnect()');
+    await page.getByRole('button', { name: 'Add reaction', exact: true })
+      .click();
+    await page.getByText('1 reaction', { exact: true }).waitFor();
     const before = Number(await page.locator('output').textContent());
     await page.getByRole('button', { name: 'Add visit' }).click();
     await page.waitForFunction(
@@ -82,9 +144,14 @@ Deno.test('Go/V8 SSR, client navigation, history and action revalidation', async
       Number(await page.locator('output').textContent()),
       before + 1,
     );
+    await page.getByRole('button', { name: 'Remove reaction', exact: true })
+      .waitFor();
+    await page.getByRole('button', { name: 'Remove reaction', exact: true })
+      .click();
+    await page.getByText('0 reactions', { exact: true }).waitFor();
     assert.deepEqual(errors, []);
     console.log(
-      'Three warm round trips: zero document requests, zero additional data reads; history and mutation persisted.',
+      'Three warm round trips reuse data. Reactions preserve draft, embedded document and history without route reads; writes survive refresh.',
     );
   } finally {
     await browser.close();
