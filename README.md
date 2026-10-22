@@ -400,6 +400,8 @@ import { createElement, Fragment } from 'radi';
 3. Run tests: `deno task test`
 4. Open a PR with a concise description
 
+For publishing to npm, see the [release workflow](.github/RELEASING.md).
+
 ## License
 
 MIT

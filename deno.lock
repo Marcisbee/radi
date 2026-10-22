@@ -15,7 +15,6 @@
     "npm:@types/node@*": "24.2.0",
     "npm:esbuild@*": "0.25.6",
     "npm:lit@*": "2.5.0",
-    "npm:playwright@1.56.1": "1.56.1",
     "npm:playwright@^1.56.1": "1.56.1",
     "npm:preact@*": "10.26.8",
     "npm:radi@0.5.0-alpha.25": "0.5.0-alpha.25",
