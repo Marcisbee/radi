@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - run: node --test .github/scripts/draft-release.test.cjs
+      - run: node --test .github/scripts/*.test.cjs
       - run: npx --yes playwright@1.56.1 install --with-deps chromium
       - run: deno task test
       - run: deno run -A build.npm.ts

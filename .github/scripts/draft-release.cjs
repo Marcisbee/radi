@@ -1,4 +1,5 @@
 const { version: baseline } = require('../../deno.json');
+const { nextVersion } = require('./release-version.cjs');
 const marker = '<!-- radi-automatic-release -->';
 const stable = /^(?:v)?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const compare = (a, b) => {
@@ -14,8 +15,11 @@ module.exports = async ({ github, context }) => {
   const previous = releases.filter((release) =>
     !release.draft && !release.prerelease && stable.test(release.tag_name)
   ).sort((a, b) => compare(b.tag_name, a.tag_name))[0];
-  const parts = previous?.tag_name.replace(/^v/, '').split('.').map(Number);
-  const next = parts ? `${parts[0]}.${parts[1]}.${parts[2] + 1}` : baseline;
+  const commits = previous ? await github.paginate(github.rest.repos.compareCommitsWithBasehead, {
+    ...repo, basehead: `${previous.tag_name}...${context.sha}`, per_page: 100,
+  }) : [];
+  if (previous && commits.length === 0) return;
+  const next = previous ? nextVersion(previous.tag_name, commits.map(({ commit }) => commit.message)) : baseline;
   const version = compare(baseline, next) > 0 ? baseline : next;
   const tag = `v${version}`;
   const drafts = releases.filter((release) => release.draft && release.body?.includes(marker));

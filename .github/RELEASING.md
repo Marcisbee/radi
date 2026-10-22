@@ -1,11 +1,26 @@
 # npm releases
 
 Pushes and merged PRs on `master` create or update one draft GitHub release.
-The next version is a patch above the highest published stable GitHub release,
-or `deno.json`'s version if that is higher. The first draft on the current
-history is `v0.5.0`. Raise `deno.json` before merging to choose a minor or major
-release. Direct commits also trigger draft updates; GitHub generates the notes,
-which may need editing for changes without PRs.
+The next version uses all commits since the highest published stable GitHub
+release and selects the largest Conventional Commit bump:
+
+- `fix:` (and `perf:`) increments patch.
+- `feat:` increments minor and resets patch.
+- `!` in the header or a `BREAKING CHANGE:` / `BREAKING-CHANGE:` footer increments
+  minor while on `0.x`, or major after `1.0.0`, resetting lower components.
+- Other types and legacy messages fall back to patch.
+
+`deno.json` remains a minimum version. Set it to `1.0.0` deliberately when ready
+for a stable API; breaking changes never automatically promote `0.x` to `1.x`.
+Without a previous stable release, its version bootstraps the first draft.
+With no commits since the previous release, refreshing does nothing.
+Further pushes recompute the version and update the same draft, so adding a
+feature can change a pending `0.5.1` draft into `0.6.0`.
+
+Use Conventional Commit PR titles and squash merge with that title. The PR-title
+check validates syntax; the author and reviewer must classify compatibility
+changes correctly. Direct pushes must use the same commit convention.
+GitHub generates the notes, which may need editing for changes without PRs.
 
 The draft targets the current `master` commit SHA. Review the tag, target, and
 notes, then publish the draft in GitHub. That human action triggers
@@ -15,6 +30,12 @@ commits back to `master`. Prereleases are intentionally skipped; the existing
 manual alpha publishing command remains available.
 
 ## One-time setup
+
+In GitHub repository settings, allow squash merging and set the default squash
+commit title to the PR title and the message to the PR description. Use squash merging for release classification;
+ordinary merge/rebase merges retain individual commits and their release signals.
+The `Check PR title / title` check should be required in the repository's branch
+rules if merges must be prevented when a title is invalid.
 
 In npm's `radi` package settings, add a GitHub Actions trusted publisher:
 
