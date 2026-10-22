@@ -1,6 +1,6 @@
 import { assert, test } from "@marcisbee/rion/test";
 import { mount } from "../../test/utils.ts";
-import { createList, update } from "../client.ts";
+import { createList, createRoot, update } from "../client.ts";
 
 /**
  * Child component with reactive render counter.
@@ -134,6 +134,55 @@ test("reactive parent with keyed children increments each exactly once per manua
     const [id, count] = el.textContent!.split(":");
     assert.equal(count, "3", "after second update count = 3 for " + id);
   }
+});
+
+test('descendant updates use a snapshot when listeners remove, move, and insert nodes', () => {
+  const events: string[] = [];
+  const first = <span title={() => 'first'} />;
+  const removed = <span title={() => 'removed'} />;
+  const moved = <span title={() => 'moved'} />;
+  const inserted = <span title={() => 'inserted'} />;
+  const container = <div>{first}{removed}{moved}</div>;
+  const root = createRoot(document.body);
+  root.render(container);
+  for (const [name, node] of [
+    ['first', first], ['removed', removed],
+    ['moved', moved], ['inserted', inserted],
+  ] as const) {
+    node.addEventListener('update', () => events.push(name));
+  }
+  first.addEventListener('update', () => {
+    removed.remove();
+    container.prepend(moved);
+    container.append(inserted);
+  }, { once: true });
+
+  update(container);
+  assert.equal(events.join(','), 'first,moved');
+  events.length = 0;
+  update(container);
+  assert.equal(events.join(','), 'moved,first,inserted');
+  root.unmount();
+});
+
+test('unmount cleans subscriptions beneath static wrappers after a DOM move', () => {
+  let subscriptions = 0;
+  const store = {
+    subscribe(listener: (value: string) => void) {
+      subscriptions++;
+      listener('value');
+      return () => subscriptions--;
+    },
+  };
+  const child = <span>{store}</span>;
+  const left = <section>{child}</section>;
+  const right = <section />;
+  const root = createRoot(document.body);
+  root.render(<div>{left}{right}</div>);
+  right.append(child);
+  assert.equal(subscriptions, 1);
+  root.unmount();
+  assert.equal(subscriptions, 0);
 });
 
 await test.run();
