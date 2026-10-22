@@ -25,6 +25,7 @@ jobs:
       - run: node --test .github/scripts/*.test.cjs
       - run: npx --yes playwright@1.56.1 install --with-deps chromium
       - run: deno task test
+      - run: deno task test:static
       - run: deno run -A build.npm.ts
         env:
           RELEASE_VERSION: 0.0.0-release-check
