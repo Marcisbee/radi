@@ -18,6 +18,7 @@
     "./client": "./src/client.ts",
     "./resume": "./src/resume.ts",
     "./server": "./src/server.ts",
+    "./go": "./src/go.ts",
     "./static": "./src/static.ts",
     "./server/jsx-runtime": "./src/server/jsx-runtime.ts",
     "./server/jsx-dev-runtime": "./src/server/jsx-dev-runtime.ts",

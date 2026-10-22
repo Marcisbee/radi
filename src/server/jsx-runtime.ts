@@ -21,12 +21,12 @@
 import {
   createElement as ssrCreateElement,
   Fragment as SSRFragment,
-} from '../server.ts';
+} from '../server-html.ts';
 import type {
   ServerChild,
   ServerComponent as ComponentType,
   ServerNode,
-} from '../server.ts';
+} from '../server-html.ts';
 
 /** JSX types are local to the server runtime, independent of DOM JSX globals. */
 export namespace JSX {
