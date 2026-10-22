@@ -128,9 +128,8 @@ function queueDescendantComponents(root: Node) {
     return;
   }
 
-  const children = root.childNodes;
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i];
+  for (let node = root.firstChild; node; node = node.nextSibling) {
+    const child = node;
     if ((child as any)[COMPONENT] && (child as any)[INSTANCE] === undefined) {
       queueConnection(() => {
         if (!child.isConnected || (child as any)[INSTANCE] !== undefined) {
@@ -262,6 +261,14 @@ function buildRender(parent: Anchor, fn: (parent: Anchor) => any) {
   };
 }
 
+function snapshotChildren(parent: Node): Node[] {
+  const children: Node[] = [];
+  for (let child = parent.firstChild; child; child = child.nextSibling) {
+    children.push(child);
+  }
+  return children;
+}
+
 function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
   if (parent[RENDER_ID] === currentUpdateId) {
     return (parent[REACTIVE_CHILDREN] as Node[]) || [];
@@ -309,6 +316,12 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
     const arrayOld = Array.isArray(valueOld)
       ? valueOld
       : (valueOld ? [valueOld] : []);
+    const oldPositions = new Map();
+    if (valueNew.items.length) {
+      for (const [index, node] of arrayOld.entries()) {
+        if (!oldPositions.has(node)) oldPositions.set(node, index);
+      }
+    }
 
     for (let i = 0; i < valueNew.items.length; i++) {
       const item = valueNew.items[i];
@@ -318,7 +331,7 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
         usedNodes.add(oldNode);
 
         // Check if item is at same position as before
-        const oldIndex = arrayOld.indexOf(oldNode);
+        const oldIndex = oldPositions.get(oldNode);
         const positionChanged = oldIndex !== i;
 
         if (positionChanged) {
@@ -372,14 +385,30 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
     (arrayOut as any)[KEY_MAP] = newMap;
 
     // Clean up old nodes that are not in the new array
+    const retainedNodes = arrayOld.length ? new Set(arrayOut) : null;
     for (const toDelete of arrayOld) {
-      if (toDelete instanceof Node && arrayOut.indexOf(toDelete) === -1) {
+      if (toDelete instanceof Node && !retainedNodes!.has(toDelete)) {
         disconnect(toDelete);
       }
     }
 
     flushConnectionQueue();
     return arrayOut;
+  }
+
+  // Reactive text is the common case; avoid collection bookkeeping for one node.
+  if (
+    Array.isArray(valueOld) && valueOld.length === 1 && !valueOld[KEY_MAP] &&
+    valueOld[0]?.nodeType === Node.TEXT_NODE &&
+    (typeof valueNew === 'string' || typeof valueNew === 'number')
+  ) {
+    const text = valueOld[0];
+    if (text.nodeValue !== String(valueNew)) text.nodeValue = valueNew;
+    if (parent.nodeType === Node.COMMENT_NODE || parent.nodeType === Node.TEXT_NODE) {
+      parent[TAIL] = text;
+    }
+    flushConnectionQueue();
+    return [text];
   }
 
   // Handle cleanup when switching from keyed to non-keyed
@@ -521,8 +550,8 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
         setProps(itemOld, itemNew[ATTRS] || {});
 
         diff(
-          Array.from(itemOld.childNodes),
-          Array.from(itemNew.childNodes),
+          snapshotChildren(itemOld),
+          snapshotChildren(itemNew),
           itemOld,
         );
 
@@ -700,6 +729,8 @@ function traverseReactiveChildren(scopes: Node[]) {
   const reactive: Anchor[] = [];
 
   for (const scope of scopes) {
+    const html = (scope.ownerDocument || scope as Document).contentType ===
+      'text/html';
     // Include the scope itself if it is reactive (anchor, attributes, or component host)
     if (
       REACTIVE_CHILDREN in scope || CLEANUP in scope ||
@@ -709,23 +740,28 @@ function traverseReactiveChildren(scopes: Node[]) {
       reactive.push(scope as any);
     }
 
-    const xpathResult = document.evaluate(
-      ".//comment() | .//*[@_r] | .//host",
+    // Snapshot before dispatch: update listeners can mutate or move descendants.
+    const walker = document.createTreeWalker(
       scope,
-      null,
-      XPathResult.ORDERED_NODE_ITERATOR_TYPE,
-      null,
+      NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_COMMENT,
     );
-    let node = xpathResult.iterateNext();
+    let node = walker.nextNode();
     while (node) {
+      const element = node as Element;
+      const eligible = node.nodeType === Node.COMMENT_NODE ||
+        element.hasAttribute('_r') ||
+        (html
+          ? element.namespaceURI === 'http://www.w3.org/1999/xhtml' &&
+            element.localName.toLowerCase() === 'host'
+          : !element.namespaceURI && element.localName === 'host');
       if (
-        REACTIVE_CHILDREN in node || CLEANUP in scope ||
-        REACTIVE_ATTRIBUTES in node ||
-        COMPONENT in node
+        eligible && (REACTIVE_CHILDREN in node || CLEANUP in scope ||
+          REACTIVE_ATTRIBUTES in node ||
+          COMPONENT in node)
       ) {
         reactive.push(node as any);
       }
-      node = xpathResult.iterateNext();
+      node = walker.nextNode();
     }
   }
   return reactive;
