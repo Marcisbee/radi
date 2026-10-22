@@ -81,6 +81,27 @@ Deno.test('the generated guide supports keyboard search and first-click interact
       );
       assert.ok((await response.text()).startsWith('#'));
     }
+    const background = () =>
+      staticPage.evaluate(() => getComputedStyle(document.body).color);
+    await staticPage.emulateMedia({ colorScheme: 'light' });
+    const lightText = await background();
+    const token = staticPage.locator('pre code span').first();
+    const lightCode = await token.evaluate((node) =>
+      getComputedStyle(node).color
+    );
+    await staticPage.emulateMedia({ colorScheme: 'dark' });
+    assert.notEqual(
+      await background(),
+      lightText,
+      'System dark mode must work without JavaScript',
+    );
+    assert.notEqual(
+      await token.evaluate((node) => getComputedStyle(node).color),
+      lightCode,
+      'Code highlighting must adapt too',
+    );
+    await staticPage.emulateMedia({ colorScheme: 'light' });
+    assert.equal(await background(), lightText);
     await agent.close();
     await context.setOffline(true);
     const requests: string[] = [];
@@ -108,11 +129,33 @@ Deno.test('the generated guide supports keyboard search and first-click interact
     );
     await input.fill('createAbortSignal');
     const results = page.getByRole('navigation', { name: 'Search results' });
-    assert.equal(await results.getByRole('link').count(), 2);
+    assert.ok(await results.getByRole('link').count() >= 2);
+    for (const link of await results.getByRole('link').all()) {
+      assert.ok(
+        await link.locator('mark').count() > 0,
+        'Every result must display its matching phrase',
+      );
+    }
     await results.getByRole('link', { name: /^Lifecycle/ }).focus();
     await page.keyboard.press('Enter');
     assert.ok(page.url().endsWith('#lifecycle'));
     assert.equal(await page.getByRole('dialog').count(), 0);
+    await search.click();
+    await input.fill('maxPending');
+    const apiResult = results.getByRole('link').filter({
+      has: page.locator('strong', { hasText: 'ResumeOptions' }),
+    });
+    assert.ok(
+      (await apiResult.locator('span mark').allTextContents()).some((text) =>
+        text.toLowerCase() === 'maxpending'
+      ),
+    );
+    await apiResult.click();
+    assert.ok(page.url().endsWith('#resume-api-ResumeOptions'));
+    assert.ok(
+      await page.getByRole('heading', { name: 'ResumeOptions', exact: true })
+        .isVisible(),
+    );
     await search.focus();
     await page.keyboard.press('Control+k');
     await input.fill('no-such-api-xyz');

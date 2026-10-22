@@ -6,11 +6,7 @@ These docs describe the current repository API. Components run once; dynamic exp
 
 ## Documentation
 
-- [Guide](https://radi.js.org/index.md): Installation, JSX configuration, components, reactivity, lifecycle, rendering, and complete code examples. Generated from the same content as the human-readable guide.
+- [Guide](https://radi.js.org/index.md): Installation, JSX configuration, components, reactivity, lifecycle, rendering, and the full client, server, resumption, static generation, signal, channel, renderer, and JSX API reference with code examples. Generated from the same content as the human-readable guide.
 - [Server rendering](https://radi.js.org/docs/server-rendering.md): Rendering APIs, async behavior, streaming, and limitations.
 - [Resumption](https://radi.js.org/docs/resumption.md): Boundaries, state, handler registration, event support, and limitations.
 - [Static sites](https://radi.js.org/docs/static-sites.md): Route generation, output writers, bootstrap scripts, and deployment.
-
-## Reference
-
-- [API reference](https://raw.githubusercontent.com/Marcisbee/radi/master/README.md): Current client API and examples.

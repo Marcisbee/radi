@@ -1,10 +1,20 @@
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   font-family: system-ui, sans-serif;
-  color: #302a3e;
-  background: #fff;
+  color: var(--text);
+  background: var(--background);
   font-synthesis: none;
   --accent: #7551b9;
+  --text: #302a3e;
+  --background: #fff;
+  --muted: #78717f;
+  --secondary: #625c6a;
+  --border: #eeeaf3;
+  --surface: #f8f6fb;
+  --brand: #554274;
+  --border-accent: #bfa4df;
+  --scrim: #302a3e40;
+  --highlight: #e8d9ff;
 }
 * {
   box-sizing: border-box;
@@ -41,8 +51,8 @@ button:active {
   display: none !important;
 }
 .site-header {
-  background: #fff;
-  border-bottom: 1px solid #eeeaf3;
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
 }
 .header-inner {
   max-width: 1160px;
@@ -56,7 +66,7 @@ button:active {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #554274;
+  color: var(--brand);
   font-size: 24px;
   font-weight: 700;
   letter-spacing: -.7px;
@@ -69,7 +79,7 @@ button:active {
   text-decoration: none;
 }
 .header-label {
-  color: #78717f;
+  color: var(--muted);
   font-size: 13px;
 }
 .github {
@@ -80,7 +90,7 @@ button:active {
   border: 0;
   padding: 8px 0;
   background: none;
-  color: #78717f;
+  color: var(--muted);
   font-size: 13px;
 }
 .layout {
@@ -104,7 +114,7 @@ button:active {
 }
 .nav-group p {
   margin: 0 0 7px;
-  color: #302a3e;
+  color: var(--text);
   font-size: 12px;
   font-weight: 600;
 }
@@ -113,7 +123,7 @@ button:active {
   padding: 5px 0;
   font-size: 13px;
   line-height: 1.6;
-  color: #78717f;
+  color: var(--muted);
 }
 .nav-group a[aria-current] {
   color: var(--accent);
@@ -151,7 +161,7 @@ h3 {
   scroll-margin-top: 32px;
 }
 p {
-  color: #625c6a;
+  color: var(--secondary);
   margin: 0 0 12px;
 }
 .lead {
@@ -179,7 +189,7 @@ p {
 }
 .code {
   margin: 12px 0 16px;
-  background: #f8f6fb;
+  background: var(--surface);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -189,7 +199,7 @@ figcaption {
   justify-content: space-between;
   padding: 8px 16px 0;
   font-size: 11px;
-  color: #78717f;
+  color: var(--muted);
 }
 pre {
   margin: 0;
@@ -201,7 +211,7 @@ pre {
 .copy {
   border: 0;
   background: none;
-  color: #78717f;
+  color: var(--muted);
   padding: 4px 0 4px 12px;
   min-height: 32px;
   font-size: 11px;
@@ -212,13 +222,13 @@ pre {
 .demo {
   padding: 20px;
   margin: 20px 0;
-  border: 1px solid #eeeaf3;
+  border: 1px solid var(--border);
   border-radius: 4px;
 }
 .demo-label,
 .demo-note {
   font-size: 12px;
-  color: #78717f;
+  color: var(--muted);
 }
 .demo p {
   margin: 0;
@@ -243,7 +253,7 @@ output {
   font-size: 13px;
 }
 .callout {
-  border-left: 2px solid #bfa4df;
+  border-left: 2px solid var(--border-accent);
   padding-left: 16px;
 }
 dl {
@@ -259,25 +269,25 @@ dt {
 dd {
   margin: 4px 0 0;
   font: 13px/1.7 ui-monospace, monospace;
-  color: #625c6a;
+  color: var(--secondary);
   overflow-wrap: anywhere;
 }
 footer {
   margin-top: 32px;
-  border-top: 1px solid #eeeaf3;
+  border-top: 1px solid var(--border);
   padding: 24px 0 36px;
   display: flex;
   justify-content: space-between;
   gap: 16px;
   font-size: 12px;
-  color: #78717f;
+  color: var(--muted);
 }
 .skip {
   position: fixed;
   top: -100px;
   z-index: 5;
   padding: 10px;
-  background: white;
+  background: var(--background);
 }
 .skip:focus {
   top: 10px;
@@ -297,31 +307,31 @@ dialog {
   max-height: 75dvh;
   padding: 0;
   margin: 14dvh auto auto;
-  border: 1px solid #eeeaf3;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: #302a3e;
+  color: var(--text);
 }
 dialog::backdrop {
-  background: #302a3e40;
+  background: var(--scrim);
 }
 .search-field {
   display: flex;
   align-items: center;
   padding: 16px;
   gap: 12px;
-  border-bottom: 1px solid #eeeaf3;
+  border-bottom: 1px solid var(--border);
 }
 .search-field input {
   width: 100%;
   min-width: 0;
   border: 0;
-  background: white;
+  background: var(--background);
   padding: 8px 0;
   font-size: 14px;
 }
 .search-field button {
   border: 0;
-  background: #f8f6fb;
+  background: var(--surface);
   padding: 8px;
   font-size: 12px;
 }
@@ -344,14 +354,14 @@ dialog::backdrop {
 #search-results span {
   display: block;
   font-size: 12px;
-  color: #625c6a;
+  color: var(--secondary);
   margin-top: 4px;
 }
 .search-help {
   padding: 12px 24px;
   font-size: 11px;
-  color: #78717f;
-  background: #f8f6fb;
+  color: var(--muted);
+  background: var(--surface);
 }
 @media (max-width: 767px) {
   .header-inner {
@@ -373,13 +383,13 @@ dialog::backdrop {
   }
   .mobile-contents {
     display: block;
-    border-bottom: 1px solid #eeeaf3;
+    border-bottom: 1px solid var(--border);
     padding: 0 22px;
   }
   summary {
     padding: 12px 0;
     font-size: 13px;
-    color: #625c6a;
+    color: var(--secondary);
   }
   .mobile-contents nav {
     padding: 12px 0;
@@ -406,5 +416,44 @@ dialog::backdrop {
 @media (prefers-reduced-motion: reduce) {
   button:active {
     transform: none;
+  }
+}
+
+.api-entry {
+  scroll-margin-top: 24px;
+}
+.api-entry h3 {
+  overflow-wrap: anywhere;
+}
+pre code span {
+  color: var(--code-light);
+}
+mark {
+  background: var(--highlight);
+  color: var(--text);
+  border-radius: 2px;
+}
+#search-results span {
+  overflow-wrap: anywhere;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent: #bd9aef;
+    --text: #eee8f5;
+    --background: #19161e;
+    --muted: #aaa1b5;
+    --secondary: #c3bacd;
+    --border: #38313f;
+    --surface: #24202c;
+    --brand: #d2b9f3;
+    --border-accent: #7551b9;
+    --scrim: #0009;
+    --highlight: #58416e;
+  }
+  pre code span {
+    color: var(--code-dark);
+  }
+  .counter button {
+    color: #19161e;
   }
 }

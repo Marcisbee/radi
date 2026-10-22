@@ -8,11 +8,15 @@ export async function code(
 ) {
   const { tokens } = await codeToTokens(source, {
     lang,
-    theme: 'github-light',
+    themes: { light: 'github-light', dark: 'github-dark' },
   });
   const lines = tokens.map((line) =>
     line.map((token) =>
-      h('span', { style: `color:${token.color}` }, token.content)
+      h('span', {
+        style: `--code-light:${token.htmlStyle?.color};--code-dark:${
+          token.htmlStyle?.['--shiki-dark']
+        }`,
+      }, token.content)
     )
   );
   return h(
@@ -78,7 +82,15 @@ const groups = [
     'islands',
     'Interactive islands',
   ]]],
-  ['Reference', [['reference', 'Client API']]],
+  ['Reference', [
+    ['reference', 'Client API'],
+    ['server-api', 'Server API'],
+    ['resume-api', 'Resumption API'],
+    ['static-api', 'Static generation'],
+    ['state-api', 'Signals & channels'],
+    ['renderer-api', 'Custom renderers'],
+    ['jsx-api', 'JSX & shared types'],
+  ]],
 ] as const;
 
 export function navigation(label: string) {

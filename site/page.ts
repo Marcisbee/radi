@@ -1,3 +1,4 @@
+import { references } from './reference.ts';
 import { createElement as h, resumable, resumeClick } from '../src/server.ts';
 import { code, header, navigation, searchDialog, section } from './ui.ts';
 
@@ -18,7 +19,7 @@ function introduction() {
       h(
         'a',
         { href: '#reactivity' },
-        'How reactivity works ↗',
+        'How reactivity works ↓',
       ),
     ),
   );
@@ -112,9 +113,8 @@ const publishingSections = [
       "import { createElement as h, renderToString } from 'radi/server';\n\nconst html = renderToString(h('h1', null, 'Hello from the server.'));",
     ),
     h('a', {
-      href:
-        'https://github.com/Marcisbee/radi/blob/master/docs/server-rendering.md',
-    }, 'Read the server rendering guide ↗'),
+      href: '#server-api',
+    }, 'Server API ↓'),
   ),
   section(
     'static',
@@ -129,9 +129,8 @@ const publishingSections = [
       "import { generateStaticSite } from 'radi/static';\nimport { createElement as h } from 'radi/server';\nimport { mkdir, writeFile } from 'node:fs/promises';\nimport { dirname, join } from 'node:path';\n\nawait generateStaticSite([{\n  path: '/',\n  title: 'My site',\n  render: () => h('h1', null, 'Made with Radi.'),\n}], async (path, html) => {\n  const file = join('dist', path);\n  await mkdir(dirname(file), { recursive: true });\n  await writeFile(file, html);\n});",
     ),
     h('a', {
-      href:
-        'https://github.com/Marcisbee/radi/blob/master/docs/static-sites.md',
-    }, 'Read the static site guide ↗'),
+      href: '#static-api',
+    }, 'Static generation API ↓'),
   ),
   section(
     'islands',
@@ -191,38 +190,34 @@ const publishingSections = [
       null,
       'This is explicit resumption: arbitrary closures are not serialized. Use native links and forms for navigation. The current island API supports registered clicks.',
     ),
+    h('h3', { id: 'automatic-islands' }, 'Why are islands explicit?'),
+    h(
+      'p',
+      null,
+      'Function children identify dynamic output, but do not identify a browser module or preserve a closure’s captured state. Radi currently has no compiler to extract those functions. A wrapper could generate registry entries for explicit module references, but could not automatically resume arbitrary components.',
+    ),
+    h(
+      'p',
+      null,
+      'Qwik offers more automatic authoring through ',
+      h(
+        'a',
+        { href: 'https://qwik.dev/docs/advanced/optimizer/' },
+        'its optimizer ↗',
+      ),
+      ', which extracts marked closures, and ',
+      h(
+        'a',
+        { href: 'https://qwik.dev/docs/advanced/qrl/' },
+        'QRL references ↗',
+      ),
+      ', which identify code and captured state. Similar support in Radi would require compiler, serialization, and reactive-binding work. For now, use explicit boundaries and choose eager or lazy handler delivery.',
+    ),
     h('a', {
-      href: 'https://github.com/Marcisbee/radi/blob/master/docs/resumption.md',
-    }, 'Wire the bootstrap and lazy handler ↗'),
+      href: '#resume-api',
+    }, 'Resumption API ↓'),
   ),
 ];
-
-function reference() {
-  const groups = [
-    ['Rendering', 'createRoot · root.render · root.unmount'],
-    ['Reactivity', 'update · memo'],
-    ['Keyed lists', 'createList · createKey'],
-    ['Lifecycle', 'createAbortSignal · createAbortSignalOnUpdate'],
-    ['Async UI', 'Suspense · suspend · unsuspend'],
-  ];
-  return section(
-    'reference',
-    'Client API',
-    h('p', null, 'The core client APIs, grouped by what you want to do.'),
-    h(
-      'dl',
-      null,
-      groups.map(([name, apis]) =>
-        h('div', null, h('dt', null, name), h('dd', null, apis))
-      ),
-    ),
-    h(
-      'a',
-      { href: 'https://github.com/Marcisbee/radi#api-reference' },
-      'Full API and examples ↗',
-    ),
-  );
-}
 
 export function page() {
   return [
@@ -249,7 +244,7 @@ export function page() {
         introduction(),
         ...basicSections,
         ...publishingSections,
-        reference(),
+        ...references,
         h(
           'footer',
           null,
