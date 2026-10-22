@@ -2,6 +2,8 @@
   "name": "radi",
   "version": "0.5.0",
   "tasks": {
+    "docs:build": "deno run -A site/build.ts",
+    "docs:preview": "deno run -A site/build.ts --serve",
     "dev": "deno -A npm:esbuild playground/*.tsx --jsx-import-source=preact --jsx=automatic --watch --servedir=playground/www --outdir=playground/www --bundle",
     "test": "deno -A --unstable-bundle @marcisbee/rion/test.cli --includes src",
     "test:server": "deno test --config deno.server.json --allow-net=127.0.0.1 tests/server-runtime_test.tsx",
