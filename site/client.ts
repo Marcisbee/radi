@@ -38,12 +38,15 @@ document.addEventListener('DOMContentLoaded', () => {
   for (
     const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')
   ) button.hidden = false;
-  const headings = [
-    ...document.querySelectorAll<HTMLElement>('main section[id]'),
-  ];
   const links = [
     ...document.querySelectorAll<HTMLAnchorElement>('[data-section-link]'),
   ];
+  const headings = [
+    ...document.querySelectorAll<HTMLElement>(
+      'main section[id], main article[id]',
+    ),
+  ]
+    .filter((heading) => links.some((link) => link.hash === `#${heading.id}`));
   let previous = '';
   const updateCurrent = () => {
     const atEnd = window.scrollY + window.innerHeight >=
@@ -66,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     threshold: [0, 1],
   });
   headings.forEach((section) =>
-    observer.observe(section.querySelector('h1, h2')!)
+    observer.observe(section.querySelector('h1, h2, h3')!)
   );
   observer.observe(document.querySelector('footer')!);
   window.addEventListener('hashchange', updateCurrent);

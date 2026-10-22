@@ -83,13 +83,16 @@ const groups = [
     'Interactive islands',
   ]]],
   ['Reference', [
-    ['reference', 'Client API'],
-    ['server-api', 'Server API'],
-    ['resume-api', 'Resumption API'],
-    ['static-api', 'Static generation'],
-    ['state-api', 'Signals & channels'],
-    ['renderer-api', 'Custom renderers'],
-    ['jsx-api', 'JSX & shared types'],
+    ['reference', 'radi / radi/client'],
+    ['server-api', 'radi/server'],
+    ['resume-api', 'radi/resume'],
+    ['static-api', 'radi/static'],
+    ['state-api', 'radi/signal'],
+    ['state-api-createChannel', 'radi/channel'],
+    ['renderer-api', 'radi/renderer'],
+    ['jsx-api', 'radi/jsx-runtime'],
+    ['jsx-api-shared-types', 'radi/types'],
+    ['jsx-api-symbols', 'radi/symbols'],
   ]],
 ] as const;
 

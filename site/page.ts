@@ -19,7 +19,7 @@ function introduction() {
       h(
         'a',
         { href: '#reactivity' },
-        'How reactivity works ↓',
+        'How reactivity works →',
       ),
     ),
   );
@@ -114,7 +114,7 @@ const publishingSections = [
     ),
     h('a', {
       href: '#server-api',
-    }, 'Server API ↓'),
+    }, 'radi/server →'),
   ),
   section(
     'static',
@@ -130,7 +130,7 @@ const publishingSections = [
     ),
     h('a', {
       href: '#static-api',
-    }, 'Static generation API ↓'),
+    }, 'radi/static →'),
   ),
   section(
     'islands',
@@ -215,7 +215,7 @@ const publishingSections = [
     ),
     h('a', {
       href: '#resume-api',
-    }, 'Resumption API ↓'),
+    }, 'radi/resume →'),
   ),
 ];
 
