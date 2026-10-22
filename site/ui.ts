@@ -81,12 +81,13 @@ const groups = [
   ['Rendering', [['server', 'Server rendering'], ['static', 'Static sites'], [
     'islands',
     'Interactive islands',
-  ]]],
+  ], ['routing', 'Client routing']]],
   ['Reference', [
     ['reference', 'radi / radi/client'],
     ['server-api', 'radi/server'],
     ['resume-api', 'radi/resume'],
     ['static-api', 'radi/static'],
+    ['router-api', 'radi/router'],
     ['state-api', 'radi/signal'],
     ['state-api-createChannel', 'radi/channel'],
     ['renderer-api', 'radi/renderer'],

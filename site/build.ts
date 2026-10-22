@@ -80,6 +80,7 @@ if (Deno.args.includes('--serve')) {
     '/docs/server-rendering.md': 'docs/server-rendering.md',
     '/docs/resumption.md': 'docs/resumption.md',
     '/docs/static-sites.md': 'docs/static-sites.md',
+    '/docs/routing.md': 'docs/routing.md',
   };
   Deno.serve({ hostname: '127.0.0.1', port: 4320 }, async (request) => {
     const file = files[new URL(request.url).pathname];

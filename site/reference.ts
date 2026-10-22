@@ -24,6 +24,63 @@ function reference(id: string, title: string, entry: string, entries: Entry[]) {
 }
 
 export const references = [
+  reference('router-api', 'Router API', 'radi/router', [
+    [
+      'createRouter',
+      'const router = createRouter({ routes, initialData?, staleTime?, cacheSize? });\nawait router.ready;',
+      'Creates one browser router per window. Routes specify path, loader, action, optional lazy module import, and optional view. Loader context contains url, decoded params, and signal. Action context also contains formData and method. initialData skips the first loader; staleTime enables data caching and cacheSize bounds entries (default 20).',
+    ],
+    [
+      'state',
+      'router.state;\nconst unsubscribe = router.subscribe(state => { /* render */ });',
+      'State exposes url, match, module, data, actionData, error, and status (idle, loading, or submitting). subscribe immediately calls its listener. Existing data stays visible while busy. Render the outlet or an error when idle; the router never calls a module’s optional view itself.',
+    ],
+    [
+      'navigate',
+      "await router.navigate('/pages/about', { replace: false });",
+      'Loads a same-origin route, then updates history. Back/forward resolves the browser URL. New navigation aborts obsolete work. Hash-only navigation skips the loader. Unmatched programmatic navigation produces a 404 RouteError.',
+    ],
+    [
+      'attach',
+      'const detach = router.attach(document);',
+      'Intercepts ordinary clicks on matching internal links. Modified clicks, downloads, external links, explicit targets, and data-radi-reload stay native. Forms are not automatically intercepted.',
+    ],
+    [
+      'submit',
+      "await router.submit('/pages/about', formData, 'POST');",
+      'Runs the destination action, invalidates cached data, and reloads its loader. Supports POST (default), PUT, PATCH, and DELETE. Action results appear in actionData; a missing action produces 405.',
+    ],
+    [
+      'revalidate',
+      'await router.revalidate();\nrouter.invalidate();',
+      'revalidate clears cached data and reloads the current browser URL. invalidate only clears cached data. Use these after external updates or identity changes.',
+    ],
+    [
+      'prefetch',
+      "await router.prefetch('/pages/about');",
+      'Loads route code and data without navigating. Data reuse requires a positive staleTime. Cache keys include pathname and search; hits do not extend expiry. Catch speculative failures. Prefetch does not follow redirects.',
+    ],
+    [
+      'dispose',
+      'router.dispose();',
+      'Aborts navigation and prefetch, removes installed listeners, and clears data. Dispose before replacing the router.',
+    ],
+    [
+      'fetchRouteData',
+      "const data = await fetchRouteData<Page>('/api/page', { signal });",
+      'Fetches JSON with Accept: application/json. Accepts JSON or 204; non-success responses throw RouteError with status and response data. A successful X-Radi-Location response redirects. The type parameter describes your contract, not runtime validation.',
+    ],
+    [
+      'redirect',
+      "redirect('/pages/home');\nthrow new RouteRedirect('/pages/home');",
+      'Throws a navigation redirect from a loader or action. Only same-origin destinations are supported and chains are limited to ten hops. Ordinary HTTP redirects followed by fetch are not route navigation.',
+    ],
+    [
+      'RouteError',
+      "throw new RouteError(404, 'Page not found');",
+      'Carries status and data into the router error state. Applications own error rendering, retry UI, focus management, and custom scroll restoration.',
+    ],
+  ]),
   reference('reference', 'Client API', 'radi or radi/client', [
     [
       'createRoot',

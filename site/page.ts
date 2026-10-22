@@ -101,6 +101,58 @@ const basicSections = [
 
 const publishingSections = [
   section(
+    'routing',
+    'Client routing',
+    h(
+      'p',
+      null,
+      'Use radi/router for SPA navigation without replacing the document. Keep shared layout outside a route outlet. Routes can load code lazily, read server data through loaders, and mutate it through actions followed by revalidation.',
+    ),
+    code(
+      'router.ts',
+      `import { createElement as h, createRoot } from 'radi';
+import { createRouter, fetchRouteData } from 'radi/router';
+
+const root = createRoot(document.getElementById('outlet')!);
+const router = createRouter({
+  routes: [{
+    path: '/pages/:id',
+    loader: ({ params, signal }) => fetchRouteData(
+      '/api/pages/' + encodeURIComponent(params.id), { signal },
+    ),
+  }],
+});
+router.subscribe((state) => {
+  if (state.status !== 'idle') return;
+  if (state.error) root.render(h('p', null, 'Could not load this page.'));
+  else root.render(h('pre', null, JSON.stringify(state.data, null, 2)));
+});
+router.attach();
+await router.ready;
+// Dispose when the application is removed: router.dispose();`,
+    ),
+    h(
+      'p',
+      null,
+      'Serve the application shell for direct visits to these URLs. The example expects a JSON endpoint implemented by your server. Authorization and persistence remain on the server; fresh data can still require a request.',
+    ),
+    h(
+      'p',
+      null,
+      'The optional initialData setting reuses data serialized by your server. Rendering an outlet replaces its existing DOM; it does not hydrate it. Routes are flat, with static paths, :parameters, and a final * wildcard. This is not Remix API compatibility.',
+    ),
+    h(
+      'p',
+      null,
+      'Caching is disabled by default. Enable staleTime and a bounded cacheSize to reuse prefetched data. Invalidate on account changes. New navigation aborts obsolete loads, but aborting an action cannot undo a server mutation.',
+    ),
+    h(
+      'a',
+      { href: '/docs/routing.md' },
+      'Routing guide, action examples, and Go/V8 integration requirements →',
+    ),
+  ),
+  section(
     'server',
     'Server rendering',
     h(
