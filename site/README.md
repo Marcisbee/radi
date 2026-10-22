@@ -33,5 +33,12 @@ palette. Typography follows Railpack’s installation page: Inter for body and
 navigation, IBM Plex Serif for the page title, and JetBrains Mono for code. The
 Latin font files are self-hosted with their licenses alongside them.
 
-Deployment is manual. No workflow in this change replaces the existing public
-site.
+GitHub Actions builds and verifies the docs on pull requests. Every push to
+`master` publishes the verified `dist/docs` artifact to GitHub Pages at
+`radi.js.org`. The Deploy documentation workflow also supports manual runs
+from `master`. Pull requests never deploy. GitHub Pages must use the GitHub
+Actions publishing source; the custom domain stays configured in Pages settings.
+
+If a build or test fails, deployment does not run and the last successful site
+stays live. To roll back, revert the offending change on `master`; the workflow
+then rebuilds and deploys that revision.
