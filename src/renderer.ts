@@ -201,7 +201,7 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
   function insertChildren(parent: UniversalNode, rawChildren: Child[]): void {
     const expanded = expandChild(rawChildren, adapter, runReactive);
     for (const child of expanded) {
-      if (child instanceof Node) {
+      if (typeof Node !== "undefined" && child instanceof Node) {
         continue;
       }
       // Reactive function chain: emit a placeholder for each function in chain.
@@ -227,12 +227,14 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
         let firstEmitted = false;
         let first: unknown = undefined;
         try {
-          (child as any).subscribe((v: unknown) => {
+          const cleanup = child.subscribe((v: unknown) => {
             if (!firstEmitted) {
               firstEmitted = true;
               first = v;
             }
           });
+          if (typeof cleanup === "function") cleanup();
+          else cleanup?.unsubscribe();
         } catch {
           /* ignore subscription errors */
         }
@@ -328,9 +330,8 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
     if (typeof adapter.serialize !== "function") {
       throw new Error("Adapter does not support serialization");
     }
-    // const root = adapter.createElement("radi-root-ssr");
-    // render(root, child);
-    return adapter.serialize(child);
+    const root = fragment([child]);
+    return adapter.serialize(root);
   }
 
   return {
@@ -351,7 +352,7 @@ export function createRenderer(adapter: RendererAdapter): Renderer {
  * A lightweight DOM adapter example for browsers.
  * This is intentionally minimal; real client integration likely uses existing main.ts APIs.
  */
-export function createDomAdapter(doc: Document = document): RendererAdapter {
+export function createDomAdapter(doc?: Document): RendererAdapter {
   type DomWrap = UniversalNode;
 
   function wrap(node: Node, extra?: Partial<UniversalNode>): DomWrap {
@@ -360,13 +361,13 @@ export function createDomAdapter(doc: Document = document): RendererAdapter {
 
   return {
     createElement(tag: string): DomWrap {
-      return wrap(doc.createElement(tag), { tag });
+      return wrap((doc ?? document).createElement(tag), { tag });
     },
     createTextNode(text: string): DomWrap {
-      return wrap(doc.createTextNode(text), { text });
+      return wrap((doc ?? document).createTextNode(text), { text });
     },
     createComment(text: string): DomWrap {
-      return wrap(doc.createComment(text), { comment: text });
+      return wrap((doc ?? document).createComment(text), { comment: text });
     },
     setProperty(node: DomWrap, name: string, value: unknown): void {
       const n = node.node as any;
