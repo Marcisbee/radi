@@ -1,5 +1,5 @@
 /// <reference lib="deno.unstable" />
-import { chromium } from 'npm:playwright@1.56.1';
+import { chromium } from 'npm:playwright@1.64.1';
 
 Deno.test('browser routing contracts on a real HTTP origin', async () => {
   const bundle = await Deno.bundle({

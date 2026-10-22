@@ -2,15 +2,22 @@ name: Check release tooling
 
 on:
   pull_request:
+    paths: ['src/**', 'tests/**', '.github/scripts/**', '.github/workflows/check-release.yml', '.github/workflows/publish-npm.yml', 'deno*', 'tsconfig*', 'build.npm.ts']
   push:
     branches: [master]
+    paths: ['src/**', 'tests/**', '.github/scripts/**', '.github/workflows/check-release.yml', '.github/workflows/publish-npm.yml', 'deno*', 'tsconfig*', 'build.npm.ts']
 
 permissions:
   contents: read
 
+concurrency:
+  group: release-check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-24.04
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v7
         with:
@@ -23,7 +30,8 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - run: node --test .github/scripts/*.test.cjs
-      - run: npx --yes playwright@1.56.1 install --with-deps chromium
+      - run: npx --yes playwright@1.64.1 install --with-deps --only-shell chromium
+        timeout-minutes: 3
       - run: deno task test
       - run: deno task test:static
       - run: deno task test:router

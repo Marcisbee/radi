@@ -16,6 +16,7 @@ jobs:
   publish:
     if: '!github.event.release.prerelease'
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
@@ -41,7 +42,8 @@ jobs:
             console.log(`Releasing ${tag}`);
           '
           printf 'RELEASE_VERSION=%s\n' "${RELEASE_TAG#v}" >> "$GITHUB_ENV"
-      - run: npx --yes playwright@1.56.1 install --with-deps chromium
+      - run: npx --yes playwright@1.64.1 install --with-deps --only-shell chromium
+        timeout-minutes: 3
       - run: deno task test
       - name: Build release package
         run: deno run -A build.npm.ts

@@ -4,6 +4,26 @@ The same repository tag versions the Go module and `radi/go` npm entry point.
 The Go embedded server workflow must pass before publishing; it also builds a
 Linux amd64 example artifact. See [Go build and release instructions](../docs/go-server.md).
 
+## CI cost limits
+
+Superseded PR checks are cancelled automatically. Source/path filters avoid Go,
+package, and documentation jobs when their inputs have not changed. Job limits
+are 10 minutes for Go and publishing, 8 for package checks, 5 for documentation,
+3 for drafting, and 2 for titles. Compiler/browser installation steps stop after
+3 minutes. A timeout is a failed check, never a successful validation.
+
+Browser checks install only Chromium's headless shell. Keep the exact Playwright
+version in workflows and browser tests aligned, including the Rion dependency
+resolution in deno.lock. Playwright 1.64.1 supports the Go job's Ubuntu 26.04
+runner; the former 1.56.1 pin did not. Go example artifacts are built/uploaded
+only on release and retained for 7 days; PR documentation builds do not upload
+deployment artifacts. Release publishing and master documentation deployment
+are not cancelled by newer PRs.
+
+When intentionally pausing paid CI, a commit containing `[skip ci]` skips push
+and pull-request workflows. Such a commit is not CI-validated: before release,
+push a normal commit or otherwise obtain passing checks for the release source.
+
 Pushes and merged PRs on `master` create or update one draft GitHub release.
 The next version uses all commits since the highest published stable GitHub
 release and selects the largest Conventional Commit bump:

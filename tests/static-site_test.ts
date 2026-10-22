@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { chromium } from 'npm:playwright@1.56.1';
+import { chromium } from 'npm:playwright@1.64.1';
 import { generateStaticSite } from '../src/static.ts';
 import { createElement as h } from '../src/server.ts';
 import {

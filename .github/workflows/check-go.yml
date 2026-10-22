@@ -1,15 +1,21 @@
 name: Go embedded server
 on:
   pull_request:
+    paths: ['go/**', 'go.mod', 'go.sum', 'cmd/**', 'examples/**', 'src/**', 'tests/router-go_test.ts', 'deno*', '.github/workflows/check-go.yml']
   push:
     branches: [master]
+    paths: ['go/**', 'go.mod', 'go.sum', 'cmd/**', 'examples/**', 'src/**', 'tests/router-go_test.ts', 'deno*', '.github/workflows/check-go.yml']
   release:
     types: [published]
 permissions:
   contents: read
+concurrency:
+  group: go-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   server:
     runs-on: ubuntu-26.04
+    timeout-minutes: 10
     env:
       CC: clang-21
       CXX: clang++-21
@@ -21,12 +27,15 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - run: sudo apt-get update && sudo apt-get install -y clang-21
+      - name: Install compiler only if missing
+        timeout-minutes: 3
+        run: command -v clang++-21 || (sudo apt-get update && sudo apt-get install -y clang-21)
       - run: go generate ./examples/go-server ./examples/router
       - run: go test -race ./go -timeout 3m
       - run: go test ./... -timeout 3m
       - run: RADI_SOAK_SECONDS=20 go test ./go -run TestSustainedFlop -count=1 -timeout 1m -v
-      - run: go build -trimpath -o radi-go-server ./examples/go-server
+      - if: github.event_name == 'release'
+        run: go build -trimpath -o radi-go-server ./examples/go-server
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
@@ -34,8 +43,10 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - run: npx --yes playwright@1.56.1 install --with-deps chromium
+      - run: npx --yes playwright@1.64.1 install --with-deps --only-shell chromium
+        timeout-minutes: 3
       - name: Verify browser routing through Go and V8
+        timeout-minutes: 3
         run: |
           go build -o radi-router ./examples/router
           ./radi-router &
@@ -48,6 +59,8 @@ jobs:
           curl --fail --silent --max-time 2 http://127.0.0.1:4321/ >/dev/null
           deno task test:router:go
       - uses: actions/upload-artifact@v6
+        if: github.event_name == 'release'
         with:
           name: radi-go-server-linux-amd64
           path: radi-go-server
+          retention-days: 7

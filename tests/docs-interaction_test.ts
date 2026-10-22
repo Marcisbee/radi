@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { chromium } from 'npm:playwright@1.56.1';
+import { chromium } from 'npm:playwright@1.64.1';
 
 Deno.test('the generated guide supports agent readers, system themes, and first-click interaction offline', async () => {
   const build = await new Deno.Command(Deno.execPath(), {

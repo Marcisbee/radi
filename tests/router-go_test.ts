@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { chromium } from 'npm:playwright@1.56.1';
+import { chromium } from 'npm:playwright@1.64.1';
 
 // Run against the compiled examples/router Go server (see docs/routing.md).
 Deno.test('Go/V8 SSR, client navigation, history and action revalidation', async () => {
