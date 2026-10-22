@@ -10,6 +10,9 @@ limitations, and reproducible performance measurements.
 For lazy interactions on existing server DOM, see [resumption](docs/resumption.md).
 Explicit boundaries carry JSON state and load named handlers on the first click.
 
+For documentation and other static sites with interactive islands, see
+[static site generation](docs/static-sites.md).
+
 ## What Makes Radi Different
 
 Radi takes a unique approach compared to React, Preact, or even Solid:

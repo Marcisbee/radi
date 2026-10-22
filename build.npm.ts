@@ -21,6 +21,10 @@ async function start() {
         path: "./src/server.ts",
       },
       {
+        name: "./static",
+        path: "./src/static.ts",
+      },
+      {
         name: "./jsx-runtime",
         path: "./src/jsx-runtime.ts",
       },
