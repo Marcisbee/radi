@@ -33,5 +33,5 @@ palette. Typography follows Railpack’s installation page: Inter for body and
 navigation, IBM Plex Serif for the page title, and JetBrains Mono for code. The
 Latin font files are self-hosted with their licenses alongside them.
 
-Deployment is intentionally manual until the design is approved. No workflow in
-this change replaces the existing public site.
+Deployment is manual. No workflow in this change replaces the existing public
+site.
