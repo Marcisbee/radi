@@ -45,6 +45,24 @@ test('keeps one draft current, then advances after human publication', async () 
   assert.equal(releases.length, 3);
   assert.equal(releases[2].tag_name, 'v0.6.0');
 
+  // A leftover automatic draft of an already published version is not current.
+  const stale = { ...releases[1], id: 99, draft: true };
+  releases.push(structuredClone(stale));
+  const published = structuredClone(releases[1]);
+  sha = 'latest-master-commit';
+  context.sha = sha;
+  await draftRelease({ github, context });
+  assert.equal(releases.length, 4);
+  assert.equal(releases[2].target_commitish, sha);
+  assert.equal(releases[2].tag_name, 'v0.6.0');
+  assert.deepEqual(releases[1], published);
+  assert.deepEqual(releases[3], stale);
+  releases.pop();
+
+  releases.push({ ...releases[2], id: 100, tag_name: 'v0.7.0' });
+  await assert.rejects(draftRelease({ github, context }), /Multiple automatic release drafts/);
+  releases.pop();
+
   // An unrelated manual draft must never be overwritten.
   releases[2].body = 'Manual release';
   await assert.rejects(draftRelease({ github, context }), /already exists/);

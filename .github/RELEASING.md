@@ -54,6 +54,9 @@ Without a previous stable release, its version bootstraps the first draft.
 With no commits since the previous release, refreshing does nothing.
 Further pushes recompute the version and update the same draft, so adding a
 feature can change a pending `0.5.1` draft into `0.6.0`.
+Automatic drafts at or below the latest published stable version are left
+untouched and excluded from draft selection. Multiple future automatic drafts
+still stop the workflow for investigation; manual drafts are never overwritten.
 
 Use Conventional Commit PR titles and squash merge with that title. The PR-title
 check validates syntax; the author and reviewer must classify compatibility
