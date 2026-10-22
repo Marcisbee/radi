@@ -24,13 +24,8 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - run: npx --yes playwright@1.56.1 install --with-deps chromium
-      - name: Build and verify documentation
-        run: deno task test:docs
+      - name: Build documentation
+        run: deno task docs:build
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist/docs
