@@ -22,7 +22,10 @@ module.exports = async ({ github, context }) => {
   const next = previous ? nextVersion(previous.tag_name, commits.map(({ commit }) => commit.message)) : baseline;
   const version = compare(baseline, next) > 0 ? baseline : next;
   const tag = `v${version}`;
-  const drafts = releases.filter((release) => release.draft && release.body?.includes(marker));
+  const drafts = releases.filter((release) =>
+    release.draft && release.body?.includes(marker) &&
+    !(previous && stable.test(release.tag_name) && compare(release.tag_name, previous.tag_name) <= 0)
+  );
   if (drafts.length > 1) throw new Error('Multiple automatic release drafts exist');
   if (releases.some((release) => release.tag_name === tag && release.id !== drafts[0]?.id)) {
     throw new Error(`Release ${tag} already exists`);
