@@ -261,6 +261,14 @@ function buildRender(parent: Anchor, fn: (parent: Anchor) => any) {
   };
 }
 
+function snapshotChildren(parent: Node): Node[] {
+  const children: Node[] = [];
+  for (let child = parent.firstChild; child; child = child.nextSibling) {
+    children.push(child);
+  }
+  return children;
+}
+
 function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
   if (parent[RENDER_ID] === currentUpdateId) {
     return (parent[REACTIVE_CHILDREN] as Node[]) || [];
@@ -542,8 +550,8 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
         setProps(itemOld, itemNew[ATTRS] || {});
 
         diff(
-          Array.from(itemOld.childNodes),
-          Array.from(itemNew.childNodes),
+          snapshotChildren(itemOld),
+          snapshotChildren(itemNew),
           itemOld,
         );
 
