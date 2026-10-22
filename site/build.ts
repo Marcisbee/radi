@@ -29,7 +29,7 @@ await Deno.copyFile(
 );
 await generateStaticSite([{
   path: '/',
-  title: 'Radi — A small runtime for reactive interfaces',
+  title: 'Radi | A small runtime for reactive interfaces',
   bootstrap: '/client.js',
   head: [
     h('link', { rel: 'stylesheet', href: '/style.css' }),

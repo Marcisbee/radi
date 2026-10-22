@@ -13,7 +13,9 @@ examples at build time and sends no highlighting JavaScript to the browser. The
 counter uses `radi/resume` with its tiny handler bundled into the initial
 script. Clicks need no extra network request. Navigation and documentation work
 without JavaScript; code copying and the current-section indicator are
-enhancements.
+enhancements. Search (Ctrl/Cmd K) searches the guide locally, including code
+examples. The contextual outline follows the current topic. Search uses a native
+dialog for keyboard focus containment and Escape dismissal.
 
 Run `deno task test:docs` to check the first counter interaction with the
 network disabled after the page loads. Install Chromium with Playwright first,

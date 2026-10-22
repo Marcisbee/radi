@@ -1,9 +1,10 @@
 import { resume } from '../src/resume.ts';
 import { increment } from './handler.ts';
+import { setupSearch } from './search.ts';
 
 resume(document, { increment: () => Promise.resolve(increment) }, {
   onError: () => {
-    const status = document.querySelector('[role=status]');
+    const status = document.querySelector('.demo [role=status]');
     if (status) {
       status.textContent = 'Could not update the counter. Please try again.';
     }
@@ -33,6 +34,7 @@ document.addEventListener('click', async (event) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+  setupSearch();
   for (
     const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')
   ) button.hidden = false;
@@ -42,22 +44,40 @@ document.addEventListener('DOMContentLoaded', () => {
   const links = [
     ...document.querySelectorAll<HTMLAnchorElement>('[data-section-link]'),
   ];
-  let scheduled = false;
+  let previous = '';
   const updateCurrent = () => {
-    const current = headings.findLast((heading) =>
-      heading.getBoundingClientRect().top <= 150
-    )?.id ?? 'overview';
+    const atEnd = window.scrollY + window.innerHeight >=
+      document.documentElement.scrollHeight - 2;
+    const current = atEnd
+      ? headings.at(-1)!.id
+      : headings.findLast((heading) =>
+        heading.getBoundingClientRect().top <= 150
+      )?.id ?? 'overview';
+    if (current === previous) return;
+    previous = current;
+    const section = document.getElementById(current)!;
+    const outline = [...section.querySelectorAll<HTMLElement>('h1, h2, h3')]
+      .map((heading) => {
+        const link = document.createElement('a');
+        link.href = `#${heading.id || current}`;
+        link.textContent = heading.textContent?.replace(/#$/, '') ?? '';
+        return link;
+      });
+    document.querySelector('#section-outline')!.replaceChildren(...outline);
     for (const link of links) {
       if (link.hash === `#${current}`) {
         link.setAttribute('aria-current', 'location');
       } else link.removeAttribute('aria-current');
     }
-    scheduled = false;
   };
-  window.addEventListener('scroll', () => {
-    if (scheduled) return;
-    scheduled = true;
-    requestAnimationFrame(updateCurrent);
-  }, { passive: true });
+  const observer = new IntersectionObserver(updateCurrent, {
+    rootMargin: '-150px 0px 0px 0px',
+    threshold: [0, 1],
+  });
+  headings.forEach((section) =>
+    observer.observe(section.querySelector('h1, h2')!)
+  );
+  observer.observe(document.querySelector('footer')!);
+  window.addEventListener('hashchange', updateCurrent);
   updateCurrent();
 });

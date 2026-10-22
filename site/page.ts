@@ -1,11 +1,18 @@
 import { createElement as h, resumable, resumeClick } from '../src/server.ts';
-import { code, header, navigation, section } from './ui.ts';
+import {
+  code,
+  header,
+  navigation,
+  outline,
+  searchDialog,
+  section,
+} from './ui.ts';
 
 function introduction() {
   return h(
     'section',
     { class: 'intro', id: 'overview' },
-    h('p', { class: 'eyebrow' }, 'GETTING STARTED'),
+    h('p', { class: 'eyebrow' }, 'The Radi guide'),
     h('h1', null, 'Introduction'),
     h(
       'p',
@@ -34,8 +41,9 @@ const basicSections = [
       null,
       'Install Radi, then configure your bundler to use its automatic JSX runtime.',
     ),
+    h('h3', { id: 'install-package' }, 'Add the package'),
     code('Terminal', 'npm install radi', 'bash'),
-    h('h3', null, 'Configure JSX'),
+    h('h3', { id: 'configure-jsx' }, 'Configure JSX'),
     h(
       'p',
       null,
@@ -46,7 +54,7 @@ const basicSections = [
       '{\n  "compilerOptions": {\n    "jsx": "react-jsx",\n    "jsxImportSource": "radi"\n  }\n}',
       'json',
     ),
-    h('h3', null, 'Mount your first component'),
+    h('h3', { id: 'first-component' }, 'Mount your first component'),
     h(
       'p',
       null,
@@ -228,6 +236,7 @@ export function page() {
   return [
     h('a', { class: 'skip', href: '#content' }, 'Skip to content'),
     header(),
+    searchDialog(),
     h(
       'details',
       { class: 'mobile-contents' },
@@ -244,7 +253,6 @@ export function page() {
         h(
           'div',
           { class: 'sidebar-note' },
-          h('span', { class: 'note-dot', 'aria-hidden': 'true' }),
           'Built with Radi SSG',
         ),
       ),
@@ -262,6 +270,7 @@ export function page() {
           h('a', { href: '#' }, 'Back to top ↑'),
         ),
       ),
+      outline(),
     ),
   ];
 }
