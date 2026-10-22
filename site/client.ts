@@ -26,13 +26,27 @@ document.addEventListener('click', async (event) => {
       button.textContent = 'Copy';
     }, 2000);
   }
-  if (event.target.closest('.mobile-contents a')) {
-    document.querySelector<HTMLDetailsElement>('.mobile-contents')!.open =
-      false;
-  }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+  const menu = document.querySelector<HTMLDialogElement>('#mobile-navigation')!;
+  const toggle = document.querySelector<HTMLButtonElement>('.menu-toggle')!;
+  toggle.hidden = false;
+  toggle.addEventListener('click', () => menu.showModal());
+  menu.addEventListener('click', (event) => {
+    const target = event.target as Element;
+    if (target.closest('a, [data-close-menu]')) menu.close();
+    if (target === menu) {
+      const bounds = menu.getBoundingClientRect();
+      if (
+        event.clientX < bounds.left || event.clientX > bounds.right ||
+        event.clientY < bounds.top || event.clientY > bounds.bottom
+      ) menu.close();
+    }
+  });
+  matchMedia('(min-width: 768px)').addEventListener('change', (event) => {
+    if (event.matches) menu.close();
+  });
   for (
     const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')
   ) button.hidden = false;

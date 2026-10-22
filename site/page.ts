@@ -1,12 +1,6 @@
 import { references } from './reference.ts';
 import { createElement as h, resumable, resumeClick } from '../src/server.ts';
-import {
-  code,
-  githubLink,
-  navigation,
-  section,
-  sidebarBrand,
-} from './ui.ts';
+import { code, githubLink, navigation, section, sidebarBrand } from './ui.ts';
 
 function introduction() {
   return h(
@@ -215,13 +209,30 @@ export function page() {
       'div',
       { class: 'mobile-menu' },
       sidebarBrand(),
+    ),
+    h('button', {
+      class: 'menu-toggle',
+      type: 'button',
+      hidden: true,
+      'aria-label': 'Open navigation',
+      'aria-controls': 'mobile-navigation',
+      'aria-haspopup': 'dialog',
+    }, h('span', { 'aria-hidden': 'true' }, '☰')),
+    h(
+      'dialog',
+      { id: 'mobile-navigation', 'aria-label': 'Documentation menu' },
       h(
-        'details',
-        { class: 'mobile-contents' },
-        h('summary', null, 'On this page'),
-        navigation('Mobile documentation'),
-        githubLink(),
+        'div',
+        { class: 'sheet-heading' },
+        h('strong', null, 'On this page'),
+        h('button', {
+          type: 'button',
+          'data-close-menu': '',
+          'aria-label': 'Close navigation',
+        }, '×'),
       ),
+      navigation('Mobile documentation'),
+      githubLink(),
     ),
     h(
       'div',
