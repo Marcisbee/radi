@@ -12,6 +12,7 @@
   "exports": {
     ".": "./src/client.ts",
     "./client": "./src/client.ts",
+    "./resume": "./src/resume.ts",
     "./server": "./src/server.ts",
     "./server/jsx-runtime": "./src/server/jsx-runtime.ts",
     "./server/jsx-dev-runtime": "./src/server/jsx-dev-runtime.ts",

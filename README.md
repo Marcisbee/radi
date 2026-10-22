@@ -7,6 +7,9 @@ Radi also supports synchronous server rendering and ordered async HTML streaming
 See [server rendering](docs/server-rendering.md) for APIs, runtime examples,
 limitations, and reproducible performance measurements.
 
+For lazy interactions on existing server DOM, see [resumption](docs/resumption.md).
+Explicit boundaries carry JSON state and load named handlers on the first click.
+
 ## What Makes Radi Different
 
 Radi takes a unique approach compared to React, Preact, or even Solid:

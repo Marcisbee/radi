@@ -1,6 +1,8 @@
 /** Server rendering without browser globals. Components are evaluated during rendering. */
 import { renderToString } from './server-html.ts';
 import type { ServerChild } from './server-html.ts';
+export { resumable, resumeClick } from './server-resume.ts';
+export type { ResumeState } from './resume-state.ts';
 
 export {
   createComment,

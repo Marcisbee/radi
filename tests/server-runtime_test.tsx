@@ -7,6 +7,8 @@ import {
   renderToReadableStream,
   renderToString,
   renderToStringAsync,
+  resumable,
+  resumeClick,
 } from '../src/server.ts';
 import { jsxDEV } from '../src/server/jsx-runtime.ts';
 import { createRenderer, createServerStringAdapter } from '../src/server.ts';
@@ -34,6 +36,53 @@ function deferred<T>() {
   });
   return { promise, resolve };
 }
+
+Deno.test('resumable HTML carries escaped state and completes only after streamed children', async () => {
+  const state = { count: 2, text: '"><script>bad</script>&' };
+  const waiting = deferred<string>();
+  const reader = renderToReadableStream(resumable(state, [
+    h('button', resumeClick('increment'), 'Add'),
+    waiting.promise,
+  ])).getReader();
+  const first = new TextDecoder().decode((await reader.read()).value);
+  assert.ok(first.includes('data-radi-click="increment"'));
+  assert.ok(first.includes('&lt;script&gt;'));
+  assert.ok(!first.includes('data-radi-ready'));
+  waiting.resolve('finished');
+  let rest = '';
+  while (true) {
+    const next = await reader.read();
+    if (next.done) break;
+    rest += new TextDecoder().decode(next.value);
+  }
+  assert.equal(rest, 'finished<template data-radi-ready=""></template></div>');
+  assert.equal(
+    first + rest,
+    renderToString(resumable(state, [
+      h('button', resumeClick('increment'), 'Add'),
+      'finished',
+    ])),
+  );
+});
+
+Deno.test('resumption rejects state that JSON would silently change or discard', () => {
+  const circular: Record<string, unknown> = {};
+  circular.self = circular;
+  for (
+    const value of [
+      undefined,
+      Infinity,
+      NaN,
+      () => 1,
+      new Date(),
+      circular,
+      { missing: undefined },
+    ]
+  ) {
+    assert.throws(() => resumable(value as never, 'content'), TypeError);
+  }
+  assert.throws(() => resumable({}, 'content', 'script'), TypeError);
+});
 
 Deno.test('server imports and renders roots, JSX, props and escaped HTML without DOM globals', () => {
   assert.equal(
