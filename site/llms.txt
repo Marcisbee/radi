@@ -11,3 +11,4 @@ These docs describe the current repository API. Components run once; dynamic exp
 - [Go and embedded V8](https://radi.js.org/docs/go-server.md): TSX bundling, the Go HTTP handler, async Flop operations, configuration, streaming, cancellation, deployment limits, and release checks. No Node/Deno serving process or persisted code cache.
 - [Resumption](https://radi.js.org/docs/resumption.md): Boundaries, state, handler registration, event support, and limitations.
 - [Static sites](https://radi.js.org/docs/static-sites.md): Route generation, output writers, bootstrap scripts, and deployment.
+- [Client routing](https://radi.js.org/docs/routing.md): SPA navigation, lazy route modules, loaders, actions, revalidation, cancellation, caching, and Go/V8 integration requirements. The router uses flat routes and does not provide automatic SSR hydration or Remix API compatibility.

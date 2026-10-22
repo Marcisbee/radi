@@ -43,6 +43,7 @@ export async function writeAgentDocs(outDir: string, html: string) {
       'go-server',
       'resumption',
       'static-sites',
+      'routing',
     ]
   ) {
     await Deno.copyFile(

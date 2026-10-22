@@ -3,8 +3,10 @@ name: Deploy documentation
 on:
   push:
     branches: [master]
+    paths: ['site/**', 'docs/**', 'src/**', 'README.md', 'deno*', '.github/workflows/deploy-docs.yml']
   pull_request:
     branches: [master]
+    paths: ['site/**', 'docs/**', 'src/**', 'README.md', 'deno*', '.github/workflows/deploy-docs.yml']
   workflow_dispatch:
 
 permissions:
@@ -12,11 +14,12 @@ permissions:
 
 concurrency:
   group: docs-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
         with:
@@ -27,6 +30,7 @@ jobs:
       - name: Build documentation
         run: deno task docs:build
       - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request'
         with:
           path: dist/docs
 
@@ -34,6 +38,7 @@ jobs:
     if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     permissions:
       pages: write
       id-token: write

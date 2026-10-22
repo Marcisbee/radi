@@ -82,6 +82,7 @@ const groups = [
     ['server', 'Server rendering'],
     ['go-server', 'Go + embedded V8'],
     ['static', 'Static sites'],
+    ['routing', 'Client routing'],
     [
       'islands',
       'Interactive islands',
@@ -93,6 +94,7 @@ const groups = [
     ['go-api', 'radi/go'],
     ['resume-api', 'radi/resume'],
     ['static-api', 'radi/static'],
+    ['router-api', 'radi/router'],
     ['state-api', 'radi/signal'],
     ['state-api-createChannel', 'radi/channel'],
     ['renderer-api', 'radi/renderer'],

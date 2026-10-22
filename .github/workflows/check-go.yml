@@ -1,15 +1,19 @@
 name: Go embedded server
 on:
   pull_request:
-  push:
-    branches: [master]
+    paths: ['go/**', 'go.mod', 'go.sum', 'cmd/**', 'examples/**', 'src/**', 'tests/router-go_test.ts', 'deno*', '.github/workflows/check-go.yml']
+  workflow_dispatch:
   release:
     types: [published]
 permissions:
   contents: read
+concurrency:
+  group: go-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   server:
     runs-on: ubuntu-26.04
+    timeout-minutes: 10
     env:
       CC: clang-21
       CXX: clang++-21
@@ -21,13 +25,37 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - run: sudo apt-get update && sudo apt-get install -y clang-21
-      - run: go generate ./examples/go-server
-      - run: go test -race ./go -timeout 3m
-      - run: go test ./... -timeout 3m
-      - run: RADI_SOAK_SECONDS=20 go test ./go -run TestSustainedFlop -count=1 -timeout 1m -v
-      - run: go build -trimpath -o radi-go-server ./examples/go-server
+      - name: Install compiler only if missing
+        timeout-minutes: 3
+        run: command -v clang++-21 || (sudo apt-get update && sudo apt-get install -y clang-21)
+      - run: go generate ./examples/go-server ./examples/router
+      - run: go test -race ./... -timeout 3m
+      - name: Extended soak check (manual or release only)
+        if: github.event_name != 'pull_request'
+        run: RADI_SOAK_SECONDS=20 go test ./go -run TestSustainedFlop -count=1 -timeout 1m -v
+      - if: github.event_name == 'release'
+        run: go build -trimpath -o radi-go-server ./examples/go-server
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Verify browser routing through Go and V8
+        timeout-minutes: 3
+        env:
+          RADI_BROWSER_CHANNEL: chrome
+        run: |
+          go build -o radi-router ./examples/router
+          ./radi-router &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --max-time 2 http://127.0.0.1:4321/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent --max-time 2 http://127.0.0.1:4321/ >/dev/null
+          deno task test:router:go
       - uses: actions/upload-artifact@v6
+        if: github.event_name == 'release'
         with:
           name: radi-go-server-linux-amd64
           path: radi-go-server
+          retention-days: 7
