@@ -1,0 +1,17 @@
+{
+  "name": "radi-comparison-benchmarks",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench": "node run.mjs",
+    "smoke": "node run.mjs --samples=1 --warmup=0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "playwright": "1.64.1",
+    "preact": "11.0.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "vue": "3.5.44"
+  }
+}

@@ -5,6 +5,7 @@
     "dev": "deno -A npm:esbuild playground/*.tsx --jsx-import-source=preact --jsx=automatic --watch --servedir=playground/www --outdir=playground/www --bundle",
     "test": "deno -A --unstable-bundle @marcisbee/rion/test.cli --includes src",
     "test:server": "deno test --config deno.server.json --allow-net=127.0.0.1 tests/server-runtime_test.tsx",
+    "test:static": "deno test -A --config deno.server.json tests/static-site_test.ts",
     "bench:server": "deno run --config deno.server.json bench/server.ts",
     "bench": "deno -A --unstable-bundle @marcisbee/rion/bench.cli --includes src",
     "publish": "deno -A ./build.npm.ts && cd npm && npm publish --tag alpha"
@@ -14,6 +15,7 @@
     "./client": "./src/client.ts",
     "./resume": "./src/resume.ts",
     "./server": "./src/server.ts",
+    "./static": "./src/static.ts",
     "./server/jsx-runtime": "./src/server/jsx-runtime.ts",
     "./server/jsx-dev-runtime": "./src/server/jsx-dev-runtime.ts",
     "./jsx-runtime": "./src/jsx-runtime.ts",
