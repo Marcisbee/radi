@@ -87,7 +87,7 @@ button:active {
   text-decoration: none;
 }
 .sidebar-brand {
-  margin-bottom: 12px;
+  margin-bottom: 24px;
 }
 .github {
   display: block;
@@ -393,10 +393,16 @@ body:has(#mobile-navigation[open]) {
   overflow: hidden;
 }
 .sheet-heading {
+  position: sticky;
+  top: -16px;
+  z-index: 1;
+  margin: -16px -20px 16px;
+  padding: 16px 20px;
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
 }
 .sheet-heading button {
   width: 36px;
@@ -408,12 +414,20 @@ body:has(#mobile-navigation[open]) {
   font-size: 24px;
 }
 #mobile-navigation nav {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px 20px;
+  display: block;
+}
+#mobile-navigation .nav-group {
+  margin-bottom: 24px;
+}
+#mobile-navigation .nav-group p {
+  font-size: 13px;
+  color: var(--muted);
 }
 #mobile-navigation .nav-group a {
-  padding: 12px 0;
+  padding: 14px 0;
+  font-size: 17px;
+  line-height: 1.5;
+  border-bottom: 1px solid var(--border);
   color: var(--secondary);
 }
 #mobile-navigation .nav-group a[aria-current] {
