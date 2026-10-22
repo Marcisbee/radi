@@ -169,6 +169,50 @@ await router.ready;
     }, 'radi/server →'),
   ),
   section(
+    'go-server',
+    'Go + embedded V8',
+    h(
+      'p',
+      null,
+      'Keep application components in TypeScript/TSX while Go owns HTTP, authorization, and Flop access. The Go adapter embeds V8 in the server process and streams ordered HTML. It uses neither a Node/Deno serving process nor a persisted bytecode cache.',
+    ),
+    code(
+      'app.tsx',
+      "import { data, defineApp } from 'radi/go';\n\nasync function Title() {\n  const row = await data<{ title: string }>('page', { id: 'home' });\n  return <h1>{row.title}</h1>;\n}\n\nexport const app = defineApp(() => (\n  <main><p>Loading your page…</p><Title /></main>\n));",
+    ),
+    h(
+      'p',
+      null,
+      'Register the page operation in Go and return its Flop result. data() resolves that result as a Promise. Bundle the TSX with radi-build, embed the JavaScript source with go:embed, and pass it to radi.New from github.com/Marcisbee/radi/go. The checked-in example includes the complete Go host and database setup.',
+    ),
+    code(
+      'Build the Flop example',
+      'export CC=clang-21 CXX=clang++-21 CGO_CXXFLAGS=-nostdinc++\ngo generate ./examples/go-server\ngo build -trimpath -o radi-go-server ./examples/go-server\nRADI_ADDR=127.0.0.1:8080 RADI_DATA_DIR=./data ./radi-go-server',
+      'bash',
+    ),
+    h(
+      'p',
+      null,
+      'Run these commands from a Radi checkout with Go 1.26.10 and Clang 21. Linux amd64 is the qualified target. The Go-based bundler needs no JavaScript runtime at build time. Each request gets fresh JavaScript state; the default single worker reuses its V8 instance and compiled source.',
+    ),
+    h(
+      'p',
+      null,
+      'The adapter bounds queued work, data calls, response bytes, and execution time. Slow readers apply backpressure; disconnects cancel operations. Use trusted application code, external memory limits and a restart policy: the V8 heap setting is not a hard memory sandbox. Go operations must respect cancellation. This adapter does not include a client router or SPA data layer.',
+    ),
+    h(
+      'p',
+      null,
+      h('a', { href: '#go-api' }, 'radi/go API'),
+      ' · ',
+      h(
+        'a',
+        { href: '/docs/go-server.md' },
+        'Complete Go setup, configuration, and deployment guide',
+      ),
+    ),
+  ),
+  section(
     'static',
     'Static sites',
     h(

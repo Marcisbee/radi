@@ -265,6 +265,7 @@ interface Frame {
 }
 
 class StreamWriter {
+  constructor(private maxTextLength = Infinity) {}
   frames: Frame[] = [];
   pending: PromiseLike<unknown> | undefined;
   text = '';
@@ -309,6 +310,9 @@ class StreamWriter {
 
   visit(child: ServerChild): void {
     if (typeof child === 'string') {
+      if (child.length > this.maxTextLength) {
+        throw new RangeError('Server text exceeds response limit');
+      }
       const text = escape(child);
       if (text.length <= 16384) this.html += text;
       else this.text = text;
@@ -350,6 +354,28 @@ class StreamWriter {
     this.frames.length = 0;
     this.pending = undefined;
     this.text = this.html = '';
+  }
+}
+
+/** Ordered HTML bytes. Pulls stop at async boundaries and obey consumer backpressure. */
+export async function* renderToChunks(
+  child: ServerChild,
+  maxTextLength = Infinity,
+): AsyncGenerator<string> {
+  const writer = new StreamWriter(maxTextLength);
+  writer.push([child]);
+  try {
+    while (writer.frames.length || writer.text || writer.pending) {
+      if (writer.pending) {
+        const value = await writer.pending;
+        writer.pending = undefined;
+        writer.push([value as ServerChild]);
+      }
+      const chunk = writer.nextChunk();
+      if (chunk) yield chunk;
+    }
+  } finally {
+    writer.clear();
   }
 }
 

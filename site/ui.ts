@@ -78,13 +78,20 @@ const groups = [
     'lifecycle',
     'Lifecycle',
   ]]],
-  ['Rendering', [['server', 'Server rendering'], ['static', 'Static sites'], [
-    'islands',
-    'Interactive islands',
-  ], ['routing', 'Client routing']]],
+  ['Rendering', [
+    ['server', 'Server rendering'],
+    ['go-server', 'Go + embedded V8'],
+    ['static', 'Static sites'],
+    ['routing', 'Client routing'],
+    [
+      'islands',
+      'Interactive islands',
+    ],
+  ]],
   ['Reference', [
     ['reference', 'radi / radi/client'],
     ['server-api', 'radi/server'],
+    ['go-api', 'radi/go'],
     ['resume-api', 'radi/resume'],
     ['static-api', 'radi/static'],
     ['router-api', 'radi/router'],

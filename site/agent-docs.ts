@@ -38,7 +38,13 @@ export async function writeAgentDocs(outDir: string, html: string) {
   );
   await Deno.mkdir(join(outDir, 'docs'), { recursive: true });
   for (
-    const name of ['server-rendering', 'resumption', 'static-sites', 'routing']
+    const name of [
+      'server-rendering',
+      'go-server',
+      'resumption',
+      'static-sites',
+      'routing',
+    ]
   ) {
     await Deno.copyFile(
       new URL(`../docs/${name}.md`, import.meta.url),

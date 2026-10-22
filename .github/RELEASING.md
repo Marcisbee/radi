@@ -1,5 +1,9 @@
 # npm releases
 
+The same repository tag versions the Go module and `radi/go` npm entry point.
+The Go embedded server workflow must pass before publishing; it also builds a
+Linux amd64 example artifact. See [Go build and release instructions](../docs/go-server.md).
+
 Pushes and merged PRs on `master` create or update one draft GitHub release.
 The next version uses all commits since the highest published stable GitHub
 release and selects the largest Conventional Commit bump:

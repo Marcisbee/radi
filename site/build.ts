@@ -78,6 +78,7 @@ if (Deno.args.includes('--serve')) {
     '/index.md': 'index.md',
     '/llms.txt': 'llms.txt',
     '/docs/server-rendering.md': 'docs/server-rendering.md',
+    '/docs/go-server.md': 'docs/go-server.md',
     '/docs/resumption.md': 'docs/resumption.md',
     '/docs/static-sites.md': 'docs/static-sites.md',
     '/docs/routing.md': 'docs/routing.md',

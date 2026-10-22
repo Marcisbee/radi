@@ -1,0 +1,33 @@
+name: Go embedded server
+on:
+  pull_request:
+  push:
+    branches: [master]
+  release:
+    types: [published]
+permissions:
+  contents: read
+jobs:
+  server:
+    runs-on: ubuntu-26.04
+    env:
+      CC: clang-21
+      CXX: clang++-21
+      CGO_CXXFLAGS: -nostdinc++
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: sudo apt-get update && sudo apt-get install -y clang-21
+      - run: go generate ./examples/go-server
+      - run: go test -race ./go -timeout 3m
+      - run: go test ./... -timeout 3m
+      - run: RADI_SOAK_SECONDS=20 go test ./go -run TestSustainedFlop -count=1 -timeout 1m -v
+      - run: go build -trimpath -o radi-go-server ./examples/go-server
+      - uses: actions/upload-artifact@v6
+        with:
+          name: radi-go-server-linux-amd64
+          path: radi-go-server

@@ -81,6 +81,24 @@ export const references = [
       'Carries status and data into the router error state. Applications own error rendering, retry UI, focus management, and custom scroll restoration.',
     ],
   ]),
+  reference('go-api', 'Go bridge API', 'radi/go (embedded server bundle)', [
+    [
+      'defineApp',
+      'export const app = defineApp(\n  (request: GoRequest): ServerChild => <main>Hello</main>,\n);',
+      'Defines the application entry consumed by the Go adapter. Export it as app and bundle with radi-build, which selects server JSX and the Radi global. render runs once per request in a fresh V8 context. Components may return promises; content streams in document order. The returned start/pull/settle methods are the host protocol, not browser routing APIs.',
+      'Example',
+    ],
+    [
+      'data',
+      'data<T = unknown>(name: string, input: unknown = null): Promise<T>',
+      'Invokes an operation registered in the Go handler for this request. Input and output cross the bridge as JSON. The type parameter does not validate runtime data. Unknown operations, quota violations, invalid results, operation errors and panics reject the promise. Authorize and validate inside the Go operation; its context carries request cancellation and middleware values. This API is unavailable in the browser.',
+    ],
+    [
+      'GoRequest',
+      'interface GoRequest {\n  method: string;\n  url: string;\n  headers: Record<string, string[]>;\n}',
+      'Request metadata supplied to defineApp. url is the request URI (path and query), not an absolute URL. Header names use Go HTTP canonical casing. The adapter accepts GET; mount separate Go handlers for mutations and other HTTP methods. No request body is exposed.',
+    ],
+  ]),
   reference('reference', 'Client API', 'radi or radi/client', [
     [
       'createRoot',

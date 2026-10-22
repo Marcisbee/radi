@@ -25,6 +25,10 @@ async function start() {
         path: "./src/server.ts",
       },
       {
+        name: "./go",
+        path: "./src/go.ts",
+      },
+      {
         name: "./static",
         path: "./src/static.ts",
       },

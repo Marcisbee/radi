@@ -25,6 +25,12 @@ return ordered UTF-8 HTML bytes directly from a Fetch-compatible server such as
 Deno. For Node HTTP, adapt the Web stream with Node's `Readable.fromWeb`.
 `renderToStringRoot` and `ssr(() => tree)` remain synchronous conveniences.
 
+For Go hosting, use the [embedded V8 adapter](go-server.md). It bundles TSX
+into the Go binary and connects async components to Go operations such as Flop
+reads. Go handles HTTP streaming, cancellation, backpressure, and shutdown;
+no Node/Deno serving process is needed. The adapter uses its own pull-based
+bridge, so bare V8 does not need Web Streams or Fetch globals.
+
 Components and reactive children execute when rendering reaches them, rather
 than during element creation. Props remain getter functions, including
 `children`. Async components are awaited in document order. The stream flushes
