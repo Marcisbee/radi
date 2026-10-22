@@ -7,8 +7,11 @@ test('keeps one draft current, then advances after human publication', async () 
   let sha = 'first-master-commit';
   let messages = ['fix: repair rendering'];
   const github = {
-    paginate: async (method) => method === github.rest.repos.listReleases
-      ? structuredClone(releases) : messages.map((message) => ({ commit: { message } })),
+    paginate: async (method, options, map) => {
+      if (method === github.rest.repos.listReleases) return structuredClone(releases);
+      assert.equal(options.basehead, `${releases.filter((release) => !release.draft).at(-1).tag_name}...${sha}`);
+      return map({ data: { commits: messages.map((message) => ({ commit: { message } })) } });
+    },
     rest: { repos: {
       listReleases() {},
       compareCommitsWithBasehead() {},

@@ -17,7 +17,7 @@ module.exports = async ({ github, context }) => {
   ).sort((a, b) => compare(b.tag_name, a.tag_name))[0];
   const commits = previous ? await github.paginate(github.rest.repos.compareCommitsWithBasehead, {
     ...repo, basehead: `${previous.tag_name}...${context.sha}`, per_page: 100,
-  }) : [];
+  }, ({ data }) => Array.isArray(data) ? data : data.commits) : [];
   if (previous && commits.length === 0) return;
   const next = previous ? nextVersion(previous.tag_name, commits.map(({ commit }) => commit.message)) : baseline;
   const version = compare(baseline, next) > 0 ? baseline : next;
