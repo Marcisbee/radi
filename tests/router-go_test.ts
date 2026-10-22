@@ -7,7 +7,10 @@ Deno.test('Go/V8 SSR, client navigation, history and action revalidation', async
   const initial = await fetch(`${base}/pages/about`);
   assert.equal(initial.status, 200);
   assert.match(await initial.text(), /<h1>About<\/h1>/);
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    headless: true,
+    channel: Deno.env.get('RADI_BROWSER_CHANNEL'),
+  });
   try {
     const page = await browser.newPage();
     const documents: string[] = [];

@@ -38,14 +38,10 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - run: npx --yes playwright@1.64.1 install --with-deps --only-shell chromium
-        timeout-minutes: 3
       - name: Verify browser routing through Go and V8
         timeout-minutes: 3
+        env:
+          RADI_BROWSER_CHANNEL: chrome
         run: |
           go build -o radi-router ./examples/router
           ./radi-router &

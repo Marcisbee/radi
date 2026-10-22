@@ -23,7 +23,10 @@ manually run **Check release tooling** and, for Go/server/router changes,
 also provides the pre-release soak check. Documentation deployment and draft
 release creation still run on master; npm publishing still validates the tag.
 
-Browser checks install only Chromium's headless shell. Keep the exact Playwright
+The Go browser check uses the runner's preinstalled Google Chrome via
+`RADI_BROWSER_CHANNEL=chrome`, avoiding a second browser/dependency installation.
+Local Go checks default to Playwright's bundled Chromium. Other browser checks
+install only Chromium's headless shell. Keep the exact Playwright
 version in workflows and browser tests aligned, including the Rion dependency
 resolution in deno.lock. Playwright 1.64.1 supports the Go job's Ubuntu 26.04
 runner; the former 1.56.1 pin did not. Go example artifacts are built/uploaded
