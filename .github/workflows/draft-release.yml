@@ -1,0 +1,33 @@
+name: Draft release
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: draft-release
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        id: checkout
+        with:
+          ref: master
+          persist-credentials: false
+      - uses: actions/github-script@v9
+        env:
+          DRAFT_SHA: ${{ steps.checkout.outputs.commit }}
+        with:
+          script: |
+            await require('./.github/scripts/draft-release.cjs')({
+              github,
+              context: { repo: context.repo, sha: process.env.DRAFT_SHA },
+            });

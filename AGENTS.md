@@ -95,6 +95,17 @@ fast, simple, and maintainable code.
 
 ## Agent notes
 
+- Use Conventional Commit PR titles and squash merge using the PR title.
+  Use `fix:` for fixes, `feat:` for features, and `!` for breaking changes
+  (for example, `feat(renderer)!: replace the rendering API`). Explain breaking
+  changes in the PR description. Direct commits to master use the same convention.
+- Other allowed types are `perf`, `refactor`, `docs`, `test`, `build`, `ci`,
+  `chore`, `style`, and `revert`. Optional scopes are allowed.
+- Release automation uses the largest bump since the last stable release.
+  Breaking changes bump minor while on `0.x`, and major from `1.0.0` onward.
+  Set `deno.json` to `1.0.0` only when explicitly requested; it is a version floor.
+  Other types and legacy messages fall back to patch.
+
 - When uncertain, choose the simplest working solution and document trade-offs
   briefly.
 - Prefer deletion and refactoring over adding complexity.

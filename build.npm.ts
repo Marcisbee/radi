@@ -9,12 +9,20 @@ async function start() {
     entryPoints: [
       "./src/client.ts",
       {
+        name: "./resume",
+        path: "./src/resume.ts",
+      },
+      {
         name: "./client",
         path: "./src/client.ts",
       },
       {
         name: "./server",
         path: "./src/server.ts",
+      },
+      {
+        name: "./static",
+        path: "./src/static.ts",
       },
       {
         name: "./jsx-runtime",
@@ -45,7 +53,7 @@ async function start() {
     },
     package: {
       name: "radi",
-      version: denojson.version,
+      version: Deno.env.get('RELEASE_VERSION') ?? denojson.version,
       // description: "...",
       // license: "MIT",
       repository: {

@@ -3,6 +3,16 @@
 Radi is a lightweight reactive JSX runtime that lets you write components as
 plain functions with direct DOM manipulation — no virtual DOM required.
 
+Radi also supports synchronous server rendering and ordered async HTML streaming.
+See [server rendering](docs/server-rendering.md) for APIs, runtime examples,
+limitations, and reproducible performance measurements.
+
+For lazy interactions on existing server DOM, see [resumption](docs/resumption.md).
+Explicit boundaries carry JSON state and load named handlers on the first click.
+
+For documentation and other static sites with interactive islands, see
+[static site generation](docs/static-sites.md).
+
 ## What Makes Radi Different
 
 Radi takes a unique approach compared to React, Preact, or even Solid:
@@ -402,6 +412,8 @@ vanilla JavaScript, see [the comparison benchmark suite](benchmarks/README.md).
 2. Install dependencies
 3. Run tests: `deno task test`
 4. Open a PR with a concise description
+
+For publishing to npm, see the [release workflow](.github/RELEASING.md).
 
 ## License
 

@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "lib": ["deno.ns", "dom", "dom.iterable", "esnext"],
+    "strict": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "radi/server"
+  },
+  "fmt": { "singleQuote": true },
+  "imports": {
+    "radi/server/jsx-runtime": "./src/server/jsx-runtime.ts",
+    "radi/server/jsx-dev-runtime": "./src/server/jsx-dev-runtime.ts"
+  }
+}

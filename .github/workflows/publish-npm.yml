@@ -1,0 +1,50 @@
+name: Publish npm release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: '!github.event.release.prerelease'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ github.event.release.tag_name }}
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Validate release version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          node --input-type=module -e '
+            const tag = process.env.RELEASE_TAG;
+            if (!/^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(tag)) {
+              throw new Error("Expected a stable vMAJOR.MINOR.PATCH release tag");
+            }
+            console.log(`Releasing ${tag}`);
+          '
+          printf 'RELEASE_VERSION=%s\n' "${RELEASE_TAG#v}" >> "$GITHUB_ENV"
+      - run: npx --yes playwright@1.56.1 install --with-deps chromium
+      - run: deno task test
+      - name: Build release package
+        run: deno run -A build.npm.ts
+      - name: Publish to npm
+        working-directory: npm
+        run: npm publish --access public --tag latest
