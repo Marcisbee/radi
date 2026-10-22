@@ -41,6 +41,71 @@ to use a source checkout. Embed the result using `//go:embed`, then pass it as
 provide Node modules, timers, fetch, DOM, or Web Streams globals. Use `data()`
 for I/O and timing. Server JSX and ordinary promises need no polyfills.
 
+## Go API
+
+Import `radi "github.com/Marcisbee/radi/go"`. `radi.New(config)` returns
+`(*radi.Handler, error)`. The handler implements `http.Handler`; register it
+with your HTTP server or mux. `handler.Close(ctx)` cancels work and waits for
+cleanup, returning a context error if the shutdown deadline expires.
+
+`Config.Operations` maps names to functions with this signature:
+
+```go
+func(ctx context.Context, input json.RawMessage) (any, error)
+```
+
+For example, after opening the `pages` Flop table as in
+[`examples/go-server/main.go`](https://github.com/Marcisbee/radi/blob/master/examples/go-server/main.go):
+
+```go
+handler, err := radi.New(radi.Config{
+    Source: source, // JavaScript source embedded with go:embed
+    Queue: 32,
+    Operations: map[string]radi.Operation{
+        "page": func(ctx context.Context, input json.RawMessage) (any, error) {
+            if err := ctx.Err(); err != nil {
+                return nil, err
+            }
+            var args struct { ID string `json:"id"` }
+            if err := json.Unmarshal(input, &args); err != nil {
+                return nil, err
+            }
+            row, err := table.Get(args.ID)
+            if err != nil {
+                return nil, err
+            }
+            return row, ctx.Err()
+        },
+    },
+})
+if err != nil {
+    return err
+}
+```
+
+This matches `data<{ title: string }>('page', { id: 'home' })` in TSX.
+The example uses public seeded data. Add application authorization before
+reading private rows. Check missing rows and validate returned values before
+using them in components.
+
+| Config field | Default | Behavior |
+| --- | --- | --- |
+| `Source` | Required | Bundled JavaScript source exporting `Radi.app` |
+| `Operations` | None | Allowlisted Go data functions |
+| `Workers` | `1` | Parallel V8 instances; one active response per instance |
+| `Queue` | `0` | Additional waiting requests; excess receives 503 |
+| `Timeout` | `10 * time.Second` | Total request deadline, including queue time |
+| `WriteTimeout` | `5 * time.Second` | Deadline for each response write |
+| `MaxHeapBytes` | `64 << 20` | Best-effort V8 heap setting per worker, not an RSS cap |
+| `MaxResponseBytes` | `16 << 20` | Total response byte limit |
+| `MaxDataBytes` | `1 << 20` | Each data input/result and request metadata limit |
+| `MaxDataCalls` | `32` | Total operation calls per request |
+| `OnError` | None | `func(*http.Request, error)` for private render diagnostics |
+
+Zero selects the default for each limit except `Queue`, where zero means no
+waiting capacity. Negative limits are rejected. Go operations may run
+concurrently, including within one request; protect shared mutable Go state.
+
 ## Request and lifecycle contract
 
 - GET requests render HTML. Other methods receive 405. Mount the handler
