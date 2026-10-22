@@ -50,18 +50,6 @@ button:active {
 [hidden] {
   display: none !important;
 }
-.site-header {
-  background: var(--background);
-  border-bottom: 1px solid var(--border);
-}
-.header-inner {
-  max-width: 1160px;
-  padding: 12px 24px;
-  margin: auto;
-  display: flex;
-  gap: 24px;
-  align-items: center;
-}
 .brand {
   display: flex;
   align-items: center;
@@ -78,19 +66,24 @@ button:active {
 .brand:hover {
   text-decoration: none;
 }
-.header-label {
-  color: var(--muted);
-  font-size: 13px;
+.sidebar-brand {
+  margin-bottom: 20px;
 }
 .github {
+  display: block;
   font-size: 13px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
 }
 .search-trigger {
-  margin-left: auto;
-  border: 0;
-  padding: 8px 0;
-  background: none;
-  color: var(--muted);
+  width: 100%;
+  text-align: left;
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  background: var(--surface);
+  color: var(--secondary);
   font-size: 13px;
 }
 .layout {
@@ -103,9 +96,9 @@ button:active {
 }
 .sidebar {
   position: sticky;
-  top: 28px;
+  top: 0;
   align-self: start;
-  max-height: calc(100dvh - 56px);
+  max-height: 100dvh;
   overflow-y: auto;
   padding: 24px 0;
 }
@@ -292,7 +285,7 @@ footer {
 .skip:focus {
   top: 10px;
 }
-.mobile-contents {
+.mobile-menu {
   display: none;
 }
 .sr-only {
@@ -364,13 +357,6 @@ dialog::backdrop {
   background: var(--surface);
 }
 @media (max-width: 767px) {
-  .header-inner {
-    padding: 10px 18px;
-    gap: 20px;
-  }
-  .header-label {
-    display: none;
-  }
   .brand {
     font-size: 22px;
   }
@@ -381,10 +367,18 @@ dialog::backdrop {
   .sidebar {
     display: none;
   }
-  .mobile-contents {
+  .mobile-menu {
     display: block;
+    padding: 20px 22px 0;
+  }
+  .mobile-menu .sidebar-brand {
+    margin-bottom: 0;
+  }
+  .mobile-contents {
     border-bottom: 1px solid var(--border);
-    padding: 0 22px;
+  }
+  .mobile-menu .github {
+    padding: 14px 0;
   }
   summary {
     padding: 12px 0;

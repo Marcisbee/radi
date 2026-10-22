@@ -22,9 +22,14 @@ export function setupSearch() {
       ).join(' ').replace(/\s+/g, ' '),
     };
   });
-  const trigger = document.querySelector<HTMLButtonElement>('[data-search]')!;
-  trigger.hidden = false;
-  trigger.addEventListener('click', () => dialog.showModal());
+  for (
+    const trigger of document.querySelectorAll<HTMLButtonElement>(
+      '[data-search]',
+    )
+  ) {
+    trigger.hidden = false;
+    trigger.addEventListener('click', () => dialog.showModal());
+  }
   dialog.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       event.preventDefault();

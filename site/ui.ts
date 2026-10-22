@@ -117,36 +117,30 @@ export function navigation(label: string) {
   );
 }
 
-export function header() {
+export function sidebarBrand() {
   return h(
-    'header',
-    { class: 'site-header' },
+    'div',
+    { class: 'sidebar-brand' },
     h(
-      'div',
-      { class: 'header-inner' },
-      h(
-        'a',
-        { class: 'brand', href: '/', 'aria-label': 'Radi home' },
-        h('img', { src: '/radi-logo.png', width: 32, height: 32, alt: '' }),
-        'Radi',
-      ),
-      h('span', { class: 'header-label' }, 'Documentation'),
-      h(
-        'button',
-        {
-          class: 'search-trigger',
-          type: 'button',
-          'data-search': '',
-          hidden: true,
-        },
-        h('span', null, 'Search docs'),
-      ),
-      h(
-        'a',
-        { class: 'github', href: 'https://github.com/Marcisbee/radi' },
-        'GitHub ↗',
-      ),
+      'a',
+      { class: 'brand', href: '/', 'aria-label': 'Radi home' },
+      h('img', { src: '/radi-logo.png', width: 32, height: 32, alt: '' }),
+      'Radi',
     ),
+    h('button', {
+      class: 'search-trigger',
+      type: 'button',
+      'data-search': '',
+      hidden: true,
+    }, 'Search docs'),
+  );
+}
+
+export function githubLink() {
+  return h(
+    'a',
+    { class: 'github', href: 'https://github.com/Marcisbee/radi' },
+    'GitHub ↗',
   );
 }
 

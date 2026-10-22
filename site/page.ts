@@ -1,6 +1,13 @@
 import { references } from './reference.ts';
 import { createElement as h, resumable, resumeClick } from '../src/server.ts';
-import { code, header, navigation, searchDialog, section } from './ui.ts';
+import {
+  code,
+  githubLink,
+  navigation,
+  searchDialog,
+  section,
+  sidebarBrand,
+} from './ui.ts';
 
 function introduction() {
   return h(
@@ -205,13 +212,18 @@ const publishingSections = [
 export function page() {
   return [
     h('a', { class: 'skip', href: '#content' }, 'Skip to content'),
-    header(),
     searchDialog(),
     h(
-      'details',
-      { class: 'mobile-contents' },
-      h('summary', null, 'On this page'),
-      navigation('Mobile documentation'),
+      'div',
+      { class: 'mobile-menu' },
+      sidebarBrand(),
+      h(
+        'details',
+        { class: 'mobile-contents' },
+        h('summary', null, 'On this page'),
+        navigation('Mobile documentation'),
+        githubLink(),
+      ),
     ),
     h(
       'div',
@@ -219,7 +231,9 @@ export function page() {
       h(
         'aside',
         { class: 'sidebar' },
+        sidebarBrand(),
         navigation('Documentation'),
+        githubLink(),
       ),
       h(
         'main',
