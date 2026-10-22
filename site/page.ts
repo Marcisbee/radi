@@ -196,23 +196,6 @@ const publishingSections = [
       null,
       'Function children identify dynamic output, but do not identify a browser module or preserve a closure’s captured state. Radi currently has no compiler to extract those functions. A wrapper could generate registry entries for explicit module references, but could not automatically resume arbitrary components.',
     ),
-    h(
-      'p',
-      null,
-      'Qwik offers more automatic authoring through ',
-      h(
-        'a',
-        { href: 'https://qwik.dev/docs/advanced/optimizer/' },
-        'its optimizer ↗',
-      ),
-      ', which extracts marked closures, and ',
-      h(
-        'a',
-        { href: 'https://qwik.dev/docs/advanced/qrl/' },
-        'QRL references ↗',
-      ),
-      ', which identify code and captured state. Similar support in Radi would require compiler, serialization, and reactive-binding work. For now, use explicit boundaries and choose eager or lazy handler delivery.',
-    ),
     h('a', {
       href: '#resume-api',
     }, 'radi/resume →'),
