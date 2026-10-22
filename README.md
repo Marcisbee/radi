@@ -405,6 +405,9 @@ import { createElement, Fragment } from 'radi';
 
 ## Contributing
 
+For reproducible browser performance comparisons with React, Preact, Vue, and
+vanilla JavaScript, see [the comparison benchmark suite](benchmarks/README.md).
+
 1. Fork and clone
 2. Install dependencies
 3. Run tests: `deno task test`
