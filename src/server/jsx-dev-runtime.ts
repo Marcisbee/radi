@@ -8,10 +8,7 @@
  *   {
  *     "compilerOptions": {
  *       "jsx": "react-jsxdev",
- *       "jsxImportSource": "radi"
- *     },
- *     "paths": {
- *       "radi/jsx-dev-runtime": ["radi/src/server-jsx-dev-runtime.ts"]
+ *       "jsxImportSource": "radi/server"
  *     }
  *   }
  *
