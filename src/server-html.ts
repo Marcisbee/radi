@@ -41,14 +41,30 @@ export function Fragment(children: ServerChild[]): ServerNode {
   return { [nodeKind]: true, type: null, props: null, children };
 }
 
-const escapes: Record<string, string> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-};
 function escape(value: unknown): string {
-  return String(value).replace(/[&<>"]/g, (char) => escapes[char]);
+  const text = String(value);
+  let index = text.search(/[&<>"]/);
+  if (index === -1) return text;
+  let html = text.slice(0, index);
+  let start = index;
+  while (index < text.length) {
+    const code = text.charCodeAt(index);
+    const replacement = code === 38
+      ? '&amp;'
+      : code === 60
+      ? '&lt;'
+      : code === 62
+      ? '&gt;'
+      : code === 34
+      ? '&quot;'
+      : '';
+    if (replacement) {
+      html += text.slice(start, index) + replacement;
+      start = index + 1;
+    }
+    index++;
+  }
+  return html + text.slice(start);
 }
 
 const voidElements = new Set([
@@ -92,14 +108,48 @@ function styleText(style: Record<string, unknown>): string {
   return parts.join(' ');
 }
 
+interface Tag {
+  open: string;
+  close: string;
+}
+const tags = new Map<string, Tag>();
+const attributes = new Set<string>();
+
+function tagInfo(name: string): Tag {
+  let tag = tags.get(name);
+  if (tag) return tag;
+  if (!/^[a-zA-Z][\w:.-]*$/.test(name)) throw new TypeError('Invalid HTML tag');
+  tag = {
+    open: `<${name}`,
+    close: voidElements.has(name.toLowerCase()) ? '' : `</${name}>`,
+  };
+  if (name.length <= 64) {
+    if (tags.size === 256) tags.clear();
+    tags.set(name, tag);
+  }
+  return tag;
+}
+
+function validateAttribute(name: string): void {
+  if (attributes.has(name)) return;
+  if (/[\s"'<>/=\u0000-\u001f]/.test(name) || !name) {
+    throw new TypeError('Invalid HTML attribute');
+  }
+  if (name.length <= 64) {
+    if (attributes.size === 256) attributes.clear();
+    attributes.add(name);
+  }
+}
+
 function openingTag(
-  tag: string,
+  tag: Tag,
   props: Record<string, unknown> | null,
 ): string {
-  if (!/^[a-zA-Z][\w:.-]*$/.test(tag)) throw new TypeError('Invalid HTML tag');
-  let html = `<${tag}`;
+  let html = tag.open;
   if (props) {
-    for (const [key, value] of Object.entries(props)) {
+    for (const key in props) {
+      if (!Object.hasOwn(props, key)) continue;
+      const value = props[key];
       if (
         value == null || value === false || typeof value === 'function' ||
         key === 'children' || key === 'key' || key === 'ref' || /^on/i.test(key)
@@ -109,9 +159,7 @@ function openingTag(
         : key === 'tabIndex'
         ? 'tabindex'
         : key;
-      if (/[\s"'<>/=\u0000-\u001f]/.test(name) || !name) {
-        throw new TypeError('Invalid HTML attribute');
-      }
+      validateAttribute(name);
       const text = name === 'style' && typeof value === 'object'
         ? styleText(value as Record<string, unknown>)
         : value === true
@@ -157,61 +205,6 @@ function isPromise(value: unknown): value is PromiseLike<unknown> {
     typeof (value as PromiseLike<unknown>).then === 'function';
 }
 
-type Token = string | PromiseLike<unknown>;
-function* textChunks(text: string): Generator<string> {
-  let start = 0;
-  while (start < text.length) {
-    let end = Math.min(start + 16384, text.length);
-    const code = text.charCodeAt(end - 1);
-    if (end < text.length && code >= 0xd800 && code <= 0xdbff) end--;
-    yield text.slice(start, end);
-    start = end;
-  }
-}
-
-function* walk(child: ServerChild): Generator<Token> {
-  if (child == null || typeof child === 'boolean') {
-    yield `<!--${child == null ? 'null' : child}-->`;
-  } else if (typeof child === 'string' || typeof child === 'number') {
-    const text = escape(child);
-    if (text.length <= 16384) yield text;
-    else yield* textChunks(text);
-  } else if (Array.isArray(child)) {
-    for (const item of child) yield* walk(item);
-  } else if (typeof child === 'function') {
-    yield '<!--$-->';
-    yield* walk(child(undefined as unknown as Element));
-  } else if (isPromise(child)) {
-    yield child;
-  } else if (isSubscribable(child)) {
-    yield '<!--$-->';
-    yield* walk(sample(child));
-  } else if (child[nodeKind]) {
-    yield* walkNode(child);
-  } else {
-    throw new TypeError('Unsupported server child');
-  }
-}
-
-function* walkNode(node: ServerNode): Generator<Token> {
-  if (node.type === null && node.props?.comment !== undefined) {
-    yield `<!--${escape(node.props.comment).replace(/-/g, '&#45;')}-->`;
-    return;
-  }
-  if (typeof node.type === 'function') {
-    yield '<host>';
-    yield* walk(component(node));
-    yield '</host>';
-  } else {
-    if (node.type) {
-      yield openingTag(node.type, node.props);
-      if (voidElements.has(node.type.toLowerCase())) return;
-    }
-    for (const child of node.children) yield* walk(child);
-    if (node.type) yield `</${node.type}>`;
-  }
-}
-
 export function createTextNode(text: string): ServerChild {
   return text;
 }
@@ -225,62 +218,172 @@ export function createComment(text: string): ServerNode {
 }
 
 export function renderToString(child: ServerChild): string {
-  let html = '';
-  for (const token of walk(child)) {
-    if (typeof token !== 'string') {
-      Promise.resolve(token).catch(() => {});
-      throw new TypeError(
-        'Async content requires renderToReadableStream or renderToStringAsync',
-      );
-    }
-    html += token;
+  if (typeof child === 'string') return escape(child);
+  if (typeof child === 'number') return String(child);
+  if (child == null) return '<!--null-->';
+  if (typeof child === 'boolean') return child ? '<!--true-->' : '<!--false-->';
+  if (Array.isArray(child)) return renderChildren(child);
+  if (typeof child === 'function') {
+    return '<!--$-->' + renderToString(child(undefined as unknown as Element));
   }
+  if (nodeKind in child) return renderNode(child);
+  if (isSubscribable(child)) return '<!--$-->' + renderToString(sample(child));
+  if (isPromise(child)) {
+    Promise.resolve(child).catch(() => {});
+    throw new TypeError(
+      'Async content requires renderToReadableStream or renderToStringAsync',
+    );
+  }
+  throw new TypeError('Unsupported server child');
+}
+
+function renderChildren(children: ServerChild[]): string {
+  let html = '';
+  for (const child of children) html += renderToString(child);
   return html;
+}
+
+function renderNode(node: ServerNode): string {
+  const { type, props, children } = node;
+  if (type === null) {
+    return props?.comment !== undefined
+      ? `<!--${escape(props.comment).replace(/-/g, '&#45;')}-->`
+      : renderChildren(children);
+  }
+  if (typeof type === 'function') {
+    return '<host>' + renderToString(component(node)) + '</host>';
+  }
+  const tag = tagInfo(type);
+  const open = openingTag(tag, props);
+  return tag.close ? open + renderChildren(children) + tag.close : open;
+}
+
+interface Frame {
+  children: ServerChild[];
+  index: number;
+  close: string;
+}
+
+class StreamWriter {
+  frames: Frame[] = [];
+  pending: PromiseLike<unknown> | undefined;
+  text = '';
+  offset = 0;
+  html = '';
+
+  push(children: ServerChild[], close = ''): void {
+    this.frames.push({ children, index: 0, close });
+  }
+
+  nextChunk(): string {
+    this.html = '';
+    while (this.html.length < 16384) {
+      if (this.text) {
+        this.writeText();
+        continue;
+      }
+      const frame = this.frames[this.frames.length - 1];
+      if (!frame) break;
+      if (frame.index >= frame.children.length) {
+        this.html += frame.close;
+        this.frames.pop();
+      } else {
+        this.visit(frame.children[frame.index++]);
+        if (this.pending) break;
+      }
+    }
+    return this.html;
+  }
+
+  writeText(): void {
+    let end = Math.min(this.offset + 16384, this.text.length);
+    const code = this.text.charCodeAt(end - 1);
+    if (end < this.text.length && code >= 0xd800 && code <= 0xdbff) end--;
+    this.html += this.text.slice(this.offset, end);
+    this.offset = end;
+    if (end === this.text.length) {
+      this.text = '';
+      this.offset = 0;
+    }
+  }
+
+  visit(child: ServerChild): void {
+    if (typeof child === 'string') {
+      const text = escape(child);
+      if (text.length <= 16384) this.html += text;
+      else this.text = text;
+    } else if (typeof child === 'number') this.html += child;
+    else if (child == null || typeof child === 'boolean') {
+      this.html += `<!--${child == null ? 'null' : child}-->`;
+    } else if (Array.isArray(child)) this.push(child);
+    else if (typeof child === 'function') {
+      this.html += '<!--$-->';
+      this.push([child(undefined as unknown as Element)]);
+    } else if (nodeKind in child) this.visitNode(child);
+    else if (isSubscribable(child)) {
+      this.html += '<!--$-->';
+      this.push([sample(child)]);
+    } else if (isPromise(child)) {
+      this.pending = Promise.resolve(child);
+      this.pending.then(undefined, () => {});
+    } else throw new TypeError('Unsupported server child');
+  }
+
+  visitNode(node: ServerNode): void {
+    const { type, props, children } = node;
+    if (type === null && props?.comment !== undefined) {
+      this.html += `<!--${escape(props.comment).replace(/-/g, '&#45;')}-->`;
+    } else if (typeof type === 'function') {
+      this.html += '<host>';
+      this.push([component(node)], '</host>');
+    } else {
+      if (type) {
+        const tag = tagInfo(type);
+        this.html += openingTag(tag, props);
+        if (!tag.close) return;
+      }
+      this.push(children, type ? `</${type}>` : '');
+    }
+  }
+
+  clear(): void {
+    this.frames.length = 0;
+    this.pending = undefined;
+    this.text = this.html = '';
+  }
 }
 
 /** Ordered HTML bytes. Pulls stop at async boundaries and obey consumer backpressure. */
 export function renderToReadableStream(
   child: ServerChild,
 ): ReadableStream<Uint8Array> {
-  const stack = [walk(child)];
+  const writer = new StreamWriter();
+  writer.push([child]);
   const encoder = new TextEncoder();
-  let pending: PromiseLike<unknown> | undefined;
   let cancelled = false;
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
       try {
-        if (pending) {
-          const value = await pending;
-          pending = undefined;
-          if (cancelled) return;
-          stack.push(walk(value as ServerChild));
-        }
-        let chunk = '';
-        while (stack.length && chunk.length < 16384) {
-          const next = stack[stack.length - 1].next();
-          if (next.done) {
-            stack.pop();
-            continue;
+        do {
+          if (writer.pending) {
+            const value = await writer.pending;
+            writer.pending = undefined;
+            if (cancelled) return;
+            writer.push([value as ServerChild]);
           }
-          if (typeof next.value !== 'string') {
-            pending = Promise.resolve(next.value);
-            pending.then(undefined, () => {});
-            break;
-          }
-          chunk += next.value;
-        }
-        if (chunk) controller.enqueue(encoder.encode(chunk));
-        if (!stack.length) controller.close();
-        else if (!chunk && pending) return this.pull!(controller);
+          const chunk = writer.nextChunk();
+          if (chunk) controller.enqueue(encoder.encode(chunk));
+          if (!writer.frames.length && !writer.text) controller.close();
+          if (chunk) return;
+        } while (writer.pending);
       } catch (error) {
-        stack.length = 0;
+        writer.clear();
         if (!cancelled) controller.error(error);
       }
     },
     cancel() {
       cancelled = true;
-      stack.length = 0;
-      pending = undefined;
+      writer.clear();
     },
   }, { highWaterMark: 0 });
 }

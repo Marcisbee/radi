@@ -114,6 +114,44 @@ Deno.test('samples first subscription value and cleans up both supported cleanup
   assert.equal(cleaned, true);
 });
 
+Deno.test('string and streaming writers escape dynamic values without retaining previous render content', async () => {
+  const values = [
+    ['', ''],
+    ['plain 😀', 'plain 😀'],
+    ['a&&b<>"c', 'a&amp;&amp;b&lt;&gt;&quot;c'],
+    ['"<&>end&', '&quot;&lt;&amp;&gt;end&amp;'],
+    ['&amp;', '&amp;amp;'],
+  ];
+  for (const [raw, escaped] of values) {
+    const props = Object.assign(Object.create({ inherited: 'omit' }), {
+      title: raw,
+    });
+    const tree = h(
+      'p',
+      props,
+      () => [raw, false, {
+        subscribe(emit: (value: string) => void) {
+          emit('tail');
+        },
+      }],
+    );
+    const expected =
+      `<p title="${escaped}"><!--$-->${escaped}<!--false--><!--$-->tail</p>`;
+    assert.equal(renderToString(tree), expected);
+    assert.equal(await renderToStringAsync(tree), expected);
+  }
+  for (const render of [renderToString, renderToStringAsync]) {
+    await assert.rejects(
+      async () => await render(h('p', { 'bad"name': 'x' })),
+      /Invalid HTML attribute/,
+    );
+    await assert.rejects(
+      async () => await render(h('p><script', null)),
+      /Invalid HTML tag/,
+    );
+  }
+});
+
 Deno.test('async components preserve order, children and error fallback; sync API rejects async input', async () => {
   const Async = async (props: () => Record<string, unknown>) =>
     h('b', null, props().children as string[]);
