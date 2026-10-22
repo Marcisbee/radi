@@ -217,7 +217,7 @@ export function page() {
       'aria-label': 'Open navigation',
       'aria-controls': 'mobile-navigation',
       'aria-haspopup': 'dialog',
-    }, h('span', { 'aria-hidden': 'true' }, '☰')),
+    }, h('span', { class: 'burger-icon', 'aria-hidden': 'true' }, h('span'))),
     h(
       'dialog',
       { id: 'mobile-navigation', 'aria-label': 'Documentation menu' },

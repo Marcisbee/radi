@@ -318,6 +318,8 @@ footer {
   }
   .mobile-menu .sidebar-brand {
     margin-bottom: 0;
+    padding-bottom: 18px;
+    border-bottom: 2px solid color-mix(in srgb, var(--accent) 20%, transparent);
   }
   main {
     padding-top: 20px;
@@ -460,12 +462,13 @@ body:has(#mobile-navigation[open]) {
     right: 20px;
     bottom: max(20px, env(safe-area-inset-bottom));
     z-index: 3;
-    width: 52px;
-    height: 52px;
-    border: 1px solid var(--border);
+    width: 60px;
+    height: 60px;
+    padding: 0;
+    border: 0;
     border-radius: 50%;
-    background: var(--background);
-    color: var(--brand);
+    background: #7551b9;
+    color: #fff;
     box-shadow: 0 4px 20px #0002;
     font-size: 24px;
   }
@@ -495,3 +498,23 @@ body:has(#mobile-navigation[open]) {
   transform: rotate(45deg);
 }
 .close-icon::after { transform: rotate(-45deg); }
+
+.burger-icon {
+  position: relative;
+  width: 24px;
+  height: 18px;
+}
+.burger-icon::before,
+.burger-icon::after,
+.burger-icon > span {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 24px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+}
+.burger-icon::before { top: 0; }
+.burger-icon > span { top: 8px; }
+.burger-icon::after { bottom: 0; }
