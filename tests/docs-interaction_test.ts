@@ -36,6 +36,52 @@ Deno.test('the generated guide supports keyboard search and first-click interact
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.goto(`http://127.0.0.1:${server.addr.port}`);
+    const agent = await browser.newContext({ javaScriptEnabled: false });
+    const staticPage = await agent.newPage();
+    await staticPage.goto(`http://127.0.0.1:${server.addr.port}`);
+    const markdownPath = await staticPage.locator(
+      'link[rel="alternate"][type="text/markdown"]',
+    ).getAttribute('href');
+    const indexPath = await staticPage.locator('link[rel="describedby"]')
+      .getAttribute('href');
+    assert.ok(markdownPath && indexPath);
+    const base = `http://127.0.0.1:${server.addr.port}`;
+    const markdownResponse = await agent.request.get(base + markdownPath);
+    assert.equal(markdownResponse.status(), 200);
+    const markdown = await markdownResponse.text();
+    for (
+      const code of await staticPage.locator('main pre code').allTextContents()
+    ) {
+      assert.ok(
+        markdown.includes(code),
+        'Markdown must preserve each complete code example',
+      );
+    }
+    for (
+      const heading of await staticPage.locator('main h1, main h2, main h3')
+        .allTextContents()
+    ) {
+      assert.ok(
+        markdown.includes(heading.replace(/#$/, '')),
+        'Markdown must retain every guide topic',
+      );
+    }
+    const index = await agent.request.get(base + indexPath);
+    assert.equal(index.status(), 200);
+    for (
+      const match of (await index.text()).matchAll(
+        /\]\(https:\/\/radi\.js\.org([^)]*)\)/g,
+      )
+    ) {
+      const response = await agent.request.get(base + match[1]);
+      assert.equal(
+        response.status(),
+        200,
+        `Agent index target ${match[1]} must exist`,
+      );
+      assert.ok((await response.text()).startsWith('#'));
+    }
+    await agent.close();
     await context.setOffline(true);
     const requests: string[] = [];
     page.on('request', (request) => requests.push(request.url()));

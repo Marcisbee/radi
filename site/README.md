@@ -17,6 +17,14 @@ enhancements. Search (Ctrl/Cmd K) searches the guide locally, including code
 examples. Search uses a native dialog for keyboard focus containment and Escape
 dismissal.
 
+Agent readers can discover `/index.md` and `/llms.txt` from HTML link relations
+or footer links. Markdown is generated from the guide at build time, preserving
+code examples without navigation or interactive controls. The index also links
+to copies of the repository's detailed server, resumption, and static-site docs
+under `/docs/`. These are static files and require no JavaScript or
+authentication. The docs test checks discovery, complete code examples, and
+index destinations.
+
 Run `deno task test:docs` to check the first counter interaction with the
 network disabled after the page loads. Install Chromium with Playwright first,
 as for the repository's static-site tests.

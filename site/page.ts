@@ -254,6 +254,8 @@ export function page() {
           'footer',
           null,
           h('span', null, 'Radi · MIT licensed'),
+          h('a', { href: '/index.md' }, 'Markdown'),
+          h('a', { href: '/llms.txt' }, 'llms.txt'),
           h('a', { href: '#' }, 'Back to top ↑'),
         ),
       ),

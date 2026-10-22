@@ -36,7 +36,7 @@ export async function code(
       { tabindex: '0', 'aria-label': label },
       h(
         'code',
-        null,
+        { 'data-language': lang },
         lines.flatMap((line, index) => index ? ['\n', ...line] : line),
       ),
     ),

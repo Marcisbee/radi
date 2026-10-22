@@ -3,6 +3,7 @@ import { build, stop } from 'npm:esbuild';
 import { generateStaticSite } from '../src/static.ts';
 import { createElement as h } from '../src/server.ts';
 import { page } from './page.ts';
+import { writeAgentDocs } from './agent-docs.ts';
 
 const outDir = new URL('../dist/docs/', import.meta.url).pathname;
 await Deno.mkdir(outDir, { recursive: true });
@@ -35,6 +36,8 @@ await generateStaticSite([{
     h('link', { rel: 'stylesheet', href: '/style.css' }),
     h('link', { rel: 'icon', href: '/radi-logo.png', type: 'image/png' }),
     h('link', { rel: 'canonical', href: 'https://radi.js.org/' }),
+    h('link', { rel: 'alternate', type: 'text/markdown', href: '/index.md' }),
+    h('link', { rel: 'describedby', href: '/llms.txt' }),
     h('meta', {
       name: 'description',
       content:
@@ -43,6 +46,10 @@ await generateStaticSite([{
   ],
   render: page,
 }], (path, html) => Deno.writeTextFile(join(outDir, path), html));
+await writeAgentDocs(
+  outDir,
+  await Deno.readTextFile(join(outDir, 'index.html')),
+);
 console.log(`Documentation built in ${outDir}`);
 
 if (Deno.args.includes('--serve')) {
@@ -51,6 +58,11 @@ if (Deno.args.includes('--serve')) {
     '/style.css': 'style.css',
     '/client.js': 'client.js',
     '/radi-logo.png': 'radi-logo.png',
+    '/index.md': 'index.md',
+    '/llms.txt': 'llms.txt',
+    '/docs/server-rendering.md': 'docs/server-rendering.md',
+    '/docs/resumption.md': 'docs/resumption.md',
+    '/docs/static-sites.md': 'docs/static-sites.md',
   };
   Deno.serve({ hostname: '127.0.0.1', port: 4320 }, async (request) => {
     const file = files[new URL(request.url).pathname];
@@ -59,6 +71,8 @@ if (Deno.args.includes('--serve')) {
       ? 'image/png'
       : file.endsWith('.txt')
       ? 'text/plain'
+      : file.endsWith('.md')
+      ? 'text/markdown'
       : file.endsWith('.js')
       ? 'text/javascript'
       : file.endsWith('.css')

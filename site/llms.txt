@@ -1,0 +1,16 @@
+# Radi
+
+> Radi is a reactive JSX runtime with plain-function components, explicit DOM updates, server rendering, and static generation with interactive islands.
+
+These docs describe the current repository API. Components run once; dynamic expressions are functions evaluated by explicit updates. Do not assume React hooks or React rerender semantics. Server JSX uses radi/server; client JSX uses radi. Resumable islands use explicitly registered handlers, not serialized arbitrary closures.
+
+## Documentation
+
+- [Guide](https://radi.js.org/index.md): Installation, JSX configuration, components, reactivity, lifecycle, rendering, and complete code examples. Generated from the same content as the human-readable guide.
+- [Server rendering](https://radi.js.org/docs/server-rendering.md): Rendering APIs, async behavior, streaming, and limitations.
+- [Resumption](https://radi.js.org/docs/resumption.md): Boundaries, state, handler registration, event support, and limitations.
+- [Static sites](https://radi.js.org/docs/static-sites.md): Route generation, output writers, bootstrap scripts, and deployment.
+
+## Reference
+
+- [API reference](https://raw.githubusercontent.com/Marcisbee/radi/master/README.md): Current client API and examples.
