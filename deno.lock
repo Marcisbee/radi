@@ -41,7 +41,7 @@
       "integrity": "fccad8dbe9ce4049ce9d9ba9a6d41ebc08e6122c6d3f36cb55ba4b3e550896c5",
       "dependencies": [
         "npm:@jridgewell/trace-mapping",
-        "npm:playwright"
+        "npm:playwright@^1.56.1"
       ]
     },
     "@std/fmt@1.0.8": {

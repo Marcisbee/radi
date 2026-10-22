@@ -45,7 +45,7 @@ async function start() {
     },
     package: {
       name: "radi",
-      version: denojson.version,
+      version: Deno.env.get('RELEASE_VERSION') ?? denojson.version,
       // description: "...",
       // license: "MIT",
       repository: {
