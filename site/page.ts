@@ -229,7 +229,7 @@ export function page() {
           type: 'button',
           'data-close-menu': '',
           'aria-label': 'Close navigation',
-        }, '×'),
+        }, h('span', { class: 'close-icon', 'aria-hidden': 'true' })),
       ),
       navigation('Mobile documentation'),
       githubLink(),

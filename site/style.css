@@ -374,7 +374,8 @@ pre code span {
   display: none;
 }
 #mobile-navigation {
-  width: min(460px, calc(100% - 24px));
+  width: calc(100% - 24px);
+  max-width: none;
   max-height: min(76dvh, 720px);
   margin: auto auto max(12px, env(safe-area-inset-bottom));
   padding: 16px 20px;
@@ -405,6 +406,10 @@ body:has(#mobile-navigation[open]) {
   justify-content: space-between;
 }
 .sheet-heading button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  flex-shrink: 0;
   width: 36px;
   height: 36px;
   border: 0;
@@ -420,8 +425,9 @@ body:has(#mobile-navigation[open]) {
   margin-bottom: 24px;
 }
 #mobile-navigation .nav-group p {
-  font-size: 13px;
-  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--brand);
 }
 #mobile-navigation .nav-group a {
   padding: 14px 0;
@@ -472,3 +478,20 @@ body:has(#mobile-navigation[open]) {
     animation: none;
   }
 }
+
+.close-icon {
+  position: relative;
+  width: 16px;
+  height: 16px;
+}
+.close-icon::before,
+.close-icon::after {
+  content: '';
+  position: absolute;
+  inset: 7px 0;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+.close-icon::after { transform: rotate(-45deg); }
