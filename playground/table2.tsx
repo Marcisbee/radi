@@ -280,7 +280,7 @@ export function Table(this: HTMLElement) {
               return key(() => (
                 <tr
                   id={String(item.id)}
-                  className={item.selected ? "danger" : ""}
+                  className={() => item.selected ? 'danger' : ''}
                 >
                   {Math.random()}
                   <td className="col-md-1">
@@ -288,7 +288,7 @@ export function Table(this: HTMLElement) {
                   </td>
                   <td className="col-md-4">
                     <a>
-                      {item.label}
+                      {() => item.label}
                     </a>
                   </td>
                   <td data-interaction="delete" className="col-md-1">
