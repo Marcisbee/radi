@@ -128,9 +128,8 @@ function queueDescendantComponents(root: Node) {
     return;
   }
 
-  const children = root.childNodes;
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i];
+  for (let node = root.firstChild; node; node = node.nextSibling) {
+    const child = node;
     if ((child as any)[COMPONENT] && (child as any)[INSTANCE] === undefined) {
       queueConnection(() => {
         if (!child.isConnected || (child as any)[INSTANCE] !== undefined) {
@@ -387,6 +386,21 @@ function diff(valueOld: any, valueNew: any, parent: Node): Node[] {
 
     flushConnectionQueue();
     return arrayOut;
+  }
+
+  // Reactive text is the common case; avoid collection bookkeeping for one node.
+  if (
+    Array.isArray(valueOld) && valueOld.length === 1 && !valueOld[KEY_MAP] &&
+    valueOld[0]?.nodeType === Node.TEXT_NODE &&
+    (typeof valueNew === 'string' || typeof valueNew === 'number')
+  ) {
+    const text = valueOld[0];
+    if (text.nodeValue !== String(valueNew)) text.nodeValue = valueNew;
+    if (parent.nodeType === Node.COMMENT_NODE || parent.nodeType === Node.TEXT_NODE) {
+      parent[TAIL] = text;
+    }
+    flushConnectionQueue();
+    return [text];
   }
 
   // Handle cleanup when switching from keyed to non-keyed
