@@ -1,6 +1,27 @@
+@font-face {
+  font-family: 'Inter';
+  src: url('/inter.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Serif';
+  src: url('/ibm-plex-serif.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/jetbrains-mono.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
 :root {
   color-scheme: light dark;
-  font-family: system-ui, sans-serif;
+  font-family: Inter, system-ui, sans-serif;
   color: var(--text);
   background: var(--background);
   font-synthesis: none;
@@ -134,10 +155,11 @@ section {
   margin: 0;
 }
 h1 {
+  font-family: 'IBM Plex Serif', Georgia, serif;
   font-size: 30px;
   line-height: 1.25;
   letter-spacing: -.8px;
-  font-weight: 650;
+  font-weight: 600;
   margin: 0 0 12px;
 }
 h2 {
@@ -198,8 +220,11 @@ pre {
   margin: 0;
   padding: 8px 14px 12px;
   overflow-x: auto;
-  font: 12px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
+  font: 12px/1.6 'JetBrains Mono', ui-monospace, monospace;
   tab-size: 2;
+}
+pre code {
+  font: inherit;
 }
 .copy {
   border: 0;
@@ -261,7 +286,7 @@ dt {
 }
 dd {
   margin: 4px 0 0;
-  font: 13px/1.7 ui-monospace, monospace;
+  font: 13px/1.7 'JetBrains Mono', ui-monospace, monospace;
   color: var(--secondary);
   overflow-wrap: anywhere;
 }

@@ -18,7 +18,18 @@ try {
 } finally {
   stop();
 }
-for (const asset of ['style.css', 'radi-logo.png']) {
+for (
+  const asset of [
+    'style.css',
+    'radi-logo.png',
+    'inter.woff2',
+    'ibm-plex-serif.woff2',
+    'jetbrains-mono.woff2',
+    'inter-license.txt',
+    'ibm-plex-serif-license.txt',
+    'jetbrains-mono-license.txt',
+  ]
+) {
   await Deno.copyFile(
     new URL(`./${asset}`, import.meta.url),
     join(outDir, asset),
@@ -58,6 +69,12 @@ if (Deno.args.includes('--serve')) {
     '/style.css': 'style.css',
     '/client.js': 'client.js',
     '/radi-logo.png': 'radi-logo.png',
+    '/inter.woff2': 'inter.woff2',
+    '/ibm-plex-serif.woff2': 'ibm-plex-serif.woff2',
+    '/jetbrains-mono.woff2': 'jetbrains-mono.woff2',
+    '/inter-license.txt': 'inter-license.txt',
+    '/ibm-plex-serif-license.txt': 'ibm-plex-serif-license.txt',
+    '/jetbrains-mono-license.txt': 'jetbrains-mono-license.txt',
     '/index.md': 'index.md',
     '/llms.txt': 'llms.txt',
     '/docs/server-rendering.md': 'docs/server-rendering.md',
@@ -67,7 +84,9 @@ if (Deno.args.includes('--serve')) {
   Deno.serve({ hostname: '127.0.0.1', port: 4320 }, async (request) => {
     const file = files[new URL(request.url).pathname];
     if (!file) return new Response('Not found', { status: 404 });
-    const type = file.endsWith('.png')
+    const type = file.endsWith('.woff2')
+      ? 'font/woff2'
+      : file.endsWith('.png')
       ? 'image/png'
       : file.endsWith('.txt')
       ? 'text/plain'

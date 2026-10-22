@@ -31,7 +31,9 @@ as for the repository's static-site tests.
 
 The Radi swirl logo is the original favicon from the repository’s `gh-pages`
 branch (`c6a8e7e90d1a53d6bcc0bb22ba5b6345.png`). The page uses its purple
-palette and system fonts.
+palette. Typography follows Railpack’s installation page: Inter for body and
+navigation, IBM Plex Serif for the page title, and JetBrains Mono for code. The
+Latin font files are self-hosted with their licenses alongside them.
 
 Deployment is intentionally manual until the design is approved. No workflow in
 this change replaces the existing public site.
