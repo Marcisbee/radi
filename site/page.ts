@@ -198,7 +198,7 @@ await router.ready;
     h(
       'p',
       null,
-      'The adapter bounds queued work, data calls, response bytes, and execution time. Slow readers apply backpressure; disconnects cancel operations. Use trusted application code, external memory limits and a restart policy: the V8 heap setting is not a hard memory sandbox. Go operations must respect cancellation. This adapter does not include a client router or SPA data layer.',
+      'The adapter bounds queued work, data calls, response bytes, and execution time. Slow readers apply backpressure; disconnects cancel operations. Use trusted application code, external memory limits and a restart policy: the V8 heap setting is not a hard memory sandbox. Go operations must respect cancellation. Pair the adapter with radi/router for client navigation and route data handling through Go HTTP endpoints.',
     ),
     h(
       'p',
