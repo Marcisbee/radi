@@ -22,6 +22,7 @@
 
 import { setProps } from "./client.props.ts";
 import { bubbleError } from "./error.ts";
+import { devtoolsHook } from './devtools-hook.ts';
 import {
   ATTRS,
   CLEANUP,
@@ -246,6 +247,7 @@ declare global {
 
 function buildRender(parent: Anchor, fn: (parent: Anchor) => any) {
   parent[RENDER] = () => {
+    const finish = devtoolsHook.render?.(parent, 'update');
     (parent as any)[TAIL] = parent;
     try {
       parent[REACTIVE_CHILDREN] = diff(
@@ -257,6 +259,8 @@ function buildRender(parent: Anchor, fn: (parent: Anchor) => any) {
     } catch (error) {
       bubbleError(error, parent);
       parent[REACTIVE_CHILDREN] = [];
+    } finally {
+      finish?.();
     }
   };
 }
@@ -903,6 +907,7 @@ function build(a: any, parent: Node): BuiltNode {
     // const anchor = document.createComment("$" + i++) as any as Anchor;
     connect(anchor, parent);
     anchor[RENDER_ID] = currentUpdateId;
+    const finish = devtoolsHook.render?.(anchor, 'mount');
     try {
       const built = build(a(anchor), parent);
       anchor[REACTIVE_CHILDREN] = Array.isArray(built)
@@ -912,6 +917,8 @@ function build(a: any, parent: Node): BuiltNode {
       // Bubble errors thrown during initial reactive generator execution
       bubbleError(error, anchor);
       anchor[REACTIVE_CHILDREN] = [];
+    } finally {
+      finish?.();
     }
     buildRender(anchor, a);
     return anchor;
@@ -942,6 +949,7 @@ export function createElement(
     host[TYPE] = type;
     host[PROPS] = { ...(props || {}), children };
     host[COMPONENT] = (anchor) => {
+      const finish = devtoolsHook.render?.(anchor, 'mount');
       try {
         if (!anchor[INSTANCE] || props?.key !== anchor[PROPS]?.key) {
           return (anchor[INSTANCE] = type.call(
@@ -952,6 +960,8 @@ export function createElement(
         return anchor[INSTANCE];
       } catch (error) {
         bubbleError(error, anchor, type?.name);
+      } finally {
+        finish?.();
       }
       return "ERROR:" + (type?.name || "Anonymous");
     };

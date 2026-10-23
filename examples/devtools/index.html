@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Radi DevTools example</title>
+    <style>
+    :root {
+      color-scheme: light dark;
+      font: 16px/1.6 system-ui;
+    }
+    body {
+      max-width: 720px;
+      margin: 64px auto;
+      padding: 0 24px;
+    }
+    h1 {
+      font-size: 42px;
+      letter-spacing: -1.5px;
+    }
+    .counter {
+      padding: 24px;
+      border: 1px solid #8886;
+      border-radius: 12px;
+      margin: 24px 0;
+    }
+    button {
+      font: inherit;
+      padding: 8px 14px;
+      border: 1px solid #8886;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:active {
+      transform: scale(.97);
+    }
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <nav
+      aria-label="Development controls"><button id="remount">Remount</button><button id="unmount">Unmount</button><button id="disable">Disable bridge</button><button id="enable">Enable bridge</button></nav>
+    <script src="/app.js"></script>
+  </body>
+</html>

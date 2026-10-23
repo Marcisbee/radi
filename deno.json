@@ -2,6 +2,8 @@
   "name": "radi",
   "version": "0.5.0",
   "tasks": {
+    "devtools:demo": "deno run -A examples/devtools/serve.ts",
+    "test:devtools": "deno test -A --config deno.server.json tests/devtools_test.ts",
     "docs:build": "deno run -A site/build.ts",
     "docs:preview": "deno run -A site/build.ts --serve",
     "test:docs": "deno test -A --config deno.server.json tests/docs-interaction_test.ts",
@@ -16,6 +18,7 @@
     "publish": "deno -A ./build.npm.ts && cd npm && npm publish --tag alpha"
   },
   "exports": {
+    "./devtools": "./src/devtools.ts",
     ".": "./src/client.ts",
     "./client": "./src/client.ts",
     "./resume": "./src/resume.ts",

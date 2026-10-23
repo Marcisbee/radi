@@ -1,0 +1,23 @@
+name: Check Chrome DevTools
+
+on:
+  pull_request:
+    paths: ['src/**', 'extensions/chrome/**', 'examples/devtools/**', 'tests/devtools_test.ts', 'deno*', '.github/workflows/check-devtools.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chrome:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno run -A npm:playwright@1.64.1 install --with-deps chromium
+      - run: xvfb-run -a deno task test:devtools

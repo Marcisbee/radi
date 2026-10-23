@@ -13,6 +13,9 @@ see [the Go adapter](docs/go-server.md).
 For lazy interactions on existing server DOM, see [resumption](docs/resumption.md).
 Explicit boundaries carry JSON state and load named handlers on the first click.
 
+Inspect components, DOM layers, props, and render timings with the opt-in
+[Radi DevTools extension](extensions/chrome/README.md).
+
 For documentation and other static sites with interactive islands, see
 [static site generation](docs/static-sites.md).
 
