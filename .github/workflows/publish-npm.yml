@@ -47,6 +47,29 @@ jobs:
       - run: deno task test
       - name: Build release package
         run: deno run -A build.npm.ts
+      - uses: actions/upload-artifact@v6
+        with:
+          name: create-radi
+          path: npm-starter
+          retention-days: 7
       - name: Publish to npm
         working-directory: npm
+        run: npm publish --access public --tag latest
+
+  publish-starter:
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: create-radi
+          path: npm-starter
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Publish initializer after the matching runtime
+        working-directory: npm-starter
         run: npm publish --access public --tag latest

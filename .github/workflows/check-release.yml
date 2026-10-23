@@ -2,7 +2,7 @@ name: Check release tooling
 
 on:
   pull_request:
-    paths: ['src/**', 'tests/**', '.github/scripts/**', '.github/workflows/check-release.yml', '.github/workflows/publish-npm.yml', 'deno*', 'tsconfig*', 'build.npm.ts']
+    paths: ['src/**', 'starter/**', 'tests/**', '.github/scripts/**', '.github/workflows/check-release.yml', '.github/workflows/publish-npm.yml', 'deno*', 'tsconfig*', 'build.npm.ts']
   workflow_dispatch:
 
 permissions:
@@ -38,5 +38,8 @@ jobs:
           RELEASE_VERSION: 0.0.0-release-check
       - name: Check packaged version
         run: node -e "if (require('./npm/package.json').version !== '0.0.0-release-check') process.exit(1)"
+      - run: deno task test:starters
       - run: npm pack --dry-run
         working-directory: npm
+      - run: npm pack --dry-run
+        working-directory: npm-starter

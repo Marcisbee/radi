@@ -80,6 +80,30 @@ async function start() {
       await Deno.copyFile("README.md", "npm/README.md");
     },
   });
+  await dnt.emptyDir('./npm-starter');
+  await copyStarter('starter', 'npm-starter/starter');
+  await Deno.writeTextFile('npm-starter/package.json', JSON.stringify({
+    name: 'create-radi',
+    version: Deno.env.get('RELEASE_VERSION') ?? denojson.version,
+    description: 'Create a Radi SPA, SSR, SSG, or Go application',
+    license: 'MIT',
+    bin: { 'create-radi': './starter/create.mjs' },
+    engines: { node: '>=22' },
+    repository: { type: 'git', url: 'git+https://github.com/Marcisbee/radi.git' },
+  }, null, 2) + '\n');
+  await Deno.copyFile('starter/README.md', 'npm-starter/README.md');
+  await Deno.copyFile('LICENSE', 'npm-starter/LICENSE');
 }
 
 start();
+
+async function copyStarter(source: string, destination: string) {
+  await Deno.mkdir(destination, { recursive: true });
+  for await (const entry of Deno.readDir(source)) {
+    if (entry.isDirectory) {
+      await copyStarter(`${source}/${entry.name}`, `${destination}/${entry.name}`);
+    } else {
+      await Deno.copyFile(`${source}/${entry.name}`, `${destination}/${entry.name}`);
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "radi-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm run build && go run .",
+    "build": "go mod tidy && go generate . && go build -o server .",
+    "start": "./server"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "radi": "RADI_VERSION"
+  }
+}

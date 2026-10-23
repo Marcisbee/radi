@@ -2,6 +2,7 @@
   "name": "radi",
   "version": "0.5.0",
   "tasks": {
+    "test:starters": "deno test -A --config deno.server.json tests/starters_test.ts",
     "docs:build": "deno run -A site/build.ts",
     "docs:preview": "deno run -A site/build.ts --serve",
     "test:docs": "deno test -A --config deno.server.json tests/docs-interaction_test.ts",
