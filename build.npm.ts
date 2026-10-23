@@ -62,6 +62,7 @@ async function start() {
     package: {
       name: "radi",
       version: Deno.env.get('RELEASE_VERSION') ?? denojson.version,
+      bin: { radi: './starter/create.mjs' },
       // description: "...",
       // license: "MIT",
       repository: {
@@ -75,6 +76,7 @@ async function start() {
     declaration: "separate",
 
     async postBuild() {
+      await copyStarter('starter', 'npm/starter');
       await Deno.copyFile("src/jsx.d.ts", "npm/jsx.d.ts");
       // await Deno.copyFile("LICENSE", "npm/LICENSE");
       await Deno.copyFile("README.md", "npm/README.md");
@@ -83,3 +85,14 @@ async function start() {
 }
 
 start();
+
+async function copyStarter(source: string, destination: string) {
+  await Deno.mkdir(destination, { recursive: true });
+  for await (const entry of Deno.readDir(source)) {
+    if (entry.isDirectory) {
+      await copyStarter(`${source}/${entry.name}`, `${destination}/${entry.name}`);
+    } else {
+      await Deno.copyFile(`${source}/${entry.name}`, `${destination}/${entry.name}`);
+    }
+  }
+}

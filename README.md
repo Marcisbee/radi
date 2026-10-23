@@ -3,6 +3,34 @@
 Radi is a lightweight reactive JSX runtime that lets you write components as
 plain functions with direct DOM manipulation — no virtual DOM required.
 
+## Start a project
+
+With Node.js 22+ installed, choose a starter:
+
+```sh
+npx radi@latest create my-app --template spa
+npx radi@latest create my-server --template ssr
+npx radi@latest create my-site --template ssg
+npx radi@latest create my-go-app --template go
+```
+
+Then enter the generated directory, run `npm install`, and run `npm run dev`.
+Open `http://127.0.0.1:3000`. The generator refuses nonempty directories and
+never installs dependencies automatically. Use `npx radi@latest --help` for syntax.
+
+| Template | Result | Production build |
+| --- | --- | --- |
+| `spa` | Browser-rendered app with a reactive counter | Static `dist/` |
+| `ssr` | Node HTTP server rendering HTML per request | `dist/` plus npm dependencies |
+| `ssg` | Two pages generated at build time | Static `dist/` |
+| `go` | Go HTTP server rendering TSX in embedded V8 | Standalone `server` binary |
+
+The Go starter additionally requires Linux amd64 with glibc, Go 1.26.10,
+Clang 21, and CGO. Follow its generated README before building.
+All starters include `npm run build` and `npm start`; their READMEs explain
+editing, previewing, and deployment. The generator and templates ship inside
+the `radi` npm package, so availability follows the normal Radi release.
+
 Radi also supports synchronous server rendering and ordered async HTML streaming.
 See [server rendering](docs/server-rendering.md) for APIs, runtime examples,
 limitations, and reproducible performance measurements.

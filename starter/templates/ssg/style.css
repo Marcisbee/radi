@@ -1,0 +1,9 @@
+:root { font: 100%/1.6 system-ui, sans-serif; color: #20242a; background: #f7f8fa; }
+body { margin: 0; }
+main { max-width: 42rem; margin: 12vh auto; padding: 2rem; }
+h1 { font-size: clamp(2.5rem, 7vw, 4rem); line-height: 1.1; letter-spacing: -0.04em; }
+a { color: #5042b8; }
+button { font: inherit; padding: .65rem 1.2rem; border: 1px solid #5042b8; border-radius: .5rem; background: #5042b8; color: white; cursor: pointer; }
+button:active { transform: scale(.97); }
+:focus-visible { outline: 3px solid #8779ed; outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) { button:active { transform: none; } }

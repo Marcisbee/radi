@@ -1,6 +1,14 @@
 # npm releases
 
 The same repository tag versions the Go module and `radi/go` npm entry point.
+The npm package also contains the `radi create` executable and all four starter
+templates. Generated projects pin that package's version; the Go starter pins
+the matching repository tag. No separate initializer package or publisher is
+needed. Check release tooling validates generated SPA/SSR/SSG projects from an
+npm tarball; Go embedded server validates the generated Go binary. These checks
+substitute the unreleased local artifacts for dependencies until the release
+tag and npm version exist. Publish the normal draft release to make the new
+generator available through `npx radi@latest`.
 The Go embedded server workflow must pass before publishing; it also builds a
 Linux amd64 example artifact. See [Go build and release instructions](../docs/go-server.md).
 

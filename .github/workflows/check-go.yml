@@ -1,7 +1,7 @@
 name: Go embedded server
 on:
   pull_request:
-    paths: ['go/**', 'go.mod', 'go.sum', 'cmd/**', 'examples/**', 'src/**', 'tests/router-go_test.ts', 'deno*', '.github/workflows/check-go.yml']
+    paths: ['go/**', 'go.mod', 'go.sum', 'cmd/**', 'examples/**', 'src/**', 'starter/**', 'build.npm.ts', 'tests/starters_test.ts', 'tests/router-go_test.ts', 'deno*', '.github/workflows/check-go.yml']
   workflow_dispatch:
   release:
     types: [published]
@@ -53,6 +53,15 @@ jobs:
           done
           curl --fail --silent --max-time 2 http://127.0.0.1:4321/ >/dev/null
           deno task test:router:go
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: deno run -A build.npm.ts
+      - name: Verify generated Go starter
+        run: deno task test:starters
+        env:
+          RADI_TEST_GO: '1'
       - uses: actions/upload-artifact@v6
         if: github.event_name == 'release'
         with:
