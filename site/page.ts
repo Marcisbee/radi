@@ -38,7 +38,7 @@ const basicSections = [
     h('h3', { id: 'install-package' }, 'Add the package'),
     code(
       'Terminal',
-      'npm install radi@0.6.0',
+      'npm install radi',
       'bash',
     ),
     h('h3', { id: 'configure-jsx' }, 'Configure JSX'),
@@ -55,12 +55,12 @@ const basicSections = [
     h(
       'p',
       null,
-      'Radi 0.6.0 ships its browser JSX declarations separately; the types entry above loads them. Its JSX attributes are permissive, so type checking does not guarantee valid HTML or correct runtime behavior.',
+      'The types entry above loads Radi’s browser JSX declarations. Its JSX attributes are permissive, so type checking does not guarantee valid HTML or correct runtime behavior.',
     ),
     h(
       'p',
       null,
-      'The signal, channel, renderer, types and symbols entries below are available in the source checkout but are not exported by npm radi@0.6.0. Do not import those subpaths from that package. The application recipes use its public client API.',
+      'The signal, channel, renderer, types and symbols entries below describe source-checkout APIs. Check your package exports before importing those subpaths. The application recipes use the public client API.',
     ),
     h('h3', { id: 'first-component' }, 'Mount your first component'),
     h(
