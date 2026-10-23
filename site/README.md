@@ -13,15 +13,18 @@ examples at build time and sends no highlighting JavaScript to the browser. The
 counter uses `radi/resume` with its tiny handler bundled into the initial
 script. Clicks need no extra network request. Navigation and documentation work
 without JavaScript; code copying and the current-section indicator are
-enhancements. Use the browser’s Find command (Ctrl/Cmd F) to search the full guide.
+enhancements. Use the browser’s Find command (Ctrl/Cmd F) to search the full
+guide.
 
-Agent readers can discover `/index.md` and `/llms.txt` from HTML link relations
-or footer links. Markdown is generated from the guide at build time, preserving
-code examples without navigation or interactive controls. The index also links
-to copies of the repository's detailed server, Go/V8, resumption, static-site, and routing docs
-under `/docs/`. These are static files and require no JavaScript or
-authentication. The docs test checks discovery, complete code examples, and
-index destinations.
+The page contains setup, application recipes, rendering guidance and the API
+reference. Visible documentation links stay on the page; readers do not need to
+open hosted Markdown files. Agent readers can discover `/index.md` and
+`/llms.txt` from HTML link relations. Markdown is generated from the guide at
+build time, preserving code examples without navigation or interactive controls.
+The index also links to copies of the repository's detailed server, Go/V8,
+resumption, static-site, and routing docs under `/docs/`. These are static files
+and require no JavaScript or authentication. The docs test checks discovery,
+complete code examples, and index destinations.
 
 Run `deno task test:docs` to check the first counter interaction with the
 network disabled after the page loads. Install Chromium with Playwright first,
@@ -33,12 +36,12 @@ palette. Typography follows Railpack’s installation page: Inter for body and
 navigation, IBM Plex Serif for the page title, and JetBrains Mono for code. The
 Latin font files are self-hosted with their licenses alongside them.
 
-GitHub Actions builds the docs on pull requests. Every push to
-`master` publishes the built `dist/docs` artifact to GitHub Pages at
-`radi.js.org`. The Deploy documentation workflow also supports manual runs
-from `master`. Pull requests never deploy. GitHub Pages must use the GitHub
-Actions publishing source; the custom domain stays configured in Pages settings.
+GitHub Actions builds the docs on pull requests. Every push to `master`
+publishes the built `dist/docs` artifact to GitHub Pages at `radi.js.org`. The
+Deploy documentation workflow also supports manual runs from `master`. Pull
+requests never deploy. GitHub Pages must use the GitHub Actions publishing
+source; the custom domain stays configured in Pages settings.
 
-If a build fails, deployment does not run and the last successful site
-stays live. To roll back, revert the offending change on `master`; the workflow
-then rebuilds and deploys that revision.
+If a build fails, deployment does not run and the last successful site stays
+live. To roll back, revert the offending change on `master`; the workflow then
+rebuilds and deploys that revision.

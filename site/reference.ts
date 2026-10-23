@@ -256,7 +256,7 @@ export const references = [
       [
         'createSignal',
         'const count = createSignal(0);\ncount(); // read\ncount(1); // write\nconst label = count(value => `Count: ${value}`);',
-        'Creates a callable signal. Writes notify connected subscriber nodes through update. A mapper call creates a reactive child function; it is not a functional setter. Subscribers attach through Radi connect/disconnect events. The current overload types do not fully express the mapper’s returned function.',
+        'Creates a callable signal. Writes notify connected subscriber nodes through update. A mapper call creates a reactive child function; it is not a functional setter. Subscribers attach through Radi connect/disconnect events, but direct signal children can miss the initial connect during mounting; prefer explicit owner updates for shared state. The current overload types do not fully express the mapper’s returned function.',
       ],
       [
         'createChannel',

@@ -1,4 +1,5 @@
 import { references } from './reference.ts';
+import { recipes } from './recipes.ts';
 import { createElement as h, resumable, resumeClick } from '../src/server.ts';
 import { code, githubLink, navigation, section, sidebarBrand } from './ui.ts';
 
@@ -32,26 +33,40 @@ const basicSections = [
     h(
       'p',
       null,
-      'Install Radi, then configure your bundler to use its automatic JSX runtime.',
+      'Add Radi to your project. The reference describes the current repository API; check exports and types against your installed version before using newer features.',
     ),
     h('h3', { id: 'install-package' }, 'Add the package'),
-    code('Terminal', 'npm install radi', 'bash'),
+    code(
+      'Terminal',
+      'npm install radi',
+      'bash',
+    ),
     h('h3', { id: 'configure-jsx' }, 'Configure JSX'),
     h(
       'p',
       null,
-      'Set the automatic JSX runtime in your TypeScript configuration.',
+      'Use a bundler that supports JSX. Merge these options into your TypeScript configuration.',
     ),
     code(
       'tsconfig.json',
-      '{\n  "compilerOptions": {\n    "jsx": "react-jsx",\n    "jsxImportSource": "radi"\n  }\n}',
+      '{\n  "compilerOptions": {\n    "jsx": "react-jsx",\n    "jsxImportSource": "radi",\n    "types": ["./node_modules/radi/jsx.d.ts"]\n  }\n}',
       'json',
+    ),
+    h(
+      'p',
+      null,
+      'The types entry above loads Radi’s browser JSX declarations. Its JSX attributes are permissive, so type checking does not guarantee valid HTML or correct runtime behavior.',
+    ),
+    h(
+      'p',
+      null,
+      'The signal, channel, renderer, types and symbols entries below describe source-checkout APIs. Check your package exports before importing those subpaths. The application recipes use the public client API.',
     ),
     h('h3', { id: 'first-component' }, 'Mount your first component'),
     h(
       'p',
       null,
-      'Add an element with id="app" to your HTML and load your bundled entry script.',
+      'Add a <div id="app"></div> to your HTML, then mount a component from your browser entry.',
     ),
     code(
       'main.tsx',
@@ -81,7 +96,12 @@ const basicSections = [
     ),
     code(
       'counter.tsx',
-      "import { update } from 'radi';\n\nfunction Counter() {\n  let count = 0;\n  const view = (\n    <button onclick={() => { count++; update(view); }}>\n      Count: {() => count}\n    </button>\n  );\n  return view;\n}",
+      "import { update } from 'radi';\n\nfunction Counter() {\n  let count = 0;\n  const view = (\n    <button onclick={() => { count++; update(view as HTMLElement); }}>\n      Count: {() => count}\n    </button>\n  );\n  return view;\n}",
+    ),
+    h(
+      'p',
+      null,
+      'The HTMLElement assertion narrows Radi’s broad JSX return type for a known HTML element. It does not convert the value. Components run once; destructuring props or returning count without a function captures only the initial value.',
     ),
   ),
   section(
@@ -146,10 +166,39 @@ await router.ready;
       null,
       'Caching is disabled by default. Enable staleTime and a bounded cacheSize to reuse prefetched data. Invalidate on account changes. New navigation aborts obsolete loads, but aborting an action cannot undo a server mutation.',
     ),
+    h('h3', null, 'Save through a route action'),
+    code(
+      'Add to the /pages/:id route',
+      `action: ({ params, formData, method, signal }) => fetchRouteData(
+  '/api/pages/' + encodeURIComponent(params.id),
+  { method, body: formData, signal },
+),`,
+    ),
+    code(
+      'Explicit form submission',
+      `<form onsubmit={(event: SubmitEvent) => {
+  event.preventDefault();
+  const form = event.currentTarget as HTMLFormElement;
+  void router.submit(location.pathname, new FormData(form), 'POST');
+}}>
+  <label>Title <input name="title" required /></label>
+  <button type="submit">Save</button>
+</form>`,
+    ),
     h(
-      'a',
-      { href: '/docs/routing.md' },
-      'Routing guide, action examples, and Go/V8 integration requirements →',
+      'p',
+      null,
+      'submit navigates and reloads the destination loader. Show submitting and error states from router.subscribe. Use a component-owned createFetcher for local changes that must preserve the route and its drafts; it runs only the action, so apply its returned data or explicitly reload. Dispose it on disconnect.',
+    ),
+    h(
+      'p',
+      null,
+      "For code splitting, add lazy: () => import('./settings') to a route. That module exports loader, action and optionally view. Your subscriber calls root.render(state.module.view(state)) when idle; the router never renders it for you. Provide error/retry UI, focus management and any custom scroll restoration.",
+    ),
+    h(
+      'p',
+      null,
+      'For Go integration, serve JSON endpoints beside the HTML handler and share authorized data functions between them. Safely serialize initial data into HTML and pass it as initialData. Authenticate, validate and enforce CSRF protection in the server endpoints; never expose the V8 operation registry as an API.',
     ),
   ),
   section(
@@ -205,11 +254,96 @@ await router.ready;
       null,
       h('a', { href: '#go-api' }, 'radi/go API'),
       ' · ',
-      h(
-        'a',
-        { href: '/docs/go-server.md' },
-        'Complete Go setup, configuration, and deployment guide',
-      ),
+      h('a', { href: '#go-setup' }, 'Go host setup'),
+    ),
+    h('h3', { id: 'go-setup' }, 'Use your own Go host'),
+    h(
+      'p',
+      null,
+      'Use matching Radi release tags for Go and npm, or one source checkout for both. From the Go application module, bundle the app.tsx above with the following command. Replace VERSION with your pinned release tag; use -radi PATH to resolve a source checkout instead of the installed npm package.',
+    ),
+    code(
+      'Bundle',
+      'go run github.com/Marcisbee/radi/cmd/radi-build@VERSION -entry app.tsx -out app.js',
+      'bash',
+    ),
+    h(
+      'p',
+      null,
+      'Place this host beside app.js. The page operation returns public demo data; replace it with an authorized, validated database read. Add the matching github.com/Marcisbee/radi module version to go.mod.',
+    ),
+    code(
+      'main.go',
+      `package main
+
+import (
+  "context"
+  _ "embed"
+  "encoding/json"
+  "log"
+  "net/http"
+  "time"
+
+  radi "github.com/Marcisbee/radi/go"
+)
+
+//go:embed app.js
+var source string
+
+func main() {
+  handler, err := radi.New(radi.Config{
+    Source: source,
+    Operations: map[string]radi.Operation{
+      "page": func(ctx context.Context, input json.RawMessage) (any, error) {
+        return map[string]string{"title": "Hello from Go"}, ctx.Err()
+      },
+    },
+  })
+  if err != nil { log.Print(err); return }
+  defer handler.Close(context.Background())
+  server := &http.Server{
+    Addr: "127.0.0.1:8080", Handler: handler,
+    ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second,
+  }
+  log.Print(server.ListenAndServe())
+}`,
+      'go',
+    ),
+    h(
+      'p',
+      null,
+      'Build with CGO enabled on Linux amd64/glibc using the Clang environment above, then run the binary. V8 has no fetch, timers, Node modules, DOM or Web Streams globals; use data() for I/O. Go operations may run concurrently and must bound their own work and honor context cancellation.',
+    ),
+    h('h3', null, 'Limits and deployment'),
+    code(
+      'Config defaults',
+      `radi.Config{
+  Source: source,                  // required bundled source
+  Workers: 1, Queue: 0,            // excess requests receive 503
+  Timeout: 10 * time.Second,       // includes queue time
+  WriteTimeout: 5 * time.Second,   // per response write
+  MaxHeapBytes: 64 << 20,          // best effort, not an RSS cap
+  MaxResponseBytes: 16 << 20,
+  MaxDataBytes: 1 << 20,           // each input/result and request metadata
+  MaxDataCalls: 32,               // per request
+  OnError: func(r *http.Request, err error) { log.Print(err) },
+}`,
+      'go',
+    ),
+    h(
+      'p',
+      null,
+      'Zero selects defaults except Queue, where it means no waiting capacity. Negative limits are rejected. One worker handles one response at a time, including slow readers; more workers cost memory. Data calls also have a global bound of Workers × MaxDataCalls.',
+    ),
+    h(
+      'p',
+      null,
+      'The handler accepts GET only. Put mutations and authentication in separate HTTP handlers. Before streaming starts, failures return 500 or 504; after it starts, failure truncates the response. Component failures can render ERROR:ComponentName, so handle expected errors in the application. Keep diagnostics private with OnError.',
+    ),
+    h(
+      'p',
+      null,
+      'Serve behind TLS, disable proxy buffering for early chunks, and preserve HTTP flush/write-deadline support in middleware. For shutdown, drain http.Server first, then Close the Radi handler with a deadline and close the database. Monitor errors, latency and process memory. Rebuild the bundle and binary together when upgrading; keep the previous binary for rollback.',
     ),
   ),
   section(
@@ -286,6 +420,11 @@ await router.ready;
       null,
       'This is explicit resumption: arbitrary closures are not serialized. Use native links and forms for navigation. The current island API supports registered clicks.',
     ),
+    h(
+      'p',
+      null,
+      'Keep the initial markup and JSON state consistent. State changes persist in memory, not in the HTML attribute. Preserve the boundary’s final template marker: streamed clicks wait for it. Keep ordinary client roots outside islands, since their first render replaces existing HTML. Configure CSP to allow your bootstrap and any lazy handler modules.',
+    ),
     h('h3', { id: 'automatic-islands' }, 'Why are islands explicit?'),
     h(
       'p',
@@ -345,14 +484,13 @@ export function page() {
         { id: 'content' },
         introduction(),
         ...basicSections,
+        ...recipes,
         ...publishingSections,
         ...references,
         h(
           'footer',
           null,
           h('span', null, 'Radi · MIT licensed'),
-          h('a', { href: '/index.md' }, 'Markdown'),
-          h('a', { href: '/llms.txt' }, 'llms.txt'),
           h('a', { href: '#' }, 'Back to top ↑'),
         ),
       ),
