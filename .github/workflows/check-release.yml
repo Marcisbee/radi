@@ -41,3 +41,5 @@ jobs:
       - run: deno task test:starters
       - run: npm pack --dry-run
         working-directory: npm
+      - run: npm pack --dry-run
+        working-directory: npm-starter

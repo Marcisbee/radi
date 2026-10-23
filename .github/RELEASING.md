@@ -1,14 +1,15 @@
 # npm releases
 
 The same repository tag versions the Go module and `radi/go` npm entry point.
-The npm package also contains the `radi create` executable and all four starter
-templates. Generated projects pin that package's version; the Go starter pins
-the matching repository tag. No separate initializer package or publisher is
-needed. Check release tooling validates generated SPA/SSR/SSG projects from an
-npm tarball; Go embedded server validates the generated Go binary. These checks
-substitute the unreleased local artifacts for dependencies until the release
-tag and npm version exist. Publish the normal draft release to make the new
-generator available through `npx radi@latest`.
+The separate `create-radi` package contains the initializer and all four starter
+templates for `npm create radi@latest -- my-app --template spa`. Both npm packages
+use the release version; generated projects pin that Radi version and matching
+Go tag. The initializer publishes only after the runtime succeeds. If initializer
+publication fails, rerun the failed `publish-starter` job; do not republish the
+already published runtime. The initializer artifact is retained for seven days.
+Check release tooling validates generated SPA/SSR/SSG projects through `npm create`
+using an installed initializer tarball; Go embedded server validates the generated
+Go binary. Checks substitute unreleased artifacts until the version/tag exist.
 The Go embedded server workflow must pass before publishing; it also builds a
 Linux amd64 example artifact. See [Go build and release instructions](../docs/go-server.md).
 
@@ -98,6 +99,14 @@ See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
 No npm token secret is needed. GitHub Actions must be enabled and permitted to
 write repository contents for draft releases. The workflows use GitHub-hosted
 runners and Node 24 with a compatible npm CLI.
+
+Configure the same trusted publisher for `create-radi` before its first automated
+release. This is a separate npm package; Radi's publisher configuration does not
+authorize it. If it does not exist yet, a maintainer must first publish it from
+an authenticated npm account, then configure its package settings. Build with
+`RELEASE_VERSION` set to a compatible, already published Radi version and run
+`npm publish ./npm-starter --access public`. The next release must use a newer
+version. Do not publish an initializer that points to an unavailable Radi version.
 
 ## Recovery
 

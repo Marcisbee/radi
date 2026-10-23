@@ -8,15 +8,15 @@ plain functions with direct DOM manipulation — no virtual DOM required.
 With Node.js 22+ installed, choose a starter:
 
 ```sh
-npx radi@latest create my-app --template spa
-npx radi@latest create my-server --template ssr
-npx radi@latest create my-site --template ssg
-npx radi@latest create my-go-app --template go
+npm create radi@latest -- my-app --template spa
+npm create radi@latest -- my-server --template ssr
+npm create radi@latest -- my-site --template ssg
+npm create radi@latest -- my-go-app --template go
 ```
 
 Then enter the generated directory, run `npm install`, and run `npm run dev`.
 Open `http://127.0.0.1:3000`. The generator refuses nonempty directories and
-never installs dependencies automatically. Use `npx radi@latest --help` for syntax.
+never installs dependencies automatically. Use `npm create radi@latest -- --help` for syntax.
 
 | Template | Result | Production build |
 | --- | --- | --- |
@@ -29,7 +29,7 @@ The Go starter additionally requires Linux amd64 with glibc, Go 1.26.10,
 Clang 21, and CGO. Follow its generated README before building.
 All starters include `npm run build` and `npm start`; their READMEs explain
 editing, previewing, and deployment. The generator and templates ship inside
-the `radi` npm package, so availability follows the normal Radi release.
+the `create-radi` npm package, published alongside the matching Radi release.
 
 Radi also supports synchronous server rendering and ordered async HTML streaming.
 See [server rendering](docs/server-rendering.md) for APIs, runtime examples,

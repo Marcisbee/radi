@@ -61,15 +61,25 @@ Deno.test({
         ),
       );
       const tarball = join(work, packed[0].filename);
+      const initializer = JSON.parse(
+        run(
+          npm,
+          ['pack', '--json', '--pack-destination', work],
+          join(repo, 'npm-starter'),
+        ),
+      );
+      run(npm, [
+        'install',
+        '--no-audit',
+        '--no-fund',
+        join(work, initializer[0].filename),
+      ], work);
       const create = (directory: string, template: string) =>
         run(npm, [
-          'exec',
-          '--yes',
-          '--package',
-          tarball,
-          '--',
-          'radi',
           'create',
+          'radi',
+          '--yes',
+          '--',
           directory,
           '--template',
           template,
@@ -168,13 +178,10 @@ Deno.test({
           ] as const
         ) {
           const result = spawnSync(npm, [
-            'exec',
-            '--yes',
-            '--package',
-            tarball,
-            '--',
-            'radi',
             'create',
+            'radi',
+            '--yes',
+            '--',
             directory,
             '--template',
             template,

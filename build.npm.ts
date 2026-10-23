@@ -62,7 +62,6 @@ async function start() {
     package: {
       name: "radi",
       version: Deno.env.get('RELEASE_VERSION') ?? denojson.version,
-      bin: { radi: './starter/create.mjs' },
       // description: "...",
       // license: "MIT",
       repository: {
@@ -76,12 +75,24 @@ async function start() {
     declaration: "separate",
 
     async postBuild() {
-      await copyStarter('starter', 'npm/starter');
       await Deno.copyFile("src/jsx.d.ts", "npm/jsx.d.ts");
       // await Deno.copyFile("LICENSE", "npm/LICENSE");
       await Deno.copyFile("README.md", "npm/README.md");
     },
   });
+  await dnt.emptyDir('./npm-starter');
+  await copyStarter('starter', 'npm-starter/starter');
+  await Deno.writeTextFile('npm-starter/package.json', JSON.stringify({
+    name: 'create-radi',
+    version: Deno.env.get('RELEASE_VERSION') ?? denojson.version,
+    description: 'Create a Radi SPA, SSR, SSG, or Go application',
+    license: 'MIT',
+    bin: { 'create-radi': './starter/create.mjs' },
+    engines: { node: '>=22' },
+    repository: { type: 'git', url: 'git+https://github.com/Marcisbee/radi.git' },
+  }, null, 2) + '\n');
+  await Deno.copyFile('starter/README.md', 'npm-starter/README.md');
+  await Deno.copyFile('LICENSE', 'npm-starter/LICENSE');
 }
 
 start();

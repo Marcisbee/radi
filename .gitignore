@@ -9,6 +9,7 @@ yarn-error.log
 /dist
 /.playwright-profile
 /npm
+/npm-starter
 /examples/go-server/app.js
 /examples/go-server/data/
 /radi-go-server

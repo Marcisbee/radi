@@ -10,7 +10,7 @@ import {
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const help = `Usage: npx radi create <directory> --template <spa|ssr|ssg|go>
+const help = `Usage: npm create radi@latest -- <directory> --template <spa|ssr|ssg|go>
 
 Creates a starter without installing dependencies or overwriting existing files.
 Requires Node.js 22 or newer. The Go starter also requires Go and Clang; see its README.`;
@@ -21,9 +21,9 @@ async function create() {
     console.log(help);
     return;
   }
-  const [command, directory, flag, template] = args;
+  const [directory, flag, template] = args;
   if (
-    args.length !== 4 || command !== 'create' || flag !== '--template' ||
+    args.length !== 3 || flag !== '--template' ||
     !['spa', 'ssr', 'ssg', 'go'].includes(template) || directory.startsWith('-')
   ) {
     throw new Error(help);
