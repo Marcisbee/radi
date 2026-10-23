@@ -4,7 +4,7 @@ import { codeToTokens } from 'npm:shiki@3.13.0';
 export async function code(
   label: string,
   source: string,
-  lang: 'tsx' | 'json' | 'bash' = 'tsx',
+  lang: 'tsx' | 'json' | 'bash' | 'html' | 'go' = 'tsx',
 ) {
   const { tokens } = await codeToTokens(source, {
     lang,
@@ -78,6 +78,12 @@ const groups = [
     'lifecycle',
     'Lifecycle',
   ]]],
+  ['Building apps', [
+    ['lists', 'Lists and local state'],
+    ['forms', 'Forms and shared state'],
+    ['async', 'Async work and cleanup'],
+    ['performance', 'Keep updates small'],
+  ]],
   ['Rendering', [
     ['server', 'Server rendering'],
     ['go-server', 'Go + embedded V8'],

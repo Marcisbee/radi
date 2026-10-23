@@ -39,6 +39,24 @@ Deno.test('the generated guide supports agent readers, system themes, and first-
     const agent = await browser.newContext({ javaScriptEnabled: false });
     const staticPage = await agent.newPage();
     await staticPage.goto(`http://127.0.0.1:${server.addr.port}`);
+    const links = await staticPage.locator('a').evaluateAll((anchors) =>
+      anchors.map((anchor) => anchor.getAttribute('href') ?? '')
+    );
+    assert.ok(
+      !links.some((href) => /\.md(?:#|$)|llms\.txt/.test(href)),
+      'Readers must not be sent to raw documentation files',
+    );
+    for (
+      const href of links.filter((href) =>
+        href.startsWith('#') && href.length > 1
+      )
+    ) {
+      assert.equal(
+        await staticPage.locator(`[id="${href.slice(1)}"]`).count(),
+        1,
+        `On-page destination ${href} must exist exactly once`,
+      );
+    }
     const markdownPath = await staticPage.locator(
       'link[rel="alternate"][type="text/markdown"]',
     ).getAttribute('href');
