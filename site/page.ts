@@ -33,23 +33,23 @@ const basicSections = [
     h(
       'p',
       null,
-      'Start in an empty folder with Node 20.19+ or 22.12+. This browser starter pins its dependencies; keep package-lock.json and use npm ci on other machines. The reference describes the current repository API: check exports and types against your installed version before using newer features.',
+      'Add Radi to your project. The reference describes the current repository API; check exports and types against your installed version before using newer features.',
     ),
     h('h3', { id: 'install-package' }, 'Add the package'),
     code(
       'Terminal',
-      'npm init -y\nnpm install --save-exact radi@0.6.0\nnpm install --save-dev --save-exact vite@7.1.7 typescript@5.9.3',
+      'npm install radi@0.6.0',
       'bash',
     ),
     h('h3', { id: 'configure-jsx' }, 'Configure JSX'),
     h(
       'p',
       null,
-      'Set the automatic JSX runtime in your TypeScript configuration.',
+      'Use a bundler that supports JSX. Merge these options into your TypeScript configuration.',
     ),
     code(
       'tsconfig.json',
-      '{\n  "compilerOptions": {\n    "target": "ES2022",\n    "module": "ESNext",\n    "moduleResolution": "Bundler",\n    "lib": ["ES2022", "DOM"],\n    "jsx": "react-jsx",\n    "jsxImportSource": "radi",\n    "types": ["./node_modules/radi/jsx.d.ts"],\n    "strict": true,\n    "skipLibCheck": true,\n    "noEmit": true\n  },\n  "include": ["*.tsx"]\n}',
+      '{\n  "compilerOptions": {\n    "jsx": "react-jsx",\n    "jsxImportSource": "radi",\n    "types": ["./node_modules/radi/jsx.d.ts"]\n  }\n}',
       'json',
     ),
     h(
@@ -66,26 +66,11 @@ const basicSections = [
     h(
       'p',
       null,
-      'Create these two files next to tsconfig.json.',
-    ),
-    code(
-      'index.html',
-      '<!doctype html>\n<html lang="en">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <title>Radi app</title>\n</head>\n<body>\n  <div id="app"></div>\n  <script type="module" src="/main.tsx"></script>\n</body>\n</html>',
-      'html',
+      'Add a <div id="app"></div> to your HTML, then mount a component from your browser entry.',
     ),
     code(
       'main.tsx',
       "import { createRoot } from 'radi';\n\nfunction App() {\n  return <h1>Hello, Radi.</h1>;\n}\n\nconst root = createRoot(document.getElementById('app')!);\nroot.render(<App />);",
-    ),
-    code(
-      'Run and build',
-      'npx vite\n# Before deploying:\nnpx tsc\nnpx vite build\nnpx vite preview',
-      'bash',
-    ),
-    h(
-      'p',
-      null,
-      'Open the URL Vite prints. Deploy dist/ to a static host. The remaining browser examples replace App or are imported into it; server examples use separate entries with jsxImportSource set to radi/server.',
     ),
   ),
   section(
