@@ -157,6 +157,16 @@ Deno.test('unpacked Chrome panel inspects and profiles a real Radi app across li
       );
     await until(() => text('status'), (value) => value === 'Connected');
     assert.match(String(await text('tree')), /App.*Counter/s);
+    await click('[aria-label="Collapse App"]');
+    assert.doesNotMatch(String(await text('tree')), /Counter/);
+    await panel.evaluate(
+      `document.getElementById('filter').value = 'Counter'; document.getElementById('filter').dispatchEvent(new Event('input'))`,
+    );
+    assert.match(String(await text('tree')), /Counter/);
+    await panel.evaluate(
+      `document.getElementById('filter').value = ''; document.getElementById('filter').dispatchEvent(new Event('input'))`,
+    );
+    await click('[aria-label="Expand App"]');
     await panel.evaluate(
       `[...document.querySelectorAll('.node')].find(e => e.textContent.startsWith('Counter')).click()`,
     );
@@ -196,7 +206,7 @@ Deno.test('unpacked Chrome panel inspects and profiles a real Radi app across li
     await page.getByRole('button', { name: 'Remount', exact: true }).click();
     await until(
       () => text('tree'),
-      (value) => String(value).includes('Counter · mount'),
+      (value) => /Counter\s*mount/.test(String(value)),
     );
     const screenshot = Deno.env.get('DEVTOOLS_SCREENSHOT');
     if (screenshot) {
@@ -225,6 +235,30 @@ Deno.test('unpacked Chrome panel inspects and profiles a real Radi app across li
         ),
       );
     }
+    await click('[data-view="layers"]');
+    const lightBackground = await panel.evaluate(
+      'getComputedStyle(document.body).backgroundColor',
+    );
+    await frontend.evaluate(
+      `(async () => { const Common = await import('./core/common/common.js'); Common.Settings.Settings.instance().moduleSetting('ui-theme').set('dark'); })()`,
+    );
+    await until(
+      () => panel.evaluate('getComputedStyle(document.body).backgroundColor'),
+      (value) => value !== lightBackground,
+    );
+    if (screenshot) {
+      const layers = await frontend.send('Page.captureScreenshot', {
+        format: 'png',
+      });
+      await Deno.writeFile(
+        `${screenshot}.layers.png`,
+        Uint8Array.from(
+          atob(String(layers.data)),
+          (char) => char.charCodeAt(0),
+        ),
+      );
+    }
+    await click('[data-view="performance"]');
     if (await text('status') !== 'Recording renders') await click('#record');
     await until(() => text('status'), (value) => value === 'Recording renders');
     await page.evaluate(() => {

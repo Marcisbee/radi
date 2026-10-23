@@ -7,12 +7,11 @@
     <link rel="stylesheet" href="panel.css">
   </head>
   <body>
-    <header><strong>Radi <span>DevTools</span></strong><span id="status" role="status">Connecting…</span></header>
-    <nav aria-label="Inspector views">
+    <header><strong>Radi</strong><nav aria-label="Inspector views">
       <button data-view="components" aria-pressed="true">Components</button>
       <button data-view="layers" aria-pressed="false">Layers</button>
       <button data-view="performance" aria-pressed="false">Performance</button>
-    </nav>
+    </nav><span id="status" role="status">Connecting…</span></header>
     <section id="empty" hidden>
       <h1>Connect a Radi app</h1>
       <p>Enable the development bridge in your app, then reload this tab.</p>
@@ -22,16 +21,16 @@ const dispose = enableDevTools();</pre>
     </section>
     <main id="inspector" hidden>
       <section class="toolbar">
-        <input id="filter" type="search" aria-label="Filter nodes"
-          placeholder="Filter by name…">
         <button id="record" aria-pressed="false">Record renders</button>
         <button id="clear">Clear</button>
         <button id="refresh">Refresh</button>
+        <input id="filter" type="search" aria-label="Filter nodes"
+          placeholder="Filter">
       </section>
-      <p id="notice"></p>
       <div class="workspace">
         <section aria-label="Nodes and renders" class="results">
-          <div id="metrics"></div>
+          <div class="columns"
+            aria-hidden="true"><span id="name-column">Component</span><span id="type-column">Type</span><span id="count-column">Calls</span><span id="time-column">Last, ms</span></div>
           <div id="tree"></div>
         </section>
         <aside aria-label="Selection details">
@@ -43,6 +42,8 @@ const dispose = enableDevTools();</pre>
           </div>
         </aside>
       </div>
+      <div
+        class="statusbar"><span id="metrics"></span><span id="notice"></span></div>
     </main>
     <footer>Render durations are inclusive synchronous Radi work, excluding browser layout and paint.</footer>
     <script src="panel.js"></script>

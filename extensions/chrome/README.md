@@ -25,6 +25,12 @@ disable/re-enable the bridge to explore the panel's lifecycle states.
 
 ## Views
 
+The panel follows Chrome DevTools' light or dark theme. Tree disclosure controls
+collapse descendants; filtering still finds nodes inside collapsed branches. The
+inspector uses fixed metric columns and collapsible property groups. In
+Performance, “At, ms” is relative to the earliest call still in the buffer;
+duration bars compare each call with the longest buffered call.
+
 - **Components** shows named component hosts, nesting, props, and recorded call
   counts. Prop previews are shallow and capped; getters and functions are not
   invoked. Minified anonymous functions may have unhelpful names.
