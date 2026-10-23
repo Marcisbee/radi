@@ -7,11 +7,11 @@
     <link rel="stylesheet" href="panel.css">
   </head>
   <body>
-    <header><strong>Radi</strong><nav aria-label="Inspector views">
+    <header><input id="filter" type="search" aria-label="Filter nodes" placeholder="Search components…"><strong>Radi DevTools</strong><nav aria-label="Inspector views">
       <button data-view="components" aria-pressed="true">Components</button>
       <button data-view="layers" aria-pressed="false">Layers</button>
       <button data-view="performance" aria-pressed="false">Performance</button>
-    </nav><span id="status" role="status">Connecting…</span></header>
+    </nav><button id="refresh" title="Refresh inspector">↻</button><span id="status" role="status">Connecting…</span></header>
     <section id="empty" hidden>
       <h1>Connect a Radi app</h1>
       <p>Enable the development bridge in your app, then reload this tab.</p>
@@ -23,9 +23,6 @@ const dispose = enableDevTools();</pre>
       <section class="toolbar">
         <button id="record" aria-pressed="false">Record renders</button>
         <button id="clear">Clear</button>
-        <button id="refresh">Refresh</button>
-        <input id="filter" type="search" aria-label="Filter nodes"
-          placeholder="Filter">
       </section>
       <div class="workspace">
         <section aria-label="Nodes and renders" class="results">
@@ -43,7 +40,7 @@ const dispose = enableDevTools();</pre>
         </aside>
       </div>
       <div
-        class="statusbar"><span id="metrics"></span><span id="notice"></span></div>
+        class="statusbar"><nav id="breadcrumbs" aria-label="Selected node ancestry"></nav><span id="metrics"></span><span id="notice"></span></div>
     </main>
     <footer>Render durations are inclusive synchronous Radi work, excluding browser layout and paint.</footer>
     <script src="panel.js"></script>

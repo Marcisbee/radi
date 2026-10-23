@@ -8,7 +8,7 @@ from this directory; it has no build step or dependencies.
 2. Use a Radi build from this change. In your development entry point:
 
    ```ts
-   import { enableDevTools } from 'radi/devtools';
+   import { enableDevTools } from "radi/devtools";
 
    const dispose = enableDevTools();
    // Call dispose() when the development entry point is unloaded by HMR.
@@ -27,7 +27,9 @@ disable/re-enable the bridge to explore the panel's lifecycle states.
 
 The panel follows Chrome DevTools' light or dark theme. Tree disclosure controls
 collapse descendants; filtering still finds nodes inside collapsed branches. The
-inspector uses fixed metric columns and collapsible property groups. In
+inspector uses a compact hierarchy with guide lines, collapsible property
+groups, and clickable ancestry breadcrumbs. Recorded calls appear in the
+selected node's Renders group; timing columns are reserved for Performance. In
 Performance, “At, ms” is relative to the earliest call still in the buffer;
 duration bars compare each call with the longest buffered call.
 

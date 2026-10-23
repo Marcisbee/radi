@@ -186,6 +186,10 @@ Deno.test('unpacked Chrome panel inspects and profiles a real Radi app across li
     });
     assert.equal(await page.locator('#count').textContent(), 'Count: 1');
     await click('[data-view="layers"]');
+    await panel.evaluate(
+      `[...document.querySelectorAll('.node')].find(e => e.textContent.startsWith('Counter')).click()`,
+    );
+    await until(() => text('selection'), (value) => value === 'Counter');
     assert.match(String(await text('tree')), /Reactive expression/);
     await panel.evaluate(
       `document.getElementById('filter').value = 'section'; document.getElementById('filter').dispatchEvent(new Event('input'))`,
@@ -236,6 +240,14 @@ Deno.test('unpacked Chrome panel inspects and profiles a real Radi app across li
       );
     }
     await click('[data-view="layers"]');
+    await panel.evaluate(
+      `document.querySelector('#breadcrumbs button').click()`,
+    );
+    await until(() => text('selection'), (value) => value === 'App');
+    await panel.evaluate(
+      `[...document.querySelectorAll('.node')].find(e => e.textContent.startsWith('Counter')).click()`,
+    );
+    await until(() => text('selection'), (value) => value === 'Counter');
     const lightBackground = await panel.evaluate(
       'getComputedStyle(document.body).backgroundColor',
     );

@@ -24,6 +24,7 @@ function evaluate(expression) {
 
 function resetSelection() {
   selected = null;
+  $('breadcrumbs').replaceChildren();
   $('selection').textContent = 'Select a component';
   $('details').textContent = 'Select a row to inspect its props and layout.';
   $('highlight').disabled = $('inspect').disabled = true;
@@ -171,6 +172,7 @@ function rowButton(row, performanceView) {
   const wrapper = document.createElement('div');
   wrapper.className = 'tree-row';
   wrapper.style.paddingLeft = `${Math.min(row.depth, 16) * 14}px`;
+  wrapper.style.setProperty('--depth', Math.min(row.depth, 16));
   const branch = document.createElement('button');
   branch.className = 'branch';
   branch.disabled = !row.expandable;
@@ -191,6 +193,9 @@ function rowButton(row, performanceView) {
   button.dataset.id = Number(row.id);
   button.dataset.focus = `node-${row.id}-${row.start ?? ''}`;
   button.dataset.kind = row.kind || 'component';
+  button.title = `${row.name} · ${row.count ?? 0} recorded calls · ${
+    (row.last ?? row.duration).toFixed(2)
+  } ms`;
   button.setAttribute('aria-pressed', String(selected === row.id));
   const duration = cell('duration', '');
   duration.append(
@@ -243,6 +248,23 @@ function section(title, entries) {
   return [group];
 }
 
+function breadcrumbs() {
+  const nodes = new Map(snapshot.tree.map((node) => [node.id, node]));
+  const path = [];
+  let node = nodes.get(selected);
+  while (node) {
+    path.unshift(node);
+    node = nodes.get(node.parent);
+  }
+  $('breadcrumbs').replaceChildren();
+  for (const ancestor of path) {
+    const button = document.createElement('button');
+    button.textContent = ancestor.name;
+    button.addEventListener('click', () => select(ancestor.id));
+    $('breadcrumbs').append(button);
+  }
+}
+
 async function select(id, redraw = true) {
   selected = Number(id);
   const session = snapshot?.session;
@@ -250,11 +272,20 @@ async function select(id, redraw = true) {
   if (selected !== Number(id) || session !== snapshot?.session) return;
   $('highlight').disabled = $('inspect').disabled = !details;
   $('selection').textContent = details?.name || 'Node unmounted';
+  $('selection').dataset.kind = details?.kind || 'component';
+  breadcrumbs();
   $('details').replaceChildren();
   if (details) {
     $('details').append(
       ...section('Props', details.props.map(({ key, value }) => [key, value])),
     );
+    const node = snapshot.tree.find((node) => node.id === selected);
+    if (node) {
+      $('details').append(...section('Renders', [
+        ['calls', node.count],
+        ['last', `${node.last.toFixed(2)} ms`],
+      ]));
+    }
     $('details').append(
       ...section(
         'Bounds (CSS pixels)',
