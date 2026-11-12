@@ -161,11 +161,9 @@ test('bridges callback payloads to host events while preserving JS callbacks and
   const payloads: unknown[] = [];
   let clicks = 0;
   let callbacks = 0;
-  element.props = {
-    onChange: (value) => {
-      callbacks += value;
-      return 'returned';
-    },
+  element.onChange = (value) => {
+    callbacks += value;
+    return 'returned';
   };
   for (const name of ['value-change', 'pair', 'ready']) {
     container.addEventListener(name, (event) => {
@@ -192,6 +190,64 @@ test('bridges callback payloads to host events while preserving JS callbacks and
     assert.equal(result, undefined);
   } finally {
     container.remove();
+  }
+});
+
+test('individual properties survive upgrade and update typed props without attribute serialization', () => {
+  type Props = { initialCount?: number; configuration?: { title: string } };
+  const element = Object.assign(
+    document.createElement('radi-test-properties'),
+    {
+      initialCount: 4,
+      configuration: { title: 'Before definition' },
+    },
+  );
+  const detached = Object.assign(
+    document.createElement('radi-test-properties'),
+    {
+      initialCount: 6,
+      configuration: { title: 'Detached' },
+    },
+  );
+  element.setAttribute('initial-count', '2');
+  document.body.append(element);
+  const Element = webcomponent(
+    (props: () => Props) => () =>
+      `${props().initialCount}:${props().configuration?.title}`,
+    {
+      attributes: { initialCount: Number, configuration: JSON.parse },
+    },
+  );
+  customElements.define('radi-test-properties', Element);
+  customElements.upgrade(detached);
+  detached.initialCount = 7;
+  document.body.append(detached);
+  try {
+    assert.equal(detached.textContent, '7:Detached');
+    assert.equal(element.textContent, '4:Before definition');
+    element.initialCount = 8;
+    element.configuration = { title: 'Updated' };
+    assert.equal(element.textContent, '8:Updated');
+    assert.equal(element.getAttribute('initial-count'), '2');
+    assert.equal(element.hasAttribute('configuration'), false);
+    (element as InstanceType<typeof Element>).props = {};
+    assert.equal(element.initialCount, 2);
+    assert.equal(element.textContent, '2:undefined');
+  } finally {
+    element.remove();
+    detached.remove();
+  }
+});
+
+test('rejects property declarations that would overwrite element APIs', () => {
+  for (const prop of ['props', 'remove', 'connectedCallback', 'constructor']) {
+    let rejected = false;
+    try {
+      webcomponent(() => '', { attributes: { [prop]: String } });
+    } catch (error) {
+      rejected = error instanceof TypeError;
+    }
+    assert.equal(rejected, true);
   }
 });
 

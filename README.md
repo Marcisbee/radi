@@ -111,6 +111,28 @@ Use `element.props = {}` to return to attribute values. Props assigned before
 registration are preserved when the browser upgrades the element. Supply
 required props before connecting the element, or provide component defaults.
 
+Every name declared in `attributes` or `events` also gets a typed DOM property:
+
+```ts
+const element = new RadiCounter();
+element.initialCount = 5;
+element.label = 'Total';
+element.onChange = (count) => console.log(count);
+document.body.append(element);
+```
+
+Property assignments preserve JavaScript values and update the shared `props`
+object. Getters return a JavaScript override when present, otherwise the converted
+attribute value. Replacing `element.props` also replaces overrides made through
+individual properties. Assigning `undefined` is an explicit override; omit that
+key from a new `props` object to restore the attribute fallback. Neither property
+assignments nor `props` assignments reflect into HTML attributes. Properties set
+before registration survive upgrade, including explicit `customElements.upgrade()`
+on detached elements. If both an individual property and `props` were assigned
+before upgrade, the individual property wins. Names that conflict with native
+element APIs or adapter lifecycle methods are rejected; pass such component props
+through the `props` object instead of declaring them as attributes or events.
+
 Map component callback props to DOM event names with `events`. For example,
 calling `props().onChange?.(count)` above emits `count-change` on the custom element:
 
@@ -138,6 +160,34 @@ styles apply normally; this adapter does not create a shadow root or slots.
 The component's `this` remains its ordinary Radi host. Native bubbling events
 reach the custom element. Register each name once, in a browser; importing the
 module itself does not require a DOM and does not register any elements.
+
+### Framework interoperability
+
+Register the element before the framework renders it so property detection can
+preserve objects and other non-string values. Use an empty custom-element host;
+do not give it children owned by the surrounding framework.
+
+| Framework | Property and event binding |
+| --- | --- |
+| React 19 | `<radi-counter initialCount={5} oncount-change={e => console.log(e.detail)} />` |
+| Vue 3 | `<radi-counter :initial-count="5" @count-change="handleChange" />` |
+| Angular | `<radi-counter [initialCount]="5" (count-change)="handleChange($event)" />` |
+
+Vue requires the tag to match `compilerOptions.isCustomElement`. Angular requires
+`CUSTOM_ELEMENTS_SCHEMA` on the consuming component or module. TypeScript JSX or
+template checking may additionally require application-side element/event types.
+Event handlers receive a `CustomEvent`; read its `detail` for the callback payload.
+
+`deno task test:webcomponent` exercises real React 19.2.0, Vue 3.5.45, and Angular
+22.2.5 in Chromium: number, boolean, and object bindings; custom events; reactive
+updates preserving component state; and unmount cleanup. The tests also cover
+direct browser usage and pre-registration property upgrades.
+
+This is client-rendered integration, not a general standards certification.
+Framework list moves that disconnect/reconnect the element reset local state.
+SSR/hydration, cross-document adoption, Firefox, and WebKit are not verified.
+There is no shadow-root/slot or form-association API. The underlying Radi renderer
+still uses its existing `<host>` wrapper; this adapter does not change that markup.
 
 ## What Makes Radi Different
 
