@@ -56,24 +56,53 @@ a native custom-element class:
 import { update } from 'radi';
 import { webcomponent } from 'radi/webcomponent';
 
-function Counter(this: HTMLElement, props: () => { label?: string | null }) {
-  let count = 0;
+function Counter(this: HTMLElement, props: () => {
+  label?: string;
+  initialCount?: number;
+  onChange?: (value: number) => void;
+}) {
+  let count = props().initialCount ?? 0;
   return (
-    <button onclick={() => { count++; update(this); }}>
+    <button onclick={() => { count++; props().onChange?.(count); update(this); }}>
       {() => `${props().label ?? 'Count'}: ${count}`}
     </button>
   );
 }
 
-const RadiCounter = webcomponent(Counter, { attributes: ['label'] });
+const RadiCounter = webcomponent(Counter, {
+  attributes: { label: String, initialCount: Number },
+  events: { onChange: 'count-change' },
+});
 customElements.define('radi-counter', RadiCounter);
 ```
 
-Use `<radi-counter label="Clicks"></radi-counter>` in HTML, or create an
+Use `<radi-counter label="Clicks" initial-count="5"></radi-counter>` in HTML, or create an
 instance with `new RadiCounter()` and append it to the document. Listed
-attributes are reactive string props; removing an attribute supplies `null`.
-Use lowercase attribute names and convert numbers or booleans in your component.
-Omitted `attributes` means no attribute props are observed.
+prop names map to kebab-case HTML attributes (`initialCount` → `initial-count`).
+The adapter converts strings before passing them to the component. Converters
+run once per attribute change, preserving object identity between changes.
+The map accepts `String`, `Number`, `Boolean`, `JSON.parse`, or custom functions:
+
+```ts
+attributes: {
+  label: String,
+  initialCount: Number,
+  disabled: Boolean,
+  someConfiguration: JSON.parse,
+  someStructure: (value: string) => value.split('.'),
+}
+```
+
+Missing or removed attributes yield `undefined` without invoking the converter,
+so component defaults still work. `Boolean` is special: presence means `true`
+(even `disabled="false"`), absence means `false`. `Number` uses JavaScript's
+conversion rules, including empty string → `0` and invalid text → `NaN`.
+Use a custom converter for validation or different semantics. If a converter
+throws, the browser reports the callback error and the last successfully
+converted prop is retained (or `undefined` before any success). The DOM attribute
+still contains the invalid text; a subsequent valid change recovers normally.
+Omitted `attributes` means no attribute props are observed. Conversion is one-way;
+JavaScript props are not serialized back to attributes.
 
 Assign `element.props = { label: 'Total' }` for JavaScript values, including
 objects and callbacks. These props override attributes. Assign a new object
@@ -81,6 +110,23 @@ to update them; mutating the existing object does not trigger an update.
 Use `element.props = {}` to return to attribute values. Props assigned before
 registration are preserved when the browser upgrades the element. Supply
 required props before connecting the element, or provide component defaults.
+
+Map component callback props to DOM event names with `events`. For example,
+calling `props().onChange?.(count)` above emits `count-change` on the custom element:
+
+```js
+element.addEventListener('count-change', (event) => console.log(event.detail));
+```
+
+These are bubbling, composed, non-cancelable `CustomEvent`s. One callback argument
+becomes `detail`; multiple arguments become an array; no arguments produce `null`
+(the platform default). Event names are used exactly as supplied. A JavaScript
+callback supplied through `element.props` is also called with the original
+arguments, after event dispatch, and its return value is returned to the component.
+Without a JavaScript callback, the bridge returns `undefined`. No callback names
+are guessed, and native DOM events continue bubbling normally. To cancel an
+operation, use the component's existing callback contract through JavaScript props;
+`preventDefault()` on a bridged event does not cancel the callback.
 
 The component runs once per connection. Read props inside reactive functions,
 as with ordinary Radi components. Attribute and prop updates preserve local

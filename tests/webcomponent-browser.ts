@@ -12,7 +12,7 @@ test('custom elements render HTML attributes and reactive JavaScript props witho
       },
     }, () => `${props().label ?? 'Count'}: ${count}`);
   }
-  const Element = webcomponent(Counter, { attributes: ['label'] });
+  const Element = webcomponent(Counter, { attributes: { label: String } });
   customElements.define('radi-test-counter', Element);
   const container = document.createElement('div');
   container.innerHTML =
@@ -66,6 +66,133 @@ test('upgrades pre-definition props, cleans up on removal and mounts fresh on re
     element.remove();
   }
   assert.equal(signals[1].aborted, true);
+});
+
+test('converts attributes once per change and preserves valid props after parser errors', () => {
+  type Props = {
+    initialCount?: number;
+    enabled?: boolean;
+    config?: { title: string };
+    path?: string[];
+  };
+  let reads = 0;
+  let current: Props = {};
+  const Element = webcomponent(function (props: () => Props) {
+    return () => {
+      current = props();
+      return `${
+        current.initialCount ?? 'default'
+      }:${current.enabled}:${current.config?.title}:${current.path?.join('/')}`;
+    };
+  }, {
+    attributes: {
+      initialCount: Number,
+      enabled: Boolean,
+      config: JSON.parse,
+      path: (value) => {
+        reads++;
+        return value.split('.');
+      },
+    },
+  });
+  customElements.define('radi-test-converters', Element);
+  const element = new Element();
+  element.setAttribute('initial-count', '4');
+  element.setAttribute('enabled', 'false');
+  element.setAttribute('config', '{"title":"Hello"}');
+  element.setAttribute('path', 'a.b');
+  document.body.append(element);
+  try {
+    assert.equal(element.textContent, '4:true:Hello:a/b');
+    const path = current.path;
+    element.setAttribute('initial-count', '5');
+    assert.equal(current.path, path);
+    assert.equal(reads, 1);
+    let errors = 0;
+    const onError = (event: ErrorEvent) => {
+      errors++;
+      event.preventDefault();
+    };
+    window.addEventListener('error', onError);
+    try {
+      element.setAttribute('config', '{broken');
+    } finally {
+      window.removeEventListener('error', onError);
+    }
+    assert.equal(errors, 1);
+    assert.equal(current.config?.title, 'Hello');
+    element.setAttribute('config', '{"title":"Recovered"}');
+    element.removeAttribute('initial-count');
+    element.removeAttribute('enabled');
+    element.removeAttribute('path');
+    assert.equal(element.textContent, 'default:false:Recovered:undefined');
+    assert.equal(reads, 1);
+    element.props = { initialCount: 9, config: { title: 'JS' } };
+    assert.equal(element.textContent, '9:false:JS:undefined');
+    element.remove();
+    document.body.append(element);
+    assert.equal(element.textContent, '9:false:JS:undefined');
+  } finally {
+    element.remove();
+  }
+});
+
+test('bridges callback payloads to host events while preserving JS callbacks and native bubbling', () => {
+  type Props = {
+    onChange?: (value: number) => string | undefined;
+    onPair?: (a: string, b: number) => void;
+    onReady?: () => void;
+  };
+  let result: string | undefined;
+  const Element = webcomponent(function (props: () => Props) {
+    return createElement('button', {
+      onclick: () => {
+        result = props().onChange?.(7);
+        props().onPair?.('value', 8);
+        props().onReady?.();
+      },
+    }, 'Emit');
+  }, {
+    events: { onChange: 'value-change', onPair: 'pair', onReady: 'ready' },
+  });
+  customElements.define('radi-test-events', Element);
+  const container = document.createElement('div');
+  const element = new Element();
+  const payloads: unknown[] = [];
+  let clicks = 0;
+  let callbacks = 0;
+  element.props = {
+    onChange: (value) => {
+      callbacks += value;
+      return 'returned';
+    },
+  };
+  for (const name of ['value-change', 'pair', 'ready']) {
+    container.addEventListener(name, (event) => {
+      assert.equal(event.target, element);
+      assert.equal(event.composed, true);
+      payloads.push((event as CustomEvent).detail);
+    });
+  }
+  container.addEventListener('click', () => clicks++);
+  container.append(element);
+  document.body.append(container);
+  try {
+    element.querySelector('button')!.click();
+    assert.equal(JSON.stringify(payloads), '[7,["value",8],null]');
+    assert.equal(result, 'returned');
+    assert.equal(callbacks, 7);
+    assert.equal(clicks, 1);
+    element.remove();
+    element.props = {};
+    container.append(element);
+    element.querySelector('button')!.click();
+    assert.equal(payloads.length, 6);
+    assert.equal(callbacks, 7);
+    assert.equal(result, undefined);
+  } finally {
+    container.remove();
+  }
 });
 
 Object.assign(globalThis, { webcomponentTestResult: await test.run() });

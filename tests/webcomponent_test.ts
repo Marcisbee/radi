@@ -31,7 +31,7 @@ Deno.test('web component browser contracts', async () => {
     const result = await page.evaluate<{ failed: number; total: number }>(
       'globalThis.webcomponentTestResult',
     );
-    if (result.failed || result.total !== 2 || errors.length) {
+    if (result.failed || !result.total || errors.length) {
       throw new Error(JSON.stringify({ result, errors }));
     }
   } finally {

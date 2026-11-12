@@ -1,8 +1,18 @@
 import { createElement, createRoot, update } from './client.ts';
 
-export interface WebComponentOptions {
-  /** Attribute names passed to the component as strings (null when removed). */
-  attributes?: readonly string[];
+export interface WebComponentOptions<
+  P extends object = Record<string, unknown>,
+> {
+  /** Prop names map to kebab-case attributes. Converters run only for present values. */
+  attributes?: { [K in keyof P]?: (value: string) => P[K] };
+  /** Component callback props exposed as bubbling, composed CustomEvents. */
+  events?: {
+    [
+      K in keyof P as NonNullable<P[K]> extends (...args: never[]) => unknown
+        ? K
+        : never
+    ]?: string;
+  };
 }
 
 export interface RadiElement<P extends object> extends HTMLElement {
@@ -13,12 +23,40 @@ export interface RadiElement<P extends object> extends HTMLElement {
 /** Convert a Radi component into a class for customElements.define(). */
 export function webcomponent<P extends object = Record<string, unknown>>(
   component: (this: HTMLElement, props: () => P) => unknown,
-  options: WebComponentOptions = {},
+  options: WebComponentOptions<P> = {},
 ): { new (): RadiElement<P> } {
-  const attributes = [...(options.attributes ?? [])];
+  const attributes = new Map(
+    Object.entries(
+      options.attributes ?? {},
+    ).map(([prop, convert]) => [
+      prop.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`),
+      { prop, convert: convert as (value: string) => unknown },
+    ]),
+  );
+  const events = Object.entries(options.events ?? {}) as [string, string][];
   return class extends HTMLElement implements RadiElement<P> {
-    static observedAttributes = attributes;
+    static observedAttributes = [...attributes.keys()];
     #props: Partial<P> = {};
+    #values: Record<string, unknown> = Object.fromEntries(
+      [...attributes.values()].map(({ prop, convert }) => [
+        prop,
+        convert === Boolean ? false : undefined,
+      ]),
+    );
+    #events = Object.fromEntries(events.map(([prop, name]) => [
+      prop,
+      (...args: unknown[]) => {
+        this.dispatchEvent(
+          new CustomEvent(name, {
+            detail: args.length > 1 ? args : args[0],
+            bubbles: true,
+            composed: true,
+          }),
+        );
+        const callback = (this.#props as Record<string, unknown>)[prop];
+        if (typeof callback === 'function') return callback(...args);
+      },
+    ]));
     #root: ReturnType<typeof createRoot> | undefined;
 
     get props(): Partial<P> {
@@ -43,10 +81,9 @@ export function webcomponent<P extends object = Record<string, unknown>>(
       this.#root.render(createElement(function (this: HTMLElement) {
         return component.call(this, () =>
           ({
-            ...Object.fromEntries(
-              attributes.map((name) => [name, element.getAttribute(name)]),
-            ),
+            ...element.#values,
             ...element.#props,
+            ...element.#events,
           }) as P);
       }, null));
     }
@@ -57,7 +94,18 @@ export function webcomponent<P extends object = Record<string, unknown>>(
       this.replaceChildren();
     }
 
-    attributeChangedCallback() {
+    attributeChangedCallback(
+      name: string,
+      oldValue: string | null,
+      value: string | null,
+    ) {
+      if (value === oldValue) return;
+      const { prop, convert } = attributes.get(name)!;
+      this.#values[prop] = convert === Boolean
+        ? value !== null
+        : value === null
+        ? undefined
+        : convert(value);
       this.#update();
     }
 
