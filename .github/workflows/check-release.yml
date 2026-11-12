@@ -33,6 +33,7 @@ jobs:
       - run: deno task test
       - run: deno task test:static
       - run: deno task test:router
+      - run: deno task test:webcomponent
       - run: deno run -A build.npm.ts
         env:
           RELEASE_VERSION: 0.0.0-release-check

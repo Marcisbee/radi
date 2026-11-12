@@ -2,6 +2,7 @@
   "name": "radi",
   "version": "0.5.0",
   "tasks": {
+    "test:webcomponent": "deno test -A --unstable-bundle --config deno.server.json tests/webcomponent_test.ts",
     "test:starters": "deno test -A --config deno.server.json tests/starters_test.ts",
     "docs:build": "deno run -A site/build.ts",
     "docs:preview": "deno run -A site/build.ts --serve",
@@ -19,6 +20,7 @@
   "exports": {
     ".": "./src/client.ts",
     "./client": "./src/client.ts",
+    "./webcomponent": "./src/webcomponent.ts",
     "./resume": "./src/resume.ts",
     "./router": "./src/router.ts",
     "./server": "./src/server.ts",

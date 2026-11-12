@@ -1,5 +1,6 @@
 import { references } from './reference.ts';
 import { recipes } from './recipes.ts';
+import { webcomponents } from './webcomponents.ts';
 import { createElement as h, resumable, resumeClick } from '../src/server.ts';
 import { code, githubLink, navigation, section, sidebarBrand } from './ui.ts';
 
@@ -553,6 +554,7 @@ export function page() {
         introduction(),
         ...basicSections,
         ...recipes,
+        webcomponents,
         ...publishingSections,
         ...references,
         h(

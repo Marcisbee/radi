@@ -83,6 +83,7 @@ const groups = [
     ['forms', 'Forms and shared state'],
     ['async', 'Async work and cleanup'],
     ['performance', 'Keep updates small'],
+    ['web-components', 'Web Components'],
   ]],
   ['Rendering', [
     ['routing', 'Client routing'],
@@ -95,6 +96,7 @@ const groups = [
     ],
   ]],
   ['Reference', [
+    ['webcomponent-api', 'radi/webcomponent'],
     ['router-api', 'radi/router'],
     ['go-api', 'radi/go'],
     ['reference', 'radi / radi/client'],
