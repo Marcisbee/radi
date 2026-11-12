@@ -47,6 +47,52 @@ For documentation and other static sites with interactive islands, see
 For SPA navigation, lazy route modules, loaders, and actions, see
 [client routing and route data](docs/routing.md).
 
+## Web Components
+
+Import `webcomponent` from `radi/webcomponent` to turn a Radi component into
+a native custom-element class:
+
+```tsx
+import { update } from 'radi';
+import { webcomponent } from 'radi/webcomponent';
+
+function Counter(this: HTMLElement, props: () => { label?: string | null }) {
+  let count = 0;
+  return (
+    <button onclick={() => { count++; update(this); }}>
+      {() => `${props().label ?? 'Count'}: ${count}`}
+    </button>
+  );
+}
+
+const RadiCounter = webcomponent(Counter, { attributes: ['label'] });
+customElements.define('radi-counter', RadiCounter);
+```
+
+Use `<radi-counter label="Clicks"></radi-counter>` in HTML, or create an
+instance with `new RadiCounter()` and append it to the document. Listed
+attributes are reactive string props; removing an attribute supplies `null`.
+Use lowercase attribute names and convert numbers or booleans in your component.
+Omitted `attributes` means no attribute props are observed.
+
+Assign `element.props = { label: 'Total' }` for JavaScript values, including
+objects and callbacks. These props override attributes. Assign a new object
+to update them; mutating the existing object does not trigger an update.
+Use `element.props = {}` to return to attribute values. Props assigned before
+registration are preserved when the browser upgrades the element. Supply
+required props before connecting the element, or provide component defaults.
+
+The component runs once per connection. Read props inside reactive functions,
+as with ordinary Radi components. Attribute and prop updates preserve local
+component state. Removal runs Radi disconnect cleanup; reconnection creates a
+fresh component instance while retaining the element's props and attributes.
+
+Rendering uses light DOM and replaces the element's existing children. Page
+styles apply normally; this adapter does not create a shadow root or slots.
+The component's `this` remains its ordinary Radi host. Native bubbling events
+reach the custom element. Register each name once, in a browser; importing the
+module itself does not require a DOM and does not register any elements.
+
 ## What Makes Radi Different
 
 Radi takes a unique approach compared to React, Preact, or even Solid:

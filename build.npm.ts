@@ -9,6 +9,10 @@ async function start() {
     entryPoints: [
       "./src/client.ts",
       {
+        name: "./webcomponent",
+        path: "./src/webcomponent.ts",
+      },
+      {
         name: "./router",
         path: "./src/router.ts",
       },
