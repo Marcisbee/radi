@@ -24,6 +24,14 @@ function reference(id: string, title: string, entry: string, entries: Entry[]) {
 }
 
 export const references = [
+  reference('webcomponent-api', 'Web Component API', 'radi/webcomponent', [
+    [
+      'webcomponent',
+      "const Element = webcomponent(Component, {\n  attributes: { label: String, initialCount: Number },\n  events: { onChange: 'count-change' },\n});\ncustomElements.define('radi-counter', Element);",
+      'Returns an autonomous custom-element class. Attribute converters map kebab-case HTML names to typed component props. Declared inputs and callbacks also expose DOM properties; element.props replaces JavaScript overrides. The events map dispatches bubbling, composed, non-cancelable CustomEvents with callback arguments in detail. Register once before consumers render the element. See Web Components for complete usage, conversion semantics, framework setup, lifecycle and limits.',
+      'Registration',
+    ],
+  ]),
   reference('router-api', 'Router API', 'radi/router', [
     [
       'createRouter',
